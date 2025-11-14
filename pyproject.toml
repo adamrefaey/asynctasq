@@ -1,0 +1,109 @@
+[project]
+name = "async-task"
+version = "0.1.0"
+description = "Laravel-inspired task queue system for Python with async-first design and multi-backend support (Redis/AWS SQS)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Adam Refaey" }]
+keywords = [
+    "queue",
+    "task",
+    "async",
+    "laravel",
+    "redis",
+    "sqs",
+    "background-tasks",
+    "worker",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Framework :: AsyncIO",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = ["pydantic>=2.0.0", "typing-extensions>=4.0.0", "msgpack>=1.0.0"]
+
+[project.optional-dependencies]
+redis = ["redis[hiredis]>=5.0.0"]
+sqs = ["aioboto3>=11.0.0"]
+all = ["async-task[redis,sqs]"]
+
+[project.urls]
+Homepage = "https://github.com/adamrefaey/async-task"
+Repository = "https://github.com/adamrefaey/async-task"
+Issues = "https://github.com/adamrefaey/async-task/issues"
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "boto3-stubs[essential]>=1.35.92",
+    "pyright>=1.1.407",
+    "pytest>=9.0.1",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.14.4",
+    "pre-commit>=3.0.0",
+]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.24.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = ["E501"] # line too long (handled by formatter)
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--cov=async_task",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*", "examples/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
