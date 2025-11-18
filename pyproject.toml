@@ -33,7 +33,7 @@ dependencies = ["pydantic>=2.0.0", "typing-extensions>=4.0.0", "msgpack>=1.0.0"]
 
 [project.optional-dependencies]
 redis = ["redis[hiredis]>=5.0.0"]
-sqs = ["aioboto3>=11.0.0"]
+sqs = ["aioboto3>=11.0.0", "types-aioboto3[sqs]>=2.25.0"]
 all = ["async-task[redis,sqs]"]
 
 [project.urls]
