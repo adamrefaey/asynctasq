@@ -8,9 +8,9 @@ class BaseSerializer(Protocol):
     @abstractmethod
     def serialize(self, obj: dict[str, Any]) -> bytes:
         """Serialize task data dictionary to bytes"""
-        pass
+        ...
 
     @abstractmethod
     def deserialize(self, data: bytes) -> dict[str, Any]:
         """Deserialize bytes to task data dictionary"""
-        pass
+        ...
