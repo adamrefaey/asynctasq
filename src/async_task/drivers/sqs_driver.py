@@ -45,6 +45,7 @@ class SQSDriver(BaseDriver):
     region_name: str = "us-east-1"
     aws_access_key_id: str | None = None
     aws_secret_access_key: str | None = None
+    endpoint_url: str | None = None  # For LocalStack or custom endpoints
     queue_url_prefix: str | None = None
     visibility_timeout: int = 300
     session: Session | None = field(default=None, init=False, repr=False)
@@ -75,7 +76,14 @@ class SQSDriver(BaseDriver):
         # Use AsyncExitStack to properly manage client context manager lifecycle
         # This is the recommended pattern per aioboto3 docs for long-lived clients
         self._exit_stack = AsyncExitStack()
-        self.client = await self._exit_stack.enter_async_context(self.session.client("sqs"))
+
+        client_kwargs = {}
+        if self.endpoint_url:
+            client_kwargs["endpoint_url"] = self.endpoint_url
+
+        self.client = await self._exit_stack.enter_async_context(
+            self.session.client("sqs", **client_kwargs)
+        )
 
     async def disconnect(self) -> None:
         """Close connection and cleanup resources.
