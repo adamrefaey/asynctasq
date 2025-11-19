@@ -1,0 +1,17 @@
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack-sqs
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs
+      - DEBUG=${DEBUG:-0}
+    volumes:
+      - "./localstack-init:/etc/localstack/init"
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs list-queues || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
