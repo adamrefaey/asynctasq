@@ -86,11 +86,12 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
-    "-s",                        # Don't capture output (show print statements)
-    "--cov=async_task",
-    "--cov-branch",
-    "--cov-report=term-missing",
-    "--cov-report=html",
+    "-s",
+    "-v",
+    # "--cov=async_task",
+    # "--cov-branch",
+    # "--cov-report=term-missing",
+    # "--cov-report=html",
 ]
 markers = [
     "unit: marks tests as unit tests (deselect with '-m \"not unit\"')",
