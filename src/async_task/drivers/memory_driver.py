@@ -166,12 +166,14 @@ class MemoryDriver(BaseDriver):
         if not self._connected:
             await self.connect()
 
-        self._processing.pop(receipt_handle, None)
+        # Only requeue if the receipt was actually in processing
+        was_in_processing = self._processing.pop(receipt_handle, None) is not None
 
-        if queue_name not in self._queues:
-            self._queues[queue_name] = deque()
+        if was_in_processing:
+            if queue_name not in self._queues:
+                self._queues[queue_name] = deque()
 
-        self._queues[queue_name].appendleft(receipt_handle)
+            self._queues[queue_name].appendleft(receipt_handle)
 
     async def get_queue_size(
         self,
