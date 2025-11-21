@@ -173,20 +173,43 @@ class MemoryDriver(BaseDriver):
 
         self._queues[queue_name].appendleft(receipt_handle)
 
-    async def get_queue_size(self, queue_name: str) -> int:
-        """Get exact count of tasks in queue (excludes in-flight and delayed)."""
+    async def get_queue_size(
+        self,
+        queue_name: str,
+        include_delayed: bool,
+        include_in_flight: bool,
+    ) -> int:
+        """Get exact count of tasks in queue.
+
+        Args:
+            queue_name: Queue name
+            include_delayed: Include delayed tasks in count
+            include_in_flight: Include in-flight/processing tasks in count
+
+        Returns:
+            Exact count of tasks based on parameters
+        """
 
         if not self._connected:
             await self.connect()
 
-        return len(self._queues.get(queue_name, deque()))
+        count = len(self._queues.get(queue_name, deque()))
+
+        if include_delayed:
+            count += len(self._delayed_tasks.get(queue_name, []))
+
+        if include_in_flight:
+            # Count tasks in _processing that belong to this queue
+            count += sum(1 for q in self._processing.values() if q == queue_name)
+
+        return count
 
     async def _process_delayed_tasks_loop(self) -> None:
         """Background task: move ready delayed tasks to main queue every 100ms."""
 
         try:
             while True:
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(self.POLL_INTERVAL_SECONDS)
                 await self._process_delayed_tasks()
         except asyncio.CancelledError:
             pass

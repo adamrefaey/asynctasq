@@ -141,17 +141,33 @@ class BaseDriver(Protocol):
         ...
 
     @abstractmethod
-    async def get_queue_size(self, queue_name: str) -> int:
+    async def get_queue_size(
+        self,
+        queue_name: str,
+        include_delayed: bool,
+        include_in_flight: bool,
+    ) -> int:
         """Get approximate number of tasks in queue.
 
         Args:
             queue_name: Name of the queue
+            include_delayed: Include delayed tasks in count
+            include_in_flight: Include in-flight/processing tasks in count
 
         Returns:
-            Approximate count of visible tasks (excludes delayed/in-flight)
+            Approximate count of tasks based on parameters:
+            - Both False: Only visible/ready tasks
+            - include_delayed=True: Ready + delayed tasks
+            - include_in_flight=True: Ready + in-flight tasks
+            - Both True: Ready + delayed + in-flight tasks
 
         Note:
             Result may be approximate for distributed systems (e.g., SQS).
             Should not be used for strict guarantees.
+
+            Driver limitations:
+            - Memory: Exact counts for all categories
+            - Redis: Exact counts for ready/delayed, in-flight not tracked (always 0)
+            - SQS: Approximate counts for all categories
         """
         ...

@@ -254,34 +254,59 @@ class SQSDriver(BaseDriver):
         # Clean up receipt handle from cache (it will get new handle on next receive)
         self._receipt_handles.pop(receipt_handle, None)
 
-    async def get_queue_size(self, queue_name: str) -> int:
+    async def get_queue_size(
+        self,
+        queue_name: str,
+        include_delayed: bool,
+        include_in_flight: bool,
+    ) -> int:
         """Get approximate number of visible messages in queue.
 
         Args:
             queue_name: Queue name
+            include_delayed: Include delayed messages (default: False)
+            include_in_flight: Include in-flight messages (default: False)
 
         Returns:
-            Approximate count (excludes in-flight and delayed messages)
+            Approximate count based on parameters
 
         Note:
             APPROXIMATE only - may lag by a few seconds due to distributed nature.
             Good for monitoring, not for strict guarantees.
+            
+            SQS provides separate attributes for each category:
+            - ApproximateNumberOfMessages: Visible/ready messages
+            - ApproximateNumberOfMessagesDelayed: Delayed messages
+            - ApproximateNumberOfMessagesNotVisible: In-flight messages
         """
         if self.client is None:
             await self.connect()
             assert self.client is not None
 
         queue_url = await self._get_queue_url(queue_name)
+        
+        # Build attribute list based on parameters
+        attributes = ["ApproximateNumberOfMessages"]
+        if include_delayed:
+            attributes.append("ApproximateNumberOfMessagesDelayed")
+        if include_in_flight:
+            attributes.append("ApproximateNumberOfMessagesNotVisible")
+        
         response = await self.client.get_queue_attributes(
-            QueueUrl=queue_url, AttributeNames=["ApproximateNumberOfMessages"]
+            QueueUrl=queue_url, AttributeNames=attributes
         )
 
-        attributes = response.get("Attributes")
-        if not attributes:
-            return 0
+        attrs = response.get("Attributes", {})
+        
+        count = int(attrs.get("ApproximateNumberOfMessages", 0))
+        
+        if include_delayed:
+            count += int(attrs.get("ApproximateNumberOfMessagesDelayed", 0))
+        
+        if include_in_flight:
+            count += int(attrs.get("ApproximateNumberOfMessagesNotVisible", 0))
 
-        count = attributes.get("ApproximateNumberOfMessages")
-        return int(count) if count is not None else 0
+        return count
 
     async def _get_queue_url(self, queue_name: str) -> str:
         """Get queue URL with caching.

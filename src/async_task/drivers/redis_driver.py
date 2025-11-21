@@ -130,14 +130,25 @@ class RedisDriver(BaseDriver):
             receipt_handle,
         )  # type: ignore[misc]
 
-    async def get_queue_size(self, queue_name: str) -> int:
-        """Get number of tasks in main queue (excludes delayed tasks).
+    async def get_queue_size(
+        self,
+        queue_name: str,
+        include_delayed: bool,
+        include_in_flight: bool,
+    ) -> int:
+        """Get number of tasks in queue.
 
         Args:
             queue_name: Name of the queue
+            include_delayed: Include delayed tasks in count (default: False)
+            include_in_flight: Include in-flight tasks in count (default: False)
 
         Returns:
-            Task count in main queue
+            Task count based on parameters
+
+        Note:
+            Redis driver does not track in-flight tasks separately,
+            so include_in_flight parameter is ignored (always returns 0 for in-flight).
         """
 
         if self.client is None:
@@ -145,6 +156,13 @@ class RedisDriver(BaseDriver):
             assert self.client is not None
 
         size: int = await self.client.llen(f"queue:{queue_name}")  # type: ignore[assignment]
+
+        if include_delayed:
+            delayed_size: int = await self.client.zcard(f"delayed:{queue_name}")  # type: ignore[assignment]
+            size += delayed_size
+
+        # Note: in_flight not tracked in Redis driver (immediate ack on dequeue)
+        # include_in_flight parameter is ignored
 
         return size
 
