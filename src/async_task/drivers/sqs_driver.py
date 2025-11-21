@@ -136,7 +136,7 @@ class SQSDriver(BaseDriver):
 
         await self.client.send_message(**params)
 
-    async def dequeue(self, queue_name: str, timeout: int = 0) -> bytes | None:
+    async def dequeue(self, queue_name: str, poll_seconds: int = 0) -> bytes | None:
         """Retrieve task from queue.
 
         Returns task_data only (BaseDriver protocol). SQS receipt handle stored
@@ -144,7 +144,7 @@ class SQSDriver(BaseDriver):
 
         Args:
             queue_name: Queue name
-            timeout: Max seconds to wait (0-20, capped at 20)
+            poll_seconds: Max seconds to poll (0-20, capped at 20)
 
         Returns:
             Decoded task data (bytes) or None if no messages
@@ -162,7 +162,7 @@ class SQSDriver(BaseDriver):
         response = await self.client.receive_message(
             QueueUrl=queue_url,
             MaxNumberOfMessages=1,
-            WaitTimeSeconds=min(timeout, 20),
+            WaitTimeSeconds=min(poll_seconds, 20),
             MessageAttributeNames=["All"],
         )
 

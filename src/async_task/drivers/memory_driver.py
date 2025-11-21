@@ -25,6 +25,8 @@ class MemoryDriver(BaseDriver):
         - No persistence | Single-process only | No visibility timeout
     """
 
+    POLL_INTERVAL_SECONDS: float = 0.2
+
     _queues: dict[str, deque[bytes]] = field(default_factory=dict, init=False, repr=False)
     # Example: {"default": [(timestamp, task_data), (1234567895.2, b"task2")]}
     # Access tuple: _delayed_tasks["queue_name"][0] -> (float, bytes)
@@ -104,18 +106,18 @@ class MemoryDriver(BaseDriver):
             self._delayed_tasks[queue_name].append((target_time, task_data))
             self._delayed_tasks[queue_name].sort(key=lambda item: item[0])
 
-    async def dequeue(self, queue_name: str, timeout: int = 0) -> bytes | None:
+    async def dequeue(self, queue_name: str, poll_seconds: int = 0) -> bytes | None:
         """Retrieve task from queue.
 
         Args:
             queue_name: Queue to dequeue from
-            timeout: Seconds to wait (0 = non-blocking)
+            poll_seconds: Seconds to poll (0 = non-blocking)
 
         Returns:
-            Task data or None if timeout expires
+            Task data or None if polling time expires
 
         Note:
-            Polls every 100ms if timeout > 0. Task tracked in _processing until ack/nack.
+            Polls every 100ms if poll_seconds > 0. Task tracked in _processing until ack/nack.
         """
 
         if not self._connected:
@@ -133,14 +135,14 @@ class MemoryDriver(BaseDriver):
 
             return task_data
 
-        # Poll if timeout specified (100ms interval)
-        if timeout > 0:
+        # Poll if poll_seconds specified
+        if poll_seconds > 0:
             loop = asyncio.get_running_loop()
             start_time = loop.time()
-            deadline = start_time + timeout
+            deadline = start_time + poll_seconds
 
             while loop.time() < deadline:
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(self.POLL_INTERVAL_SECONDS)
 
                 if queue:
                     task_data = queue.popleft()

@@ -78,12 +78,12 @@ class RedisDriver(BaseDriver):
             # LPUSH adds to left of list - workers RPOP from right (FIFO)
             await self.client.lpush(f"queue:{queue_name}", task_data)  # type: ignore[misc]
 
-    async def dequeue(self, queue_name: str, timeout: int = 0) -> bytes | None:
+    async def dequeue(self, queue_name: str, poll_seconds: int = 0) -> bytes | None:
         """Retrieve next task from queue.
 
         Args:
             queue_name: Name of the queue
-            timeout: Seconds to wait for task (0 = non-blocking)
+            poll_seconds: Seconds to poll for task (0 = non-blocking)
 
         Returns:
             Serialized task data or None if queue empty
@@ -100,9 +100,9 @@ class RedisDriver(BaseDriver):
         await self._process_delayed_tasks(queue_name)
 
         # Pop from main queue (RPOP for FIFO with LPUSH)
-        if timeout > 0:
+        if poll_seconds > 0:
             result: tuple[bytes, bytes] | None = await self.client.brpop(
-                [f"queue:{queue_name}"], timeout=timeout
+                [f"queue:{queue_name}"], timeout=poll_seconds
             )  # type: ignore[assignment]
             return result[1] if result else None
         else:

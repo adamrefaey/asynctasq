@@ -86,12 +86,12 @@ class BaseDriver(Protocol):
         ...
 
     @abstractmethod
-    async def dequeue(self, queue_name: str, timeout: int = 0) -> bytes | None:
+    async def dequeue(self, queue_name: str, poll_seconds: int = 0) -> bytes | None:
         """Retrieve a task from the queue.
 
         Args:
             queue_name: Name of the queue
-            timeout: How long to wait for a task in seconds (0 = non-blocking)
+            poll_seconds: How long to poll for a task in seconds (0 = non-blocking)
 
         Returns:
             Serialized task data or None if no tasks available
@@ -100,8 +100,8 @@ class BaseDriver(Protocol):
             ConnectionError: If not connected to backend
 
         Note:
-            - timeout=0: Non-blocking, returns immediately
-            - timeout>0: Blocks up to timeout seconds waiting for task
+            - poll_seconds=0: Non-blocking, returns immediately
+            - poll_seconds>0: Polls up to poll_seconds seconds waiting for task
             - For delayed tasks, only returns tasks past their delay time
         """
         ...
