@@ -14,6 +14,14 @@ async def maybe_await(result: Any) -> Any:
     Redis-py has inline types but they're incomplete/incorrect for asyncio.
     This helper checks if the result is awaitable and awaits it if so.
 
+    Note on Type Stubs:
+        redis-py defines EncodableT = Union[bytes, bytearray, memoryview, str, int, float]
+        but some command stubs incorrectly narrow parameters to just `str`:
+        - lrem(value: str) should be lrem(value: EncodableT)
+
+        Runtime behavior is correct - these commands accept bytes when decode_responses=False.
+        We use `# type: ignore[arg-type]` for these known redis-py type stub bugs.
+
     Args:
         result: Result from redis-py operation
 
@@ -153,8 +161,9 @@ class RedisDriver(BaseDriver):
             assert self.client is not None
 
         processing_key = f"queue:{queue_name}:processing"
-        # Remove task from processing list (LREM: count=1 removes first occurrence)
-        await maybe_await(self.client.lrem(processing_key, 1, receipt_handle.decode()))
+        # Remove task from processing list (count=1 removes first occurrence)
+        # redis-py's lrem type stub expects str, but runtime accepts bytes (see maybe_await docs)
+        await maybe_await(self.client.lrem(processing_key, 1, receipt_handle))  # type: ignore[arg-type]
 
     async def nack(self, queue_name: str, receipt_handle: bytes) -> None:
         """Reject task and re-queue for immediate retry.
@@ -165,7 +174,7 @@ class RedisDriver(BaseDriver):
 
         Implementation:
             Only requeues if task exists in processing list (prevents nack-after-ack).
-            Uses LMOVE to atomically move from processing list back to main queue.
+            First checks if task is in processing, then moves it back if found.
         """
 
         if self.client is None:
@@ -175,18 +184,17 @@ class RedisDriver(BaseDriver):
         processing_key = f"queue:{queue_name}:processing"
         main_key = f"queue:{queue_name}"
 
-        # Check if task is in processing list, then atomically move it back
-        # Use pipeline to make it atomic: LREM (check+remove) then LPUSH (if found)
-        async with self.client.pipeline(transaction=True) as pipe:
-            # LREM returns count of removed items (0 if not found, 1 if found)
-            pipe.lrem(processing_key, 1, receipt_handle.decode())
-            pipe.lpush(main_key, receipt_handle)
-            results = await pipe.execute()
+        # Only requeue if task exists in processing list (prevents nack-after-ack)
+        # LREM returns count of removed items: 0 if not found, 1 if found and removed
+        # redis-py's lrem type stub expects str, but runtime accepts bytes (see maybe_await docs)
+        removed_count: int = await maybe_await(
+            self.client.lrem(processing_key, 1, receipt_handle)  # type: ignore[arg-type]
+        )
 
-            # If LREM returned 0, the task wasn't in processing, so remove it from main queue
-            # This handles the nack-after-ack case
-            if results[0] == 0:
-                await maybe_await(self.client.lrem(main_key, 1, receipt_handle.decode()))
+        # Only add back to queue if task was actually in processing list
+        # This prevents nack-after-ack from re-adding already completed tasks
+        if removed_count > 0:
+            await maybe_await(self.client.lpush(main_key, receipt_handle))
 
     async def get_queue_size(
         self,
@@ -243,7 +251,7 @@ class RedisDriver(BaseDriver):
         assert self.client is not None
 
         # Get all tasks ready to process (score <= current time)
-        ready_tasks: list[bytes] = await self.client.zrangebyscore(delayed_key, min=0, max=now)
+        ready_tasks: list[bytes] = await self.client.zrangebyscore(delayed_key, min="-inf", max=now)
 
         if ready_tasks:
             # Move tasks atomically: add to main queue and remove from delayed queue
