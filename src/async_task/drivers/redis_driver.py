@@ -1,9 +1,28 @@
 from dataclasses import dataclass, field
+from inspect import isawaitable
 from time import time
+from typing import Any
 
 from redis.asyncio import Redis
 
 from .base_driver import BaseDriver
+
+
+async def maybe_await(result: Any) -> Any:
+    """Helper to handle redis-py's inconsistent type stubs.
+
+    Redis-py has inline types but they're incomplete/incorrect for asyncio.
+    This helper checks if the result is awaitable and awaits it if so.
+
+    Args:
+        result: Result from redis-py operation
+
+    Returns:
+        The awaited result if awaitable, otherwise the result itself
+    """
+    if isawaitable(result):
+        return await result
+    return result
 
 
 @dataclass
@@ -76,10 +95,12 @@ class RedisDriver(BaseDriver):
 
             # ZADD adds to sorted set - Redis automatically maintains sort order
             # Mapping format: {member: score} where member=task_data, score=process_at
-            await self.client.zadd(f"queue:{queue_name}:delayed", {task_data: process_at})  # type: ignore[misc]
+            await maybe_await(
+                self.client.zadd(f"queue:{queue_name}:delayed", {task_data: process_at})
+            )
         else:
             # LPUSH adds to left of list - workers RPOP from right (FIFO)
-            await self.client.lpush(f"queue:{queue_name}", task_data)  # type: ignore[misc]
+            await maybe_await(self.client.lpush(f"queue:{queue_name}", task_data))
 
     async def dequeue(self, queue_name: str, poll_seconds: int = 0) -> bytes | None:
         """Retrieve next task from queue using Reliable Queue pattern.
@@ -109,13 +130,13 @@ class RedisDriver(BaseDriver):
         # Atomically move from main queue to processing list (Reliable Queue pattern)
         if poll_seconds > 0:
             # BLMOVE: blocking version with timeout
-            result: bytes | None = await self.client.blmove(
-                main_key, processing_key, poll_seconds, "RIGHT", "LEFT"
-            )  # type: ignore[assignment]
+            result: bytes | None = await maybe_await(
+                self.client.blmove(main_key, processing_key, poll_seconds, "RIGHT", "LEFT")
+            )
             return result
         else:
             # LMOVE: non-blocking version
-            return await self.client.lmove(main_key, processing_key, "RIGHT", "LEFT")  # type: ignore[return-value]
+            return await maybe_await(self.client.lmove(main_key, processing_key, "RIGHT", "LEFT"))
 
     async def ack(self, queue_name: str, receipt_handle: bytes) -> None:
         """Acknowledge successful task processing (remove from processing list).
@@ -133,7 +154,7 @@ class RedisDriver(BaseDriver):
 
         processing_key = f"queue:{queue_name}:processing"
         # Remove task from processing list (LREM: count=1 removes first occurrence)
-        await self.client.lrem(processing_key, 1, receipt_handle)  # type: ignore[misc]
+        await maybe_await(self.client.lrem(processing_key, 1, receipt_handle.decode()))
 
     async def nack(self, queue_name: str, receipt_handle: bytes) -> None:
         """Reject task and re-queue for immediate retry.
@@ -158,14 +179,14 @@ class RedisDriver(BaseDriver):
         # Use pipeline to make it atomic: LREM (check+remove) then LPUSH (if found)
         async with self.client.pipeline(transaction=True) as pipe:
             # LREM returns count of removed items (0 if not found, 1 if found)
-            pipe.lrem(processing_key, 1, receipt_handle)  # type: ignore[arg-type]
+            pipe.lrem(processing_key, 1, receipt_handle.decode())
             pipe.lpush(main_key, receipt_handle)
             results = await pipe.execute()
 
             # If LREM returned 0, the task wasn't in processing, so remove it from main queue
             # This handles the nack-after-ack case
             if results[0] == 0:
-                await self.client.lrem(main_key, 1, receipt_handle)  # type: ignore[misc]
+                await maybe_await(self.client.lrem(main_key, 1, receipt_handle.decode()))
 
     async def get_queue_size(
         self,
@@ -188,14 +209,16 @@ class RedisDriver(BaseDriver):
             await self.connect()
             assert self.client is not None
 
-        size: int = await self.client.llen(f"queue:{queue_name}")  # type: ignore[assignment]
+        size: int = await maybe_await(self.client.llen(f"queue:{queue_name}"))
 
         if include_delayed:
-            delayed_size: int = await self.client.zcard(f"queue:{queue_name}:delayed")  # type: ignore[assignment]
+            delayed_size: int = await maybe_await(self.client.zcard(f"queue:{queue_name}:delayed"))
             size += delayed_size
 
         if include_in_flight:
-            processing_size: int = await self.client.llen(f"queue:{queue_name}:processing")  # type: ignore[assignment]
+            processing_size: int = await maybe_await(
+                self.client.llen(f"queue:{queue_name}:processing")
+            )
             size += processing_size
 
         return size

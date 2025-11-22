@@ -6,7 +6,7 @@ for various queue backends (memory, Redis, AWS SQS).
 
 from .base_driver import BaseDriver
 from .memory_driver import MemoryDriver
-from .redis_driver import RedisDriver
+from .redis_driver import RedisDriver, maybe_await
 from .sqs_driver import SQSDriver
 
 __all__ = [
@@ -14,4 +14,5 @@ __all__ = [
     "MemoryDriver",
     "RedisDriver",
     "SQSDriver",
+    "maybe_await",
 ]
