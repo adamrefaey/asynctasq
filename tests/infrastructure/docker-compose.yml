@@ -9,7 +9,6 @@ services:
       - DEBUG=${DEBUG:-0}
     volumes:
       - "./localstack-init:/etc/localstack/init"
-      - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
     healthcheck:
       test: ["CMD-SHELL", "awslocal sqs list-queues || exit 1"]
       interval: 5s
