@@ -8,39 +8,6 @@ class BaseDriver(Protocol):
     Defines the contract for queue operations that enable task enqueueing,
     dequeueing, acknowledgment, and queue inspection. Drivers can implement
     delays differently based on their underlying technology.
-
-    Delay Implementation Strategies:
-        Each driver implements delays according to its capabilities:
-
-        Redis:
-            - In-memory sorted sets with timestamp scores
-            - Library polls and moves ready tasks from delayed set to main queue
-            - Supports sub-second precision
-            - No external scheduler needed
-
-        SQS:
-            - Native DelaySeconds parameter
-            - Queue engine handles delays server-side
-            - Maximum 900 seconds (15 minutes)
-            - No client polling required
-            - More reliable (survives restarts)
-
-        Memory:
-            - In-memory list with (timestamp, data) tuples
-            - Library polls on dequeue to check readiness
-            - For testing/development only
-            - Not persistent
-
-    The unified enqueue(delay_seconds) interface abstracts these differences,
-    allowing tasks to use delays without knowing the underlying implementation.
-
-    Required Methods:
-        - connect/disconnect: Lifecycle management
-        - enqueue: Add task to queue (with optional delay)
-        - dequeue: Retrieve task from queue (blocking or non-blocking)
-        - ack: Acknowledge successful processing
-        - nack: Reject task for reprocessing
-        - get_queue_size: Inspect queue depth
     """
 
     @abstractmethod
@@ -78,10 +45,7 @@ class BaseDriver(Protocol):
             ConnectionError: If not connected to backend
 
         Note:
-            Delay implementation is driver-specific:
-            - Redis: Sorted set with timestamp scores
-            - SQS: Native DelaySeconds (max 900s)
-            - Memory: In-memory timestamp tracking
+            Delay implementation is driver-specific
         """
         ...
 
