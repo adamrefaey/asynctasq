@@ -1,7 +1,7 @@
 [project]
 name = "async-task"
 version = "0.1.0"
-description = "Laravel-inspired task queue system for Python with async-first design and multi-driver support (Redis/AWS SQS)"
+description = "A robust task queue system for Python with async-first design and multi-driver support (Memory/Postgres/Redis/AWS SQS) inspired by Laravel"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -38,8 +38,13 @@ postgres = ["asyncpg>=0.30.0", "asyncpg-stubs>=0.30.0"]
 mysql = ["asyncmy>=0.2.10"]
 sqlite = ["aiosqlite>=0.21.0"]
 oracle = ["oracledb>=3.4.1"]
+sqlalchemy = ["sqlalchemy>=2.0.44"]
+django = ["django>=5.2.8"]
+tortoise = ["tortoise-orm>=0.25.1"]
 
-all = ["async-task[redis,sqs,postgres,mysql,sqlite,oracle]"]
+all = [
+    "async-task[redis,sqs,postgres,mysql,sqlite,oracle,sqlalchemy,django,tortoise]",
+]
 
 [project.urls]
 Homepage = "https://github.com/adamrefaey/async-task"
