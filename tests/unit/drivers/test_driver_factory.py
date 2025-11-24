@@ -435,23 +435,18 @@ class TestDriverFactoryParameterPassing:
 class TestDriverFactoryConfigIntegration:
     """Test integration between Config and DriverFactory."""
 
-    @patch("async_task.drivers.driver_factory.RedisDriver")
-    def test_config_defaults_are_used(self, mock_redis: MagicMock) -> None:
+    @patch("async_task.drivers.driver_factory.MemoryDriver")
+    def test_config_defaults_are_used(self, mock_memory: MagicMock) -> None:
         # Arrange
         config = Config()  # Use all defaults
-        mock_instance = MagicMock(spec=RedisDriver)
-        mock_redis.return_value = mock_instance
+        mock_instance = MagicMock(spec=MemoryDriver)
+        mock_memory.return_value = mock_instance
 
         # Act
         result = DriverFactory.create_from_config(config)
 
         # Assert - default Redis configuration
-        mock_redis.assert_called_once_with(
-            url="redis://localhost:6379",
-            password=None,
-            db=0,
-            max_connections=10,
-        )
+        mock_memory.assert_called_once()
         assert result == mock_instance
 
     @patch("async_task.drivers.driver_factory.PostgresDriver")

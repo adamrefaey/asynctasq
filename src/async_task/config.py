@@ -50,7 +50,7 @@ class Config:
     """Configuration for Async Task library"""
 
     # Driver selection
-    driver: DriverType = "redis"
+    driver: DriverType = "memory"
 
     # Redis configuration
     redis_url: str = "redis://localhost:6379"
@@ -89,8 +89,11 @@ class Config:
             env_value = os.getenv(env_var)
 
             if env_value is None:
-                # Use default value (might be None for optional fields)
-                config_dict[field_name] = default_value
+                # Use default value, converting if not None
+                if default_value is not None:
+                    config_dict[field_name] = type_converter(default_value)
+                else:
+                    config_dict[field_name] = None
             else:
                 # Convert the string value to appropriate type
                 config_dict[field_name] = type_converter(env_value)
