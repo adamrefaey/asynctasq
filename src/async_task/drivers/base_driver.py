@@ -1,7 +1,8 @@
 from abc import abstractmethod
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 
+@runtime_checkable
 class BaseDriver(Protocol):
     """Protocol that all queue drivers must implement.
 

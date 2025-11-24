@@ -22,7 +22,7 @@ from async_task.drivers.driver_factory import DriverFactory
 class TestDriverFactoryCreateFromConfig:
     """Test DriverFactory.create_from_config() method."""
 
-    @patch("async_task.drivers.driver_factory.MemoryDriver")
+    @patch("async_task.drivers.memory_driver.MemoryDriver")
     def test_create_from_config_with_memory_driver(self, mock_memory: MagicMock) -> None:
         # Arrange
         config = Config(driver="memory")
@@ -36,7 +36,7 @@ class TestDriverFactoryCreateFromConfig:
         mock_memory.assert_called_once()
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.RedisDriver")
+    @patch("async_task.drivers.redis_driver.RedisDriver")
     def test_create_from_config_with_redis_driver(self, mock_redis: MagicMock) -> None:
         # Arrange
         config = Config(
@@ -61,7 +61,7 @@ class TestDriverFactoryCreateFromConfig:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.SQSDriver")
+    @patch("async_task.drivers.sqs_driver.SQSDriver")
     def test_create_from_config_with_sqs_driver(self, mock_sqs: MagicMock) -> None:
         # Arrange
         config = Config(
@@ -86,7 +86,7 @@ class TestDriverFactoryCreateFromConfig:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.PostgresDriver")
+    @patch("async_task.drivers.postgres_driver.PostgresDriver")
     def test_create_from_config_with_postgres_driver(self, mock_postgres: MagicMock) -> None:
         # Arrange
         config = Config(
@@ -119,8 +119,8 @@ class TestDriverFactoryCreateFromConfig:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.RedisDriver")
-    @patch("async_task.drivers.driver_factory.MemoryDriver")
+    @patch("async_task.drivers.redis_driver.RedisDriver")
+    @patch("async_task.drivers.memory_driver.MemoryDriver")
     def test_create_from_config_with_driver_type_override(
         self, mock_memory: MagicMock, mock_redis: MagicMock
     ) -> None:
@@ -137,8 +137,8 @@ class TestDriverFactoryCreateFromConfig:
         mock_redis.assert_not_called()  # Redis should not be called
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.PostgresDriver")
-    @patch("async_task.drivers.driver_factory.SQSDriver")
+    @patch("async_task.drivers.postgres_driver.PostgresDriver")
+    @patch("async_task.drivers.sqs_driver.SQSDriver")
     def test_create_from_config_override_sqs_with_postgres(
         self, mock_sqs: MagicMock, mock_postgres: MagicMock
     ) -> None:
@@ -163,7 +163,7 @@ class TestDriverFactoryCreateFromConfig:
 class TestDriverFactoryCreate:
     """Test DriverFactory.create() method with different driver types."""
 
-    @patch("async_task.drivers.driver_factory.MemoryDriver")
+    @patch("async_task.drivers.memory_driver.MemoryDriver")
     def test_create_memory_driver(self, mock_memory: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=MemoryDriver)
@@ -176,7 +176,7 @@ class TestDriverFactoryCreate:
         mock_memory.assert_called_once_with()
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.RedisDriver")
+    @patch("async_task.drivers.redis_driver.RedisDriver")
     def test_create_redis_driver_with_defaults(self, mock_redis: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=RedisDriver)
@@ -194,7 +194,7 @@ class TestDriverFactoryCreate:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.RedisDriver")
+    @patch("async_task.drivers.redis_driver.RedisDriver")
     def test_create_redis_driver_with_custom_params(self, mock_redis: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=RedisDriver)
@@ -218,7 +218,7 @@ class TestDriverFactoryCreate:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.SQSDriver")
+    @patch("async_task.drivers.sqs_driver.SQSDriver")
     def test_create_sqs_driver_with_defaults(self, mock_sqs: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=SQSDriver)
@@ -236,7 +236,7 @@ class TestDriverFactoryCreate:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.SQSDriver")
+    @patch("async_task.drivers.sqs_driver.SQSDriver")
     def test_create_sqs_driver_with_custom_params(self, mock_sqs: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=SQSDriver)
@@ -260,7 +260,7 @@ class TestDriverFactoryCreate:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.PostgresDriver")
+    @patch("async_task.drivers.postgres_driver.PostgresDriver")
     def test_create_postgres_driver_with_defaults(self, mock_postgres: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=PostgresDriver)
@@ -282,7 +282,7 @@ class TestDriverFactoryCreate:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.PostgresDriver")
+    @patch("async_task.drivers.postgres_driver.PostgresDriver")
     def test_create_postgres_driver_with_custom_params(self, mock_postgres: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=PostgresDriver)
@@ -343,7 +343,7 @@ class TestDriverFactoryErrorHandling:
 class TestDriverFactoryParameterPassing:
     """Test that parameters are correctly passed through."""
 
-    @patch("async_task.drivers.driver_factory.RedisDriver")
+    @patch("async_task.drivers.redis_driver.RedisDriver")
     def test_create_redis_with_partial_params(self, mock_redis: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=RedisDriver)
@@ -365,7 +365,7 @@ class TestDriverFactoryParameterPassing:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.SQSDriver")
+    @patch("async_task.drivers.sqs_driver.SQSDriver")
     def test_create_sqs_with_only_credentials(self, mock_sqs: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=SQSDriver)
@@ -387,7 +387,7 @@ class TestDriverFactoryParameterPassing:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.PostgresDriver")
+    @patch("async_task.drivers.postgres_driver.PostgresDriver")
     def test_create_postgres_with_minimal_params(self, mock_postgres: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=PostgresDriver)
@@ -412,7 +412,7 @@ class TestDriverFactoryParameterPassing:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.MemoryDriver")
+    @patch("async_task.drivers.memory_driver.MemoryDriver")
     def test_create_memory_ignores_extra_kwargs(self, mock_memory: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=MemoryDriver)
@@ -435,7 +435,7 @@ class TestDriverFactoryParameterPassing:
 class TestDriverFactoryConfigIntegration:
     """Test integration between Config and DriverFactory."""
 
-    @patch("async_task.drivers.driver_factory.MemoryDriver")
+    @patch("async_task.drivers.memory_driver.MemoryDriver")
     def test_config_defaults_are_used(self, mock_memory: MagicMock) -> None:
         # Arrange
         config = Config()  # Use all defaults
@@ -449,7 +449,7 @@ class TestDriverFactoryConfigIntegration:
         mock_memory.assert_called_once()
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.PostgresDriver")
+    @patch("async_task.drivers.postgres_driver.PostgresDriver")
     def test_all_postgres_config_fields_passed_correctly(self, mock_postgres: MagicMock) -> None:
         # Arrange - create config with all postgres fields customized
         config = Config(
@@ -482,7 +482,7 @@ class TestDriverFactoryConfigIntegration:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.SQSDriver")
+    @patch("async_task.drivers.sqs_driver.SQSDriver")
     def test_all_sqs_config_fields_passed_correctly(self, mock_sqs: MagicMock) -> None:
         # Arrange - create config with all SQS fields customized
         config = Config(
@@ -507,7 +507,7 @@ class TestDriverFactoryConfigIntegration:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.RedisDriver")
+    @patch("async_task.drivers.redis_driver.RedisDriver")
     def test_all_redis_config_fields_passed_correctly(self, mock_redis: MagicMock) -> None:
         # Arrange - create config with all Redis fields customized
         config = Config(
@@ -537,7 +537,7 @@ class TestDriverFactoryConfigIntegration:
 class TestDriverFactoryEdgeCases:
     """Test edge cases and boundary conditions."""
 
-    @patch("async_task.drivers.driver_factory.RedisDriver")
+    @patch("async_task.drivers.redis_driver.RedisDriver")
     def test_none_values_passed_correctly(self, mock_redis: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=RedisDriver)
@@ -558,7 +558,7 @@ class TestDriverFactoryEdgeCases:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.SQSDriver")
+    @patch("async_task.drivers.sqs_driver.SQSDriver")
     def test_empty_string_values_passed_correctly(self, mock_sqs: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=SQSDriver)
@@ -579,7 +579,7 @@ class TestDriverFactoryEdgeCases:
         )
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.PostgresDriver")
+    @patch("async_task.drivers.postgres_driver.PostgresDriver")
     def test_boundary_pool_sizes(self, mock_postgres: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=PostgresDriver)
@@ -599,7 +599,7 @@ class TestDriverFactoryEdgeCases:
         assert call_kwargs["max_pool_size"] == 1000
         assert result == mock_instance
 
-    @patch("async_task.drivers.driver_factory.RedisDriver")
+    @patch("async_task.drivers.redis_driver.RedisDriver")
     def test_kwargs_get_method_with_fallback(self, mock_redis: MagicMock) -> None:
         # Arrange
         mock_instance = MagicMock(spec=RedisDriver)
