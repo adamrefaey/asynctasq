@@ -34,7 +34,12 @@ dependencies = ["pydantic>=2.12.4", "msgpack>=1.1.0"]
 [project.optional-dependencies]
 redis = ["redis[hiredis]>=7.1.0"]
 sqs = ["aioboto3>=15.5.0", "types-aioboto3[sqs]>=15.5.0"]
-all = ["async-task[redis,sqs]"]
+postgres = ["asyncpg>=0.30.0", "asyncpg-stubs>=0.30.0"]
+mysql = ["asyncmy>=0.2.10"]
+sqlite = ["aiosqlite>=0.21.0"]
+oracle = ["oracledb>=3.4.1"]
+
+all = ["async-task[redis,sqs,postgres,mysql,sqlite,oracle]"]
 
 [project.urls]
 Homepage = "https://github.com/adamrefaey/async-task"
