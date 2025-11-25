@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A robust, async-first task queue system for Python with multi-driver support (Memory/Redis/PostgreSQL/AWS SQS), inspired by Laravel's elegant queue API.
+A robust, async-first task queue system for Python with built-in FastAPI support. Seamlessly switch between Memory, Redis, PostgreSQL, and AWS SQS drivers with a Laravel-inspired API that's both powerful and elegant.
 
 ---
 
@@ -38,6 +38,7 @@ A robust, async-first task queue system for Python with multi-driver support (Me
 
 ### Advanced Features
 
+- **FastAPI Integration** – First-class FastAPI support with automatic lifecycle management and dependency injection
 - **Function and Class-Based Tasks** – Define tasks as decorated functions or classes
 - **Custom Serialization** – Extensible serializer system with msgpack by default
 - **Queue Priority** – Process multiple queues with configurable priority
@@ -68,6 +69,9 @@ uv add "async-task[all]"        # All drivers
 uv add "async-task[sqlalchemy]" # SQLAlchemy
 uv add "async-task[django]"     # Django
 uv add "async-task[tortoise]"   # Tortoise ORM
+
+# With framework integrations
+uv add "async-task[fastapi]"    # FastAPI integration
 ```
 
 ### Using pip
@@ -81,11 +85,49 @@ pip install "async-task[redis]"
 pip install "async-task[postgres]"
 pip install "async-task[sqs]"
 pip install "async-task[all]"
+
+# With framework integrations
+pip install "async-task[fastapi]"  # FastAPI integration
 ```
 
 ---
 
 ## Quick Start
+
+Get started with Async Task in minutes. Here's a complete example:
+
+```python
+import asyncio
+from async_task.core.task import task
+from async_task.config import set_global_config
+
+# 1. Configure (or use environment variables)
+set_global_config(driver='memory')  # Use 'redis' for production
+
+# 2. Define a task
+@task(queue='emails')
+async def send_email(email: str, subject: str, body: str):
+    print(f"Sending email to {email}: {subject}")
+    await asyncio.sleep(1)  # Simulate email sending
+    return f"Email sent to {email}"
+
+# 3. Dispatch the task
+async def main():
+    task_id = await send_email.dispatch(
+        email="user@example.com",
+        subject="Welcome",
+        body="Welcome to our platform!"
+    )
+    print(f"Task dispatched with ID: {task_id}")
+
+# 4. Run a worker to process tasks
+# In terminal: python -m async_task worker
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+**That's it!** Now let's explore the details:
 
 ### 1. Define Tasks
 
@@ -192,7 +234,9 @@ task_id = await ProcessPayment(user_id=123, amount=99.99).on_queue("high-priorit
 
 ### 3. Configure the Queue Driver
 
-#### Environment Variables
+Configuration can be done via environment variables (recommended for production) or programmatically (useful for development and testing).
+
+#### Environment Variables (Recommended)
 
 ```bash
 # Driver selection
@@ -218,20 +262,28 @@ export AWS_SECRET_ACCESS_KEY=your_secret_key
 #### Programmatic Configuration
 
 ```python
-from async_task.config import set_global_config
+from async_task.config import Config, set_global_config
 
-# Configure from environment with overrides
+# Option 1: Configure from environment with overrides
 set_global_config(
     driver='redis',
     redis_url='redis://localhost:6379',
     default_queue='default',
     default_max_retries=3
 )
+
+# Option 2: Create a Config object directly
+config = Config.from_env(
+    driver='redis',
+    redis_url='redis://localhost:6379'
+)
 ```
 
 ### 4. Run Workers
 
-#### Using CLI
+Workers process tasks from queues. You can run them via CLI (recommended) or programmatically.
+
+#### Using CLI (Recommended)
 
 ```bash
 # Start worker with default settings
@@ -259,6 +311,8 @@ python -m async_task worker \
 
 #### Programmatic Worker
 
+For custom worker implementations or embedding workers in your application:
+
 ```python
 import asyncio
 from async_task.config import Config
@@ -269,21 +323,28 @@ async def main():
     # Create configuration
     config = Config.from_env(driver='redis')
 
-    # Create driver
+    # Create driver and connect
     driver = DriverFactory.create_from_config(config)
+    await driver.connect()
 
-    # Create and start worker
-    worker = Worker(
-        queue_driver=driver,
-        queues=['high-priority', 'default', 'low-priority'],
-        concurrency=10
-    )
+    try:
+        # Create and start worker
+        worker = Worker(
+            queue_driver=driver,
+            queues=['high-priority', 'default', 'low-priority'],
+            concurrency=10
+        )
 
-    await worker.start()  # Blocks until shutdown signal
+        await worker.start()  # Blocks until shutdown signal (SIGTERM/SIGINT)
+    finally:
+        # Cleanup
+        await driver.disconnect()
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+**Note:** The CLI automatically handles connection management. When using programmatic workers, ensure you connect/disconnect the driver properly.
 
 ---
 
@@ -437,6 +498,101 @@ driver = SQSDriver(
 
 ## Advanced Usage
 
+### FastAPI Integration
+
+Async Task provides seamless integration with FastAPI applications through automatic lifecycle management and dependency injection.
+
+#### Basic Usage
+
+```python
+from fastapi import FastAPI
+from async_task.integrations.fastapi import AsyncTaskIntegration
+from async_task.core.task import task
+
+# Auto-configure from environment variables
+# ASYNC_TASK_DRIVER=redis
+# ASYNC_TASK_REDIS_URL=redis://localhost:6379
+async_task = AsyncTaskIntegration()
+app = FastAPI(lifespan=async_task.lifespan)
+
+# Define a task
+@task(queue='emails')
+async def send_email(email: str, message: str):
+    # Your email logic here
+    return f"Email sent to {email}"
+
+# Use in endpoint
+@app.post("/send-email")
+async def send_email_route(email: str, message: str):
+    task_id = await send_email.dispatch(email=email, message=message)
+    return {"task_id": task_id, "status": "queued"}
+```
+
+#### Key Features
+
+- **Automatic Lifecycle Management** – Driver connection on startup, graceful disconnection on shutdown
+- **Zero-Configuration Mode** – Works with environment variables out of the box
+- **Dependency Injection** – Access dispatcher and driver via FastAPI's `Depends()`
+- **Works with All Drivers** – Redis, PostgreSQL, SQS, and Memory drivers supported
+
+#### Explicit Configuration
+
+```python
+from fastapi import FastAPI
+from async_task.integrations.fastapi import AsyncTaskIntegration
+from async_task.config import Config
+
+config = Config(
+    driver="redis",
+    redis_url="redis://localhost:6379"
+)
+async_task = AsyncTaskIntegration(config=config)
+app = FastAPI(lifespan=async_task.lifespan)
+```
+
+#### Dependency Injection
+
+```python
+from fastapi import Depends, FastAPI
+from async_task.integrations.fastapi import AsyncTaskIntegration
+from async_task.core.dispatcher import Dispatcher
+from async_task.drivers.base_driver import BaseDriver
+
+async_task = AsyncTaskIntegration()
+app = FastAPI(lifespan=async_task.lifespan)
+
+@app.post("/dispatch")
+async def dispatch_task(
+    dispatcher: Dispatcher = Depends(async_task.get_dispatcher)
+):
+    # Use dispatcher directly
+    task_id = await dispatcher.dispatch(my_task)
+    return {"task_id": task_id}
+
+@app.get("/queue-stats")
+async def get_stats(
+    driver: BaseDriver = Depends(async_task.get_driver)
+):
+    size = await driver.get_queue_size("default")
+    return {"queue_size": size}
+```
+
+**Important:** FastAPI integration handles task dispatching only. You still need to run workers separately to process tasks:
+
+```bash
+# Terminal 1: FastAPI app (dispatch tasks)
+uvicorn app:app --host 0.0.0.0 --port 8000
+
+# Terminal 2: Worker (process tasks)
+python -m async_task worker \
+    --driver redis \
+    --redis-url redis://localhost:6379 \
+    --queues default,emails \
+    --concurrency 10
+```
+
+---
+
 ### ORM Model Serialization
 
 Async Task automatically handles ORM models in task parameters:
@@ -545,17 +701,36 @@ python -m async_task worker --queues low-priority,batch --concurrency 5
 
 Workers handle `SIGTERM` and `SIGINT` signals for graceful shutdown:
 
-1. Stop accepting new tasks
-2. Wait for currently processing tasks to complete
-3. Disconnect from driver
-4. Exit cleanly
+1. **Stop accepting new tasks** – No new tasks are dequeued
+2. **Wait for completion** – Currently processing tasks finish naturally
+3. **Disconnect** – Driver connections are closed cleanly
+4. **Exit** – Process terminates gracefully
 
 ```bash
 # Send SIGTERM for graceful shutdown
 kill -TERM <worker_pid>
 
-# Or Ctrl+C for SIGINT
+# Or use Ctrl+C for SIGINT (same behavior)
 ```
+
+**Best Practice:** Use process managers (systemd, supervisor, Kubernetes) that send SIGTERM for clean shutdowns in production.
+
+---
+
+## Choosing a Driver
+
+| Driver         | Best For                    | Pros                                     | Cons                           |
+| -------------- | --------------------------- | ---------------------------------------- | ------------------------------ |
+| **Memory**     | Development, testing        | No setup, fast                           | Data lost on restart           |
+| **Redis**      | Production, high-throughput | Fast, reliable, distributed              | Requires Redis server          |
+| **PostgreSQL** | Enterprise, existing DB     | ACID guarantees, DLQ, visibility timeout | Requires PostgreSQL 12+        |
+| **SQS**        | AWS, serverless             | Managed, auto-scaling, zero ops          | AWS-specific, cost per message |
+
+**Recommendation:**
+
+- **Development:** Use `memory` driver
+- **Production:** Use `redis` for most cases, `postgres` if you need ACID guarantees
+- **AWS/Serverless:** Use `sqs` for managed infrastructure
 
 ---
 
@@ -699,12 +874,60 @@ Tasks are serialized using msgpack with custom type handling:
 
 ### Worker Architecture
 
-- **Polling Loop** – Continuously checks queues for tasks
-- **Concurrency Control** – Uses asyncio for concurrent task execution
-- **Round-Robin** – Processes queues in priority order
-- **Graceful Shutdown** – Handles signals for clean shutdown
-- **Error Handling** – Automatic retry with configurable backoff
-- **Sleep on Empty** – Prevents CPU spinning when queues are empty (0.1s sleep)
+- **Polling Loop** – Continuously checks queues for tasks with configurable intervals
+- **Concurrency Control** – Uses asyncio for concurrent task execution (configurable per worker)
+- **Round-Robin** – Processes queues in priority order (first queue in list has highest priority)
+- **Graceful Shutdown** – Handles SIGTERM/SIGINT signals for clean shutdown
+- **Error Handling** – Automatic retry with configurable backoff and custom retry logic
+- **Sleep on Empty** – Prevents CPU spinning when queues are empty (0.1s default sleep)
+- **Task Isolation** – Each task runs in its own context, failures don't affect other tasks
+
+---
+
+## Common Patterns
+
+### Task with Database Session
+
+```python
+from async_task.core.task import Task
+from sqlalchemy.ext.asyncio import AsyncSession
+
+class ProcessOrder(Task[None]):
+    async def handle(self) -> None:
+        # Create a new database session for the task
+        async with get_async_session() as session:
+            order = await session.get(Order, self.order_id)
+            # Process order...
+            await session.commit()
+```
+
+### Task with Retry Logic
+
+```python
+from async_task.core.task import Task
+
+class SendNotification(Task[None]):
+    max_retries = 5
+    retry_delay = 30
+
+    def should_retry(self, exception: Exception) -> bool:
+        # Only retry on network errors, not validation errors
+        return isinstance(exception, (ConnectionError, TimeoutError))
+
+    async def failed(self, exception: Exception) -> None:
+        # Log to monitoring system
+        logger.error(f"Notification failed after {self.max_retries} retries", exc_info=exception)
+```
+
+### Chained Task Configuration
+
+```python
+# Configure task at dispatch time
+task_id = await send_email(
+    email="user@example.com",
+    subject="Welcome"
+).on_queue("high-priority").delay(300).dispatch()
+```
 
 ---
 
@@ -757,12 +980,15 @@ Tasks are serialized using msgpack with custom type handling:
 
 ✅ **Do:**
 
-- Use Redis or PostgreSQL for production (not Memory driver)
-- Configure proper retry delays
-- Set up monitoring and alerting
-- Use environment variables for configuration
-- Deploy multiple workers for high availability
-- Use process managers (systemd, supervisor, kubernetes)
+- **Use Redis or PostgreSQL** for production (Memory driver loses data on restart)
+- **Configure proper retry delays** to avoid overwhelming systems during outages
+- **Set up monitoring and alerting** for queue sizes, worker health, and failed tasks
+- **Use environment variables** for configuration (never hardcode credentials)
+- **Deploy multiple workers** for high availability and load distribution
+- **Use process managers** (systemd, supervisor, Kubernetes) for automatic restarts
+- **Monitor dead-letter queues** to catch permanently failed tasks
+- **Set appropriate timeouts** to prevent tasks from hanging indefinitely
+- **Use connection pooling** for database drivers (configured automatically)
 
 ---
 
@@ -847,12 +1073,39 @@ just docker-down
 
 ## Requirements
 
-- **Python**: 3.11+
-- **Core Dependencies**: pydantic ≥2.12.4, msgpack ≥1.1.0
-- **Redis Driver**: redis[hiredis] ≥7.1.0, Redis server 6.2+
-- **PostgreSQL Driver**: asyncpg ≥0.30.0, PostgreSQL server 12+
-- **SQS Driver**: aioboto3 ≥15.5.0
-- **ORMs** (optional): SQLAlchemy ≥2.0.44, Django ≥5.2.8, Tortoise ORM ≥0.25.1
+### Core Requirements
+
+- **Python**: 3.11 or higher
+- **Core Dependencies**:
+  - `pydantic` ≥2.12.4
+  - `msgpack` ≥1.1.0
+
+### Driver Requirements
+
+- **Redis Driver**:
+
+  - `redis[hiredis]` ≥7.1.0
+  - Redis server 6.2+ (for `LMOVE` support)
+
+- **PostgreSQL Driver**:
+
+  - `asyncpg` ≥0.30.0
+  - PostgreSQL server 12+ (for `SKIP LOCKED` support)
+
+- **SQS Driver**:
+  - `aioboto3` ≥15.5.0
+  - AWS account with SQS access
+
+### Optional Dependencies
+
+- **ORMs**:
+
+  - SQLAlchemy ≥2.0.44
+  - Django ≥5.2.8
+  - Tortoise ORM ≥0.25.1
+
+- **Framework Integrations**:
+  - FastAPI ≥0.115.0
 
 ---
 
