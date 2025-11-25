@@ -63,7 +63,6 @@ uv add async-task
 uv add "async-task[redis]"      # Redis support
 uv add "async-task[postgres]"   # PostgreSQL support
 uv add "async-task[sqs]"        # AWS SQS support
-uv add "async-task[all]"        # All drivers
 
 # With ORM support
 uv add "async-task[sqlalchemy]" # SQLAlchemy
@@ -72,6 +71,9 @@ uv add "async-task[tortoise]"   # Tortoise ORM
 
 # With framework integrations
 uv add "async-task[fastapi]"    # FastAPI integration
+
+# With all optional dependencies
+uv add "async-task[all]"
 ```
 
 ### Using pip
@@ -81,13 +83,20 @@ uv add "async-task[fastapi]"    # FastAPI integration
 pip install async-task
 
 # With specific drivers
-pip install "async-task[redis]"
-pip install "async-task[postgres]"
-pip install "async-task[sqs]"
-pip install "async-task[all]"
+pip install "async-task[redis]"      # Redis support
+pip install "async-task[postgres]"   # PostgreSQL support
+pip install "async-task[sqs]"        # AWS SQS support
+
+# With ORM support
+pip install "async-task[sqlalchemy]" # SQLAlchemy
+pip install "async-task[django]"     # Django
+pip install "async-task[tortoise]"   # Tortoise ORM
 
 # With framework integrations
-pip install "async-task[fastapi]"  # FastAPI integration
+pip install "async-task[fastapi]"    # FastAPI integration
+
+# With all optional dependencies
+pip install "async-task[all]"
 ```
 
 ---
