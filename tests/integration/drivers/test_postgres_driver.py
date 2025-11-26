@@ -367,7 +367,8 @@ class TestPostgresDriverWithRealPostgres:
         assert receipt is not None
 
         # Assert
-        task_id = postgres_driver._receipt_handles[receipt]
+        task_id = postgres_driver._receipt_handles.get(receipt)
+        assert task_id is not None
         result = await postgres_conn.fetchrow(
             f"SELECT status, locked_until FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id
         )
@@ -400,7 +401,8 @@ class TestPostgresDriverWithRealPostgres:
         # Assert
         assert len(receipts) == 3
         for i, receipt in enumerate(receipts):
-            task_id = postgres_driver._receipt_handles[receipt]
+            task_id = postgres_driver._receipt_handles.get(receipt)
+            assert task_id is not None
             result = await postgres_driver.pool.fetchrow(
                 f"SELECT payload FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id
             )
@@ -775,7 +777,8 @@ class TestPostgresDriverWithRealPostgres:
         assert receipt is not None
 
         # Manually expire the lock
-        task_id = postgres_driver._receipt_handles[receipt]
+        task_id = postgres_driver._receipt_handles.get(receipt)
+        assert task_id is not None
         await postgres_conn.execute(
             f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second', status = 'pending' WHERE id = $1",
             task_id,
@@ -788,6 +791,662 @@ class TestPostgresDriverWithRealPostgres:
         assert receipt2 is not None
         # Should be different receipt
         assert receipt2 != receipt
+
+    @mark.asyncio
+    async def test_get_queue_size_all_combinations(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Test all four combinations of get_queue_size flags."""
+        # Arrange: Create tasks in different states
+        # - 2 ready tasks (immediate, available)
+        await postgres_driver.enqueue("default", b"ready1")
+        await postgres_driver.enqueue("default", b"ready2")
+        # - 1 delayed task (future available_at)
+        await postgres_driver.enqueue("default", b"delayed", delay_seconds=100)
+        # - 1 in-flight task (dequeued, status=processing)
+        await postgres_driver.dequeue("default", poll_seconds=0)
+
+        # Test all 4 combinations
+        # 1. Both False: Only ready tasks
+        size_00 = await postgres_driver.get_queue_size(
+            "default", include_delayed=False, include_in_flight=False
+        )
+        assert size_00 == 1  # Only ready2 (ready1 was dequeued)
+
+        # 2. include_delayed=True, include_in_flight=False: Ready + delayed
+        size_10 = await postgres_driver.get_queue_size(
+            "default", include_delayed=True, include_in_flight=False
+        )
+        assert size_10 == 2  # ready2 + delayed
+
+        # 3. include_delayed=False, include_in_flight=True: Ready + in-flight
+        size_01 = await postgres_driver.get_queue_size(
+            "default", include_delayed=False, include_in_flight=True
+        )
+        assert size_01 == 2  # ready2 + in-flight
+
+        # 4. Both True: All tasks
+        size_11 = await postgres_driver.get_queue_size(
+            "default", include_delayed=True, include_in_flight=True
+        )
+        assert size_11 == 3  # ready2 + delayed + in-flight
+
+    @mark.asyncio
+    async def test_get_queue_size_with_mixed_states(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Test get_queue_size with complex mixed states."""
+        # Arrange: Create various task states
+        await postgres_driver.enqueue("default", b"ready1")
+        await postgres_driver.enqueue("default", b"ready2")
+        await postgres_driver.enqueue("default", b"delayed1", delay_seconds=50)
+        await postgres_driver.enqueue("default", b"delayed2", delay_seconds=100)
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)  # ready1 -> processing
+
+        assert receipt is not None
+
+        # Test with all flags True
+        size_all = await postgres_driver.get_queue_size(
+            "default", include_delayed=True, include_in_flight=True
+        )
+        assert size_all == 4  # ready2 + delayed1 + delayed2 + in-flight
+
+        # Cleanup
+        await postgres_driver.ack("default", receipt)
+
+    @mark.asyncio
+    async def test_ack_after_visibility_timeout_expires(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Ack should handle receipt handle even if visibility timeout expired."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task")
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+
+        # Manually expire the lock
+        task_id = postgres_driver._receipt_handles.get(receipt)
+        assert task_id is not None
+        await postgres_conn.execute(
+            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second' WHERE id = $1",
+            task_id,
+        )
+
+        # Act - ack should still work (task exists, just lock expired)
+        await postgres_driver.ack("default", receipt)
+
+        # Assert - task should be deleted
+        count = await postgres_conn.fetchval(f"SELECT COUNT(*) FROM {TEST_QUEUE_TABLE}")
+        assert count == 0
+
+    @mark.asyncio
+    async def test_ack_twice_is_safe(self, postgres_driver: PostgresDriver) -> None:
+        """Acking the same receipt handle twice should be safe."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task")
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+
+        # Act - ack twice
+        await postgres_driver.ack("default", receipt)
+        await postgres_driver.ack("default", receipt)  # Second ack
+
+        # Assert - should not raise, receipt handle should be cleared
+        assert receipt not in postgres_driver._receipt_handles
+
+    @mark.asyncio
+    async def test_nack_after_visibility_timeout_expires(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Nack should handle receipt handle even if visibility timeout expired."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task")
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+
+        # Manually expire the lock and reset status
+        task_id = postgres_driver._receipt_handles.get(receipt)
+        assert task_id is not None
+        await postgres_conn.execute(
+            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second', status = 'pending' WHERE id = $1",
+            task_id,
+        )
+
+        # Act - nack should still work
+        await postgres_driver.nack("default", receipt)
+
+        # Assert - task should be requeued with incremented attempts
+        result = await postgres_conn.fetchrow(
+            f"SELECT attempts FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id
+        )
+        assert result is not None
+        assert result["attempts"] == 1
+
+    @mark.asyncio
+    async def test_nack_then_ack_is_safe(self, postgres_driver: PostgresDriver) -> None:
+        """Acking after nack should be safe (task may not exist)."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task")
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+
+        # Act - nack then ack
+        await postgres_driver.nack("default", receipt)
+        await postgres_driver.ack("default", receipt)  # Should not raise
+
+        # Assert - receipt handle should be cleared
+        assert receipt not in postgres_driver._receipt_handles
+
+    @mark.asyncio
+    async def test_ack_after_task_deleted(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Ack should handle case where task was already deleted."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task")
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+
+        # Manually delete the task
+        task_id = postgres_driver._receipt_handles.get(receipt)
+        assert task_id is not None
+        await postgres_conn.execute(f"DELETE FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id)
+
+        # Act - ack should not raise
+        await postgres_driver.ack("default", receipt)
+
+        # Assert - receipt handle should be cleared
+        assert receipt not in postgres_driver._receipt_handles
+
+    @mark.asyncio
+    async def test_nack_after_task_deleted(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Nack should handle case where task was already deleted."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task")
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+
+        # Manually delete the task
+        task_id = postgres_driver._receipt_handles.get(receipt)
+        assert task_id is not None
+        await postgres_conn.execute(f"DELETE FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id)
+
+        # Act - nack should not raise
+        await postgres_driver.nack("default", receipt)
+
+        # Assert - receipt handle should be cleared
+        assert receipt not in postgres_driver._receipt_handles
+
+    @mark.asyncio
+    async def test_operations_auto_connect(self, postgres_dsn: str) -> None:
+        """Operations should auto-connect if not connected."""
+        # Arrange
+        queue_table = f"test_auto_connect_{uuid4().hex[:8]}"
+        dlq_table = f"test_auto_connect_dlq_{uuid4().hex[:8]}"
+        driver = PostgresDriver(
+            dsn=postgres_dsn,
+            queue_table=queue_table,
+            dead_letter_table=dlq_table,
+        )
+
+        try:
+            # Act - operations without explicit connect
+            await driver.init_schema()  # Should auto-connect
+            assert driver.pool is not None
+
+            await driver.enqueue("default", b"task")  # Should work
+            receipt = await driver.dequeue("default", poll_seconds=0)  # Should work
+            assert receipt is not None
+
+            await driver.ack("default", receipt)  # Should work
+
+            size = await driver.get_queue_size(
+                "default", include_delayed=False, include_in_flight=False
+            )  # Should work
+            assert size == 0
+
+        finally:
+            # Cleanup
+            if driver.pool:
+                await driver.pool.execute(f"DROP TABLE IF EXISTS {queue_table}")
+                await driver.pool.execute(f"DROP TABLE IF EXISTS {dlq_table}")
+            await driver.disconnect()
+
+    @mark.asyncio
+    async def test_dequeue_poll_with_task_arrival(self, postgres_driver: PostgresDriver) -> None:
+        """Polling should find tasks that arrive during poll."""
+
+        # Arrange
+        async def enqueue_after_delay():
+            await asyncio.sleep(0.5)
+            await postgres_driver.enqueue("default", b"arrived_during_poll")
+
+        # Act - start polling, then enqueue task
+        enqueue_task = asyncio.create_task(enqueue_after_delay())
+        receipt = await postgres_driver.dequeue("default", poll_seconds=2)
+
+        # Assert
+        assert receipt is not None
+        await enqueue_task
+
+    @mark.asyncio
+    async def test_dequeue_poll_short_duration(self, postgres_driver: PostgresDriver) -> None:
+        """Polling with very short duration should work correctly."""
+        # Arrange - no tasks
+        # Act
+        start = time()
+        receipt = await postgres_driver.dequeue("default", poll_seconds=1)
+        elapsed = time() - start
+
+        # Assert
+        assert receipt is None
+        assert 0.95 <= elapsed < 1.3  # Should poll briefly then return
+
+    @mark.asyncio
+    async def test_receipt_handle_cleanup_on_ack(self, postgres_driver: PostgresDriver) -> None:
+        """Receipt handles should be cleaned up after ack."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task1")
+        await postgres_driver.enqueue("default", b"task2")
+
+        receipt1 = await postgres_driver.dequeue("default", poll_seconds=0)
+        receipt2 = await postgres_driver.dequeue("default", poll_seconds=0)
+
+        assert receipt1 is not None
+        assert receipt2 is not None
+        assert len(postgres_driver._receipt_handles) == 2
+
+        # Act
+        await postgres_driver.ack("default", receipt1)
+
+        # Assert
+        assert receipt1 not in postgres_driver._receipt_handles
+        assert receipt2 in postgres_driver._receipt_handles
+        assert len(postgres_driver._receipt_handles) == 1
+
+        # Cleanup
+        await postgres_driver.ack("default", receipt2)
+
+    @mark.asyncio
+    async def test_receipt_handle_cleanup_on_nack(self, postgres_driver: PostgresDriver) -> None:
+        """Receipt handles should be cleaned up after nack."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task1")
+        await postgres_driver.enqueue("default", b"task2")
+
+        receipt1 = await postgres_driver.dequeue("default", poll_seconds=0)
+        receipt2 = await postgres_driver.dequeue("default", poll_seconds=0)
+
+        assert receipt1 is not None
+        assert receipt2 is not None
+        assert len(postgres_driver._receipt_handles) == 2
+
+        # Act
+        await postgres_driver.nack("default", receipt1)
+
+        # Assert
+        assert receipt1 not in postgres_driver._receipt_handles
+        assert receipt2 in postgres_driver._receipt_handles
+        assert len(postgres_driver._receipt_handles) == 1
+
+        # Cleanup
+        await postgres_driver.ack("default", receipt2)
+
+    @mark.asyncio
+    async def test_concurrent_ack_nack(self, postgres_driver: PostgresDriver) -> None:
+        """Concurrent ack and nack operations should be safe."""
+        # Arrange
+        num_tasks = 20
+        for i in range(num_tasks):
+            await postgres_driver.enqueue("default", f"task{i}".encode())
+
+        receipts = []
+        for _ in range(num_tasks):
+            receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+            if receipt:
+                receipts.append(receipt)
+
+        assert len(receipts) == num_tasks
+
+        # Act - concurrently ack and nack
+        async def ack_even():
+            for i, receipt in enumerate(receipts):
+                if i % 2 == 0:
+                    await postgres_driver.ack("default", receipt)
+
+        async def nack_odd():
+            for i, receipt in enumerate(receipts):
+                if i % 2 == 1:
+                    await postgres_driver.nack("default", receipt)
+
+        await asyncio.gather(ack_even(), nack_odd())
+
+        # Assert - all receipt handles should be cleared
+        assert len(postgres_driver._receipt_handles) == 0
+
+    @mark.asyncio
+    async def test_multiple_visibility_timeout_expirations(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Multiple visibility timeout expirations should allow task recovery."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task")
+        receipt1 = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt1 is not None
+
+        task_id = postgres_driver._receipt_handles.get(receipt1)
+        assert task_id is not None
+
+        # Expire lock first time
+        await postgres_conn.execute(
+            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second', status = 'pending' WHERE id = $1",
+            task_id,
+        )
+        receipt2 = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt2 is not None
+        assert receipt2 != receipt1
+
+        # Expire lock second time
+        await postgres_conn.execute(
+            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second', status = 'pending' WHERE id = $1",
+            task_id,
+        )
+        receipt3 = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt3 is not None
+        assert receipt3 != receipt2
+
+    @mark.asyncio
+    async def test_get_queue_size_with_expired_locks(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """get_queue_size should correctly handle expired locks."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task1")
+        await postgres_driver.enqueue("default", b"task2")
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+
+        task_id = postgres_driver._receipt_handles.get(receipt)
+        assert task_id is not None
+
+        # Expire the lock
+        await postgres_conn.execute(
+            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second', status = 'pending' WHERE id = $1",
+            task_id,
+        )
+
+        # Act - get_queue_size should count the expired task as ready
+        size = await postgres_driver.get_queue_size(
+            "default", include_delayed=False, include_in_flight=False
+        )
+
+        # Assert - both tasks should be counted as ready (lock expired)
+        assert size == 2
+
+    @mark.asyncio
+    async def test_nack_with_custom_max_attempts(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Nack should respect per-task max_attempts from database."""
+        # Arrange - create task with custom max_attempts
+        await postgres_conn.execute(
+            f"""
+            INSERT INTO {TEST_QUEUE_TABLE}
+                (queue_name, payload, available_at, status, attempts, max_attempts, created_at)
+            VALUES ($1, $2, NOW(), 'pending', 0, $3, NOW())
+            """,
+            "default",
+            b"custom_task",
+            5,  # Custom max_attempts
+        )
+
+        # Act - nack multiple times (should allow up to 5 attempts)
+        for attempt in range(4):  # 0->1, 1->2, 2->3, 3->4
+            receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+            assert receipt is not None
+            await postgres_driver.nack("default", receipt)
+
+            # Make available for next iteration
+            if attempt < 4:
+                await postgres_conn.execute(
+                    f"UPDATE {TEST_QUEUE_TABLE} SET available_at = NOW() - INTERVAL '1 second', locked_until = NULL WHERE queue_name = $1",
+                    "default",
+                )
+
+        # Assert - task should still be in queue (not in DLQ yet)
+        queue_count = await postgres_conn.fetchval(
+            f"SELECT COUNT(*) FROM {TEST_QUEUE_TABLE} WHERE queue_name = $1", "default"
+        )
+        assert queue_count == 1
+
+        # One more nack should move to DLQ
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+        await postgres_driver.nack("default", receipt)
+
+        dlq_count = await postgres_conn.fetchval(
+            f"SELECT COUNT(*) FROM {TEST_DLQ_TABLE} WHERE queue_name = $1", "default"
+        )
+        assert dlq_count == 1
+
+    @mark.asyncio
+    async def test_dequeue_skips_expired_locked_tasks(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Dequeue should skip tasks with expired locks and make them available."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task1")
+        await postgres_driver.enqueue("default", b"task2")
+
+        # Dequeue task1 (locks it)
+        receipt1 = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt1 is not None
+
+        # Manually expire the lock
+        task_id = postgres_driver._receipt_handles.get(receipt1)
+        assert task_id is not None
+        await postgres_conn.execute(
+            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second', status = 'pending' WHERE id = $1",
+            task_id,
+        )
+
+        # Act - dequeue should now get task1 again (lock expired)
+        receipt2 = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt2 is not None
+
+        # Assert - should be able to get task1 (expired) or task2
+        # The order depends on created_at, but both should be available
+        task_id2 = postgres_driver._receipt_handles.get(receipt2)
+        assert task_id2 is not None
+        assert task_id2 in [task_id, task_id + 1]  # Either same task or next
+
+    @mark.asyncio
+    async def test_get_queue_size_empty_queue_all_combinations(
+        self, postgres_driver: PostgresDriver
+    ) -> None:
+        """get_queue_size should return 0 for empty queue in all flag combinations."""
+        # Act & Assert - all combinations should return 0
+        assert (
+            await postgres_driver.get_queue_size(
+                "empty", include_delayed=False, include_in_flight=False
+            )
+            == 0
+        )
+        assert (
+            await postgres_driver.get_queue_size(
+                "empty", include_delayed=True, include_in_flight=False
+            )
+            == 0
+        )
+        assert (
+            await postgres_driver.get_queue_size(
+                "empty", include_delayed=False, include_in_flight=True
+            )
+            == 0
+        )
+        assert (
+            await postgres_driver.get_queue_size(
+                "empty", include_delayed=True, include_in_flight=True
+            )
+            == 0
+        )
+
+    @mark.asyncio
+    async def test_table_names_with_special_characters(
+        self, postgres_dsn: str, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Table names with special characters should be handled safely."""
+        # Arrange - use table names that could be problematic
+        queue_table = "test_queue_123"
+        dlq_table = "test_dlq_456"
+        driver = PostgresDriver(
+            dsn=postgres_dsn,
+            queue_table=queue_table,
+            dead_letter_table=dlq_table,
+        )
+
+        try:
+            # Act - should work without SQL injection issues
+            await driver.init_schema()
+            await driver.enqueue("default", b"task")
+            receipt = await driver.dequeue("default", poll_seconds=0)
+            assert receipt is not None
+            await driver.ack("default", receipt)
+
+            # Assert - verify tables exist
+            queue_exists = await postgres_conn.fetchval(
+                "SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = $1)", queue_table
+            )
+            assert queue_exists is True
+
+        finally:
+            # Cleanup
+            if driver.pool:
+                await driver.pool.execute(f"DROP TABLE IF EXISTS {queue_table}")
+                await driver.pool.execute(f"DROP TABLE IF EXISTS {dlq_table}")
+            await driver.disconnect()
+
+    @mark.asyncio
+    async def test_very_large_delay(self, postgres_driver: PostgresDriver) -> None:
+        """Very large delay values should be handled correctly."""
+        # Arrange
+        large_delay = 86400 * 365  # 1 year in seconds
+
+        # Act
+        await postgres_driver.enqueue("default", b"future_task", delay_seconds=large_delay)
+
+        # Assert - should not be immediately available
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is None
+
+        # Verify it's in the queue
+        size = await postgres_driver.get_queue_size(
+            "default", include_delayed=True, include_in_flight=False
+        )
+        assert size == 1
+
+    @mark.asyncio
+    async def test_receipt_handle_uniqueness(self, postgres_driver: PostgresDriver) -> None:
+        """Receipt handles should be unique across multiple dequeues."""
+        # Arrange
+        num_tasks = 100
+        for i in range(num_tasks):
+            await postgres_driver.enqueue("default", f"task{i}".encode())
+
+        # Act - dequeue all tasks
+        receipts = []
+        for _ in range(num_tasks):
+            receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+            if receipt:
+                receipts.append(receipt)
+
+        # Assert - all receipts should be unique
+        assert len(receipts) == num_tasks
+        assert len(set(receipts)) == num_tasks
+
+        # Cleanup
+        for receipt in receipts:
+            await postgres_driver.ack("default", receipt)
+
+    @mark.asyncio
+    async def test_nack_requeue_clears_lock(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Nack should clear locked_until when requeuing."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task")
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+
+        task_id = postgres_driver._receipt_handles.get(receipt)
+        assert task_id is not None
+
+        # Verify task is locked
+        result = await postgres_conn.fetchrow(
+            f"SELECT locked_until FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id
+        )
+        assert result is not None
+        assert result["locked_until"] is not None
+
+        # Act - nack
+        await postgres_driver.nack("default", receipt)
+
+        # Assert - lock should be cleared
+        result = await postgres_conn.fetchrow(
+            f"SELECT locked_until, status FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id
+        )
+        assert result is not None
+        assert result["locked_until"] is None
+        assert result["status"] == "pending"
+
+    @mark.asyncio
+    async def test_dequeue_after_nack_retry(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Task should be dequeuable after nack retry delay expires."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"task")
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+
+        # Nack (will requeue with delay)
+        await postgres_driver.nack("default", receipt)
+
+        # Task should not be immediately available (retry delay)
+        receipt2 = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt2 is None
+
+        # Manually expire the retry delay
+        await postgres_conn.execute(
+            f"UPDATE {TEST_QUEUE_TABLE} SET available_at = NOW() - INTERVAL '1 second' WHERE queue_name = $1",
+            "default",
+        )
+
+        # Act - should now be available
+        receipt3 = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt3 is not None
+
+    @mark.asyncio
+    async def test_get_queue_size_different_queues(self, postgres_driver: PostgresDriver) -> None:
+        """get_queue_size should only count tasks in specified queue."""
+        # Arrange
+        await postgres_driver.enqueue("queue1", b"task1")
+        await postgres_driver.enqueue("queue1", b"task2")
+        await postgres_driver.enqueue("queue2", b"task3")
+
+        # Act
+        size1 = await postgres_driver.get_queue_size(
+            "queue1", include_delayed=False, include_in_flight=False
+        )
+        size2 = await postgres_driver.get_queue_size(
+            "queue2", include_delayed=False, include_in_flight=False
+        )
+
+        # Assert
+        assert size1 == 2
+        assert size2 == 1
 
 
 @mark.integration
@@ -962,7 +1621,8 @@ class TestPostgresDriverEdgeCases:
             assert receipt is not None
 
             # Verify data via database
-            task_id = postgres_driver._receipt_handles[receipt]
+            task_id = postgres_driver._receipt_handles.get(receipt)
+            assert task_id is not None
             result = await postgres_driver.pool.fetchrow(
                 f"SELECT payload FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id
             )

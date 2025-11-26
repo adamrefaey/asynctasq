@@ -370,7 +370,8 @@ class TestMySQLDriverWithRealMySQL:
         assert receipt is not None
 
         # Assert
-        task_id = mysql_driver._receipt_handles[receipt]
+        task_id = mysql_driver._receipt_handles.get(receipt)
+        assert task_id is not None
         async with mysql_conn.cursor() as cursor:
             await cursor.execute(
                 f"SELECT status, locked_until FROM {TEST_QUEUE_TABLE} WHERE id = %s", (task_id,)
