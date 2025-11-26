@@ -8,7 +8,6 @@ Testing Strategy:
 """
 
 import argparse
-from typing import cast
 
 from pytest import main, mark, raises
 
@@ -273,8 +272,13 @@ class TestCreateParser:
         parser = create_parser()
 
         # Act
-        # Access subparsers action - argparse._SubParsersAction has a choices dict
-        subparsers_action = cast(argparse._SubParsersAction, parser._subparsers)
+        # Find the subparsers action by iterating through parser actions
+        subparsers_action = None
+        for action in parser._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                subparsers_action = action
+                break
+
         assert subparsers_action is not None
         assert isinstance(subparsers_action.choices, dict)
         worker_parser = subparsers_action.choices["worker"]

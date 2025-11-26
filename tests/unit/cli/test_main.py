@@ -30,8 +30,6 @@ class TestRunCommand:
         args = argparse.Namespace(command="worker", driver="redis")
         mock_config = MagicMock()
         mock_build_config.return_value = mock_config
-        mock_coroutine = MagicMock()
-        mock_run_worker.return_value = mock_coroutine
 
         # Act
         run_command(args)
@@ -39,7 +37,14 @@ class TestRunCommand:
         # Assert
         mock_build_config.assert_called_once_with(args)
         mock_run_worker.assert_called_once_with(args, mock_config)
-        mock_asyncio_run.assert_called_once_with(mock_coroutine)
+        # Verify asyncio.run was called once with a coroutine (run_worker is async)
+        mock_asyncio_run.assert_called_once()
+        # Verify the argument passed to asyncio.run is a coroutine
+        import asyncio
+
+        call_args = mock_asyncio_run.call_args[0]
+        assert len(call_args) == 1
+        assert asyncio.iscoroutine(call_args[0])
 
     @patch("async_task.cli.main.build_config")
     @patch("async_task.cli.main.asyncio.run")
