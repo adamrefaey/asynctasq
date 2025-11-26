@@ -3,7 +3,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias
 
-DriverType: TypeAlias = Literal["redis", "sqs", "postgres", "mysql"]
+DriverType: TypeAlias = Literal["redis", "sqs", "postgres", "mysql", "rabbitmq"]
 
 
 # Environment variable mapping: field_name -> (env_var, default_value, type_converter)
@@ -62,6 +62,10 @@ ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {
     ),
     "mysql_min_pool_size": ("ASYNC_TASK_MYSQL_MIN_POOL_SIZE", "10", int),
     "mysql_max_pool_size": ("ASYNC_TASK_MYSQL_MAX_POOL_SIZE", "10", int),
+    # RabbitMQ configuration
+    "rabbitmq_url": ("ASYNC_TASK_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/", str),
+    "rabbitmq_exchange_name": ("ASYNC_TASK_RABBITMQ_EXCHANGE_NAME", "async_task", str),
+    "rabbitmq_prefetch_count": ("ASYNC_TASK_RABBITMQ_PREFETCH_COUNT", "1", int),
     # Task defaults
     "default_queue": ("ASYNC_TASK_DEFAULT_QUEUE", "default", str),
     "default_max_retries": ("ASYNC_TASK_MAX_RETRIES", "3", int),
@@ -108,6 +112,11 @@ class Config:
     mysql_visibility_timeout_seconds: int = 300
     mysql_min_pool_size: int = 10
     mysql_max_pool_size: int = 10
+
+    # RabbitMQ configuration
+    rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
+    rabbitmq_exchange_name: str = "async_task"
+    rabbitmq_prefetch_count: int = 1
 
     # Task defaults
     default_queue: str = "default"
@@ -192,7 +201,7 @@ def set_global_config(**overrides) -> None:
             set via environment variables (see below for mappings).
 
     General Options:
-        driver (str): Queue driver to use. Choices: "redis", "sqs", "postgres", "mysql"
+        driver (str): Queue driver to use. Choices: "redis", "sqs", "postgres", "mysql", "rabbitmq"
             Env var: ASYNC_TASK_DRIVER
             Default: "redis"
 
@@ -312,6 +321,19 @@ def set_global_config(**overrides) -> None:
             Env var: AWS_SECRET_ACCESS_KEY
             Default: None (uses AWS credential chain)
 
+    RabbitMQ Options:
+        rabbitmq_url (str): RabbitMQ connection URL
+            Env var: ASYNC_TASK_RABBITMQ_URL
+            Default: "amqp://guest:guest@localhost:5672/"
+
+        rabbitmq_exchange_name (str): RabbitMQ exchange name
+            Env var: ASYNC_TASK_RABBITMQ_EXCHANGE_NAME
+            Default: "async_task"
+
+        rabbitmq_prefetch_count (int): RabbitMQ consumer prefetch count
+            Env var: ASYNC_TASK_RABBITMQ_PREFETCH_COUNT
+            Default: 1
+
     Examples:
         # Basic configuration with Redis
         set_global_config(
@@ -347,6 +369,14 @@ def set_global_config(**overrides) -> None:
             sqs_queue_url_prefix='https://sqs.us-west-2.amazonaws.com/123456789/',
             aws_access_key_id='your_key',
             aws_secret_access_key='your_secret'
+        )
+
+        # RabbitMQ configuration
+        set_global_config(
+            driver='rabbitmq',
+            rabbitmq_url='amqp://user:pass@localhost:5672/',
+            rabbitmq_exchange_name='my_exchange',
+            rabbitmq_prefetch_count=10
         )
 
         # Task defaults

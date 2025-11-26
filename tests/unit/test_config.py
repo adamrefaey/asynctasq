@@ -44,7 +44,7 @@ class TestDriverType:
 
     def test_driver_type_contains_all_drivers(self) -> None:
         # Arrange
-        expected_drivers = ("redis", "sqs", "postgres", "mysql")
+        expected_drivers = ("redis", "sqs", "postgres", "mysql", "rabbitmq")
 
         # Act
         actual_drivers = get_args(DriverType)
@@ -89,6 +89,9 @@ class TestEnvVarMapping:
             "mysql_visibility_timeout_seconds",
             "mysql_min_pool_size",
             "mysql_max_pool_size",
+            "rabbitmq_url",
+            "rabbitmq_exchange_name",
+            "rabbitmq_prefetch_count",
             "default_queue",
             "default_max_retries",
             "default_retry_delay",

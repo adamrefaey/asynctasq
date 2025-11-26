@@ -36,6 +36,7 @@ redis = ["redis[hiredis]>=7.1.0"]
 sqs = ["aioboto3>=15.5.0", "types-aioboto3[sqs]>=15.5.0"]
 postgres = ["asyncpg>=0.30.0", "asyncpg-stubs>=0.30.0"]
 mysql = ["asyncmy>=0.2.10"]
+rabbitmq = ["aio-pika>=9.5.8"]
 sqlite = ["aiosqlite>=0.21.0"]
 oracle = ["oracledb>=3.4.1"]
 sqlalchemy = ["sqlalchemy>=2.0.44", "greenlet>=3.2.4"]
@@ -44,7 +45,7 @@ tortoise = ["tortoise-orm>=0.25.1"]
 fastapi = ["fastapi>=0.115.0"]
 
 all = [
-    "async-task[redis,sqs,postgres,mysql,sqlite,oracle,sqlalchemy,django,tortoise,fastapi]",
+    "async-task[redis,sqs,postgres,mysql,rabbitmq,sqlite,oracle,sqlalchemy,django,tortoise,fastapi]",
 ]
 
 [project.urls]

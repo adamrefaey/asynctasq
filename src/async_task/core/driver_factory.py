@@ -53,6 +53,9 @@ class DriverFactory:
             mysql_visibility_timeout_seconds=config.mysql_visibility_timeout_seconds,
             mysql_min_pool_size=config.mysql_min_pool_size,
             mysql_max_pool_size=config.mysql_max_pool_size,
+            rabbitmq_url=config.rabbitmq_url,
+            rabbitmq_exchange_name=config.rabbitmq_exchange_name,
+            rabbitmq_prefetch_count=config.rabbitmq_prefetch_count,
         )
 
     @staticmethod
@@ -116,6 +119,14 @@ class DriverFactory:
                     visibility_timeout_seconds=kwargs.get("mysql_visibility_timeout_seconds", 300),
                     min_pool_size=kwargs.get("mysql_min_pool_size", 10),
                     max_pool_size=kwargs.get("mysql_max_pool_size", 10),
+                )
+            case "rabbitmq":
+                from ..drivers.rabbitmq_driver import RabbitMQDriver
+
+                return RabbitMQDriver(
+                    url=kwargs.get("rabbitmq_url", "amqp://guest:guest@localhost:5672/"),
+                    exchange_name=kwargs.get("rabbitmq_exchange_name", "async_task"),
+                    prefetch_count=kwargs.get("rabbitmq_prefetch_count", 1),
                 )
             case _:
                 raise ValueError(
