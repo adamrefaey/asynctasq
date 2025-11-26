@@ -30,16 +30,16 @@ class TestRunCommand:
         args = argparse.Namespace(command="worker", driver="redis")
         mock_config = MagicMock()
         mock_build_config.return_value = mock_config
+        mock_coroutine = MagicMock()
+        mock_run_worker.return_value = mock_coroutine
 
         # Act
         run_command(args)
 
         # Assert
         mock_build_config.assert_called_once_with(args)
-        mock_asyncio_run.assert_called_once()
-        call_args = mock_asyncio_run.call_args[0][0]
-        # Verify the coroutine was called with correct args
-        assert call_args is not None
+        mock_run_worker.assert_called_once_with(args, mock_config)
+        mock_asyncio_run.assert_called_once_with(mock_coroutine)
 
     @patch("async_task.cli.main.build_config")
     @patch("async_task.cli.main.asyncio.run")
@@ -60,7 +60,10 @@ class TestRunCommand:
         mock_asyncio_run.assert_called_once()
 
     @patch("async_task.cli.main.build_config")
-    def test_run_command_unknown_command_raises_error(self, mock_build_config) -> None:
+    @patch("async_task.cli.main.asyncio.run")
+    def test_run_command_unknown_command_raises_error(
+        self, mock_asyncio_run, mock_build_config
+    ) -> None:
         # Arrange
         args = argparse.Namespace(command="unknown")
         mock_config = MagicMock()
@@ -69,6 +72,9 @@ class TestRunCommand:
         # Act & Assert
         with raises(ValueError, match="Unknown command: unknown"):
             run_command(args)
+
+        # Ensure asyncio.run was never called since we raise before it
+        mock_asyncio_run.assert_not_called()
 
 
 @mark.unit
@@ -112,6 +118,7 @@ class TestMain:
         cli_main()
 
         # Assert
+        mock_setup_logging.assert_called_once()
         mock_exit.assert_called_once_with(0)
 
     @patch("async_task.cli.main.setup_logging")
@@ -133,6 +140,7 @@ class TestMain:
         cli_main()
 
         # Assert
+        mock_setup_logging.assert_called_once()
         mock_logger.error.assert_called_once_with("Migration failed")
         mock_exit.assert_called_once_with(1)
 
@@ -155,6 +163,7 @@ class TestMain:
         cli_main()
 
         # Assert
+        mock_setup_logging.assert_called_once()
         mock_logger.exception.assert_called_once()
         mock_exit.assert_called_once_with(1)
 
@@ -179,6 +188,7 @@ class TestMain:
         # Assert
         # SystemExit from argparse should propagate (not caught)
         # But in real usage, argparse handles this
+        mock_setup_logging.assert_called_once()
         assert mock_run_command.called is False
 
 
