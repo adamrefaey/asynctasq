@@ -307,13 +307,14 @@ class TestWorkerRun:
         worker._running = True
 
         task_data = b"test_task_data"
+        queue_name = "default"
         call_count = 0
 
         async def fetch_side_effect():
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return task_data
+                return (task_data, queue_name)
             # After first call, stop the loop
             worker._running = False
             return None
@@ -327,7 +328,7 @@ class TestWorkerRun:
 
         # Assert
         assert mock_fetch.call_count >= 1
-        mock_process.assert_called_once_with(task_data)
+        mock_process.assert_called_once_with(task_data, queue_name)
 
     @mark.asyncio
     async def test_run_handles_task_done_callback(self) -> None:
@@ -337,10 +338,11 @@ class TestWorkerRun:
         worker._running = True
 
         task_data = b"test_task_data"
+        queue_name = "default"
         processed_task = None
         call_count = 0
 
-        async def process_side_effect(data):
+        async def process_side_effect(data, queue):
             nonlocal processed_task
             # Create a task that will complete and test the done callback mechanism
             processed_task = asyncio.create_task(asyncio.sleep(0.01))
@@ -351,7 +353,7 @@ class TestWorkerRun:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return task_data
+                return (task_data, queue_name)
             # After first call, stop the loop to prevent hanging
             worker._running = False
             return None
@@ -451,7 +453,7 @@ class TestWorkerFetchTask:
         result = await worker._fetch_task()
 
         # Assert
-        assert result == task_data
+        assert result == (task_data, "q1")
         mock_driver.dequeue.assert_called_once_with("q1")
 
     @mark.asyncio
@@ -465,7 +467,7 @@ class TestWorkerFetchTask:
         result = await worker._fetch_task()
 
         # Assert
-        assert result == b"task_data"
+        assert result == (b"task_data", "q3")
         assert mock_driver.dequeue.call_count == 3
         assert mock_driver.dequeue.call_args_list[0][0][0] == "q1"
         assert mock_driver.dequeue.call_args_list[1][0][0] == "q2"
@@ -656,7 +658,7 @@ class TestWorkerHandleTaskFailure:
 
         # Assert
         assert task._attempts == 1
-        mock_driver.enqueue.assert_called_once_with("test_queue", b"serialized", 60)
+        mock_driver.enqueue.assert_called_once_with("test_queue", b"serialized", delay_seconds=60)
 
     @mark.asyncio
     async def test_handle_task_failure_no_retry_when_attempts_exceed_max(self) -> None:
@@ -1337,7 +1339,7 @@ class TestWorkerIntegration:
             f"enqueue was not called. Call count: {mock_driver.enqueue.call_count}. "
             f"This means the retry logic did not execute properly."
         )
-        mock_driver.enqueue.assert_called_once_with("test_queue", serialized, 60)
+        mock_driver.enqueue.assert_called_once_with("test_queue", serialized, delay_seconds=60)
         # Task counter should not increment on failure (only on success)
         assert worker._tasks_processed == 0
 

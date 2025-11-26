@@ -219,15 +219,20 @@ class Worker:
             self._tasks_processed += 1
 
         except (ImportError, AttributeError, ValueError, TypeError) as e:
-            # Deserialization failure - re-enqueue raw task_data for retry
-            # This allows the task to be retried later (e.g., after code is fixed)
-            logger.error(
-                f"Failed to deserialize task from queue '{queue_name}': {e}. "
-                f"Re-enqueuing for retry."
-            )
-            logger.exception(e)
-            # Re-enqueue with a delay to avoid immediate retry loop
-            await self.queue_driver.enqueue(queue_name, task_data, delay_seconds=60)
+            if task is None:
+                # Deserialization failure - re-enqueue raw task_data for retry
+                # This allows the task to be retried later (e.g., after code is fixed)
+                logger.error(
+                    f"Failed to deserialize task from queue '{queue_name}': {e}. "
+                    f"Re-enqueuing for retry."
+                )
+                logger.exception(e)
+                # Re-enqueue with a delay to avoid immediate retry loop
+                await self.queue_driver.enqueue(queue_name, task_data, delay_seconds=60)
+            else:
+                # ValueError/TypeError during task execution - handle as task failure
+                logger.exception(f"Task {task._task_id} failed: {e}")
+                await self._handle_task_failure(task, e)
 
         except TimeoutError as e:
             if task is None:
@@ -283,7 +288,9 @@ class Worker:
 
             # Re-enqueue with delay
             serialized_task = await self._serialize_task(task)
-            await self.queue_driver.enqueue(task.queue, serialized_task, task.retry_delay)
+            await self.queue_driver.enqueue(
+                task.queue, serialized_task, delay_seconds=task.retry_delay
+            )
         else:
             # Task has failed permanently
             logger.error(f"Task {task._task_id} failed permanently after {task._attempts} attempts")
