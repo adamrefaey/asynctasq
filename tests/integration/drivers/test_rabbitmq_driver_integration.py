@@ -83,82 +83,50 @@ async def clean_queues(
     Fixture that ensures queues are clean before and after tests.
     Automatically applied to all tests in this module.
     """
-    # Clean up any existing queues before test
-    try:
-        channel = await rabbitmq_connection.channel()
-        # Purge common test queues if they exist
-        for queue_name in [
-            "default",
-            "test_queue",
-            "queue1",
-            "queue2",
-            "new_queue",
-            "empty_queue",
-            "empty",
-            "auto_created_queue",
-        ]:
-            try:
-                queue = await channel.declare_queue(queue_name, durable=True, auto_delete=False)
-                await queue.purge()
-            except Exception:
-                pass
-
-        # Delete delayed queues to avoid precondition failures
-        # (they may have been created with wrong arguments in previous runs)
-        for queue_name in ["default_delayed", "test_queue_delayed"]:
-            try:
-                queue = await channel.declare_queue(
-                    queue_name, durable=True, auto_delete=False, passive=True
-                )
-                await queue.delete()
-            except Exception:
-                pass
-
-        await channel.close()
-    except Exception:
-        pass
+    # Clean up any existing queues before test using driver purge_queue
+    for queue_name in [
+        "default",
+        "test_queue",
+        "queue1",
+        "queue2",
+        "new_queue",
+        "empty_queue",
+        "empty",
+        "auto_created_queue",
+    ]:
+        try:
+            await rabbitmq_driver.purge_queue(queue_name)
+        except Exception:
+            pass
+    # Also purge queues created by many_queues test
+    for i in range(50):
+        try:
+            await rabbitmq_driver.purge_queue(f"queue{i}")
+        except Exception:
+            pass
 
     yield
 
-    # Clean up queues after test - purge them
-    try:
-        channel = await rabbitmq_connection.channel()
-        # Purge test queues
-        for queue_name in [
-            "default",
-            "test_queue",
-            "queue1",
-            "queue2",
-            "new_queue",
-            "empty_queue",
-            "empty",
-            "auto_created_queue",
-        ]:
-            try:
-                queue = await channel.declare_queue(queue_name, durable=True, auto_delete=False)
-                await queue.purge()
-            except Exception:
-                pass
-
-        # Purge delayed queues
-        for queue_name in ["default_delayed", "test_queue_delayed"]:
-            try:
-                queue = await channel.declare_queue(queue_name, durable=True, auto_delete=False)
-                await queue.purge()
-            except Exception:
-                pass
-
-        # Also purge queues created by many_queues test
-        for i in range(50):
-            try:
-                queue = await channel.declare_queue(f"queue{i}", durable=True, auto_delete=False)
-                await queue.purge()
-            except Exception:
-                pass
-
-        await channel.close()
-    except Exception:
-        pass
+    # Clean up queues after test using driver purge_queue
+    for queue_name in [
+        "default",
+        "test_queue",
+        "queue1",
+        "queue2",
+        "new_queue",
+        "empty_queue",
+        "empty",
+        "auto_created_queue",
+    ]:
+        try:
+            await rabbitmq_driver.purge_queue(queue_name)
+        except Exception:
+            pass
+    for i in range(50):
+        try:
+            await rabbitmq_driver.purge_queue(f"queue{i}")
+        except Exception:
+            pass
 
 
 @mark.integration
@@ -881,8 +849,8 @@ class TestRabbitMQDriverAdditionalCoverage:
         # Assert
         assert size_00 == 1  # Only remaining immediate task
         assert size_10 == 2  # Remaining immediate + delayed
-        assert size_01 == 1  # Remaining immediate (in-flight not tracked)
-        assert size_11 == 2  # Remaining immediate + delayed (in-flight not tracked)
+        assert size_01 == 2  # Remaining immediate + in-flight (driver counts in-flight)
+        assert size_11 == 3  # Remaining immediate + delayed + in-flight
 
         # Cleanup
         if receipt is not None:

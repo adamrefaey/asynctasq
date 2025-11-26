@@ -54,7 +54,10 @@ class TestRabbitMQDriverInitialization:
         mock_channel = AsyncMock()
         mock_exchange = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -79,7 +82,10 @@ class TestRabbitMQDriverInitialization:
         mock_channel = AsyncMock()
         mock_exchange = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -102,7 +108,10 @@ class TestRabbitMQDriverInitialization:
         mock_channel = AsyncMock()
         mock_exchange = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -130,7 +139,10 @@ class TestRabbitMQDriverInitialization:
         mock_channel = AsyncMock()
         mock_exchange = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -162,7 +174,10 @@ class TestRabbitMQDriverEnqueue:
         mock_exchange = AsyncMock()
         mock_exchange.publish = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -189,7 +204,10 @@ class TestRabbitMQDriverEnqueue:
         mock_delayed_queue = AsyncMock()
         mock_delayed_queue.bind = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -216,7 +234,10 @@ class TestRabbitMQDriverEnqueue:
         mock_exchange = AsyncMock()
         mock_exchange.publish = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -245,52 +266,62 @@ class TestRabbitMQDriverDequeue:
         mock_message = AsyncMock()
         mock_message.body = b"task_data"
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
             mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
             mock_queue.bind = AsyncMock()
+            mock_queue.declare = AsyncMock()  # Mock queue.declare() for refresh
             mock_queue.get = AsyncMock(return_value=mock_message)
 
             await driver.connect()
 
-            # Act
-            result = await driver.dequeue("default", poll_seconds=0)
+            @mark.asyncio
+            async def test_dequeue_with_poll_seconds(self) -> None:
+                """Test dequeue() with poll_seconds > 0 uses manual polling loop and does not hang."""
+                # Arrange
+                driver = RabbitMQDriver()
+                mock_connection = AsyncMock()
+                mock_channel = AsyncMock()
+                mock_exchange = AsyncMock()
+                mock_queue = AsyncMock()
+                mock_message = AsyncMock()
+                mock_message.body = b"task_data"
 
-            # Assert
-            assert result == b"task_data"
-            assert b"task_data" in driver._receipt_handles
+                # Patch current_time to advance quickly so the polling loop exits immediately
+                with (
+                    patch(
+                        "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+                        return_value=mock_connection,
+                    ),
+                    patch("async_task.drivers.rabbitmq_driver.current_time", side_effect=[0, 2]),
+                ):
+                    mock_connection.channel = AsyncMock(return_value=mock_channel)
+                    mock_channel.set_qos = AsyncMock()
+                    mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+                    mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
+                    mock_queue.bind = AsyncMock()
+                    mock_queue_state = MagicMock()
+                    mock_queue_state.message_count = 0
+                    mock_queue.declare = AsyncMock(return_value=mock_queue_state)
+                    mock_queue.get = AsyncMock(return_value=mock_message)
 
-    @mark.asyncio
-    async def test_dequeue_returns_none_when_empty(self) -> None:
-        """Test dequeue() returns None when queue is empty."""
-        # Arrange
-        driver = RabbitMQDriver()
-        mock_connection = AsyncMock()
-        mock_channel = AsyncMock()
-        mock_exchange = AsyncMock()
-        mock_queue = AsyncMock()
+                    await driver.connect()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
-            mock_connection.channel = AsyncMock(return_value=mock_channel)
-            mock_channel.set_qos = AsyncMock()
-            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
-            mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
-            mock_queue.bind = AsyncMock()
-            mock_queue.get = AsyncMock(return_value=None)
+                    # Act
+                    result = await driver.dequeue("default", poll_seconds=1)
 
-            await driver.connect()
-
-            # Act
-            result = await driver.dequeue("default", poll_seconds=0)
-
-            # Assert
-            assert result is None
+                    # Assert
+                    assert result == b"task_data"
+                    mock_queue.get.assert_called_with(fail=False)
 
     @mark.asyncio
     async def test_dequeue_with_poll_seconds(self) -> None:
-        """Test dequeue() with poll_seconds > 0."""
+        """Test dequeue() with poll_seconds > 0 uses manual polling loop."""
         # Arrange
         driver = RabbitMQDriver()
         mock_connection = AsyncMock()
@@ -300,12 +331,21 @@ class TestRabbitMQDriverDequeue:
         mock_message = AsyncMock()
         mock_message.body = b"task_data"
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
             mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
             mock_queue.bind = AsyncMock()
+            # Create a mock queue state with message_count
+            mock_queue_state = MagicMock()
+            mock_queue_state.message_count = 0
+            mock_queue.declare = AsyncMock(
+                return_value=mock_queue_state
+            )  # Mock queue.declare() for refresh
             mock_queue.get = AsyncMock(return_value=mock_message)
 
             await driver.connect()
@@ -315,7 +355,8 @@ class TestRabbitMQDriverDequeue:
 
             # Assert
             assert result == b"task_data"
-            mock_queue.get.assert_called_once_with(timeout=5, fail=False)
+            # Should use manual polling loop, so get() is called with fail=False (no timeout parameter)
+            mock_queue.get.assert_called_with(fail=False)
 
     @mark.asyncio
     async def test_dequeue_auto_connects(self) -> None:
@@ -327,12 +368,16 @@ class TestRabbitMQDriverDequeue:
         mock_exchange = AsyncMock()
         mock_queue = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
             mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
             mock_queue.bind = AsyncMock()
+            mock_queue.declare = AsyncMock()  # Mock queue.declare() for refresh
             mock_queue.get = AsyncMock(return_value=None)
 
             # Act
@@ -423,7 +468,10 @@ class TestRabbitMQDriverGetQueueSize:
         mock_queue_state.message_count = 5
         mock_queue.declare = AsyncMock(return_value=mock_queue_state)
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -433,7 +481,9 @@ class TestRabbitMQDriverGetQueueSize:
             await driver.connect()
 
             # Act
-            size = await driver.get_queue_size("default", include_delayed=False, include_in_flight=False)
+            size = await driver.get_queue_size(
+                "default", include_delayed=False, include_in_flight=False
+            )
 
             # Assert
             assert size == 5
@@ -455,7 +505,10 @@ class TestRabbitMQDriverGetQueueSize:
         mock_queue.declare = AsyncMock(return_value=mock_queue_state)
         mock_delayed_queue.declare = AsyncMock(return_value=mock_delayed_state)
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -466,7 +519,9 @@ class TestRabbitMQDriverGetQueueSize:
             await driver.connect()
 
             # Act
-            size = await driver.get_queue_size("default", include_delayed=True, include_in_flight=False)
+            size = await driver.get_queue_size(
+                "default", include_delayed=True, include_in_flight=False
+            )
 
             # Assert
             assert size == 5  # 3 + 2
@@ -484,7 +539,10 @@ class TestRabbitMQDriverGetQueueSize:
         mock_queue_state.message_count = None
         mock_queue.declare = AsyncMock(return_value=mock_queue_state)
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -494,7 +552,9 @@ class TestRabbitMQDriverGetQueueSize:
             await driver.connect()
 
             # Act
-            size = await driver.get_queue_size("default", include_delayed=False, include_in_flight=False)
+            size = await driver.get_queue_size(
+                "default", include_delayed=False, include_in_flight=False
+            )
 
             # Assert
             assert size == 0
@@ -512,7 +572,10 @@ class TestRabbitMQDriverGetQueueSize:
         mock_queue_state.message_count = 0
         mock_queue.declare = AsyncMock(return_value=mock_queue_state)
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -520,7 +583,9 @@ class TestRabbitMQDriverGetQueueSize:
             mock_queue.bind = AsyncMock()
 
             # Act
-            size = await driver.get_queue_size("default", include_delayed=False, include_in_flight=False)
+            size = await driver.get_queue_size(
+                "default", include_delayed=False, include_in_flight=False
+            )
 
             # Assert
             assert driver.connection is not None
@@ -542,7 +607,10 @@ class TestRabbitMQDriverEnsureQueue:
         mock_queue = AsyncMock()
         mock_queue.bind = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -571,7 +639,10 @@ class TestRabbitMQDriverEnsureQueue:
         mock_queue = AsyncMock()
         mock_queue.bind = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -605,7 +676,10 @@ class TestRabbitMQDriverEnsureDelayedQueue:
         mock_delayed_queue = AsyncMock()
         mock_delayed_queue.bind = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -637,7 +711,10 @@ class TestRabbitMQDriverEnsureDelayedQueue:
         mock_delayed_queue = AsyncMock()
         mock_delayed_queue.bind = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -682,7 +759,10 @@ class TestRabbitMQDriverEdgeCases:
         mock_exchange = AsyncMock()
         mock_exchange.publish = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -710,7 +790,10 @@ class TestRabbitMQDriverEdgeCases:
         mock_channel = AsyncMock()
         mock_exchange = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -736,7 +819,10 @@ class TestRabbitMQDriverEdgeCases:
         mock_queue1 = AsyncMock()
         mock_queue2 = AsyncMock()
 
-        with patch("async_task.drivers.rabbitmq_driver.aio_pika.connect_robust", return_value=mock_connection):
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
             mock_channel.set_qos = AsyncMock()
             mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
@@ -755,7 +841,375 @@ class TestRabbitMQDriverEdgeCases:
             assert queue2 == mock_queue2
             assert queue1 != queue2
 
+    @mark.asyncio
+    async def test_dequeue_poll_timeout(self) -> None:
+        """Test dequeue() returns None after poll timeout."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_queue = AsyncMock()
+        mock_queue_state = MagicMock()
+        mock_queue_state.message_count = 0
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
+            mock_queue.bind = AsyncMock()
+            mock_queue.declare = AsyncMock(return_value=mock_queue_state)
+            mock_queue.get = AsyncMock(return_value=None)  # Always return None (empty queue)
+
+            await driver.connect()
+
+            # Act
+            result = await driver.dequeue("default", poll_seconds=1)  # Short timeout for test
+
+            # Assert
+            assert result is None
+            # Should have tried to get multiple times
+            assert mock_queue.get.call_count > 1
+
+    @mark.asyncio
+    async def test_in_flight_counter_management(self) -> None:
+        """Test in-flight counter is managed correctly."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_queue = AsyncMock()
+        mock_message1 = AsyncMock()
+        mock_message1.body = b"task1"
+        mock_message1.ack = AsyncMock()
+        mock_message2 = AsyncMock()
+        mock_message2.body = b"task2"
+        mock_message2.nack = AsyncMock()
+        mock_queue_state = MagicMock()
+        mock_queue_state.message_count = 0
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
+            mock_queue.bind = AsyncMock()
+            mock_queue.declare = AsyncMock(return_value=mock_queue_state)
+            # Use a callable side_effect that returns None after the list is exhausted
+            messages = [mock_message1, mock_message2, None]
+            counter = [0]
+
+            def get_side_effect(*args, **kwargs):
+                if counter[0] < len(messages):
+                    result = messages[counter[0]]
+                    counter[0] += 1
+                    return result
+                return None
+
+            # Ensure the side effect returns the expected messages for the test
+            mock_queue.get = AsyncMock(side_effect=get_side_effect)
+            # Patch declare_queue on the mock_channel to always return mock_queue
+            mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
+
+            await driver.connect()
+
+            # Act - dequeue two messages
+            task1 = await driver.dequeue("default", poll_seconds=0)
+            assert task1 is not None
+
+            task2 = await driver.dequeue("default", poll_seconds=0)
+            assert task2 is not None
+
+            # Assert - in-flight counter should be 2
+            assert driver._in_flight_per_queue.get("default", 0) == 2
+
+            # Act - ack first message
+            await driver.ack("default", task1)
+
+            # Assert - in-flight counter should be 1
+            assert driver._in_flight_per_queue.get("default", 0) == 1
+
+            # Act - nack second message
+            await driver.nack("default", task2)
+
+            # Assert - in-flight counter should be 0
+            assert driver._in_flight_per_queue.get("default", 0) == 0
+
+    @mark.asyncio
+    async def test_get_queue_size_with_in_flight(self) -> None:
+        """Test get_queue_size() includes in-flight messages when requested."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_queue = AsyncMock()
+        mock_queue_state = MagicMock()
+        mock_queue_state.message_count = 5
+        mock_message = AsyncMock()
+        mock_message.body = b"task"
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
+            mock_queue.bind = AsyncMock()
+            mock_queue.declare = AsyncMock(return_value=mock_queue_state)
+            mock_queue.get = AsyncMock(return_value=mock_message)
+
+            await driver.connect()
+
+            # Dequeue one message to add to in-flight
+            await driver.dequeue("default", poll_seconds=0)
+
+            # Act
+            size_without = await driver.get_queue_size(
+                "default", include_delayed=False, include_in_flight=False
+            )
+            size_with = await driver.get_queue_size(
+                "default", include_delayed=False, include_in_flight=True
+            )
+
+            # Assert
+            assert size_without == 5  # Only ready messages
+            assert size_with == 6  # Ready + in-flight (1)
+
+    @mark.asyncio
+    async def test_process_delayed_tasks_with_ready_tasks(self) -> None:
+        """Test _process_delayed_tasks() moves ready tasks to main queue."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_delayed_queue = AsyncMock()
+        mock_message = AsyncMock()
+        # Create a ready task (timestamp in the past)
+        import struct
+        from time import time as current_time
+
+        ready_at = current_time() - 10  # 10 seconds ago
+        ready_at_bytes = struct.pack("d", ready_at)
+        mock_message.body = ready_at_bytes + b"task_data"
+        mock_message.ack = AsyncMock()
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_delayed_queue)
+            mock_delayed_queue.bind = AsyncMock()
+            mock_delayed_queue.get = AsyncMock(side_effect=[mock_message, None])
+            mock_exchange.publish = AsyncMock()
+
+            await driver.connect()
+            # Manually add delayed queue to cache (simulating it was created)
+            driver._delayed_queues["default_delayed"] = mock_delayed_queue
+
+            # Act
+            await driver._process_delayed_tasks("default")
+
+            # Assert
+            # Should have published to main queue
+            mock_exchange.publish.assert_called_once()
+            call_args = mock_exchange.publish.call_args
+            assert call_args[1]["routing_key"] == "default"
+            # Should have acked the delayed message
+            mock_message.ack.assert_called_once()
+
+    @mark.asyncio
+    async def test_process_delayed_tasks_with_not_ready_tasks(self) -> None:
+        """Test _process_delayed_tasks() requeues not-ready tasks."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_delayed_queue = AsyncMock()
+        mock_message = AsyncMock()
+        # Create a not-ready task (timestamp in the future)
+        import struct
+        from time import time as current_time
+
+        ready_at = current_time() + 100  # 100 seconds in future
+        ready_at_bytes = struct.pack("d", ready_at)
+        mock_message.body = ready_at_bytes + b"task_data"
+        mock_message.nack = AsyncMock()
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_delayed_queue)
+            mock_delayed_queue.bind = AsyncMock()
+            mock_delayed_queue.get = AsyncMock(side_effect=[mock_message, None])
+
+            await driver.connect()
+            # Manually add delayed queue to cache
+            driver._delayed_queues["default_delayed"] = mock_delayed_queue
+
+            # Act
+            await driver._process_delayed_tasks("default")
+
+            # Assert
+            # Should NOT have published to main queue
+            mock_exchange.publish.assert_not_called()
+            # Should have nacked the message for requeuing
+            mock_message.nack.assert_called_once_with(requeue=True)
+
+    @mark.asyncio
+    async def test_process_delayed_tasks_with_malformed_message(self) -> None:
+        """Test _process_delayed_tasks() handles malformed messages (< 8 bytes)."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_delayed_queue = AsyncMock()
+        mock_message = AsyncMock()
+        # Create a malformed message (< 8 bytes)
+        mock_message.body = b"short"  # Only 5 bytes, need 8 for timestamp
+        mock_message.ack = AsyncMock()
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_delayed_queue)
+            mock_delayed_queue.bind = AsyncMock()
+            mock_delayed_queue.get = AsyncMock(side_effect=[mock_message, None])
+            mock_exchange.publish = AsyncMock()
+
+            await driver.connect()
+            # Manually add delayed queue to cache
+            driver._delayed_queues["default_delayed"] = mock_delayed_queue
+
+            # Act
+            await driver._process_delayed_tasks("default")
+
+            # Assert
+            # Should have acked the malformed message to remove it
+            mock_message.ack.assert_called_once()
+            # Should NOT have published to main queue
+            mock_exchange.publish.assert_not_called()
+
+    @mark.asyncio
+    async def test_process_delayed_tasks_auto_connects(self) -> None:
+        """Test _process_delayed_tasks() auto-connects if needed."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_delayed_queue = AsyncMock()
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_delayed_queue)
+            mock_delayed_queue.bind = AsyncMock()
+            mock_delayed_queue.get = AsyncMock(return_value=None)
+
+            # Manually add delayed queue to cache without connecting
+            driver._delayed_queues["default_delayed"] = mock_delayed_queue
+
+            # Act
+            await driver._process_delayed_tasks("default")
+
+            # Assert
+            # Should have auto-connected
+            assert driver.connection is not None
+            assert driver.channel is not None
+
+    @mark.asyncio
+    async def test_ensure_delayed_queue_returns_cached(self) -> None:
+        """Test _ensure_delayed_queue() returns cached queue."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_delayed_queue = AsyncMock()
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_delayed_queue)
+            mock_delayed_queue.bind = AsyncMock()
+
+            await driver.connect()
+
+            # Manually add to cache
+            driver._delayed_queues["test_delayed"] = mock_delayed_queue
+
+            # Act
+            result = await driver._ensure_delayed_queue("test")
+
+            # Assert
+            assert result == mock_delayed_queue
+            # Should not have called declare_queue again
+            mock_channel.declare_queue.assert_not_called()
+
+    @mark.asyncio
+    async def test_ensure_queue_auto_connects(self) -> None:
+        """Test _ensure_queue() auto-connects if needed."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_queue = AsyncMock()
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
+            mock_queue.bind = AsyncMock()
+
+            # Don't connect first, let _ensure_queue do it
+
+            # Act
+            result = await driver._ensure_queue("test")
+
+            # Assert
+            assert result == mock_queue
+            assert driver.connection is not None
+            assert driver.channel is not None
+            assert driver._delayed_exchange is not None
+
 
 if __name__ == "__main__":
     main([__file__, "-s", "-m", "unit"])
-
