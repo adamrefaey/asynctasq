@@ -82,39 +82,61 @@ A modern, async-first, type-safe task queue Python package inspired by Laravel. 
 ### Core Capabilities
 
 ✅ **Async-first design** with asyncio throughout the stack
+
 ✅ **Multiple queue drivers**: Redis, PostgreSQL, MySQL, AWS SQS
+
 ✅ **High-performance msgpack serialization** with binary support
+
 ✅ **Automatic ORM model handling** for SQLAlchemy, Django, Tortoise
+
 ✅ **Type-safe** with full type hints and Generic support
+
 ✅ **Configurable retries** with custom retry logic hooks
+
 ✅ **Task timeouts** to prevent runaway tasks
+
 ✅ **Delayed task execution** with precision timing
+
 ✅ **Queue priority** with multiple queues per worker
+
 ✅ **Graceful shutdown** with signal handlers
 
 ### Enterprise Features
 
 ✅ **ACID guarantees** (PostgreSQL/MySQL drivers)
+
 ✅ **Dead-letter queues** for failed task inspection
+
 ✅ **Visibility timeouts** for crash recovery
+
 ✅ **Connection pooling** for optimal resource usage
+
 ✅ **Transactional dequeue** with `SELECT FOR UPDATE SKIP LOCKED`
+
 ✅ **Task metadata tracking** (attempts, timestamps, task IDs)
+
 ✅ **Concurrent processing** with configurable worker concurrency
 
 ### Integrations
 
 ✅ **FastAPI** – Automatic lifecycle management, dependency injection
+
 ✅ **SQLAlchemy** – Async and sync model serialization
+
 ✅ **Django ORM** – Native async support (Django 3.1+)
+
 ✅ **Tortoise ORM** – Full async ORM integration
 
 ### Developer Tools
 
 ✅ **Comprehensive CLI** – Worker management and database migrations
+
 ✅ **Function-based tasks** with `@task` decorator
+
 ✅ **Class-based tasks** with lifecycle hooks (`handle`, `failed`, `should_retry`)
+
 ✅ **Method chaining** for fluent task configuration
+
 ✅ **Environment variable configuration** for 12-factor apps
 
 ---
