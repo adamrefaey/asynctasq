@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A modern, async-first, type-safe task queue Python package inspired by Laravel. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, AWS SQS) with one config line. Automatic ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+. Features ACID guarantees, dead-letter queues, crash recovery.
+A modern, async-first, type-safe task queue Python package inspired by Laravel. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+. Features ACID guarantees, dead-letter queues, crash recovery.
 
 ---
 
@@ -83,7 +83,7 @@ A modern, async-first, type-safe task queue Python package inspired by Laravel. 
 
 ✅ **Async-first design** with asyncio throughout the stack
 
-✅ **Multiple queue drivers**: Redis, PostgreSQL, MySQL, AWS SQS
+✅ **Multiple queue drivers**: Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
 
 ✅ **High-performance msgpack serialization** with binary support
 
@@ -313,7 +313,7 @@ python -m async_task worker
 1. **True async-first design** – Built with asyncio from the ground up
 2. **msgpack serialization** – Faster and more efficient than JSON
 3. **Intelligent ORM handling** – Automatic model serialization for 3 major ORMs
-4. **Multi-driver flexibility** – Seamlessly switch between 5 production-ready drivers
+4. **Multi-driver flexibility** – Seamlessly switch between 5 production-ready drivers (Redis, PostgreSQL, MySQL, RabbitMQ, SQS)
 5. **Type safety** – Full type hints with Generic[T] support
 6. **Enterprise ACID guarantees** – PostgreSQL/MySQL drivers with transactional dequeue
 7. **Dead-letter queues** – Built-in support for failed task inspection
@@ -328,7 +328,7 @@ python -m async_task worker
 For detailed documentation, see the following guides:
 
 - **[Installation](docs/installation.md)** – Installation instructions for uv and pip
-- **[Queue Drivers](docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, AWS SQS
+- **[Queue Drivers](docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
 - **[ORM Integrations](docs/orm-integrations.md)** – SQLAlchemy, Django, Tortoise ORM
 - **[Framework Integrations](docs/framework-integrations.md)** – FastAPI integration
 - **[Task Definitions](docs/task-definitions.md)** – Function-based and class-based tasks

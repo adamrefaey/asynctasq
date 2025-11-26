@@ -15,7 +15,7 @@ Async Task supports three configuration methods with clear precedence rules.
 **General Configuration:**
 
 ```bash
-export ASYNC_TASK_DRIVER=redis              # Driver: redis, postgres, mysql, sqs
+export ASYNC_TASK_DRIVER=redis              # Driver: redis, postgres, mysql, rabbitmq, sqs
 export ASYNC_TASK_DEFAULT_QUEUE=default     # Default queue name
 export ASYNC_TASK_MAX_RETRIES=3             # Default max retry attempts
 export ASYNC_TASK_RETRY_DELAY=60            # Default retry delay (seconds)
@@ -55,6 +55,15 @@ export ASYNC_TASK_MYSQL_RETRY_DELAY_SECONDS=60
 export ASYNC_TASK_MYSQL_VISIBILITY_TIMEOUT_SECONDS=300
 export ASYNC_TASK_MYSQL_MIN_POOL_SIZE=10
 export ASYNC_TASK_MYSQL_MAX_POOL_SIZE=10
+```
+
+**RabbitMQ Configuration:**
+
+```bash
+export ASYNC_TASK_DRIVER=rabbitmq
+export ASYNC_TASK_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+export ASYNC_TASK_RABBITMQ_EXCHANGE_NAME=async_task
+export ASYNC_TASK_RABBITMQ_PREFETCH_COUNT=1
 ```
 
 **AWS SQS Configuration:**
@@ -101,6 +110,14 @@ set_global_config(
     mysql_max_attempts=5,
     mysql_min_pool_size=5,
     mysql_max_pool_size=20
+)
+
+# RabbitMQ configuration
+set_global_config(
+    driver='rabbitmq',
+    rabbitmq_url='amqp://user:pass@localhost:5672/',
+    rabbitmq_exchange_name='async_task',
+    rabbitmq_prefetch_count=1
 )
 
 # SQS configuration
@@ -189,6 +206,14 @@ python -m async_task worker \
 | `mysql_visibility_timeout_seconds` | `ASYNC_TASK_MYSQL_VISIBILITY_TIMEOUT_SECONDS` | `300`                                      | Visibility timeout (seconds) |
 | `mysql_min_pool_size`              | `ASYNC_TASK_MYSQL_MIN_POOL_SIZE`              | `10`                                       | Min connection pool size     |
 | `mysql_max_pool_size`              | `ASYNC_TASK_MYSQL_MAX_POOL_SIZE`              | `10`                                       | Max connection pool size     |
+
+**RabbitMQ Options:**
+
+| Option                    | Env Var                              | Default                              | Description                      |
+| ------------------------- | ------------------------------------ | ------------------------------------ | -------------------------------- |
+| `rabbitmq_url`            | `ASYNC_TASK_RABBITMQ_URL`            | `amqp://guest:guest@localhost:5672/` | RabbitMQ connection URL          |
+| `rabbitmq_exchange_name`  | `ASYNC_TASK_RABBITMQ_EXCHANGE_NAME`  | `async_task`                         | RabbitMQ exchange name           |
+| `rabbitmq_prefetch_count` | `ASYNC_TASK_RABBITMQ_PREFETCH_COUNT` | `1`                                  | RabbitMQ consumer prefetch count |
 
 **AWS SQS Options:**
 

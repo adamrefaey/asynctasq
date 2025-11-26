@@ -1,6 +1,6 @@
 # Queue Drivers
 
-Async Task supports four production-ready queue drivers with identical APIs.
+Async Task supports five production-ready queue drivers with identical APIs.
 
 ## Redis Driver
 
@@ -263,6 +263,74 @@ set_global_config(
 
 ---
 
+## RabbitMQ Driver
+
+**Best for:** Production applications, existing RabbitMQ infrastructure, AMQP-based systems
+
+**Features:**
+
+- AMQP 0.9.1 protocol support with aio-pika
+- Direct exchange pattern for simple routing
+- Delayed tasks without plugins (timestamp-based)
+- Auto-reconnection with connect_robust for resilience
+- Fair task distribution via prefetch_count
+- Persistent messages for reliability
+- Queue auto-creation on-demand
+- Message acknowledgments for reliable processing
+
+**Requirements:** RabbitMQ server 3.8+ (no plugins required)
+
+**Installation:**
+
+```bash
+# With uv
+uv add "async-task[rabbitmq]"
+
+# With pip
+pip install "async-task[rabbitmq]"
+```
+
+**Configuration:**
+
+```bash
+# Environment variables
+export ASYNC_TASK_DRIVER=rabbitmq
+export ASYNC_TASK_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+export ASYNC_TASK_RABBITMQ_EXCHANGE_NAME=async_task
+export ASYNC_TASK_RABBITMQ_PREFETCH_COUNT=1
+```
+
+```python
+# Programmatic configuration
+from async_task.config import set_global_config
+
+set_global_config(
+    driver='rabbitmq',
+    rabbitmq_url='amqp://user:pass@localhost:5672/',
+    rabbitmq_exchange_name='async_task',
+    rabbitmq_prefetch_count=1
+)
+```
+
+**Architecture:**
+
+- Immediate tasks: Direct exchange with queue (routing_key = queue_name)
+- Delayed tasks: Stored in delayed queue with timestamp prepended to message body
+- Delayed queue: Named `{queue_name}_delayed` for each main queue
+- Exchange: Durable direct exchange for message routing
+- Queues: Durable, not auto-delete (persistent queues)
+
+**Delayed Task Implementation:**
+
+- Timestamp-based approach (no plugins required)
+- Ready timestamp encoded as 8-byte double prepended to task data
+- `_process_delayed_tasks()` checks timestamps and moves ready messages to main queue
+- Avoids RabbitMQ per-message TTL limitations
+
+**Use cases:** Production apps with existing RabbitMQ infrastructure, AMQP-based systems, microservices using RabbitMQ
+
+---
+
 ## Driver Comparison
 
 | Driver         | Best For       | Pros                                          | Cons                           | Requirements   |
@@ -270,10 +338,12 @@ set_global_config(
 | **Redis**      | Production     | Fast, reliable, distributed, mature           | Requires Redis server          | Redis 6.2+     |
 | **PostgreSQL** | Enterprise     | ACID, DLQ, visibility timeout, transactions   | Requires PostgreSQL setup      | PostgreSQL 14+ |
 | **MySQL**      | Enterprise     | ACID, DLQ, visibility timeout, transactions   | Requires MySQL setup           | MySQL 8.0+     |
+| **RabbitMQ**   | Production     | AMQP standard, mature, no plugins needed      | Requires RabbitMQ server       | RabbitMQ 3.8+  |
 | **SQS**        | AWS/Serverless | Managed, auto-scaling, zero ops, multi-region | AWS-specific, cost per message | AWS account    |
 
 **Recommendation:**
 
 - **Production (general):** Use `redis` for most applications
 - **Production (enterprise):** Use `postgres` or `mysql` if you need ACID guarantees
+- **Production (AMQP):** Use `rabbitmq` if you have existing RabbitMQ infrastructure
 - **AWS/Cloud-native:** Use `sqs` for managed infrastructure

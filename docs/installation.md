@@ -12,6 +12,7 @@ uv add async-task
 uv add "async-task[redis]"      # Redis support
 uv add "async-task[postgres]"   # PostgreSQL support
 uv add "async-task[mysql]"      # MySQL support
+uv add "async-task[rabbitmq]"   # RabbitMQ support
 uv add "async-task[sqs]"        # AWS SQS support
 
 # With ORM support
@@ -36,6 +37,7 @@ pip install async-task
 pip install "async-task[redis]"
 pip install "async-task[postgres]"
 pip install "async-task[mysql]"
+pip install "async-task[rabbitmq]"
 pip install "async-task[sqs]"
 
 # With ORM support
