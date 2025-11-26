@@ -112,7 +112,7 @@ class TestDispatcherGetDriver:
         default_driver = MagicMock(spec=BaseDriver)
         dispatcher = Dispatcher(driver=default_driver)
         task = ConcreteTask()
-        task._driver_override = "memory"  # type: ignore[attr-defined]
+        task._driver_override = "redis"  # type: ignore[attr-defined]
 
         with (
             patch("async_task.core.dispatcher.get_global_config") as mock_get_config,
@@ -120,17 +120,17 @@ class TestDispatcherGetDriver:
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
-            mock_memory_driver = MagicMock(spec=BaseDriver)
-            mock_create.return_value = mock_memory_driver
+            mock_redis_driver = MagicMock(spec=BaseDriver)
+            mock_create.return_value = mock_redis_driver
 
             # Act
             result = dispatcher._get_driver(task)
 
             # Assert
-            assert result == mock_memory_driver
-            mock_create.assert_called_once_with(mock_config, driver_type="memory")
-            assert "memory" in dispatcher._driver_cache
-            assert dispatcher._driver_cache["memory"] == mock_memory_driver
+            assert result == mock_redis_driver
+            mock_create.assert_called_once_with(mock_config, driver_type="redis")
+            assert "redis" in dispatcher._driver_cache
+            assert dispatcher._driver_cache["redis"] == mock_redis_driver
 
     def test_get_driver_with_string_override_uses_cache(self) -> None:
         # Arrange
@@ -355,7 +355,7 @@ class TestDispatcherDispatch:
         mock_serializer.serialize.return_value = b"serialized_data"
         dispatcher = Dispatcher(driver=default_driver, serializer=mock_serializer)
         task = ConcreteTask()
-        task._driver_override = "memory"  # type: ignore[attr-defined]
+        task._driver_override = "redis"  # type: ignore[attr-defined]
         # Ensure _delay_seconds is not None to avoid comparison issues
         if not hasattr(task, "_delay_seconds") or task._delay_seconds is None:
             task._delay_seconds = 0  # type: ignore[attr-defined]
@@ -598,7 +598,11 @@ class TestGetDispatcher:
             mock_dispatcher_class.assert_called_once_with(mock_driver)
 
     def test_get_dispatcher_caches_dispatchers(self) -> None:
-        # Arrange
+        # Arrange - clear cache first
+        from async_task.core.dispatcher import _dispatchers
+
+        _dispatchers.clear()
+
         with (
             patch("async_task.core.dispatcher.get_global_config") as mock_get_config,
             patch("async_task.core.dispatcher.DriverFactory.create_from_config") as mock_create,
@@ -612,12 +616,12 @@ class TestGetDispatcher:
             mock_dispatcher_class.return_value = mock_dispatcher
 
             # Act - call twice
-            result1 = get_dispatcher("memory")
-            result2 = get_dispatcher("memory")
+            result1 = get_dispatcher("redis")
+            result2 = get_dispatcher("redis")
 
             # Assert
             assert result1 == result2
-            assert result1 == mock_dispatcher
+            assert result1 is result2  # Should be the same instance
             # Should only create once
             assert mock_create.call_count == 1
             assert mock_dispatcher_class.call_count == 1
@@ -636,15 +640,15 @@ class TestGetDispatcher:
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
             mock_redis_driver = MagicMock(spec=BaseDriver)
-            mock_memory_driver = MagicMock(spec=BaseDriver)
-            mock_create.side_effect = [mock_redis_driver, mock_memory_driver]
+            mock_postgres_driver = MagicMock(spec=BaseDriver)
+            mock_create.side_effect = [mock_redis_driver, mock_postgres_driver]
             mock_redis_dispatcher = MagicMock(spec=Dispatcher)
-            mock_memory_dispatcher = MagicMock(spec=Dispatcher)
-            mock_dispatcher_class.side_effect = [mock_redis_dispatcher, mock_memory_dispatcher]
+            mock_postgres_dispatcher = MagicMock(spec=Dispatcher)
+            mock_dispatcher_class.side_effect = [mock_redis_dispatcher, mock_postgres_dispatcher]
 
             # Act
             result1 = get_dispatcher("redis")
-            result2 = get_dispatcher("memory")
+            result2 = get_dispatcher("postgres")
 
             # Assert
             # Check that different dispatchers were created (different mock instances)
@@ -654,7 +658,7 @@ class TestGetDispatcher:
             # Verify correct drivers were used
             # call_args_list contains (args, kwargs) tuples
             assert mock_create.call_args_list[0][1]["driver_type"] == "redis"
-            assert mock_create.call_args_list[1][1]["driver_type"] == "memory"
+            assert mock_create.call_args_list[1][1]["driver_type"] == "postgres"
 
     def test_get_dispatcher_creates_separate_dispatchers_for_driver_instances(self) -> None:
         # Arrange

@@ -131,8 +131,8 @@ class BaseDriver(Protocol):
             Should not be used for strict guarantees.
 
             Driver limitations:
-            - Memory: Exact counts for all categories
             - Redis: Exact counts for ready/delayed, in-flight not tracked (always 0)
+            - PostgreSQL/MySQL: Exact counts for all categories
             - SQS: Approximate counts for all categories
         """
         ...

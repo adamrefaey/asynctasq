@@ -66,11 +66,11 @@ python -m async_task worker
 
 **Worker Options:**
 
-| Option          | Description                                    | Default   |
-| --------------- | ---------------------------------------------- | --------- |
-| `--driver`      | Queue driver (redis/postgres/mysql/sqs/memory) | `redis`   |
-| `--queues`      | Comma-separated queue names (priority order)   | `default` |
-| `--concurrency` | Max concurrent tasks                           | `10`      |
+| Option          | Description                                  | Default   |
+| --------------- | -------------------------------------------- | --------- |
+| `--driver`      | Queue driver (redis/postgres/mysql/sqs)      | `redis`   |
+| `--queues`      | Comma-separated queue names (priority order) | `default` |
+| `--concurrency` | Max concurrent tasks                         | `10`      |
 
 **Driver-Specific Options:**
 

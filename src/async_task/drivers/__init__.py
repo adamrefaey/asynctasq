@@ -1,7 +1,7 @@
 """Queue driver implementations for async-task.
 
 This module provides the driver abstraction and concrete implementations
-for various queue backends (memory, Redis, AWS SQS).
+for various queue backends (Redis, PostgreSQL, MySQL, AWS SQS).
 """
 
 from .base_driver import BaseDriver

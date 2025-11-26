@@ -54,10 +54,10 @@ class TestRunMigrate:
             await run_migrate(args, config)
 
     @mark.asyncio
-    async def test_run_migrate_with_memory_driver_raises_error(self) -> None:
+    async def test_run_migrate_with_redis_driver_raises_error(self) -> None:
         # Arrange
         args = argparse.Namespace()
-        config = Config(driver="memory")
+        config = Config(driver="redis")
 
         # Act & Assert
         with raises(

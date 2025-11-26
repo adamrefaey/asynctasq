@@ -3,7 +3,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias
 
-DriverType: TypeAlias = Literal["redis", "sqs", "memory", "postgres", "mysql"]
+DriverType: TypeAlias = Literal["redis", "sqs", "postgres", "mysql"]
 
 
 # Environment variable mapping: field_name -> (env_var, default_value, type_converter)
@@ -75,7 +75,7 @@ class Config:
     """Configuration for Async Task library"""
 
     # Driver selection
-    driver: DriverType = "memory"
+    driver: DriverType = "redis"
 
     # Redis configuration
     redis_url: str = "redis://localhost:6379"
@@ -192,7 +192,7 @@ def set_global_config(**overrides) -> None:
             set via environment variables (see below for mappings).
 
     General Options:
-        driver (str): Queue driver to use. Choices: "redis", "sqs", "memory", "postgres", "mysql"
+        driver (str): Queue driver to use. Choices: "redis", "sqs", "postgres", "mysql"
             Env var: ASYNC_TASK_DRIVER
             Default: "redis"
 

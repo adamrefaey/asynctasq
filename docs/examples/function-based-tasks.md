@@ -45,7 +45,7 @@ from async_task.config import set_global_config
 
 # Configure the queue driver
 # Note: Use 'redis', 'postgres', 'mysql', or 'sqs' for production
-set_global_config(driver='memory')
+set_global_config(driver='redis')
 
 # Define a simple task
 @task
@@ -75,7 +75,7 @@ Synchronous functions are automatically executed in a thread pool, so you can us
 from async_task.core.task import task
 from async_task.config import set_global_config
 
-set_global_config(driver='memory')
+set_global_config(driver='redis')
 
 # Synchronous function (automatically runs in thread pool)
 @task
@@ -434,8 +434,8 @@ async def main():
 from async_task.core.task import task
 from async_task.config import set_global_config
 
-# Global config uses memory driver
-set_global_config(driver='memory')
+# Global config uses redis driver
+set_global_config(driver='redis')
 
 # This task uses Redis regardless of global config
 @task(queue='critical', driver='redis')
@@ -449,7 +449,7 @@ async def aws_task(region: str):
     """Always uses SQS driver."""
     print(f"Processing AWS task in {region}")
 
-# This task uses global config (memory)
+# This task uses global config (redis)
 @task(queue='normal')
 async def normal_task(data: str):
     """Uses global config driver."""
@@ -498,7 +498,7 @@ from async_task.core.task import task
 from async_task.config import set_global_config
 
 # Default driver
-set_global_config(driver='memory')
+set_global_config(driver='redis')
 
 # Tasks using different drivers
 @task(queue='redis-queue', driver='redis')
@@ -513,8 +513,8 @@ async def postgres_task(data: str):
 async def sqs_task(data: str):
     pass
 
-@task(queue='default-queue')  # Uses global config (memory)
-async def memory_task(data: str):
+@task(queue='default-queue')  # Uses global config (redis)
+async def redis_task(data: str):
     pass
 ```
 
@@ -1073,7 +1073,7 @@ Here's a complete, runnable example demonstrating multiple function-based task p
 - Driver overrides
 - Delayed execution
 
-**Important:** This example uses the `memory` driver for simplicity. In production, use `redis`, `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](../running-workers.md)).
+**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](../running-workers.md)).
 
 ```python
 import asyncio
@@ -1081,7 +1081,7 @@ from async_task.core.task import task
 from async_task.config import set_global_config
 
 # Configure (use 'redis' or 'postgres' for production)
-set_global_config(driver='memory')
+set_global_config(driver='redis')
 
 # Define tasks with different configurations
 @task(queue='emails', max_retries=3, retry_delay=60)

@@ -21,7 +21,7 @@ class Task(ABC, Generic[T]):
     timeout: int | None = None
 
     # Driver override (optional - set to use specific driver for this task)
-    # Can be: "redis", "sqs", "memory", or a BaseDriver instance
+    # Can be: "redis", "sqs", "postgres", "mysql", or a BaseDriver instance
     _driver_override: str | BaseDriver | None = None
     _delay_seconds: int | None = None
 
@@ -108,7 +108,7 @@ class Task(ABC, Generic[T]):
 
         This method sends the task to the queue for asynchronous execution.
         The dispatcher will serialize the task and enqueue it using the
-        appropriate driver (Redis/SQS/Memory).
+        appropriate driver (Redis/SQS/Postgres/MySQL).
 
         Returns:
             task_id: UUID string uniquely identifying the dispatched task
@@ -254,7 +254,7 @@ def task(
         retry_delay: Delay between retries (seconds)
         timeout: Task timeout (seconds)
         driver: Driver override - can be:
-            - String: "redis", "sqs", "memory" (uses global config for that driver)
+            - String: "redis", "sqs", "postgres", "mysql" (uses global config for that driver)
             - BaseDriver instance: Custom driver instance
             - None: Uses global config (default)
 

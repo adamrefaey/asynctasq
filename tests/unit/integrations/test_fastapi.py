@@ -14,7 +14,7 @@ from pytest import fixture, mark, raises
 from async_task.config import Config
 from async_task.core.dispatcher import Dispatcher
 from async_task.drivers.base_driver import BaseDriver
-from async_task.drivers.memory_driver import MemoryDriver
+from async_task.drivers.redis_driver import RedisDriver
 from async_task.integrations.fastapi import AsyncTaskIntegration
 
 
@@ -40,7 +40,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_init_with_config(self, mock_driver):
         """Test initialization with explicit config."""
-        config = Config(driver="memory")
+        config = Config(driver="redis")
         integration = AsyncTaskIntegration(config=config)
 
         assert integration._config == config
@@ -89,13 +89,13 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_lifespan_with_config(self, mock_fastapi_app):
         """Test lifespan with config (creates driver from config)."""
-        config = Config(driver="memory")
+        config = Config(driver="redis")
         integration = AsyncTaskIntegration(config=config)
 
         with patch(
             "async_task.integrations.fastapi.DriverFactory.create_from_config"
         ) as mock_factory:
-            mock_driver = MemoryDriver()
+            mock_driver = RedisDriver()
             mock_factory.return_value = mock_driver
 
             async with integration.lifespan(mock_fastapi_app):
@@ -114,9 +114,9 @@ class TestAsyncTaskIntegration:
                 "async_task.integrations.fastapi.DriverFactory.create_from_config"
             ) as mock_factory,
         ):
-            config = Config(driver="memory")
+            config = Config(driver="redis")
             mock_get_config.return_value = config
-            mock_driver = MemoryDriver()
+            mock_driver = RedisDriver()
             mock_factory.return_value = mock_driver
 
             async with integration.lifespan(mock_fastapi_app):

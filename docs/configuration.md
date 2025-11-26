@@ -15,7 +15,7 @@ Async Task supports three configuration methods with clear precedence rules.
 **General Configuration:**
 
 ```bash
-export ASYNC_TASK_DRIVER=redis              # Driver: memory, redis, postgres, mysql, sqs
+export ASYNC_TASK_DRIVER=redis              # Driver: redis, postgres, mysql, sqs
 export ASYNC_TASK_DEFAULT_QUEUE=default     # Default queue name
 export ASYNC_TASK_MAX_RETRIES=3             # Default max retry attempts
 export ASYNC_TASK_RETRY_DELAY=60            # Default retry delay (seconds)

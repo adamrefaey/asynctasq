@@ -30,7 +30,7 @@ Worker Command:
 
     Options:
         --driver DRIVER
-            Queue driver to use. Choices: redis, sqs, memory, postgres, mysql
+            Queue driver to use. Choices: redis, sqs, postgres, mysql
             Default: from ASYNC_TASK_DRIVER env var or 'redis'
 
         --queues QUEUES
@@ -217,7 +217,7 @@ Environment Variables:
     take precedence over environment variables.
 
     General:
-        ASYNC_TASK_DRIVER              Queue driver (memory, redis, postgres, mysql, sqs)
+        ASYNC_TASK_DRIVER              Queue driver (redis, postgres, mysql, sqs)
         ASYNC_TASK_DEFAULT_QUEUE       Default queue name
 
     Redis:

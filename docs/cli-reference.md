@@ -10,20 +10,20 @@ python -m async_task worker [OPTIONS]
 
 **Options:**
 
-| Option                          | Description                                    | Default                  |
-| ------------------------------- | ---------------------------------------------- | ------------------------ |
-| `--driver DRIVER`               | Queue driver (redis/postgres/mysql/sqs/memory) | `redis`                  |
-| `--queues QUEUES`               | Comma-separated queue names (priority order)   | `default`                |
-| `--concurrency N`               | Max concurrent tasks                           | `10`                     |
-| `--redis-url URL`               | Redis connection URL                           | `redis://localhost:6379` |
-| `--redis-password PASSWORD`     | Redis password                                 | `None`                   |
-| `--redis-db N`                  | Redis database number (0-15)                   | `0`                      |
-| `--postgres-dsn DSN`            | PostgreSQL connection DSN                      | -                        |
-| `--postgres-queue-table TABLE`  | PostgreSQL queue table name                    | `task_queue`             |
-| `--mysql-dsn DSN`               | MySQL connection DSN                           | -                        |
-| `--mysql-queue-table TABLE`     | MySQL queue table name                         | `task_queue`             |
-| `--sqs-region REGION`           | AWS SQS region                                 | `us-east-1`              |
-| `--sqs-queue-url-prefix PREFIX` | SQS queue URL prefix                           | -                        |
+| Option                          | Description                                  | Default                  |
+| ------------------------------- | -------------------------------------------- | ------------------------ |
+| `--driver DRIVER`               | Queue driver (redis/postgres/mysql/sqs)      | `redis`                  |
+| `--queues QUEUES`               | Comma-separated queue names (priority order) | `default`                |
+| `--concurrency N`               | Max concurrent tasks                         | `10`                     |
+| `--redis-url URL`               | Redis connection URL                         | `redis://localhost:6379` |
+| `--redis-password PASSWORD`     | Redis password                               | `None`                   |
+| `--redis-db N`                  | Redis database number (0-15)                 | `0`                      |
+| `--postgres-dsn DSN`            | PostgreSQL connection DSN                    | -                        |
+| `--postgres-queue-table TABLE`  | PostgreSQL queue table name                  | `task_queue`             |
+| `--mysql-dsn DSN`               | MySQL connection DSN                         | -                        |
+| `--mysql-queue-table TABLE`     | MySQL queue table name                       | `task_queue`             |
+| `--sqs-region REGION`           | AWS SQS region                               | `us-east-1`              |
+| `--sqs-queue-url-prefix PREFIX` | SQS queue URL prefix                         | -                        |
 
 **Examples:**
 

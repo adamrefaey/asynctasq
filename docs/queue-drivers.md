@@ -1,40 +1,6 @@
 # Queue Drivers
 
-Async Task supports five production-ready queue drivers with identical APIs.
-
-## Memory Driver
-
-**Best for:** Development, testing, single-process applications
-
-**Features:**
-
-- In-memory storage using Python collections (deque + list)
-- No external dependencies or infrastructure
-- Fast (<0.1ms latency, 50k+ tasks/sec)
-- Delayed task support with 100ms precision
-- Data lost on process restart
-
-**Installation:**
-
-```bash
-# No extra dependencies needed
-uv add async-task
-```
-
-**Configuration:**
-
-```python
-# Environment variables
-export ASYNC_TASK_DRIVER=memory
-
-# Or programmatic
-from async_task.config import set_global_config
-set_global_config(driver='memory')
-```
-
-**Use cases:** Local development, unit testing, prototyping
-
----
+Async Task supports four production-ready queue drivers with identical APIs.
 
 ## Redis Driver
 
@@ -301,7 +267,6 @@ set_global_config(
 
 | Driver         | Best For       | Pros                                          | Cons                           | Requirements   |
 | -------------- | -------------- | --------------------------------------------- | ------------------------------ | -------------- |
-| **Memory**     | Dev/Testing    | Fast, no setup, no dependencies               | Data lost on restart           | None           |
 | **Redis**      | Production     | Fast, reliable, distributed, mature           | Requires Redis server          | Redis 6.2+     |
 | **PostgreSQL** | Enterprise     | ACID, DLQ, visibility timeout, transactions   | Requires PostgreSQL setup      | PostgreSQL 14+ |
 | **MySQL**      | Enterprise     | ACID, DLQ, visibility timeout, transactions   | Requires MySQL setup           | MySQL 8.0+     |
@@ -309,7 +274,6 @@ set_global_config(
 
 **Recommendation:**
 
-- **Development:** Use `memory` driver
 - **Production (general):** Use `redis` for most applications
 - **Production (enterprise):** Use `postgres` or `mysql` if you need ACID guarantees
 - **AWS/Cloud-native:** Use `sqs` for managed infrastructure

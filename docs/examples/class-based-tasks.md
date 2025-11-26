@@ -48,7 +48,7 @@ from async_task.config import set_global_config
 
 # Configure the queue driver
 # Note: Use 'redis', 'postgres', 'mysql', or 'sqs' for production
-set_global_config(driver='memory')
+set_global_config(driver='redis')
 
 # Define a simple task class
 class SendNotification(Task[str]):
@@ -83,7 +83,7 @@ Tasks accept parameters via `__init__`, which are automatically stored as instan
 from async_task.core.task import Task
 from async_task.config import set_global_config
 
-set_global_config(driver='memory')
+set_global_config(driver='redis')
 
 class ProcessData(Task[int]):
     """Process data and return sum."""
@@ -796,8 +796,8 @@ async def main():
 from async_task.core.task import Task
 from async_task.config import set_global_config
 
-# Global config uses memory driver
-set_global_config(driver='memory')
+# Global config uses redis driver
+set_global_config(driver='redis')
 
 # This task uses Redis regardless of global config
 class CriticalTask(Task[None]):
@@ -815,7 +815,7 @@ class AWSTask(Task[None]):
     async def handle(self) -> None:
         print("Processing AWS task")
 
-# This task uses global config (memory)
+# This task uses global config (redis)
 class NormalTask(Task[None]):
     queue = "normal"
     # No _driver_override - uses global config
@@ -874,7 +874,7 @@ from async_task.core.task import Task
 from async_task.config import set_global_config
 
 # Default driver
-set_global_config(driver='memory')
+set_global_config(driver='redis')
 
 # Tasks using different drivers
 class RedisTask(Task[None]):
@@ -898,9 +898,9 @@ class SQSTask(Task[None]):
     async def handle(self) -> None:
         pass
 
-class MemoryTask(Task[None]):
+class RedisTask(Task[None]):
     queue = "default-queue"
-    # No _driver_override - uses global config (memory)
+    # No _driver_override - uses global config (redis)
 
     async def handle(self) -> None:
         pass
@@ -1707,7 +1707,7 @@ Here's a complete, runnable example demonstrating multiple class-based task patt
 - Delayed execution
 - Lifecycle hooks
 
-**Important:** This example uses the `memory` driver for simplicity. In production, use `redis`, `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](../running-workers.md)).
+**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](../running-workers.md)).
 
 ```python
 import asyncio
@@ -1715,7 +1715,7 @@ from async_task.core.task import Task, SyncTask
 from async_task.config import set_global_config
 
 # Configure (use 'redis' or 'postgres' for production)
-set_global_config(driver='memory')
+set_global_config(driver='redis')
 
 # Define tasks with different configurations
 class SendEmail(Task[str]):

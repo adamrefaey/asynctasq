@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A modern, async-first, type-safe task queue Python package inspired by Laravel. Native FastAPI integration. Switch between multiple queue backends (Memory, Redis, PostgreSQL, MySQL, AWS SQS) with one config line. Automatic ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+. Features ACID guarantees, dead-letter queues, crash recovery.
+A modern, async-first, type-safe task queue Python package inspired by Laravel. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, AWS SQS) with one config line. Automatic ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+. Features ACID guarantees, dead-letter queues, crash recovery.
 
 ---
 
@@ -70,10 +70,10 @@ A modern, async-first, type-safe task queue Python package inspired by Laravel. 
 
 ### Multi-Driver Flexibility
 
-- **Switch drivers instantly** – Change one config line to swap between Memory, Redis, PostgreSQL, MySQL, or AWS SQS
+- **Switch drivers instantly** – Change one config line to swap between Redis, PostgreSQL, MySQL, or AWS SQS
 - **Same API everywhere** – Write once, run on any driver without code changes
 - **Per-task driver override** – Different tasks can use different drivers in the same application
-- **Production-ready options** – From in-memory testing to enterprise databases to managed cloud queues
+- **Production-ready options** – From Redis to enterprise databases to managed cloud queues
 
 ---
 
@@ -82,7 +82,7 @@ A modern, async-first, type-safe task queue Python package inspired by Laravel. 
 ### Core Capabilities
 
 ✅ **Async-first design** with asyncio throughout the stack
-✅ **Multiple queue drivers**: Memory, Redis, PostgreSQL, MySQL, AWS SQS
+✅ **Multiple queue drivers**: Redis, PostgreSQL, MySQL, AWS SQS
 ✅ **High-performance msgpack serialization** with binary support
 ✅ **Automatic ORM model handling** for SQLAlchemy, Django, Tortoise
 ✅ **Type-safe** with full type hints and Generic support
@@ -177,7 +177,7 @@ python -m async_task worker
 | ----------------------- | -------------------------------------------------- | ----------------------------------- |
 | **Async Support**       | ✅ Async-first, built with asyncio                 | ❌ No native asyncio support        |
 | **Type Safety**         | ✅ Full type hints, Generic[T]                     | ⚠️ Third-party stubs (celery-types) |
-| **Multi-Driver**        | ✅ 5 drivers (Memory/Redis/PG/MySQL/SQS)           | ⚠️ Redis/RabbitMQ/SQS brokers       |
+| **Multi-Driver**        | ✅ 4 drivers (Redis/PG/MySQL/SQS)                  | ⚠️ Redis/RabbitMQ/SQS brokers       |
 | **ORM Integration**     | ✅ Auto-serialization (SQLAlchemy/Django/Tortoise) | ❌ Manual serialization             |
 | **Serialization**       | ✅ msgpack (fast, binary)                          | ⚠️ JSON/pickle (slower)             |
 | **FastAPI Integration** | ✅ First-class, lifespan management                | ⚠️ Manual setup                     |
@@ -306,7 +306,7 @@ python -m async_task worker
 For detailed documentation, see the following guides:
 
 - **[Installation](docs/installation.md)** – Installation instructions for uv and pip
-- **[Queue Drivers](docs/queue-drivers.md)** – Memory, Redis, PostgreSQL, MySQL, AWS SQS
+- **[Queue Drivers](docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, AWS SQS
 - **[ORM Integrations](docs/orm-integrations.md)** – SQLAlchemy, Django, Tortoise ORM
 - **[Framework Integrations](docs/framework-integrations.md)** – FastAPI integration
 - **[Task Definitions](docs/task-definitions.md)** – Function-based and class-based tasks

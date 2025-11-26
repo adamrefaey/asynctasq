@@ -116,7 +116,7 @@ class TestAddDriverArgs:
         add_driver_args(parser)
 
         # Act & Assert
-        for driver in ["redis", "sqs", "memory", "postgres"]:
+        for driver in ["redis", "sqs", "postgres", "mysql"]:
             args = parser.parse_args(["--driver", driver])
             assert args.driver == driver
 

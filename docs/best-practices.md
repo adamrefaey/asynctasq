@@ -85,7 +85,7 @@ class ProcessPayment(Task[bool]):
 
 ✅ **Do:**
 
-- **Use Redis, PostgreSQL, or MySQL** for production (not Memory driver)
+- **Use Redis, PostgreSQL, or MySQL** for production
 - **Configure proper retry delays** to avoid overwhelming systems during outages
 - **Set up monitoring and alerting** for queue sizes, worker health, failed tasks
 - **Use environment variables** for configuration (never hardcode credentials)
@@ -93,7 +93,7 @@ class ProcessPayment(Task[bool]):
 - **Use process managers** (systemd, supervisor, Kubernetes) for automatic restarts
 - **Monitor dead-letter queues** to catch permanently failed tasks
 - **Set appropriate timeouts** to prevent tasks from hanging indefinitely
-- **Test thoroughly** with Memory driver before deploying to production
+- **Test thoroughly** before deploying to production
 
 **Example Production Setup:**
 

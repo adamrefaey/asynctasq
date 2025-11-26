@@ -30,7 +30,7 @@ class TestRunWorker:
     ) -> None:
         # Arrange
         args = argparse.Namespace(queues=None, concurrency=10)
-        config = Config(driver="memory")
+        config = Config(driver="redis")
         mock_driver = MagicMock()
         mock_driver_factory.create_from_config.return_value = mock_driver
         mock_worker = AsyncMock()
@@ -140,7 +140,7 @@ class TestRunWorker:
     ) -> None:
         # Arrange
         args = argparse.Namespace(queues=None, concurrency=10)
-        config = Config(driver="memory")
+        config = Config(driver="redis")
         mock_driver = MagicMock()
         mock_driver_factory.create_from_config.return_value = mock_driver
         mock_worker = AsyncMock()

@@ -44,7 +44,7 @@ class TestDriverType:
 
     def test_driver_type_contains_all_drivers(self) -> None:
         # Arrange
-        expected_drivers = ("redis", "sqs", "memory", "postgres", "mysql")
+        expected_drivers = ("redis", "sqs", "postgres", "mysql")
 
         # Act
         actual_drivers = get_args(DriverType)
@@ -120,12 +120,12 @@ class TestEnvVarMapping:
 class TestConfigDefaults:
     """Test Config default values."""
 
-    def test_config_default_driver_is_memory(self) -> None:
+    def test_config_default_driver_is_redis(self) -> None:
         # Act
         config = Config()
 
         # Assert
-        assert config.driver == "memory"
+        assert config.driver == "redis"
 
     def test_config_default_redis_settings(self) -> None:
         # Act
@@ -187,13 +187,13 @@ class TestConfigFromEnv:
 
     def test_from_env_loads_driver_from_env(self, monkeypatch) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_DRIVER", "memory")
+        monkeypatch.setenv("ASYNC_TASK_DRIVER", "redis")
 
         # Act
         config = Config.from_env()
 
         # Assert
-        assert config.driver == "memory"
+        assert config.driver == "redis"
 
     def test_from_env_loads_redis_settings(self, monkeypatch) -> None:
         # Arrange
@@ -286,10 +286,10 @@ class TestConfigFromEnv:
         monkeypatch.setenv("ASYNC_TASK_DEFAULT_QUEUE", "from_env")
 
         # Act
-        config = Config.from_env(driver="memory", default_queue="override")
+        config = Config.from_env(driver="redis", default_queue="override")
 
         # Assert
-        assert config.driver == "memory"
+        assert config.driver == "redis"
         assert config.default_queue == "override"
 
     def test_from_env_converts_integer_types(self, monkeypatch) -> None:
@@ -435,11 +435,11 @@ class TestGlobalConfig:
 
     def test_set_global_config_creates_new_config(self, clean_env, reset_global_config) -> None:
         # Act
-        set_global_config(driver="memory", default_queue="custom")
+        set_global_config(driver="redis", default_queue="custom")
         config = get_global_config()
 
         # Assert
-        assert config.driver == "memory"
+        assert config.driver == "redis"
         assert config.default_queue == "custom"
 
     def test_set_global_config_overrides_previous(self, clean_env, reset_global_config) -> None:
@@ -447,11 +447,11 @@ class TestGlobalConfig:
         set_global_config(driver="redis")
 
         # Act
-        set_global_config(driver="memory")
+        set_global_config(driver="redis")
         config = get_global_config()
 
         # Assert
-        assert config.driver == "memory"
+        assert config.driver == "redis"
 
     def test_set_global_config_with_env_vars(self, monkeypatch, reset_global_config) -> None:
         # Arrange
@@ -468,17 +468,17 @@ class TestGlobalConfig:
 
     def test_global_config_isolated_between_calls(self, clean_env, reset_global_config) -> None:
         # Arrange
-        set_global_config(driver="memory", default_queue="first")
+        set_global_config(driver="redis", default_queue="first")
         first_config = get_global_config()
 
         # Act
-        set_global_config(driver="redis", default_queue="second")
+        set_global_config(driver="postgres", default_queue="second")
         second_config = get_global_config()
 
         # Assert
         assert first_config is not second_config
-        assert first_config.driver == "memory"
-        assert second_config.driver == "redis"
+        assert first_config.driver == "redis"
+        assert second_config.driver == "postgres"
 
 
 @mark.unit
@@ -580,13 +580,13 @@ class TestConfigDataclass:
     def test_config_can_be_instantiated_directly(self) -> None:
         # Act
         config = Config(
-            driver="memory",
+            driver="redis",
             redis_url="redis://test:6379",
             default_queue="test",
         )
 
         # Assert
-        assert config.driver == "memory"
+        assert config.driver == "redis"
         assert config.redis_url == "redis://test:6379"
         assert config.default_queue == "test"
 

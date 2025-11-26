@@ -16,7 +16,7 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
     parser.add_argument(
         "--driver",
         type=str,
-        choices=["redis", "sqs", "memory", "postgres", "mysql"],
+        choices=["redis", "sqs", "postgres", "mysql"],
         default=default_driver,
         help="Queue driver to use (default: from ASYNC_TASK_DRIVER env var or 'redis')",
     )

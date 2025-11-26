@@ -21,7 +21,7 @@ class Dispatcher:
     """Dispatches tasks to queues using queue drivers.
 
     The Dispatcher manages task serialization and enqueueing across different
-    queue drivers (Redis, SQS, Memory, Postgres). It supports per-task driver overrides.
+    queue drivers (Redis, SQS, Postgres, MySQL). It supports per-task driver overrides.
 
     Attributes:
         driver: Default queue driver for tasks without driver override

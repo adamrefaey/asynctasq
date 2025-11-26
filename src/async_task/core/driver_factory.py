@@ -71,10 +71,6 @@ class DriverFactory:
 
         """
         match driver_type:
-            case "memory":
-                from ..drivers.memory_driver import MemoryDriver
-
-                return MemoryDriver()
             case "redis":
                 from ..drivers.redis_driver import RedisDriver
 
