@@ -23,6 +23,7 @@ import asyncio
 from collections.abc import AsyncGenerator
 from time import time
 
+import pytest_asyncio
 from pytest import fixture, main, mark
 from redis.asyncio import Redis
 
@@ -43,7 +44,7 @@ def redis_url() -> str:
     return REDIS_URL
 
 
-@fixture
+@pytest_asyncio.fixture
 async def redis_client(redis_url: str) -> AsyncGenerator[Redis, None]:
     """
     Create a Redis client for direct Redis operations.
@@ -53,7 +54,7 @@ async def redis_client(redis_url: str) -> AsyncGenerator[Redis, None]:
     await client.aclose()
 
 
-@fixture
+@pytest_asyncio.fixture
 async def redis_driver(redis_url: str) -> AsyncGenerator[RedisDriver, None]:
     """
     Create a RedisDriver instance configured for testing.
@@ -73,7 +74,7 @@ async def redis_driver(redis_url: str) -> AsyncGenerator[RedisDriver, None]:
     await driver.disconnect()
 
 
-@fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def clean_queue(redis_client: Redis) -> AsyncGenerator[None, None]:
     """
     Fixture that ensures Redis is clean before and after tests.
@@ -96,6 +97,7 @@ class TestRedisDriverWithRealRedis:
     as documented in https://redis.io/docs/latest/commands/lmove/
     """
 
+    @mark.asyncio
     async def test_driver_initialization(self, redis_driver: RedisDriver) -> None:
         """Test that driver initializes correctly with real Redis."""
         assert redis_driver.client is not None
@@ -105,6 +107,7 @@ class TestRedisDriverWithRealRedis:
         # Verify connection works
         assert await maybe_await(redis_driver.client.ping())
 
+    @mark.asyncio
     async def test_enqueue_and_dequeue_single_task(self, redis_driver: RedisDriver) -> None:
         """Test enqueuing and dequeuing a single task."""
         # Arrange
@@ -119,6 +122,7 @@ class TestRedisDriverWithRealRedis:
         # Assert
         assert dequeued_data == task_data
 
+    @mark.asyncio
     async def test_enqueue_immediate_task(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -133,6 +137,7 @@ class TestRedisDriverWithRealRedis:
         result = await maybe_await(redis_client.rpop("queue:default"))
         assert result == task_data
 
+    @mark.asyncio
     async def test_enqueue_creates_queue_automatically(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -146,6 +151,7 @@ class TestRedisDriverWithRealRedis:
         # Assert
         assert await maybe_await(redis_client.exists("queue:new_queue"))
 
+    @mark.asyncio
     async def test_enqueue_multiple_tasks_preserves_fifo_order(
         self, redis_driver: RedisDriver
     ) -> None:
@@ -166,6 +172,7 @@ class TestRedisDriverWithRealRedis:
 
         assert dequeued_tasks == tasks
 
+    @mark.asyncio
     async def test_enqueue_delayed_task(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -187,6 +194,7 @@ class TestRedisDriverWithRealRedis:
         expected_time = before_time + delay_seconds
         assert abs(score - expected_time) < 1.0  # Within 1 second tolerance
 
+    @mark.asyncio
     async def test_enqueue_delayed_tasks_sorted_by_time(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -206,6 +214,7 @@ class TestRedisDriverWithRealRedis:
         all_tasks = await maybe_await(redis_client.zrange("queue:default:delayed", 0, -1))
         assert all_tasks == [b"task2", b"task1", b"task3"]  # Sorted by delay
 
+    @mark.asyncio
     async def test_enqueue_to_different_queues(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -220,6 +229,7 @@ class TestRedisDriverWithRealRedis:
         assert task1 == b"task1"
         assert task2 == b"task2"
 
+    @mark.asyncio
     async def test_dequeue_returns_task(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -234,6 +244,7 @@ class TestRedisDriverWithRealRedis:
         # Assert
         assert result == task_data
 
+    @mark.asyncio
     async def test_dequeue_moves_task_to_processing(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -251,6 +262,7 @@ class TestRedisDriverWithRealRedis:
         assert main_queue_size == 1  # One task remains in main queue
         assert processing_size == 1  # One task now in processing
 
+    @mark.asyncio
     async def test_dequeue_fifo_order(self, redis_driver: RedisDriver) -> None:
         """dequeue() should return tasks in FIFO order."""
         # Arrange
@@ -268,6 +280,7 @@ class TestRedisDriverWithRealRedis:
         # Assert
         assert results == tasks
 
+    @mark.asyncio
     async def test_dequeue_empty_queue_returns_none(self, redis_driver: RedisDriver) -> None:
         """dequeue() should return None for empty queue with poll_seconds=0."""
         # Act
@@ -276,6 +289,7 @@ class TestRedisDriverWithRealRedis:
         # Assert
         assert result is None
 
+    @mark.asyncio
     async def test_dequeue_with_poll_waits(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -296,6 +310,7 @@ class TestRedisDriverWithRealRedis:
         # Cleanup
         await enqueue_task
 
+    @mark.asyncio
     async def test_dequeue_poll_expires(self, redis_driver: RedisDriver) -> None:
         """dequeue() should return None when poll duration expires."""
         # Act
@@ -307,6 +322,7 @@ class TestRedisDriverWithRealRedis:
         assert result is None
         assert elapsed >= 0.9  # Account for some timing variance
 
+    @mark.asyncio
     async def test_dequeue_processes_delayed_tasks_first(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -327,6 +343,7 @@ class TestRedisDriverWithRealRedis:
         delayed_count = await maybe_await(redis_client.zcard("queue:default:delayed"))
         assert delayed_count == 0
 
+    @mark.asyncio
     async def test_dequeue_skips_not_ready_delayed_tasks(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -348,6 +365,7 @@ class TestRedisDriverWithRealRedis:
         delayed_count = await maybe_await(redis_client.zcard("queue:default:delayed"))
         assert delayed_count == 1
 
+    @mark.asyncio
     async def test_ack_removes_from_processing(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -364,6 +382,7 @@ class TestRedisDriverWithRealRedis:
         processing_count = await maybe_await(redis_client.llen("queue:default:processing"))
         assert processing_count == 0
 
+    @mark.asyncio
     async def test_nack_requeues_task(self, redis_driver: RedisDriver, redis_client: Redis) -> None:
         """nack() should add task back to queue for retry."""
         # Arrange
@@ -379,6 +398,7 @@ class TestRedisDriverWithRealRedis:
         result = await maybe_await(redis_client.rpop("queue:default"))
         assert result == task_data
 
+    @mark.asyncio
     async def test_nack_adds_to_front_of_queue(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -398,6 +418,7 @@ class TestRedisDriverWithRealRedis:
         assert all_tasks[0] == task_data
         assert all_tasks[1] == b"task2"
 
+    @mark.asyncio
     async def test_nack_after_ack_is_safe(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -417,6 +438,7 @@ class TestRedisDriverWithRealRedis:
         assert queue_count == 0
         assert processing_count == 0
 
+    @mark.asyncio
     async def test_get_queue_size_returns_count(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -432,6 +454,7 @@ class TestRedisDriverWithRealRedis:
         # Assert
         assert size == 3
 
+    @mark.asyncio
     async def test_get_queue_size_empty_queue(self, redis_driver: RedisDriver) -> None:
         """get_queue_size() should return 0 for empty queue."""
         # Act
@@ -442,6 +465,7 @@ class TestRedisDriverWithRealRedis:
         # Assert
         assert size == 0
 
+    @mark.asyncio
     async def test_get_queue_size_includes_in_flight(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -464,6 +488,7 @@ class TestRedisDriverWithRealRedis:
         assert size_without == 1  # Only task2 in main queue
         assert size_with == 2  # task2 in main queue + task1 in processing
 
+    @mark.asyncio
     async def test_get_queue_size_with_delayed_flag(
         self, redis_driver: RedisDriver, redis_client: Redis
     ) -> None:
@@ -484,6 +509,7 @@ class TestRedisDriverWithRealRedis:
         assert size_without_delayed == 1  # Only immediate task counted
         assert size_with_delayed == 2  # Both immediate and delayed tasks counted
 
+    @mark.asyncio
     async def test_delayed_task_becomes_available(self, redis_driver: RedisDriver) -> None:
         """Integration: Delayed task should become available after short delay."""
         # Arrange
@@ -506,6 +532,7 @@ class TestRedisDriverConcurrency:
     Validates thread-safe/async-safe operations using atomic Redis commands.
     """
 
+    @mark.asyncio
     async def test_concurrent_enqueue(self, redis_driver: RedisDriver) -> None:
         """Multiple concurrent enqueues should all succeed."""
         # Arrange
@@ -522,6 +549,7 @@ class TestRedisDriverConcurrency:
         )
         assert size == num_tasks
 
+    @mark.asyncio
     async def test_concurrent_dequeue(self, redis_driver: RedisDriver, redis_client: Redis) -> None:
         """Multiple concurrent dequeues should get unique tasks."""
         # Arrange
@@ -541,6 +569,7 @@ class TestRedisDriverConcurrency:
         tasks.sort()
         assert tasks == results
 
+    @mark.asyncio
     async def test_concurrent_enqueue_dequeue(self, redis_driver: RedisDriver) -> None:
         """Concurrent enqueues and dequeues should work correctly.
 
@@ -575,6 +604,7 @@ class TestRedisDriverConcurrency:
 class TestRedisDriverEdgeCases:
     """Test edge cases and error conditions."""
 
+    @mark.asyncio
     async def test_many_queues(self, redis_driver: RedisDriver, redis_client: Redis) -> None:
         """Driver should handle many queues efficiently."""
         # Arrange
@@ -589,6 +619,7 @@ class TestRedisDriverEdgeCases:
             exists = await maybe_await(redis_client.exists(f"queue:queue{i}"))
             assert exists == 1
 
+    @mark.asyncio
     async def test_queue_name_with_special_characters(self, redis_driver: RedisDriver) -> None:
         """Queue names with special characters should work."""
         # Arrange
@@ -600,6 +631,7 @@ class TestRedisDriverEdgeCases:
             result = await redis_driver.dequeue(queue_name, poll_seconds=0)
             assert result == b"data"
 
+    @mark.asyncio
     async def test_reconnect_after_disconnect(self, redis_url: str) -> None:
         """Driver should be reusable after disconnect."""
         # Arrange
@@ -626,6 +658,7 @@ class TestRedisDriverEdgeCases:
         # Cleanup
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_dequeue_preserves_task_data_integrity(self, redis_driver: RedisDriver) -> None:
         """Task data should be exactly preserved through enqueue/dequeue cycle.
 
@@ -650,6 +683,7 @@ class TestRedisDriverEdgeCases:
             result = await redis_driver.dequeue("default", poll_seconds=0)
             assert result == task_data, f"Failed for {task_data!r}"
 
+    @mark.asyncio
     async def test_delay_values(self, redis_driver: RedisDriver) -> None:
         """Test different delay value behaviors."""
         # Test zero delay
@@ -662,6 +696,7 @@ class TestRedisDriverEdgeCases:
         result_negative = await redis_driver.dequeue("default", poll_seconds=0)
         assert result_negative == b"task_negative"
 
+    @mark.asyncio
     async def test_connect_is_idempotent(self, redis_url: str) -> None:
         """Multiple connect() calls should be safe."""
         # Arrange
@@ -679,6 +714,7 @@ class TestRedisDriverEdgeCases:
         # Cleanup
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_disconnect_is_idempotent(self, redis_url: str) -> None:
         """Multiple disconnect() calls should be safe."""
         # Arrange
@@ -697,6 +733,7 @@ class TestRedisDriverEdgeCases:
 class TestRedisDriverDelayedTasks:
     """Test delayed task processing with various delays."""
 
+    @mark.asyncio
     async def test_delayed_task_not_immediately_available(
         self, redis_driver: RedisDriver, delay_seconds: int
     ) -> None:

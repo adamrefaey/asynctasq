@@ -9,7 +9,7 @@ Testing Strategy:
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
+from pytest import fixture, mark, raises
 
 from async_task.config import Config
 from async_task.core.dispatcher import Dispatcher
@@ -18,7 +18,7 @@ from async_task.drivers.memory_driver import MemoryDriver
 from async_task.integrations.fastapi import AsyncTaskIntegration
 
 
-@pytest.fixture
+@fixture
 def mock_driver() -> BaseDriver:
     """Create a mock driver for testing."""
     driver = MagicMock(spec=BaseDriver)
@@ -27,7 +27,7 @@ def mock_driver() -> BaseDriver:
     return driver
 
 
-@pytest.fixture
+@fixture
 def mock_fastapi_app():
     """Create a mock FastAPI app for testing."""
     app = MagicMock()
@@ -37,6 +37,7 @@ def mock_fastapi_app():
 class TestAsyncTaskIntegration:
     """Test AsyncTaskIntegration class."""
 
+    @mark.asyncio
     async def test_init_with_config(self, mock_driver):
         """Test initialization with explicit config."""
         config = Config(driver="memory")
@@ -47,6 +48,7 @@ class TestAsyncTaskIntegration:
         assert integration._dispatcher is None
         assert not integration._initialized
 
+    @mark.asyncio
     async def test_init_with_driver(self, mock_driver):
         """Test initialization with explicit driver."""
         integration = AsyncTaskIntegration(driver=mock_driver)
@@ -56,6 +58,7 @@ class TestAsyncTaskIntegration:
         assert integration._dispatcher is None
         assert not integration._initialized
 
+    @mark.asyncio
     async def test_init_without_args(self):
         """Test initialization without arguments (uses global config)."""
         integration = AsyncTaskIntegration()
@@ -65,6 +68,7 @@ class TestAsyncTaskIntegration:
         assert integration._dispatcher is None
         assert not integration._initialized
 
+    @mark.asyncio
     async def test_lifespan_startup_and_shutdown(self, mock_driver, mock_fastapi_app):
         """Test lifespan context manager startup and shutdown."""
         integration = AsyncTaskIntegration(driver=mock_driver)
@@ -82,6 +86,7 @@ class TestAsyncTaskIntegration:
         assert integration._dispatcher is None
         mock_driver.disconnect.assert_called_once()
 
+    @mark.asyncio
     async def test_lifespan_with_config(self, mock_fastapi_app):
         """Test lifespan with config (creates driver from config)."""
         config = Config(driver="memory")
@@ -98,6 +103,7 @@ class TestAsyncTaskIntegration:
                 assert integration._dispatcher is not None
                 mock_factory.assert_called_once_with(config)
 
+    @mark.asyncio
     async def test_lifespan_without_config(self, mock_fastapi_app):
         """Test lifespan without config (uses global config)."""
         integration = AsyncTaskIntegration()
@@ -118,6 +124,7 @@ class TestAsyncTaskIntegration:
                 mock_get_config.assert_called_once()
                 mock_factory.assert_called_once_with(config)
 
+    @mark.asyncio
     async def test_get_dispatcher_success(self, mock_driver, mock_fastapi_app):
         """Test get_dispatcher returns dispatcher after initialization."""
         integration = AsyncTaskIntegration(driver=mock_driver)
@@ -127,13 +134,15 @@ class TestAsyncTaskIntegration:
             assert isinstance(dispatcher, Dispatcher)
             assert dispatcher.driver == mock_driver
 
+    @mark.asyncio
     async def test_get_dispatcher_before_init(self):
         """Test get_dispatcher raises error before initialization."""
         integration = AsyncTaskIntegration()
 
-        with pytest.raises(RuntimeError, match="not initialized"):
+        with raises(RuntimeError, match="not initialized"):
             integration.get_dispatcher()
 
+    @mark.asyncio
     async def test_get_driver_success(self, mock_driver, mock_fastapi_app):
         """Test get_driver returns driver after initialization."""
         integration = AsyncTaskIntegration(driver=mock_driver)
@@ -142,13 +151,15 @@ class TestAsyncTaskIntegration:
             driver = integration.get_driver()
             assert driver == mock_driver
 
+    @mark.asyncio
     async def test_get_driver_before_init(self):
         """Test get_driver raises error before initialization."""
         integration = AsyncTaskIntegration()
 
-        with pytest.raises(RuntimeError, match="not initialized"):
+        with raises(RuntimeError, match="not initialized"):
             integration.get_driver()
 
+    @mark.asyncio
     async def test_lifespan_idempotent_startup(self, mock_driver, mock_fastapi_app):
         """Test that startup is idempotent (can be called multiple times safely)."""
         integration = AsyncTaskIntegration(driver=mock_driver)
@@ -161,6 +172,7 @@ class TestAsyncTaskIntegration:
             # Should only connect once
             assert mock_driver.connect.call_count == 1
 
+    @mark.asyncio
     async def test_lifespan_idempotent_shutdown(self, mock_driver, mock_fastapi_app):
         """Test that shutdown is idempotent (can be called multiple times safely)."""
         integration = AsyncTaskIntegration(driver=mock_driver)
@@ -175,11 +187,12 @@ class TestAsyncTaskIntegration:
         # Should only disconnect once
         assert mock_driver.disconnect.call_count == 1
 
+    @mark.asyncio
     async def test_lifespan_exception_handling(self, mock_driver, mock_fastapi_app):
         """Test that shutdown is called even if exception occurs in lifespan."""
         integration = AsyncTaskIntegration(driver=mock_driver)
 
-        with pytest.raises(ValueError):
+        with raises(ValueError):
             async with integration.lifespan(mock_fastapi_app):
                 raise ValueError("Test exception")
 

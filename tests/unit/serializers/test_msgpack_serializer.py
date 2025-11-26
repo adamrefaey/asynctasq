@@ -40,6 +40,7 @@ class TestMsgpackSerializerBasics:
         assert isinstance(result, bytes)
         assert len(result) > 0
 
+    @mark.asyncio
     async def test_round_trip_simple_types(self, serializer):
         """Test round-trip with standard Python types supported by msgpack."""
         data = {
@@ -53,11 +54,13 @@ class TestMsgpackSerializerBasics:
         }
         assert await serializer.deserialize(serializer.serialize(data)) == data
 
+    @mark.asyncio
     async def test_large_integers(self, serializer):
         """Test msgpack's support for 64-bit integers."""
         data = {"small": 1, "large": 2**63 - 1, "negative": -(2**63)}
         assert await serializer.deserialize(serializer.serialize(data)) == data
 
+    @mark.asyncio
     async def test_unicode_strings(self, serializer):
         """Test UTF-8 string encoding/decoding (raw=False ensures str type)."""
         data = {
@@ -76,6 +79,7 @@ class TestMsgpackSerializerBasics:
 class TestMsgpackSerializerDateTime:
     """Test datetime and date serialization (using msgpack ext type via default/object_hook)."""
 
+    @mark.asyncio
     async def test_datetime_serialization(self, serializer):
         """Test naive datetime serialization (no timezone)."""
         now = datetime(2023, 10, 15, 14, 30, 45, 123456)
@@ -85,6 +89,7 @@ class TestMsgpackSerializerDateTime:
         assert isinstance(deserialized["timestamp"], datetime)
         assert deserialized["timestamp"].tzinfo is None
 
+    @mark.asyncio
     async def test_datetime_with_timezone(self, serializer):
         """Test aware datetime with timezone (msgpack Timestamp type can be used with datetime=True)."""
         now = datetime(2023, 10, 15, 14, 30, 45, 123456, tzinfo=UTC)
@@ -93,6 +98,7 @@ class TestMsgpackSerializerDateTime:
         assert deserialized["timestamp"] == now
         assert deserialized["timestamp"].tzinfo == UTC
 
+    @mark.asyncio
     async def test_date_serialization(self, serializer):
         """Test date object serialization (not datetime)."""
         today = date.today()
@@ -106,6 +112,7 @@ class TestMsgpackSerializerDateTime:
         assert deserialized["date"] == today
         assert type(deserialized["date"]) is date
 
+    @mark.asyncio
     async def test_multiple_datetime_objects(self, serializer):
         """Test multiple datetime and date objects."""
         data = {
@@ -121,6 +128,7 @@ class TestMsgpackSerializerDateTime:
 class TestMsgpackSerializerDecimal:
     """Test Decimal serialization."""
 
+    @mark.asyncio
     async def test_decimal_serialization(self, serializer):
         """Test Decimal object serialization and precision preservation."""
         data = {
@@ -140,6 +148,7 @@ class TestMsgpackSerializerDecimal:
 class TestMsgpackSerializerUUID:
     """Test UUID serialization."""
 
+    @mark.asyncio
     async def test_uuid_serialization(self, serializer):
         """Test UUID object serialization."""
         task_id = uuid4()
@@ -148,6 +157,7 @@ class TestMsgpackSerializerUUID:
         assert deserialized["id"] == task_id
         assert isinstance(deserialized["id"], UUID)
 
+    @mark.asyncio
     async def test_multiple_uuids(self, serializer):
         """Test multiple UUID objects and UUID from string."""
         uuid_str = "550e8400-e29b-41d4-a716-446655440000"
@@ -165,6 +175,7 @@ class TestMsgpackSerializerUUID:
 class TestMsgpackSerializerBytes:
     """Test bytes serialization with use_bin_type=True (modern msgpack)."""
 
+    @mark.asyncio
     async def test_bytes_serialization(self, serializer):
         """Test bin type serialization (use_bin_type=True distinguishes str from bytes)."""
         data = {
@@ -185,6 +196,7 @@ class TestMsgpackSerializerBytes:
 class TestMsgpackSerializerSet:
     """Test set serialization."""
 
+    @mark.asyncio
     async def test_set_serialization(self, serializer):
         """Test set serialization (converted to list in msgpack, restored via object_hook)."""
         data = {
@@ -203,6 +215,7 @@ class TestMsgpackSerializerSet:
 class TestMsgpackSerializerNested:
     """Test nested and complex structures."""
 
+    @mark.asyncio
     async def test_nested_custom_types(self, serializer):
         """Test nested structures with custom types."""
         data = {
@@ -221,6 +234,7 @@ class TestMsgpackSerializerNested:
         assert isinstance(deserialized["user"]["balance"], Decimal)
         assert isinstance(deserialized["user"]["tags"], set)
 
+    @mark.asyncio
     async def test_list_of_custom_types(self, serializer):
         """Test lists containing custom types."""
         data = {
@@ -234,6 +248,7 @@ class TestMsgpackSerializerNested:
         }
         assert await serializer.deserialize(serializer.serialize(data)) == data
 
+    @mark.asyncio
     async def test_deeply_nested_structure(self, serializer):
         """Test deeply nested structures with custom types."""
         data = {
@@ -253,6 +268,7 @@ class TestMsgpackSerializerNested:
         }
         assert await serializer.deserialize(serializer.serialize(data)) == data
 
+    @mark.asyncio
     async def test_mixed_collections(self, serializer):
         """Test mixed nested collections."""
         data = {
@@ -274,6 +290,7 @@ class TestMsgpackSerializerNested:
 class TestMsgpackSerializerEdgeCases:
     """Test edge cases, boundary conditions, and msgpack-specific behavior."""
 
+    @mark.asyncio
     async def test_all_custom_types_together(self, serializer):
         """Test all supported types in a single payload (comprehensive integration)."""
         data = {
@@ -288,6 +305,7 @@ class TestMsgpackSerializerEdgeCases:
         }
         assert await serializer.deserialize(serializer.serialize(data)) == data
 
+    @mark.asyncio
     async def test_none_values(self, serializer):
         """Test None/null handling (msgpack nil type: 0xc0)."""
         data = {
@@ -302,6 +320,7 @@ class TestMsgpackSerializerEdgeCases:
         assert result["none_value"] is None
         assert result["list_with_none"][1] is None
 
+    @mark.asyncio
     async def test_map_keys_security(self, serializer):
         """Test map key types (strict_map_key=True limits to str/bytes for security)."""
         # Valid: str and bytes keys (when strict_map_key=True)
@@ -315,6 +334,7 @@ class TestMsgpackSerializerEdgeCases:
         }
         assert await serializer.deserialize(serializer.serialize(data)) == data
 
+    @mark.asyncio
     async def test_large_strings(self, serializer):
         """Test large string handling (msgpack str type supports 32-bit length)."""
         long_string = "a" * 10_000
@@ -323,6 +343,7 @@ class TestMsgpackSerializerEdgeCases:
         assert deserialized["long"] == long_string
         assert len(deserialized["long"]) == 10_000
 
+    @mark.asyncio
     async def test_many_keys(self, serializer):
         """Test map with many keys (msgpack map32 supports up to 2^32-1 elements)."""
         data = {f"key_{i}": i for i in range(1000)}
@@ -330,6 +351,7 @@ class TestMsgpackSerializerEdgeCases:
         assert deserialized == data
         assert len(deserialized) == 1000
 
+    @mark.asyncio
     async def test_object_identity_not_preserved(self, serializer):
         """Test that object identity is not preserved (expected msgpack behavior)."""
         # After deserialization, equal values become different objects
@@ -373,6 +395,7 @@ class TestMsgpackSerializerErrors:
         with raises(TypeError):
             serializer.serialize({"outer": {"inner": CustomClass()}})
 
+    @mark.asyncio
     async def test_invalid_msgpack_data(self, serializer):
         """Test deserialization errors for malformed data (security consideration)."""
         # Invalid msgpack data should raise FormatError or UnpackException
@@ -381,6 +404,7 @@ class TestMsgpackSerializerErrors:
         ):
             await serializer.deserialize(b"invalid msgpack data")
 
+    @mark.asyncio
     async def test_empty_msgpack_data(self, serializer):
         """Test that empty bytes raise OutOfData exception."""
         # Empty bytes indicate incomplete data
@@ -400,6 +424,7 @@ class TestMsgpackSerializerConsistency:
         assert serialized1 == serialized2
         assert len(serialized1) > 0
 
+    @mark.asyncio
     async def test_round_trip_preserves_data_and_types(self, serializer):
         """Test that round-trip preserves both data and types for all custom types."""
         original = {
@@ -435,6 +460,7 @@ class TestMsgpackSerializerConsistency:
 class TestMsgpackSerializerRealWorldScenarios:
     """Test real-world task queue scenarios."""
 
+    @mark.asyncio
     async def test_task_with_metadata(self, serializer):
         """Test typical task payload with metadata."""
         data = {
@@ -448,6 +474,7 @@ class TestMsgpackSerializerRealWorldScenarios:
         }
         assert await serializer.deserialize(serializer.serialize(data)) == data
 
+    @mark.asyncio
     async def test_payment_task(self, serializer):
         """Test payment processing task with Decimal precision."""
         data = {
@@ -464,6 +491,7 @@ class TestMsgpackSerializerRealWorldScenarios:
         assert deserialized["amount"] == Decimal("199.99")
         assert isinstance(deserialized["amount"], Decimal)
 
+    @mark.asyncio
     async def test_batch_processing_task(self, serializer):
         """Test batch processing with multiple items."""
         data = {
@@ -480,6 +508,7 @@ class TestMsgpackSerializerRealWorldScenarios:
         assert all(isinstance(item["id"], UUID) for item in deserialized["items"])
         assert all(isinstance(item["value"], Decimal) for item in deserialized["items"])
 
+    @mark.asyncio
     async def test_file_upload_task(self, serializer):
         """Test task with binary data (e.g., file upload)."""
         pdf_header_bytes = b"\x25\x50\x44\x46"
@@ -495,6 +524,7 @@ class TestMsgpackSerializerRealWorldScenarios:
         deserialized = await serializer.deserialize(serializer.serialize(data))
         assert deserialized["content"] == pdf_header_bytes
 
+    @mark.asyncio
     async def test_scheduled_task_complex(self, serializer):
         """Test scheduled task with complex scheduling data."""
         data = {
@@ -523,6 +553,7 @@ class TestMsgpackSerializerRealWorldScenarios:
 class TestMsgpackConfiguration:
     """Test msgpack configuration follows best practices (msgpack 1.0+)."""
 
+    @mark.asyncio
     async def test_use_bin_type_enabled(self, serializer):
         """Test use_bin_type=True (msgpack 1.0 default: distinguishes str from bytes)."""
         # Modern msgpack: bytes serialize to bin type, str to str type
@@ -533,6 +564,7 @@ class TestMsgpackConfiguration:
         assert isinstance(deserialized["text"], str)
         assert deserialized["binary"] != deserialized["text"]  # Different types
 
+    @mark.asyncio
     async def test_raw_false_behavior(self, serializer):
         """Test raw=False (msgpack 1.0 default: decodes str as UTF-8 str, not bytes)."""
         data = {"text": "hello world"}
@@ -542,6 +574,7 @@ class TestMsgpackConfiguration:
         assert isinstance(deserialized["text"], str)
         assert not isinstance(deserialized["text"], bytes)
 
+    @mark.asyncio
     async def test_utf8_string_handling(self, serializer):
         """Test UTF-8 encoding/decoding (msgpack always uses UTF-8 for strings)."""
         data = {"utf8": "Hello 世界 🌍"}
@@ -550,6 +583,7 @@ class TestMsgpackConfiguration:
         assert deserialized["utf8"] == data["utf8"]
         assert isinstance(deserialized["utf8"], str)
 
+    @mark.asyncio
     async def test_strict_map_key_security(self, serializer):
         """Test strict_map_key=True (msgpack 1.0 default: prevents hash DoS attacks)."""
         # strict_map_key=True limits map keys to str/bytes only

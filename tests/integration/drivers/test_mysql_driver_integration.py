@@ -28,6 +28,7 @@ from time import time
 from uuid import uuid4
 
 import asyncmy
+import pytest_asyncio
 from pytest import fixture, main, mark
 
 from async_task.drivers.mysql_driver import MySQLDriver
@@ -48,7 +49,7 @@ def mysql_dsn() -> str:
     return MYSQL_DSN
 
 
-@fixture
+@pytest_asyncio.fixture
 async def mysql_conn(mysql_dsn: str) -> AsyncGenerator[asyncmy.Connection, None]:
     """
     Create a MySQL connection for direct database operations.
@@ -71,7 +72,7 @@ async def mysql_conn(mysql_dsn: str) -> AsyncGenerator[asyncmy.Connection, None]
     await conn.ensure_closed()
 
 
-@fixture
+@pytest_asyncio.fixture
 async def mysql_driver(mysql_dsn: str) -> AsyncGenerator[MySQLDriver, None]:
     """
     Create a MySQLDriver instance configured for testing.
@@ -120,7 +121,7 @@ async def mysql_driver(mysql_dsn: str) -> AsyncGenerator[MySQLDriver, None]:
         await drop_conn.ensure_closed()
 
 
-@fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def clean_queue(mysql_driver: MySQLDriver) -> AsyncGenerator[None, None]:
     """
     Fixture that ensures tables are clean before and after tests.
@@ -151,6 +152,7 @@ class TestMySQLDriverWithRealMySQL:
     visibility timeout, dead-letter queue, and retry logic.
     """
 
+    @mark.asyncio
     async def test_driver_initialization(self, mysql_driver: MySQLDriver) -> None:
         """Test that driver initializes correctly with real MySQL."""
         assert mysql_driver.pool is not None
@@ -165,6 +167,7 @@ class TestMySQLDriverWithRealMySQL:
                 result = await cursor.fetchone()
                 assert result[0] == 1
 
+    @mark.asyncio
     async def test_init_schema_creates_tables(
         self, mysql_dsn: str, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -225,6 +228,7 @@ class TestMySQLDriverWithRealMySQL:
                         await cursor.execute(f"DROP TABLE IF EXISTS {dlq_table}")
             await driver.disconnect()
 
+    @mark.asyncio
     async def test_init_schema_is_idempotent(self, mysql_driver: MySQLDriver) -> None:
         """Test that init_schema can be called multiple times safely."""
         # Act & Assert - should not raise
@@ -232,6 +236,7 @@ class TestMySQLDriverWithRealMySQL:
         await mysql_driver.init_schema()
         await mysql_driver.init_schema()
 
+    @mark.asyncio
     async def test_enqueue_and_dequeue_single_task(self, mysql_driver: MySQLDriver) -> None:
         """Test enqueuing and dequeuing a single task."""
         # Arrange
@@ -248,6 +253,7 @@ class TestMySQLDriverWithRealMySQL:
         assert isinstance(receipt_handle, bytes)
         assert len(receipt_handle) == 16  # UUID bytes
 
+    @mark.asyncio
     async def test_enqueue_immediate_task(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -269,6 +275,7 @@ class TestMySQLDriverWithRealMySQL:
             assert result[5] == "pending"  # status is at index 5
             assert result[6] == 0  # attempts is at index 6
 
+    @mark.asyncio
     async def test_enqueue_multiple_tasks_preserves_fifo_order(
         self, mysql_driver: MySQLDriver
     ) -> None:
@@ -302,6 +309,7 @@ class TestMySQLDriverWithRealMySQL:
             # Ack to clean up
             await mysql_driver.ack("default", receipt)
 
+    @mark.asyncio
     async def test_enqueue_delayed_task(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -332,6 +340,7 @@ class TestMySQLDriverWithRealMySQL:
             expected_time = before_time + delay_seconds
             assert abs(available_at - expected_time) < 2.0  # Within 2 seconds tolerance
 
+    @mark.asyncio
     async def test_dequeue_returns_receipt_handle(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -348,6 +357,7 @@ class TestMySQLDriverWithRealMySQL:
         assert isinstance(receipt, bytes)
         assert len(receipt) == 16  # UUID is 16 bytes
 
+    @mark.asyncio
     async def test_dequeue_sets_status_to_processing(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -379,6 +389,7 @@ class TestMySQLDriverWithRealMySQL:
             locked_until = locked_until_dt.timestamp()
             assert locked_until > time()
 
+    @mark.asyncio
     async def test_dequeue_empty_queue_returns_none(self, mysql_driver: MySQLDriver) -> None:
         """dequeue() should return None for empty queue with poll_seconds=0."""
         # Act
@@ -387,6 +398,7 @@ class TestMySQLDriverWithRealMySQL:
         # Assert
         assert result is None
 
+    @mark.asyncio
     async def test_dequeue_with_poll_waits(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -407,6 +419,7 @@ class TestMySQLDriverWithRealMySQL:
         # Cleanup
         await enqueue_task
 
+    @mark.asyncio
     async def test_dequeue_poll_expires(self, mysql_driver: MySQLDriver) -> None:
         """dequeue() should return None when poll duration expires."""
         # Act
@@ -418,6 +431,7 @@ class TestMySQLDriverWithRealMySQL:
         assert result is None
         assert elapsed >= 0.9  # Account for some timing variance
 
+    @mark.asyncio
     async def test_ack_removes_task(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -439,6 +453,7 @@ class TestMySQLDriverWithRealMySQL:
         # Receipt handle should be cleared
         assert receipt not in mysql_driver._receipt_handles
 
+    @mark.asyncio
     async def test_nack_requeues_task(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -466,6 +481,7 @@ class TestMySQLDriverWithRealMySQL:
         # Receipt handle should be cleared
         assert receipt not in mysql_driver._receipt_handles
 
+    @mark.asyncio
     async def test_nack_moves_to_dead_letter_after_max_attempts(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -507,6 +523,7 @@ class TestMySQLDriverWithRealMySQL:
             queue_count = (await cursor.fetchone())[0]
             assert queue_count == 0
 
+    @mark.asyncio
     async def test_get_queue_size_returns_count(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -523,6 +540,7 @@ class TestMySQLDriverWithRealMySQL:
         # Assert
         assert size == 3
 
+    @mark.asyncio
     async def test_get_queue_size_empty_queue(self, mysql_driver: MySQLDriver) -> None:
         """get_queue_size() should return 0 for empty queue."""
         # Act
@@ -533,6 +551,7 @@ class TestMySQLDriverWithRealMySQL:
         # Assert
         assert size == 0
 
+    @mark.asyncio
     async def test_get_queue_size_include_delayed(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -549,6 +568,7 @@ class TestMySQLDriverWithRealMySQL:
         # Assert
         assert size == 2
 
+    @mark.asyncio
     async def test_get_queue_size_include_in_flight(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -569,6 +589,7 @@ class TestMySQLDriverWithRealMySQL:
         # Cleanup
         await mysql_driver.ack("default", receipt)
 
+    @mark.asyncio
     async def test_get_queue_size_include_both(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -596,6 +617,7 @@ class TestMySQLDriverWithRealMySQL:
         # Cleanup
         await mysql_driver.ack("default", receipt)
 
+    @mark.asyncio
     async def test_dequeue_recovers_stuck_tasks(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -624,6 +646,7 @@ class TestMySQLDriverWithRealMySQL:
         # Cleanup
         await mysql_driver.ack("default", receipt)
 
+    @mark.asyncio
     async def test_nack_with_exponential_backoff(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -684,6 +707,7 @@ class TestMySQLDriverWithRealMySQL:
             assert result is not None
             assert result[0] == 2  # attempts = 2
 
+    @mark.asyncio
     async def test_nack_with_invalid_receipt_handle(self, mysql_driver: MySQLDriver) -> None:
         """nack() should handle invalid receipt handles gracefully."""
         # Arrange
@@ -694,6 +718,7 @@ class TestMySQLDriverWithRealMySQL:
 
         # Assert - no error raised, nothing happens
 
+    @mark.asyncio
     async def test_ack_with_invalid_receipt_handle(self, mysql_driver: MySQLDriver) -> None:
         """ack() should handle invalid receipt handles gracefully."""
         # Arrange
@@ -704,6 +729,7 @@ class TestMySQLDriverWithRealMySQL:
 
         # Assert - no error raised
 
+    @mark.asyncio
     async def test_connect_idempotent(self, mysql_driver: MySQLDriver) -> None:
         """connect() should be idempotent - can be called multiple times."""
         # Arrange
@@ -716,6 +742,7 @@ class TestMySQLDriverWithRealMySQL:
         # Assert - same pool instance
         assert mysql_driver.pool is original_pool
 
+    @mark.asyncio
     async def test_disconnect_clears_receipt_handles(self, mysql_driver: MySQLDriver) -> None:
         """disconnect() should clear receipt handles."""
         # Arrange
@@ -735,6 +762,7 @@ class TestMySQLDriverWithRealMySQL:
         await mysql_driver.connect()
         await mysql_driver.init_schema()
 
+    @mark.asyncio
     async def test_dsn_parsing_edge_cases(self, mysql_dsn: str) -> None:
         """Test DSN parsing methods with various edge cases."""
         # Test host parsing edge cases
@@ -777,6 +805,7 @@ class TestMySQLDriverWithRealMySQL:
         assert driver9._parse_user() == "root"  # Default
         assert driver9._parse_database() == "test_db"  # Default
 
+    @mark.asyncio
     async def test_get_queue_size_with_processing_tasks(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
@@ -800,6 +829,7 @@ class TestMySQLDriverWithRealMySQL:
         # Cleanup
         await mysql_driver.ack("default", receipt1)
 
+    @mark.asyncio
     async def test_enqueue_auto_connects(self, mysql_dsn: str) -> None:
         """enqueue() should auto-connect if pool is None."""
         # Arrange
@@ -823,6 +853,7 @@ class TestMySQLDriverWithRealMySQL:
             if driver.pool:
                 await driver.disconnect()
 
+    @mark.asyncio
     async def test_dequeue_auto_connects(self, mysql_dsn: str) -> None:
         """dequeue() should auto-connect if pool is None."""
         # Arrange
@@ -851,6 +882,7 @@ class TestMySQLDriverWithRealMySQL:
             if driver.pool:
                 await driver.disconnect()
 
+    @mark.asyncio
     async def test_ack_auto_connects(self, mysql_dsn: str) -> None:
         """ack() should auto-connect if pool is None."""
         # Arrange
@@ -879,6 +911,7 @@ class TestMySQLDriverWithRealMySQL:
             if driver.pool:
                 await driver.disconnect()
 
+    @mark.asyncio
     async def test_nack_auto_connects(self, mysql_dsn: str) -> None:
         """nack() should auto-connect if pool is None."""
         # Arrange
@@ -907,6 +940,7 @@ class TestMySQLDriverWithRealMySQL:
             if driver.pool:
                 await driver.disconnect()
 
+    @mark.asyncio
     async def test_get_queue_size_auto_connects(self, mysql_dsn: str) -> None:
         """get_queue_size() should auto-connect if pool is None."""
         # Arrange
@@ -936,6 +970,7 @@ class TestMySQLDriverWithRealMySQL:
             if driver.pool:
                 await driver.disconnect()
 
+    @mark.asyncio
     async def test_dequeue_poll_edge_case(self, mysql_driver: MySQLDriver) -> None:
         """Test dequeue poll edge case when deadline is None but poll_seconds > 0."""
         # This tests the else branch at line 279

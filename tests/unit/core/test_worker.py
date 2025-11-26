@@ -13,8 +13,7 @@ from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-from pytest import main, mark
+from pytest import main, mark, raises
 
 from async_task.core.task import Task
 from async_task.core.worker import Worker
@@ -137,6 +136,7 @@ class TestWorkerInitialization:
 class TestWorkerStart:
     """Test Worker.start() method."""
 
+    @mark.asyncio
     async def test_start_connects_driver(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -150,6 +150,7 @@ class TestWorkerStart:
         # Assert
         mock_driver.connect.assert_called_once()
 
+    @mark.asyncio
     async def test_start_sets_up_signal_handlers(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -172,6 +173,7 @@ class TestWorkerStart:
         # Assert
         assert mock_loop.add_signal_handler.call_count == 2  # SIGTERM and SIGINT
 
+    @mark.asyncio
     async def test_start_calls_run(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -188,6 +190,7 @@ class TestWorkerStart:
         # Assert
         mock_run.assert_called_once()
 
+    @mark.asyncio
     async def test_start_calls_cleanup_in_finally(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -207,6 +210,7 @@ class TestWorkerStart:
         # Assert
         mock_cleanup.assert_called_once()
 
+    @mark.asyncio
     async def test_start_sets_running_to_true(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -227,6 +231,7 @@ class TestWorkerStart:
         # Verify it was set to True at some point (start() sets it)
         # Note: cleanup may set it back to False, so we just check it exists
 
+    @mark.asyncio
     async def test_start_logs_info_message(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -254,6 +259,7 @@ class TestWorkerStart:
 class TestWorkerRun:
     """Test Worker._run() method."""
 
+    @mark.asyncio
     async def test_run_exits_when_max_tasks_reached(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -268,6 +274,7 @@ class TestWorkerRun:
         # Should exit immediately when max_tasks reached
         assert worker._tasks_processed == 2
 
+    @mark.asyncio
     async def test_run_waits_when_concurrency_limit_reached(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -292,6 +299,7 @@ class TestWorkerRun:
         assert task1.done()
         assert task2.done()
 
+    @mark.asyncio
     async def test_run_processes_task_when_available(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -321,6 +329,7 @@ class TestWorkerRun:
         assert mock_fetch.call_count >= 1
         mock_process.assert_called_once_with(task_data)
 
+    @mark.asyncio
     async def test_run_handles_task_done_callback(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -359,6 +368,7 @@ class TestWorkerRun:
         assert processed_task.done()
         assert processed_task not in worker._tasks
 
+    @mark.asyncio
     async def test_run_sleeps_when_no_tasks_available(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -390,6 +400,7 @@ class TestWorkerRun:
         # Verify sleep was called with 0.1 seconds (prevents CPU spinning)
         mock_sleep.assert_called_with(0.1)
 
+    @mark.asyncio
     async def test_run_handles_multiple_queues_round_robin(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -428,6 +439,7 @@ class TestWorkerRun:
 class TestWorkerFetchTask:
     """Test Worker._fetch_task() method."""
 
+    @mark.asyncio
     async def test_fetch_task_returns_task_from_first_queue(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -442,6 +454,7 @@ class TestWorkerFetchTask:
         assert result == task_data
         mock_driver.dequeue.assert_called_once_with("q1")
 
+    @mark.asyncio
     async def test_fetch_task_checks_queues_in_order(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -458,6 +471,7 @@ class TestWorkerFetchTask:
         assert mock_driver.dequeue.call_args_list[1][0][0] == "q2"
         assert mock_driver.dequeue.call_args_list[2][0][0] == "q3"
 
+    @mark.asyncio
     async def test_fetch_task_returns_none_when_all_queues_empty(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -476,6 +490,7 @@ class TestWorkerFetchTask:
 class TestWorkerProcessTask:
     """Test Worker._process_task() method."""
 
+    @mark.asyncio
     async def test_process_task_successful_execution(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -495,6 +510,7 @@ class TestWorkerProcessTask:
         mock_deserialize.assert_called_once_with(task_data)
         assert worker._tasks_processed == 1
 
+    @mark.asyncio
     async def test_process_task_with_timeout(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -524,6 +540,7 @@ class TestWorkerProcessTask:
         mock_handle_failure.assert_called_once()
         assert isinstance(mock_handle_failure.call_args[0][1], TimeoutError)
 
+    @mark.asyncio
     async def test_process_task_without_timeout(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -541,6 +558,7 @@ class TestWorkerProcessTask:
         # Assert
         assert worker._tasks_processed == 1
 
+    @mark.asyncio
     async def test_process_task_handles_exception(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -568,6 +586,7 @@ class TestWorkerProcessTask:
         mock_handle_failure.assert_called_once()
         assert isinstance(mock_handle_failure.call_args[0][1], ValueError)
 
+    @mark.asyncio
     async def test_process_task_handles_deserialization_failure(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -585,13 +604,14 @@ class TestWorkerProcessTask:
             worker, "_deserialize_task", side_effect=ImportError("Cannot import task class")
         ):
             # Act & Assert - should raise AssertionError when task is None
-            with pytest.raises(AssertionError):
+            with raises(AssertionError):
                 await worker._process_task(task_data)
 
         # Assert
         # Task counter should not increment on failure
         assert worker._tasks_processed == initial_count
 
+    @mark.asyncio
     async def test_process_task_increments_counter_on_success(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -614,6 +634,7 @@ class TestWorkerProcessTask:
 class TestWorkerHandleTaskFailure:
     """Test Worker._handle_task_failure() method."""
 
+    @mark.asyncio
     async def test_handle_task_failure_retries_when_attempts_less_than_max(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -636,6 +657,7 @@ class TestWorkerHandleTaskFailure:
         assert task._attempts == 1
         mock_driver.enqueue.assert_called_once_with("test_queue", b"serialized", 60)
 
+    @mark.asyncio
     async def test_handle_task_failure_no_retry_when_attempts_exceed_max(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -657,6 +679,7 @@ class TestWorkerHandleTaskFailure:
         task.failed.assert_called_once_with(exception)
         mock_driver.enqueue.assert_not_called()
 
+    @mark.asyncio
     async def test_handle_task_failure_no_retry_when_should_retry_returns_false(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -683,6 +706,7 @@ class TestWorkerHandleTaskFailure:
         task.failed.assert_called_once_with(exception)
         mock_driver.enqueue.assert_not_called()
 
+    @mark.asyncio
     async def test_handle_task_failure_calls_task_failed_on_permanent_failure(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -702,6 +726,7 @@ class TestWorkerHandleTaskFailure:
         # Assert
         task.failed.assert_called_once_with(exception)
 
+    @mark.asyncio
     async def test_handle_task_failure_handles_exception_in_failed_handler(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -729,6 +754,7 @@ class TestWorkerHandleTaskFailure:
 class TestWorkerDeserializeTask:
     """Test Worker._deserialize_task() method."""
 
+    @mark.asyncio
     async def test_deserialize_task_reconstructs_task_instance(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -762,6 +788,7 @@ class TestWorkerDeserializeTask:
         assert result.timeout == 300
         assert isinstance(result._dispatched_at, datetime)
 
+    @mark.asyncio
     async def test_deserialize_task_handles_none_dispatched_at(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -785,6 +812,7 @@ class TestWorkerDeserializeTask:
         # Assert
         assert result._dispatched_at is None
 
+    @mark.asyncio
     async def test_deserialize_task_handles_empty_dispatched_at_string(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -808,6 +836,7 @@ class TestWorkerDeserializeTask:
         # Assert
         assert result._dispatched_at is None
 
+    @mark.asyncio
     async def test_deserialize_task_handles_invalid_datetime_format(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -831,6 +860,7 @@ class TestWorkerDeserializeTask:
         # Assert
         assert result._dispatched_at is None
 
+    @mark.asyncio
     async def test_deserialize_task_handles_typeerror_in_datetime_parsing(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -854,6 +884,7 @@ class TestWorkerDeserializeTask:
         # Assert
         assert result._dispatched_at is None
 
+    @mark.asyncio
     async def test_deserialize_task_restores_metadata_with_defaults(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -881,6 +912,7 @@ class TestWorkerDeserializeTask:
         assert result.max_retries == 3  # Default from Task class
         assert result.retry_delay == 60  # Default from Task class
 
+    @mark.asyncio
     async def test_deserialize_task_restores_task_configuration(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -913,6 +945,7 @@ class TestWorkerDeserializeTask:
 class TestWorkerSerializeTask:
     """Test Worker._serialize_task() method."""
 
+    @mark.asyncio
     async def test_serialize_task_includes_all_metadata(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -944,6 +977,7 @@ class TestWorkerSerializeTask:
         assert call_arg["metadata"]["timeout"] == 300
         assert result == b"serialized"
 
+    @mark.asyncio
     async def test_serialize_task_excludes_private_attributes(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -966,6 +1000,7 @@ class TestWorkerSerializeTask:
         assert "_attempts" not in params
         assert "_private_attr" not in params
 
+    @mark.asyncio
     async def test_serialize_task_handles_none_dispatched_at(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -1019,6 +1054,7 @@ class TestWorkerHandleShutdown:
 class TestWorkerCleanup:
     """Test Worker._cleanup() method."""
 
+    @mark.asyncio
     async def test_cleanup_waits_for_running_tasks(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -1037,6 +1073,7 @@ class TestWorkerCleanup:
         assert task1.done()
         assert task2.done()
 
+    @mark.asyncio
     async def test_cleanup_disconnects_driver(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -1048,6 +1085,7 @@ class TestWorkerCleanup:
         # Assert
         mock_driver.disconnect.assert_called_once()
 
+    @mark.asyncio
     async def test_cleanup_handles_empty_tasks_set(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -1060,6 +1098,7 @@ class TestWorkerCleanup:
         # Assert
         mock_driver.disconnect.assert_called_once()
 
+    @mark.asyncio
     async def test_cleanup_logs_messages(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -1081,6 +1120,7 @@ class TestWorkerCleanup:
 class TestWorkerIntegration:
     """Integration tests for Worker."""
 
+    @mark.asyncio
     async def test_worker_processes_task_end_to_end(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -1131,6 +1171,7 @@ class TestWorkerIntegration:
         mock_driver.disconnect.assert_called_once()
         assert call_count >= 1  # At least one dequeue call
 
+    @mark.asyncio
     async def test_worker_handles_concurrent_tasks(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -1174,6 +1215,7 @@ class TestWorkerIntegration:
         mock_driver.connect.assert_called_once()
         mock_driver.disconnect.assert_called_once()
 
+    @mark.asyncio
     async def test_worker_retries_failed_task(self) -> None:
         """Test that when a task fails, it is re-enqueued for retry.
 

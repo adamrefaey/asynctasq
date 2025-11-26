@@ -27,6 +27,7 @@ import json
 from collections.abc import AsyncGenerator
 
 import aioboto3
+import pytest_asyncio
 from pytest import fixture, main, mark, raises
 
 from async_task.drivers.sqs_driver import SQSDriver
@@ -53,7 +54,7 @@ def aws_region() -> str:
     return TEST_REGION
 
 
-@fixture
+@pytest_asyncio.fixture
 async def sqs_client(localstack_endpoint: str, aws_region: str) -> AsyncGenerator:
     """
     Create an aioboto3 SQS client for LocalStack.
@@ -71,7 +72,7 @@ async def sqs_client(localstack_endpoint: str, aws_region: str) -> AsyncGenerato
         yield client
 
 
-@fixture
+@pytest_asyncio.fixture
 async def sqs_driver(aws_region: str) -> AsyncGenerator[SQSDriver, None]:
     """
     Create an SQSDriver instance configured for LocalStack.
@@ -93,7 +94,7 @@ async def sqs_driver(aws_region: str) -> AsyncGenerator[SQSDriver, None]:
     await driver.disconnect()
 
 
-@fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def clean_queue(sqs_client, sqs_driver: SQSDriver) -> AsyncGenerator[None, None]:
     """
     Fixture that ensures the queue is empty before and after tests.
@@ -122,11 +123,13 @@ async def clean_queue(sqs_client, sqs_driver: SQSDriver) -> AsyncGenerator[None,
 class TestSQSDriverWithLocalStack:
     """Integration tests for SQSDriver using LocalStack."""
 
+    @mark.asyncio
     async def test_driver_initialization(self, sqs_driver: SQSDriver) -> None:
         """Test that driver initializes correctly with LocalStack."""
         assert sqs_driver.client is not None
         assert sqs_driver.region_name == TEST_REGION
 
+    @mark.asyncio
     async def test_enqueue_and_dequeue_single_message(self, sqs_driver: SQSDriver) -> None:
         """Test enqueuing and dequeuing a single message."""
         # Arrange
@@ -144,6 +147,7 @@ class TestSQSDriverWithLocalStack:
         dequeued_payload = json.loads(dequeued_data.decode("utf-8"))
         assert dequeued_payload == payload
 
+    @mark.asyncio
     async def test_enqueue_multiple_messages(self, sqs_driver: SQSDriver) -> None:
         """Test enqueuing multiple messages."""
         # Arrange
@@ -172,6 +176,7 @@ class TestSQSDriverWithLocalStack:
             json.dumps(p, sort_keys=True) for p in payloads
         }
 
+    @mark.asyncio
     async def test_dequeue_empty_queue(self, sqs_driver: SQSDriver) -> None:
         """Test dequeuing from an empty queue returns None."""
         # Act
@@ -180,6 +185,7 @@ class TestSQSDriverWithLocalStack:
         # Assert
         assert message is None
 
+    @mark.asyncio
     async def test_acknowledge_message(self, sqs_driver: SQSDriver) -> None:
         """Test acknowledging a message removes it from the queue."""
         # Arrange
@@ -196,6 +202,7 @@ class TestSQSDriverWithLocalStack:
         message2 = await sqs_driver.dequeue(TEST_QUEUE_NAME)
         assert message2 is None
 
+    @mark.asyncio
     async def test_nack_message(self, sqs_driver: SQSDriver) -> None:
         """Test negative acknowledging a message makes it visible again."""
         # Arrange
@@ -212,6 +219,7 @@ class TestSQSDriverWithLocalStack:
         dequeued_data2 = await sqs_driver.dequeue(TEST_QUEUE_NAME)
         assert dequeued_data2 is not None
 
+    @mark.asyncio
     async def test_queue_size(self, sqs_driver: SQSDriver) -> None:
         """Test getting the queue size."""
         # Arrange - Enqueue some messages
@@ -229,6 +237,7 @@ class TestSQSDriverWithLocalStack:
         # Assert
         assert size >= 3  # May be more if other tests are running
 
+    @mark.asyncio
     async def test_queue_size_with_delayed(self, sqs_driver: SQSDriver) -> None:
         """Test getting queue size including delayed messages."""
         # Arrange - Enqueue messages with delay
@@ -254,6 +263,7 @@ class TestSQSDriverWithLocalStack:
         assert size_without_delayed >= 2
         assert size_with_delayed >= size_without_delayed
 
+    @mark.asyncio
     async def test_queue_size_with_in_flight(self, sqs_driver: SQSDriver) -> None:
         """Test getting queue size including in-flight messages."""
         # Arrange - Enqueue messages
@@ -286,6 +296,7 @@ class TestSQSDriverWithLocalStack:
         for data in dequeued:
             await sqs_driver.ack(TEST_QUEUE_NAME, data)
 
+    @mark.asyncio
     async def test_queue_size_with_all_options(self, sqs_driver: SQSDriver) -> None:
         """Test getting queue size with both delayed and in-flight included."""
         # Arrange - Enqueue immediate and delayed messages
@@ -316,6 +327,7 @@ class TestSQSDriverWithLocalStack:
         # Cleanup
         await sqs_driver.ack(TEST_QUEUE_NAME, dequeued)
 
+    @mark.asyncio
     async def test_enqueue_delay_exceeds_limit(self, sqs_driver: SQSDriver) -> None:
         """Test that enqueue raises ValueError when delay_seconds > 900."""
         # Arrange
@@ -328,6 +340,7 @@ class TestSQSDriverWithLocalStack:
         with raises(ValueError, match="delay_seconds cannot exceed 900"):
             await sqs_driver.enqueue(TEST_QUEUE_NAME, task_data, delay_seconds=1000)
 
+    @mark.asyncio
     async def test_enqueue_auto_connect(self, aws_region: str) -> None:
         """Test that enqueue auto-connects if client is None."""
         # Arrange - Create driver but don't connect
@@ -353,6 +366,7 @@ class TestSQSDriverWithLocalStack:
         # Cleanup
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_dequeue_auto_connect(self, aws_region: str) -> None:
         """Test that dequeue auto-connects if client is None."""
         # Arrange - Create driver, connect, enqueue, then disconnect
@@ -378,6 +392,7 @@ class TestSQSDriverWithLocalStack:
         # Cleanup
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_ack_auto_connect(self, aws_region: str) -> None:
         """Test that ack auto-connects if client is None."""
         # Arrange - Create driver, connect, enqueue, dequeue, then disconnect
@@ -409,6 +424,7 @@ class TestSQSDriverWithLocalStack:
         # Cleanup
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_nack_auto_connect(self, aws_region: str) -> None:
         """Test that nack auto-connects if client is None."""
         # Arrange - Create driver, connect, enqueue, dequeue
@@ -447,6 +463,7 @@ class TestSQSDriverWithLocalStack:
         await driver.ack(TEST_QUEUE_NAME, result)
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_get_queue_size_auto_connect(self, aws_region: str) -> None:
         """Test that get_queue_size auto-connects if client is None."""
         # Arrange - Create driver, connect, enqueue, then disconnect
@@ -473,6 +490,7 @@ class TestSQSDriverWithLocalStack:
         # Cleanup
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_get_queue_url_without_prefix(self, aws_region: str) -> None:
         """Test _get_queue_url when queue_url_prefix is None (API call path)."""
         # Arrange - Create driver without queue_url_prefix
@@ -504,6 +522,7 @@ class TestSQSDriverWithLocalStack:
 class TestSQSDriverConcurrency:
     """Test concurrent operations with SQSDriver."""
 
+    @mark.asyncio
     async def test_concurrent_enqueue(self, sqs_driver: SQSDriver) -> None:
         """Test concurrent enqueue operations."""
         # Arrange
@@ -521,6 +540,7 @@ class TestSQSDriverConcurrency:
         size = await sqs_driver.get_queue_size(TEST_QUEUE_NAME, False, False)
         assert size >= len(payloads)
 
+    @mark.asyncio
     async def test_concurrent_dequeue(self, sqs_driver: SQSDriver) -> None:
         """Test concurrent dequeue operations."""
         # Arrange
@@ -546,6 +566,7 @@ class TestSQSDriverConcurrency:
 class TestSQSDriverEdgeCases:
     """Test edge cases and error handling."""
 
+    @mark.asyncio
     async def test_enqueue_large_payload(self, sqs_driver: SQSDriver) -> None:
         """Test enqueuing a large payload (near SQS limit)."""
         # Arrange - SQS max message size is 256KB
@@ -562,12 +583,14 @@ class TestSQSDriverEdgeCases:
         assert dequeued_payload["data"] == large_data
 
     @mark.parametrize("operation", ["ack", "nack"])
+    @mark.asyncio
     async def test_invalid_receipt_handle(self, sqs_driver: SQSDriver, operation: str) -> None:
         """Test operations with invalid receipt handle are idempotent."""
         fake_receipt = b"invalid-receipt-handle"
         operation_method = getattr(sqs_driver, operation)
         await operation_method(TEST_QUEUE_NAME, fake_receipt)
 
+    @mark.asyncio
     async def test_many_queues(self, sqs_driver: SQSDriver, aws_region: str) -> None:
         """Driver should handle many queues efficiently."""
         num_queues = 20
@@ -588,6 +611,7 @@ class TestSQSDriverEdgeCases:
             result = await sqs_driver.dequeue(f"queue-{i}")
             assert result == payload
 
+    @mark.asyncio
     async def test_queue_name_with_special_characters(
         self, sqs_driver: SQSDriver, aws_region: str
     ) -> None:
@@ -612,6 +636,7 @@ class TestSQSDriverEdgeCases:
             result = await sqs_driver.dequeue(queue_name)
             assert result == payload
 
+    @mark.asyncio
     async def test_reconnect_after_disconnect(self, aws_region: str) -> None:
         """Driver should be reusable after disconnect."""
         driver = SQSDriver(
@@ -634,6 +659,7 @@ class TestSQSDriverEdgeCases:
         assert result2 == payload2
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_data_integrity(self, sqs_driver: SQSDriver) -> None:
         """Task data should be exactly preserved through enqueue/dequeue cycle."""
         test_cases = [
@@ -651,6 +677,7 @@ class TestSQSDriverEdgeCases:
             result = await sqs_driver.dequeue(TEST_QUEUE_NAME)
             assert result == task_data, f"Failed for {task_data!r}"
 
+    @mark.asyncio
     async def test_connect_is_idempotent(self, aws_region: str) -> None:
         """Multiple connect() calls should be safe."""
         driver = SQSDriver(
@@ -667,6 +694,7 @@ class TestSQSDriverEdgeCases:
         assert first_client is second_client
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_disconnect_is_idempotent(self, aws_region: str) -> None:
         """Multiple disconnect() calls should be safe."""
         driver = SQSDriver(
@@ -687,6 +715,7 @@ class TestSQSDriverEdgeCases:
 class TestSQSDriverDelayedMessages:
     """Test delayed message delivery."""
 
+    @mark.asyncio
     async def test_delayed_message(self, sqs_driver: SQSDriver, delay_seconds: int) -> None:
         """Test that delayed messages are not immediately visible."""
         # Arrange

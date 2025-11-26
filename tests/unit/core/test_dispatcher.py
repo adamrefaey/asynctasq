@@ -207,6 +207,7 @@ class TestDispatcherGetDriver:
 class TestDispatcherDispatch:
     """Test Dispatcher.dispatch() method."""
 
+    @mark.asyncio
     async def test_dispatch_basic_creates_task_id_and_metadata(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -232,6 +233,7 @@ class TestDispatcherDispatch:
         assert call_args[0][1] == b"serialized_data"  # serialized_task
         assert call_args[0][2] == 0  # delay_seconds
 
+    @mark.asyncio
     async def test_dispatch_with_queue_override(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -252,6 +254,7 @@ class TestDispatcherDispatch:
         call_args = mock_driver.enqueue.call_args
         assert call_args[0][0] == "override_queue"
 
+    @mark.asyncio
     async def test_dispatch_with_delay_parameter(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -268,6 +271,7 @@ class TestDispatcherDispatch:
         call_args = mock_driver.enqueue.call_args
         assert call_args[0][2] == 120  # delay_seconds
 
+    @mark.asyncio
     async def test_dispatch_with_task_delay_seconds(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -285,6 +289,7 @@ class TestDispatcherDispatch:
         call_args = mock_driver.enqueue.call_args
         assert call_args[0][2] == 60  # delay_seconds
 
+    @mark.asyncio
     async def test_dispatch_delay_parameter_overrides_task_delay(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -302,6 +307,7 @@ class TestDispatcherDispatch:
         call_args = mock_driver.enqueue.call_args
         assert call_args[0][2] == 180  # delay_seconds (parameter overrides)
 
+    @mark.asyncio
     async def test_dispatch_uses_correct_driver_default(self) -> None:
         # Arrange
         default_driver = AsyncMock(spec=BaseDriver)
@@ -319,6 +325,7 @@ class TestDispatcherDispatch:
         # Assert
         default_driver.enqueue.assert_called_once()
 
+    @mark.asyncio
     async def test_dispatch_uses_correct_driver_override_instance(self) -> None:
         # Arrange
         default_driver = AsyncMock(spec=BaseDriver)
@@ -339,6 +346,7 @@ class TestDispatcherDispatch:
         override_driver.enqueue.assert_called_once()
         default_driver.enqueue.assert_not_called()
 
+    @mark.asyncio
     async def test_dispatch_uses_correct_driver_override_string(self) -> None:
         # Arrange
         default_driver = AsyncMock(spec=BaseDriver)
@@ -367,6 +375,7 @@ class TestDispatcherDispatch:
             override_driver.enqueue.assert_called_once()
             default_driver.enqueue.assert_not_called()
 
+    @mark.asyncio
     async def test_dispatch_generates_unique_task_ids(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -388,6 +397,7 @@ class TestDispatcherDispatch:
         assert task_id1 != task_id2
         assert task1._task_id != task2._task_id
 
+    @mark.asyncio
     async def test_dispatch_sets_dispatched_at_timestamp(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -729,6 +739,7 @@ class TestGetDispatcher:
 class TestCleanup:
     """Test cleanup() function."""
 
+    @mark.asyncio
     async def test_cleanup_with_no_dispatchers_returns_early(self) -> None:
         # Arrange - ensure _dispatchers is empty
         from async_task.core.dispatcher import _dispatchers
@@ -740,6 +751,7 @@ class TestCleanup:
 
         # Assert - should complete without error
 
+    @mark.asyncio
     async def test_cleanup_disconnects_all_drivers(self) -> None:
         # Arrange
         from async_task.core.dispatcher import _dispatchers
@@ -760,6 +772,7 @@ class TestCleanup:
         driver2.disconnect.assert_called_once()
         assert len(_dispatchers) == 0
 
+    @mark.asyncio
     async def test_cleanup_handles_disconnect_errors_gracefully(self) -> None:
         # Arrange
         from async_task.core.dispatcher import _dispatchers
@@ -782,6 +795,7 @@ class TestCleanup:
         # Should still clear cache even if errors occur
         assert len(_dispatchers) == 0
 
+    @mark.asyncio
     async def test_cleanup_clears_cache_after_disconnect(self) -> None:
         # Arrange
         from async_task.core.dispatcher import _dispatchers
@@ -798,6 +812,7 @@ class TestCleanup:
         assert len(_dispatchers) == 0
         driver.disconnect.assert_called_once()
 
+    @mark.asyncio
     async def test_cleanup_called_multiple_times_is_safe(self) -> None:
         # Arrange
         from async_task.core.dispatcher import _dispatchers

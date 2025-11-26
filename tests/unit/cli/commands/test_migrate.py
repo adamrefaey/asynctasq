@@ -41,6 +41,7 @@ class TestMigrationError:
 class TestRunMigrate:
     """Test run_migrate() function."""
 
+    @mark.asyncio
     async def test_run_migrate_with_non_postgres_driver_raises_error(self) -> None:
         # Arrange
         args = argparse.Namespace()
@@ -52,6 +53,7 @@ class TestRunMigrate:
         ):
             await run_migrate(args, config)
 
+    @mark.asyncio
     async def test_run_migrate_with_memory_driver_raises_error(self) -> None:
         # Arrange
         args = argparse.Namespace()
@@ -63,6 +65,7 @@ class TestRunMigrate:
         ):
             await run_migrate(args, config)
 
+    @mark.asyncio
     async def test_run_migrate_with_sqs_driver_raises_error(self) -> None:
         # Arrange
         args = argparse.Namespace()
@@ -78,6 +81,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.PostgresDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
     @patch("async_task.cli.commands.migrate.logger")
+    @mark.asyncio
     async def test_run_migrate_with_postgres_driver_success(
         self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
     ) -> None:
@@ -109,6 +113,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.isinstance")
     @patch("async_task.cli.commands.migrate.PostgresDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
+    @mark.asyncio
     async def test_run_migrate_with_wrong_driver_type_raises_error(
         self, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
     ) -> None:
@@ -130,6 +135,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.PostgresDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
     @patch("async_task.cli.commands.migrate.logger")
+    @mark.asyncio
     async def test_run_migrate_logs_configuration(
         self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
     ) -> None:
@@ -165,6 +171,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.PostgresDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
     @patch("async_task.cli.commands.migrate.logger")
+    @mark.asyncio
     async def test_run_migrate_logs_success_messages(
         self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
     ) -> None:
@@ -196,6 +203,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.isinstance")
     @patch("async_task.cli.commands.migrate.PostgresDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
+    @mark.asyncio
     async def test_run_migrate_disconnects_on_error(
         self, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
     ) -> None:
@@ -219,6 +227,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.isinstance")
     @patch("async_task.cli.commands.migrate.PostgresDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
+    @mark.asyncio
     async def test_run_migrate_disconnects_on_connect_error(
         self, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
     ) -> None:
@@ -242,6 +251,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.PostgresDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
     @patch("async_task.cli.commands.migrate.logger")
+    @mark.asyncio
     async def test_run_migrate_with_custom_table_names(
         self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
     ) -> None:
@@ -270,6 +280,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.MySQLDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
     @patch("async_task.cli.commands.migrate.logger")
+    @mark.asyncio
     async def test_run_migrate_with_mysql_driver_success(
         self, mock_logger, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
     ) -> None:
@@ -299,6 +310,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.isinstance")
     @patch("async_task.cli.commands.migrate.MySQLDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
+    @mark.asyncio
     async def test_run_migrate_with_wrong_mysql_driver_type_raises_error(
         self, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
     ) -> None:
@@ -318,6 +330,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.MySQLDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
     @patch("async_task.cli.commands.migrate.logger")
+    @mark.asyncio
     async def test_run_migrate_logs_mysql_configuration(
         self, mock_logger, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
     ) -> None:
@@ -352,6 +365,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.MySQLDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
     @patch("async_task.cli.commands.migrate.logger")
+    @mark.asyncio
     async def test_run_migrate_logs_mysql_success_messages(
         self, mock_logger, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
     ) -> None:
@@ -383,6 +397,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.isinstance")
     @patch("async_task.cli.commands.migrate.MySQLDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
+    @mark.asyncio
     async def test_run_migrate_mysql_disconnects_on_error(
         self, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
     ) -> None:
@@ -406,6 +421,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.isinstance")
     @patch("async_task.cli.commands.migrate.MySQLDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
+    @mark.asyncio
     async def test_run_migrate_mysql_disconnects_on_connect_error(
         self, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
     ) -> None:
@@ -429,6 +445,7 @@ class TestRunMigrate:
     @patch("async_task.cli.commands.migrate.MySQLDriver")
     @patch("async_task.cli.commands.migrate.DriverFactory")
     @patch("async_task.cli.commands.migrate.logger")
+    @mark.asyncio
     async def test_run_migrate_mysql_with_custom_table_names(
         self, mock_logger, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
     ) -> None:

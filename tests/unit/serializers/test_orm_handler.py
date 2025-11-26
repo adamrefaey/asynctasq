@@ -1,7 +1,7 @@
 """Comprehensive test suite for OrmHandler.
 
 Testing Strategy:
-- pytest 9.0.1 with asyncio_mode="auto" (no decorators needed)
+- pytest 9.0.1 with asyncio_mode="strict" (explicit @mark.asyncio decorators required)
 - AAA pattern (Arrange, Act, Assert)
 - Mock ORM models to avoid requiring actual ORM dependencies
 - Test all ORM types (SQLAlchemy, Django, Tortoise)
@@ -516,12 +516,14 @@ class TestOrmHandlerFetchSqlalchemyModel:
     """Test SQLAlchemy model fetching."""
 
     @patch("async_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", False)
+    @mark.asyncio
     async def test_fetch_sqlalchemy_model_not_available(self, handler):
         """Test fetching when SQLAlchemy is not available."""
         with raises(ImportError, match="SQLAlchemy is not installed"):
             await handler._fetch_sqlalchemy_model(MagicMock(), 123)
 
     @patch("async_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @mark.asyncio
     async def test_fetch_sqlalchemy_model_with_async_session(self, handler):
         """Test fetching with async session."""
         model_class = MagicMock()
@@ -543,6 +545,7 @@ class TestOrmHandlerFetchSqlalchemyModel:
             assert result == mock_model
 
     @patch("async_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @mark.asyncio
     async def test_fetch_sqlalchemy_model_without_session(self, handler):
         """Test fetching without session raises RuntimeError."""
         model_class = MagicMock()
@@ -553,6 +556,7 @@ class TestOrmHandlerFetchSqlalchemyModel:
                 await handler._fetch_sqlalchemy_model(model_class, 123)
 
     @patch("async_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @mark.asyncio
     async def test_fetch_sqlalchemy_model_fallback_to_sync(self, handler):
         """Test falling back to sync session when async not available."""
         model_class = MagicMock()
@@ -586,6 +590,7 @@ class TestOrmHandlerFetchSqlalchemyModel:
                     assert result == mock_model
 
     @patch("async_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @mark.asyncio
     async def test_fetch_sqlalchemy_model_sync_without_session(self, handler):
         """Test sync fallback without session raises RuntimeError."""
         model_class = MagicMock()
@@ -610,12 +615,14 @@ class TestOrmHandlerFetchDjangoModel:
     """Test Django model fetching."""
 
     @patch("async_task.serializers.orm_handler.DJANGO_AVAILABLE", False)
+    @mark.asyncio
     async def test_fetch_django_model_not_available(self, handler):
         """Test fetching when Django is not available."""
         with raises(ImportError, match="Django is not installed"):
             await handler._fetch_django_model(MagicMock(), 123)
 
     @patch("async_task.serializers.orm_handler.DJANGO_AVAILABLE", True)
+    @mark.asyncio
     async def test_fetch_django_model_async(self, handler):
         """Test fetching Django model with async."""
         model_class = MagicMock()
@@ -627,6 +634,7 @@ class TestOrmHandlerFetchDjangoModel:
         model_class.objects.aget.assert_called_once_with(pk=123)
 
     @patch("async_task.serializers.orm_handler.DJANGO_AVAILABLE", True)
+    @mark.asyncio
     async def test_fetch_django_model_fallback_to_sync(self, handler):
         """Test falling back to sync when async not available."""
         model_class = MagicMock()
@@ -644,12 +652,14 @@ class TestOrmHandlerFetchTortoiseModel:
     """Test Tortoise ORM model fetching."""
 
     @patch("async_task.serializers.orm_handler.TORTOISE_AVAILABLE", False)
+    @mark.asyncio
     async def test_fetch_tortoise_model_not_available(self, handler):
         """Test fetching when Tortoise is not available."""
         with raises(ImportError, match="Tortoise ORM is not installed"):
             await handler._fetch_tortoise_model(MagicMock(), 123)
 
     @patch("async_task.serializers.orm_handler.TORTOISE_AVAILABLE", True)
+    @mark.asyncio
     async def test_fetch_tortoise_model(self, handler):
         """Test fetching Tortoise model."""
         model_class = MagicMock()
@@ -665,12 +675,14 @@ class TestOrmHandlerFetchTortoiseModel:
 class TestOrmHandlerDeserializeModel:
     """Test model deserialization."""
 
+    @mark.asyncio
     async def test_deserialize_model_with_invalid_reference(self, handler):
         """Test deserializing invalid reference raises ValueError."""
         handler._is_orm_reference = lambda x: False
         with raises(ValueError, match="Invalid ORM reference format"):
             await handler.deserialize_model({})
 
+    @mark.asyncio
     async def test_deserialize_model_without_orm_type(self, handler):
         """Test deserializing reference without ORM type raises ValueError."""
         handler._is_orm_reference = lambda x: True
@@ -678,6 +690,7 @@ class TestOrmHandlerDeserializeModel:
         with raises(ValueError, match="Could not determine ORM type"):
             await handler.deserialize_model({})
 
+    @mark.asyncio
     async def test_deserialize_model_without_pk(self, handler):
         """Test deserializing reference without PK raises ValueError."""
         handler._is_orm_reference = lambda x: True
@@ -686,6 +699,7 @@ class TestOrmHandlerDeserializeModel:
         with raises(ValueError, match="Primary key not found"):
             await handler.deserialize_model(ref)
 
+    @mark.asyncio
     async def test_deserialize_model_without_class_path(self, handler):
         """Test deserializing reference without class path raises ValueError."""
         handler._is_orm_reference = lambda x: True
@@ -694,6 +708,7 @@ class TestOrmHandlerDeserializeModel:
         with raises(ValueError, match="Class path not found"):
             await handler.deserialize_model(ref)
 
+    @mark.asyncio
     async def test_deserialize_model_sqlalchemy(self, handler):
         """Test deserializing SQLAlchemy model."""
         handler._is_orm_reference = lambda x: True
@@ -709,6 +724,7 @@ class TestOrmHandlerDeserializeModel:
             result = await handler.deserialize_model(ref)
             assert result is not None
 
+    @mark.asyncio
     async def test_deserialize_model_django(self, handler):
         """Test deserializing Django model."""
         handler._is_orm_reference = lambda x: True
@@ -724,6 +740,7 @@ class TestOrmHandlerDeserializeModel:
             result = await handler.deserialize_model(ref)
             assert result is not None
 
+    @mark.asyncio
     async def test_deserialize_model_tortoise(self, handler):
         """Test deserializing Tortoise model."""
         handler._is_orm_reference = lambda x: True
@@ -739,6 +756,7 @@ class TestOrmHandlerDeserializeModel:
             result = await handler.deserialize_model(ref)
             assert result is not None
 
+    @mark.asyncio
     async def test_deserialize_model_unsupported_orm_type(self, handler):
         """Test deserializing unsupported ORM type raises ValueError."""
         handler._is_orm_reference = lambda x: True
@@ -757,6 +775,7 @@ class TestOrmHandlerDeserializeModel:
 class TestOrmHandlerProcessForDeserialization:
     """Test recursive deserialization processing."""
 
+    @mark.asyncio
     async def test_process_for_deserialization_with_orm_reference(self, handler):
         """Test processing ORM reference."""
         handler._is_orm_reference = lambda x: True
@@ -766,6 +785,7 @@ class TestOrmHandlerProcessForDeserialization:
         result = await handler.process_for_deserialization(ref)
         assert result is not None
 
+    @mark.asyncio
     async def test_process_for_deserialization_with_list(self, handler):
         """Test processing list containing ORM references."""
         handler._is_orm_reference = lambda x: isinstance(x, dict) and "__orm:" in str(x)
@@ -777,6 +797,7 @@ class TestOrmHandlerProcessForDeserialization:
         assert isinstance(result, list)
         assert len(result) == 2
 
+    @mark.asyncio
     async def test_process_for_deserialization_with_tuple(self, handler):
         """Test processing tuple containing ORM references."""
         handler._is_orm_reference = lambda x: isinstance(x, dict) and "__orm:" in str(x)
@@ -788,6 +809,7 @@ class TestOrmHandlerProcessForDeserialization:
         assert isinstance(result, tuple)
         assert len(result) == 2
 
+    @mark.asyncio
     async def test_process_for_deserialization_with_dict(self, handler):
         """Test processing dictionary containing ORM references."""
         ref = {"__orm:test__": 1, "__orm_class__": "Test"}
@@ -800,6 +822,7 @@ class TestOrmHandlerProcessForDeserialization:
         assert "key" in result
         assert result["key"] == mock_model
 
+    @mark.asyncio
     async def test_process_for_deserialization_with_nested_structure(self, handler):
         """Test processing nested structures."""
         ref = {"__orm:test__": 1, "__orm_class__": "Test"}
@@ -821,6 +844,7 @@ class TestOrmHandlerProcessForDeserialization:
         assert isinstance(result["level1"], dict)
         assert isinstance(result["level1"]["level2"], list)
 
+    @mark.asyncio
     async def test_process_for_deserialization_with_primitive_types(self, handler):
         """Test processing primitive types returns as-is."""
         handler._is_orm_reference = lambda x: False
@@ -842,6 +866,7 @@ class TestOrmHandlerEdgeCases:
         result = handler._get_model_class_path(obj)
         assert result == "package.subpackage.module.NestedModel"
 
+    @mark.asyncio
     async def test_deserialize_model_with_composite_pk(self, handler):
         """Test deserializing model with composite primary key."""
         handler._is_orm_reference = lambda x: True
@@ -863,6 +888,7 @@ class TestOrmHandlerEdgeCases:
         assert handler.process_for_serialization(()) == ()
         assert handler.process_for_serialization({}) == {}
 
+    @mark.asyncio
     async def test_process_for_deserialization_with_empty_collections(self, handler):
         """Test processing empty collections during deserialization."""
         handler._is_orm_reference = lambda x: False

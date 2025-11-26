@@ -25,12 +25,12 @@ from datetime import datetime
 
 import asyncpg
 import django
-import pytest
+import pytest_asyncio
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.exceptions import AppRegistryNotReady
 from django.db import connections, models
-from pytest import fixture, main, mark
+from pytest import fixture, main, mark, skip
 from sqlalchemy import Column, DateTime, Integer, String, create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -159,7 +159,7 @@ def postgres_dsn() -> str:
     return POSTGRES_DSN
 
 
-@fixture
+@pytest_asyncio.fixture
 async def postgres_conn(postgres_dsn: str) -> AsyncGenerator[asyncpg.Connection, None]:
     """Create a PostgreSQL connection for direct database operations."""
     conn = await asyncpg.connect(postgres_dsn)
@@ -192,7 +192,7 @@ def django_connection_cleanup():
 class TestSQLAlchemyIntegration:
     """Integration tests for SQLAlchemy ORM models."""
 
-    @fixture
+    @pytest_asyncio.fixture
     async def async_engine(self, postgres_dsn: str):
         """Create async SQLAlchemy engine."""
         # Convert postgresql:// to postgresql+asyncpg://
@@ -201,7 +201,7 @@ class TestSQLAlchemyIntegration:
         yield engine
         await engine.dispose()
 
-    @fixture
+    @pytest_asyncio.fixture
     async def async_session(self, async_engine):
         """Create async SQLAlchemy session."""
         # Create tables before session
@@ -237,6 +237,7 @@ class TestSQLAlchemyIntegration:
         # Cleanup tables
         Base.metadata.drop_all(sync_engine)
 
+    @mark.asyncio
     async def test_serialize_sqlalchemy_model_async(
         self,
         orm_handler: OrmHandler,
@@ -273,6 +274,7 @@ class TestSQLAlchemyIntegration:
         await async_session.delete(user)
         await async_session.commit()
 
+    @mark.asyncio
     async def test_serialize_sqlalchemy_model_sync(
         self, orm_handler: OrmHandler, sync_session: Session, postgres_conn: asyncpg.Connection
     ):
@@ -305,6 +307,7 @@ class TestSQLAlchemyIntegration:
         sync_session.delete(user)
         sync_session.commit()
 
+    @mark.asyncio
     async def test_serialize_sqlalchemy_composite_pk(
         self,
         orm_handler: OrmHandler,
@@ -339,6 +342,7 @@ class TestSQLAlchemyIntegration:
         await async_session.delete(deserialized)
         await async_session.commit()
 
+    @mark.asyncio
     async def test_process_for_serialization_with_sqlalchemy_models(
         self, orm_handler: OrmHandler, async_session: AsyncSession
     ):
@@ -385,12 +389,13 @@ class TestSQLAlchemyIntegration:
 class TestDjangoIntegration:
     """Integration tests for Django ORM models."""
 
+    @mark.asyncio
     async def test_serialize_django_model_async(
         self, orm_handler: OrmHandler, postgres_conn: asyncpg.Connection
     ):
         """Test serializing a Django model with async query."""
         if DjangoProduct is None:
-            pytest.skip("DjangoProduct model not initialized")
+            skip("DjangoProduct model not initialized")
 
         # Create and save a model (Django will create connection automatically)
         create_product = sync_to_async(DjangoProduct.objects.create)  # type: ignore[union-attr]
@@ -414,12 +419,13 @@ class TestDjangoIntegration:
         # Cleanup
         await sync_to_async(product.delete)()
 
+    @mark.asyncio
     async def test_serialize_django_model_sync(
         self, orm_handler: OrmHandler, postgres_conn: asyncpg.Connection
     ):
         """Test serializing a Django model with sync query (fallback)."""
         if DjangoProduct is None:
-            pytest.skip("DjangoProduct model not initialized")
+            skip("DjangoProduct model not initialized")
 
         # Create and save a model (Django will create connection automatically)
         create_product = sync_to_async(DjangoProduct.objects.create)  # type: ignore[union-attr]
@@ -440,12 +446,13 @@ class TestDjangoIntegration:
         # Cleanup
         await sync_to_async(product.delete)()
 
+    @mark.asyncio
     async def test_process_for_serialization_with_django_models(
         self, orm_handler: OrmHandler, postgres_conn: asyncpg.Connection
     ):
         """Test processing nested structures containing Django models."""
         if DjangoProduct is None:
-            pytest.skip("DjangoProduct model not initialized")
+            skip("DjangoProduct model not initialized")
 
         # Create models (Django will create connection automatically)
         create_product = sync_to_async(DjangoProduct.objects.create)  # type: ignore[union-attr]
@@ -479,7 +486,7 @@ class TestDjangoIntegration:
 class TestTortoiseIntegration:
     """Integration tests for Tortoise ORM models."""
 
-    @fixture(scope="function", autouse=True)
+    @pytest_asyncio.fixture(scope="function", autouse=True)
     async def setup_tortoise(self, postgres_dsn: str):
         """Initialize Tortoise ORM."""
         # Convert postgresql:// to postgres:// for Tortoise (it uses postgres://)
@@ -496,6 +503,7 @@ class TestTortoiseIntegration:
         finally:
             await Tortoise.close_connections()
 
+    @mark.asyncio
     async def test_serialize_tortoise_model(
         self, orm_handler: OrmHandler, postgres_conn: asyncpg.Connection, setup_tortoise
     ):
@@ -527,6 +535,7 @@ class TestTortoiseIntegration:
         # Small delay to ensure cleanup completes
         await asyncio.sleep(0.1)
 
+    @mark.asyncio
     async def test_process_for_serialization_with_tortoise_models(
         self, orm_handler: OrmHandler, postgres_conn: asyncpg.Connection, setup_tortoise
     ):
@@ -574,7 +583,7 @@ class TestTortoiseIntegration:
 class TestCrossOrmIntegration:
     """Integration tests mixing multiple ORMs."""
 
-    @fixture
+    @pytest_asyncio.fixture
     async def async_engine(self, postgres_dsn: str):
         """Create async SQLAlchemy engine."""
         # Convert postgresql:// to postgresql+asyncpg://
@@ -583,7 +592,7 @@ class TestCrossOrmIntegration:
         yield engine
         await engine.dispose()
 
-    @fixture
+    @pytest_asyncio.fixture
     async def async_session(self, async_engine):
         """Create async SQLAlchemy session."""
         # Create tables before session
@@ -600,6 +609,7 @@ class TestCrossOrmIntegration:
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
 
+    @mark.asyncio
     async def test_mixed_orm_models_serialization(
         self, orm_handler: OrmHandler, async_session: AsyncSession
     ):
@@ -649,7 +659,7 @@ class TestCrossOrmIntegration:
 class TestRoundTripIntegration:
     """Test complete round-trip serialization/deserialization."""
 
-    @fixture
+    @pytest_asyncio.fixture
     async def async_engine(self, postgres_dsn: str):
         """Create async SQLAlchemy engine."""
         # Convert postgresql:// to postgresql+asyncpg://
@@ -658,7 +668,7 @@ class TestRoundTripIntegration:
         yield engine
         await engine.dispose()
 
-    @fixture
+    @pytest_asyncio.fixture
     async def async_session(self, async_engine):
         """Create async SQLAlchemy session."""
         # Create tables before session
@@ -675,6 +685,7 @@ class TestRoundTripIntegration:
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
 
+    @mark.asyncio
     async def test_round_trip_sqlalchemy_model(
         self, orm_handler: OrmHandler, async_session: AsyncSession
     ):

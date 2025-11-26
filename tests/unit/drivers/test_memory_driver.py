@@ -11,12 +11,13 @@ Testing Strategy:
 import asyncio
 from collections.abc import AsyncGenerator
 
-from pytest import fixture, main, mark
+import pytest_asyncio
+from pytest import main, mark
 
 from async_task.drivers.memory_driver import MemoryDriver
 
 
-@fixture
+@pytest_asyncio.fixture
 async def driver() -> AsyncGenerator[MemoryDriver, None]:
     """Provide a connected MemoryDriver instance, automatically disconnected after test."""
     instance = MemoryDriver()
@@ -29,6 +30,7 @@ async def driver() -> AsyncGenerator[MemoryDriver, None]:
 class TestMemoryDriverInitialization:
     """Test MemoryDriver initialization and connection lifecycle."""
 
+    @mark.asyncio
     async def test_driver_initializes_disconnected(self) -> None:
         # Arrange & Act
         driver = MemoryDriver()
@@ -36,6 +38,7 @@ class TestMemoryDriverInitialization:
         # Assert
         assert driver._connected is False
 
+    @mark.asyncio
     async def test_connect_initializes_queues(self, driver: MemoryDriver) -> None:
         # Assert
         assert driver._connected is True
@@ -44,6 +47,7 @@ class TestMemoryDriverInitialization:
         assert isinstance(driver._processing, dict)
         assert driver._background_task is not None
 
+    @mark.asyncio
     async def test_connect_is_idempotent(self, driver: MemoryDriver) -> None:
         # Act
         first_background_task = driver._background_task
@@ -54,6 +58,7 @@ class TestMemoryDriverInitialization:
         assert first_background_task is second_background_task
         assert driver._connected is True
 
+    @mark.asyncio
     async def test_disconnect_stops_background_task(self, driver: MemoryDriver) -> None:
         # Arrange
         background_task = driver._background_task
@@ -66,6 +71,7 @@ class TestMemoryDriverInitialization:
         assert background_task is not None
         assert background_task.cancelled() or background_task.done()
 
+    @mark.asyncio
     async def test_disconnect_clears_all_data(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("test", b"data1")
@@ -83,6 +89,7 @@ class TestMemoryDriverInitialization:
 class TestMemoryDriverEnqueue:
     """Test task enqueueing functionality."""
 
+    @mark.asyncio
     async def test_enqueue_immediate_task(self, driver: MemoryDriver) -> None:
         # Arrange
         task_data = b"test_task_data"
@@ -95,6 +102,7 @@ class TestMemoryDriverEnqueue:
         assert task_data in driver._queues["default"]
         assert len(driver._queues["default"]) == 1
 
+    @mark.asyncio
     async def test_enqueue_multiple_tasks_preserves_order(self, driver: MemoryDriver) -> None:
         # Arrange
         tasks = [b"task1", b"task2", b"task3"]
@@ -107,6 +115,7 @@ class TestMemoryDriverEnqueue:
         queue = driver._queues["default"]
         assert list(queue) == tasks
 
+    @mark.asyncio
     async def test_enqueue_delayed_task(self, driver: MemoryDriver) -> None:
         # Arrange
         task_data = b"delayed_task"
@@ -122,6 +131,7 @@ class TestMemoryDriverEnqueue:
         loop = asyncio.get_running_loop()
         assert target_time > loop.time()
 
+    @mark.asyncio
     async def test_enqueue_delayed_tasks_sorted_by_time(self, driver: MemoryDriver) -> None:
         # Act - enqueue with different delays
         await driver.enqueue("default", b"task3", delay_seconds=3)
@@ -139,6 +149,7 @@ class TestMemoryDriverEnqueue:
 class TestMemoryDriverDequeue:
     """Test task dequeuing functionality."""
 
+    @mark.asyncio
     async def test_dequeue_returns_task(self, driver: MemoryDriver) -> None:
         # Arrange
         task_data = b"test_task"
@@ -150,6 +161,7 @@ class TestMemoryDriverDequeue:
         # Assert
         assert result == task_data
 
+    @mark.asyncio
     async def test_dequeue_removes_from_queue(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"task1")
@@ -167,6 +179,7 @@ class TestMemoryDriverDequeue:
         # Assert
         assert len(driver._queues["default"]) == 0
 
+    @mark.asyncio
     async def test_dequeue_fifo_order(self, driver: MemoryDriver) -> None:
         # Arrange
         tasks = [b"first", b"second", b"third"]
@@ -182,6 +195,7 @@ class TestMemoryDriverDequeue:
         # Assert
         assert results == tasks
 
+    @mark.asyncio
     async def test_dequeue_empty_queue_returns_none(self, driver: MemoryDriver) -> None:
         # Act
         result = await driver.dequeue("empty_queue", poll_seconds=0)
@@ -189,6 +203,7 @@ class TestMemoryDriverDequeue:
         # Assert
         assert result is None
 
+    @mark.asyncio
     async def test_dequeue_tracks_in_processing(self, driver: MemoryDriver) -> None:
         # Arrange
         task_data = b"tracked_task"
@@ -201,6 +216,7 @@ class TestMemoryDriverDequeue:
         assert result in driver._processing
         assert driver._processing[result] == "default"
 
+    @mark.asyncio
     async def test_dequeue_with_timeout_waits(self, driver: MemoryDriver) -> None:
         # Act - enqueue after a short delay
         async def enqueue_delayed():
@@ -216,6 +232,7 @@ class TestMemoryDriverDequeue:
         # Cleanup
         await enqueue_task
 
+    @mark.asyncio
     async def test_dequeue_timeout_expires(self, driver: MemoryDriver) -> None:
         # Act
         loop = asyncio.get_running_loop()
@@ -232,6 +249,7 @@ class TestMemoryDriverDequeue:
 class TestMemoryDriverAck:
     """Test task acknowledgment functionality."""
 
+    @mark.asyncio
     async def test_ack_removes_from_processing(self, driver: MemoryDriver) -> None:
         # Arrange
         task_data = b"task"
@@ -245,6 +263,7 @@ class TestMemoryDriverAck:
         # Assert
         assert receipt not in driver._processing
 
+    @mark.asyncio
     async def test_ack_does_not_requeue(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"task")
@@ -257,6 +276,7 @@ class TestMemoryDriverAck:
         # Assert
         assert len(driver._queues["default"]) == 0
 
+    @mark.asyncio
     async def test_ack_nonexistent_receipt_is_safe(self, driver: MemoryDriver) -> None:
         # Act & Assert - should not raise
         await driver.ack("default", b"nonexistent")
@@ -266,6 +286,7 @@ class TestMemoryDriverAck:
 class TestMemoryDriverNack:
     """Test task rejection/retry functionality."""
 
+    @mark.asyncio
     async def test_nack_removes_from_processing(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"task")
@@ -278,6 +299,7 @@ class TestMemoryDriverNack:
         # Assert
         assert receipt not in driver._processing
 
+    @mark.asyncio
     async def test_nack_requeues_at_front(self, driver: MemoryDriver) -> None:
         # Arrange
         task1 = b"task1"
@@ -299,6 +321,7 @@ class TestMemoryDriverNack:
 class TestMemoryDriverGetQueueSize:
     """Test queue size reporting functionality."""
 
+    @mark.asyncio
     async def test_get_queue_size_returns_count(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"task1")
@@ -313,6 +336,7 @@ class TestMemoryDriverGetQueueSize:
         # Assert
         assert size == 3
 
+    @mark.asyncio
     async def test_get_queue_size_empty_queue(self, driver: MemoryDriver) -> None:
         # Act
         size = await driver.get_queue_size("empty", include_delayed=False, include_in_flight=False)
@@ -320,6 +344,7 @@ class TestMemoryDriverGetQueueSize:
         # Assert
         assert size == 0
 
+    @mark.asyncio
     async def test_get_queue_size_excludes_in_flight(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"task1")
@@ -334,6 +359,7 @@ class TestMemoryDriverGetQueueSize:
         # Assert
         assert size == 1
 
+    @mark.asyncio
     async def test_get_queue_size_excludes_delayed(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"immediate")
@@ -352,6 +378,7 @@ class TestMemoryDriverGetQueueSize:
 class TestMemoryDriverDelayedTasks:
     """Test delayed task processing functionality."""
 
+    @mark.asyncio
     async def test_delayed_task_becomes_available(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"delayed", delay_seconds=1)
@@ -363,6 +390,7 @@ class TestMemoryDriverDelayedTasks:
         # Assert
         assert result == b"delayed"
 
+    @mark.asyncio
     async def test_delayed_task_not_available_before_delay(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"delayed", delay_seconds=2)
@@ -373,6 +401,7 @@ class TestMemoryDriverDelayedTasks:
         # Assert
         assert result is None
 
+    @mark.asyncio
     async def test_multiple_delayed_tasks_processed_in_order(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"task1", delay_seconds=1)
@@ -391,6 +420,7 @@ class TestMemoryDriverDelayedTasks:
         result3 = await driver.dequeue("default", poll_seconds=0)
         assert result3 == b"task2"
 
+    @mark.asyncio
     async def test_mixed_immediate_and_delayed_tasks(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"delayed", delay_seconds=5)
@@ -402,6 +432,7 @@ class TestMemoryDriverDelayedTasks:
         # Assert
         assert result == b"immediate"
 
+    @mark.asyncio
     async def test_background_processor_moves_ready_tasks(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"delayed", delay_seconds=1)
@@ -418,6 +449,7 @@ class TestMemoryDriverDelayedTasks:
 class TestMemoryDriverConcurrency:
     """Test concurrent operations and thread safety."""
 
+    @mark.asyncio
     async def test_concurrent_enqueue(self, driver: MemoryDriver) -> None:
         # Arrange
         num_tasks = 100
@@ -433,6 +465,7 @@ class TestMemoryDriverConcurrency:
         )
         assert size == num_tasks
 
+    @mark.asyncio
     async def test_concurrent_dequeue(self, driver: MemoryDriver) -> None:
         # Arrange
         num_tasks = 50
@@ -449,6 +482,7 @@ class TestMemoryDriverConcurrency:
         assert len(results) == num_tasks
         assert len(set(results)) == num_tasks  # All unique
 
+    @mark.asyncio
     async def test_concurrent_enqueue_dequeue(self, driver: MemoryDriver) -> None:
         # Arrange
         async def producer():
@@ -477,6 +511,7 @@ class TestMemoryDriverConcurrency:
 class TestMemoryDriverEdgeCases:
     """Test edge cases and error conditions."""
 
+    @mark.asyncio
     async def test_empty_task_data(self, driver: MemoryDriver) -> None:
         # Act
         await driver.enqueue("default", b"")
@@ -485,6 +520,7 @@ class TestMemoryDriverEdgeCases:
         # Assert
         assert result == b""
 
+    @mark.asyncio
     async def test_large_task_data(self, driver: MemoryDriver) -> None:
         # Arrange
         large_data = b"x" * 1_000_000  # 1MB
@@ -496,6 +532,7 @@ class TestMemoryDriverEdgeCases:
         # Assert
         assert result == large_data
 
+    @mark.asyncio
     async def test_many_queues(self, driver: MemoryDriver) -> None:
         # Arrange
         num_queues = 100
@@ -507,6 +544,7 @@ class TestMemoryDriverEdgeCases:
         # Assert
         assert len(driver._queues) == num_queues
 
+    @mark.asyncio
     async def test_queue_name_with_special_characters(self, driver: MemoryDriver) -> None:
         # Arrange
         queue_names = ["queue:with:colons", "queue-with-dashes", "queue_with_underscores"]
@@ -517,6 +555,7 @@ class TestMemoryDriverEdgeCases:
             result = await driver.dequeue(queue_name, poll_seconds=0)
             assert result == b"data"
 
+    @mark.asyncio
     async def test_reconnect_after_disconnect(self) -> None:
         # Arrange
         driver = MemoryDriver()
@@ -537,6 +576,7 @@ class TestMemoryDriverEdgeCases:
         await driver.disconnect()
 
     @mark.parametrize("delay_seconds", [0, -1])
+    @mark.asyncio
     async def test_zero_or_negative_delay_treated_as_immediate(
         self, driver: MemoryDriver, delay_seconds: int
     ) -> None:
@@ -552,6 +592,7 @@ class TestMemoryDriverEdgeCases:
 class TestMemoryDriverRobustness:
     """Test robustness and error handling."""
 
+    @mark.asyncio
     async def test_dequeue_with_zero_timeout_non_blocking(self, driver: MemoryDriver) -> None:
         # Act - should return immediately
         loop = asyncio.get_running_loop()
@@ -563,6 +604,7 @@ class TestMemoryDriverRobustness:
         assert result is None
         assert elapsed < MemoryDriver.POLL_INTERVAL_SECONDS  # Should be nearly instant
 
+    @mark.asyncio
     async def test_operations_after_disconnect_auto_reconnect(self) -> None:
         # Arrange
         driver = MemoryDriver()
@@ -580,6 +622,7 @@ class TestMemoryDriverRobustness:
         # Cleanup
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_delayed_tasks_cleaned_after_processing(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"delayed", delay_seconds=1)
@@ -591,6 +634,7 @@ class TestMemoryDriverRobustness:
         # Assert - delayed task list should be empty or cleaned
         assert "default" not in driver._delayed_tasks or len(driver._delayed_tasks["default"]) == 0
 
+    @mark.asyncio
     async def test_background_task_continues_after_errors(self, driver: MemoryDriver) -> None:
         # Arrange
         background_task = driver._background_task
@@ -603,6 +647,7 @@ class TestMemoryDriverRobustness:
         assert not background_task.done()
         assert not background_task.cancelled()
 
+    @mark.asyncio
     async def test_very_short_delay(self, driver: MemoryDriver) -> None:
         # Arrange - delay shorter than polling interval
         # Note: delay_seconds parameter expects int, but the driver should handle small delays
@@ -615,6 +660,7 @@ class TestMemoryDriverRobustness:
         # Assert
         assert result == b"task"
 
+    @mark.asyncio
     async def test_queue_isolation(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("queue1", b"data1")
@@ -630,6 +676,7 @@ class TestMemoryDriverRobustness:
         assert result2 == b"data2"
         assert result3 is None  # queue1 is empty now
 
+    @mark.asyncio
     async def test_processing_dict_tracks_correct_queue(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("queue_a", b"task_a")
@@ -660,6 +707,7 @@ class TestMemoryDriverAutoConnect:
             ("get_queue_size", ("test_queue", False, False)),
         ],
     )
+    @mark.asyncio
     async def test_operations_auto_connect(self, operation: str, args: tuple) -> None:
         # Arrange
         driver = MemoryDriver()
@@ -680,6 +728,7 @@ class TestMemoryDriverAutoConnect:
 class TestMemoryDriverIdempotency:
     """Test idempotent operations."""
 
+    @mark.asyncio
     async def test_connect_is_idempotent(self, driver: MemoryDriver) -> None:
         # Act
         first_background_task = driver._background_task
@@ -690,6 +739,7 @@ class TestMemoryDriverIdempotency:
         assert first_background_task is second_background_task
         assert driver._connected is True
 
+    @mark.asyncio
     async def test_disconnect_is_idempotent(self) -> None:
         # Arrange
         driver = MemoryDriver()
@@ -703,6 +753,7 @@ class TestMemoryDriverIdempotency:
 
         # Cleanup not needed - already disconnected
 
+    @mark.asyncio
     async def test_ack_is_idempotent(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"task")
@@ -718,6 +769,7 @@ class TestMemoryDriverIdempotency:
         # Assert - no exceptions raised
         assert receipt not in driver._processing
 
+    @mark.asyncio
     async def test_nack_after_ack_is_safe(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("default", b"task")
@@ -744,6 +796,7 @@ class TestMemoryDriverQueueCreation:
             ("dequeue", ("new_queue", 0)),
         ],
     )
+    @mark.asyncio
     async def test_operations_create_queue_if_not_exists(
         self, driver: MemoryDriver, operation: str, args: tuple
     ) -> None:
@@ -754,6 +807,7 @@ class TestMemoryDriverQueueCreation:
         # Assert
         assert "new_queue" in driver._queues
 
+    @mark.asyncio
     async def test_nack_creates_queue_only_for_in_flight_tasks(self, driver: MemoryDriver) -> None:
         # Arrange
         await driver.enqueue("test_queue", b"task")
@@ -767,6 +821,7 @@ class TestMemoryDriverQueueCreation:
         assert "new_queue" in driver._queues
         assert b"task" in driver._queues["new_queue"]
 
+    @mark.asyncio
     async def test_nack_does_not_create_queue_for_nonexistent_receipt(
         self, driver: MemoryDriver
     ) -> None:

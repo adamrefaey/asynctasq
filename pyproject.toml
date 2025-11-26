@@ -91,7 +91,10 @@ pythonVersion = "3.11"
 typeCheckingMode = "standard"
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
+# Use strict mode to avoid false positives from auto-detection
+# Strict mode requires explicit @pytest.mark.asyncio decorators on async tests
+# This prevents RuntimeWarnings from pytest-asyncio auto-detection interfering with mocks
+asyncio_mode = "strict"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
@@ -107,6 +110,25 @@ addopts = [
 markers = [
     "unit: marks tests as unit tests (deselect with '-m \"not unit\"')",
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]
+# Filter warnings from unittest.mock.AsyncMock internals
+# These warnings occur because AsyncMock creates coroutines internally that aren't always
+# awaited during test collection/teardown. This is a known limitation of unittest.mock
+# when used with pytest-asyncio, not an issue with our code.
+# Reference: https://github.com/python/cpython/issues/95778
+# We use strict mode + explicit @pytest.mark.asyncio decorators (best practice),
+# but AsyncMock warnings persist due to mock internals.
+filterwarnings = [
+    # Filter warnings from unittest.mock.AsyncMock internals
+    # These are false positives from AsyncMock's internal coroutine handling
+    # when used with pytest-asyncio. This is a known limitation, not a code issue.
+    # The warnings can appear from various modules (argparse, importlib, etc.) when
+    # AsyncMock coroutines are accessed during test collection or teardown.
+    "ignore:coroutine.*was never awaited:RuntimeWarning:unittest.mock",
+    "ignore:coroutine.*was never awaited:RuntimeWarning:importlib",
+    "ignore:coroutine.*was never awaited:RuntimeWarning:tracemalloc",
+    "ignore:coroutine.*was never awaited:RuntimeWarning:re",
+    "ignore:coroutine.*was never awaited:RuntimeWarning:argparse",
 ]
 
 [tool.coverage.run]

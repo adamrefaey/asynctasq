@@ -27,6 +27,7 @@ from time import time
 from uuid import uuid4
 
 import asyncpg
+import pytest_asyncio
 from pytest import fixture, main, mark
 
 from async_task.drivers.postgres_driver import PostgresDriver
@@ -47,7 +48,7 @@ def postgres_dsn() -> str:
     return POSTGRES_DSN
 
 
-@fixture
+@pytest_asyncio.fixture
 async def postgres_conn(postgres_dsn: str) -> AsyncGenerator[asyncpg.Connection, None]:
     """
     Create a PostgreSQL connection for direct database operations.
@@ -57,7 +58,7 @@ async def postgres_conn(postgres_dsn: str) -> AsyncGenerator[asyncpg.Connection,
     await conn.close()
 
 
-@fixture
+@pytest_asyncio.fixture
 async def postgres_driver(postgres_dsn: str) -> AsyncGenerator[PostgresDriver, None]:
     """
     Create a PostgresDriver instance configured for testing.
@@ -86,7 +87,7 @@ async def postgres_driver(postgres_dsn: str) -> AsyncGenerator[PostgresDriver, N
     await driver.disconnect()
 
 
-@fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def clean_queue(postgres_driver: PostgresDriver) -> AsyncGenerator[None, None]:
     """
     Fixture that ensures tables are clean before and after tests.
@@ -113,6 +114,7 @@ class TestPostgresDriverWithRealPostgres:
     visibility timeout, dead-letter queue, and retry logic.
     """
 
+    @mark.asyncio
     async def test_driver_initialization(self, postgres_driver: PostgresDriver) -> None:
         """Test that driver initializes correctly with real PostgreSQL."""
         assert postgres_driver.pool is not None
@@ -124,6 +126,7 @@ class TestPostgresDriverWithRealPostgres:
         result = await postgres_driver.pool.fetchval("SELECT 1")
         assert result == 1
 
+    @mark.asyncio
     async def test_init_schema_creates_tables(
         self, postgres_dsn: str, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -183,6 +186,7 @@ class TestPostgresDriverWithRealPostgres:
                 await driver.pool.execute(f"DROP TABLE IF EXISTS {dlq_table}")
             await driver.disconnect()
 
+    @mark.asyncio
     async def test_init_schema_is_idempotent(self, postgres_driver: PostgresDriver) -> None:
         """Test that init_schema can be called multiple times safely."""
         # Act & Assert - should not raise
@@ -190,6 +194,7 @@ class TestPostgresDriverWithRealPostgres:
         await postgres_driver.init_schema()
         await postgres_driver.init_schema()
 
+    @mark.asyncio
     async def test_enqueue_and_dequeue_single_task(self, postgres_driver: PostgresDriver) -> None:
         """Test enqueuing and dequeuing a single task."""
         # Arrange
@@ -206,6 +211,7 @@ class TestPostgresDriverWithRealPostgres:
         assert isinstance(receipt_handle, bytes)
         assert len(receipt_handle) == 16  # UUID bytes
 
+    @mark.asyncio
     async def test_enqueue_immediate_task(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -225,6 +231,7 @@ class TestPostgresDriverWithRealPostgres:
         assert result["status"] == "pending"
         assert result["attempts"] == 0
 
+    @mark.asyncio
     async def test_enqueue_multiple_tasks_preserves_fifo_order(
         self, postgres_driver: PostgresDriver
     ) -> None:
@@ -255,6 +262,7 @@ class TestPostgresDriverWithRealPostgres:
             # Ack to clean up
             await postgres_driver.ack("default", receipt)
 
+    @mark.asyncio
     async def test_enqueue_delayed_task(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -278,6 +286,7 @@ class TestPostgresDriverWithRealPostgres:
         expected_time = before_time + delay_seconds
         assert abs(available_at - expected_time) < 2.0  # Within 2 seconds tolerance
 
+    @mark.asyncio
     async def test_enqueue_delayed_tasks_sorted_by_time(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -307,6 +316,7 @@ class TestPostgresDriverWithRealPostgres:
         assert results[1]["payload"] == b"task1"  # 10 second delay
         assert results[2]["payload"] == b"task3"  # 15 second delay
 
+    @mark.asyncio
     async def test_enqueue_to_different_queues(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -327,6 +337,7 @@ class TestPostgresDriverWithRealPostgres:
         assert task1["payload"] == b"task1"
         assert task2["payload"] == b"task2"
 
+    @mark.asyncio
     async def test_dequeue_returns_receipt_handle(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -343,6 +354,7 @@ class TestPostgresDriverWithRealPostgres:
         assert isinstance(receipt, bytes)
         assert len(receipt) == 16  # UUID is 16 bytes
 
+    @mark.asyncio
     async def test_dequeue_sets_status_to_processing(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -367,6 +379,7 @@ class TestPostgresDriverWithRealPostgres:
         locked_until = result["locked_until"].timestamp()
         assert locked_until > time()
 
+    @mark.asyncio
     async def test_dequeue_fifo_order(self, postgres_driver: PostgresDriver) -> None:
         """dequeue() should return tasks in FIFO order (ordered by created_at)."""
         assert postgres_driver.pool is not None
@@ -394,6 +407,7 @@ class TestPostgresDriverWithRealPostgres:
             assert result is not None
             assert result["payload"] == tasks[i]
 
+    @mark.asyncio
     async def test_dequeue_empty_queue_returns_none(self, postgres_driver: PostgresDriver) -> None:
         """dequeue() should return None for empty queue with poll_seconds=0."""
         # Act
@@ -402,6 +416,7 @@ class TestPostgresDriverWithRealPostgres:
         # Assert
         assert result is None
 
+    @mark.asyncio
     async def test_dequeue_with_poll_waits(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -422,6 +437,7 @@ class TestPostgresDriverWithRealPostgres:
         # Cleanup
         await enqueue_task
 
+    @mark.asyncio
     async def test_dequeue_poll_expires(self, postgres_driver: PostgresDriver) -> None:
         """dequeue() should return None when poll duration expires."""
         # Act
@@ -433,6 +449,7 @@ class TestPostgresDriverWithRealPostgres:
         assert result is None
         assert elapsed >= 0.9  # Account for some timing variance
 
+    @mark.asyncio
     async def test_dequeue_skips_delayed_tasks(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -454,6 +471,7 @@ class TestPostgresDriverWithRealPostgres:
         # Assert
         assert receipt2 is None
 
+    @mark.asyncio
     async def test_dequeue_skips_locked_tasks(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -477,6 +495,7 @@ class TestPostgresDriverWithRealPostgres:
         receipt3 = await postgres_driver.dequeue("default", poll_seconds=0)
         assert receipt3 is None
 
+    @mark.asyncio
     async def test_dequeue_with_skip_locked_concurrency(
         self, postgres_driver: PostgresDriver
     ) -> None:
@@ -496,6 +515,7 @@ class TestPostgresDriverWithRealPostgres:
         assert len(receipts) == num_tasks
         assert len(set(receipts)) == num_tasks  # All unique
 
+    @mark.asyncio
     async def test_ack_removes_task(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -515,6 +535,7 @@ class TestPostgresDriverWithRealPostgres:
         # Receipt handle should be cleared
         assert receipt not in postgres_driver._receipt_handles
 
+    @mark.asyncio
     async def test_ack_invalid_receipt_is_safe(self, postgres_driver: PostgresDriver) -> None:
         """ack() with invalid receipt should not raise error."""
         # Arrange
@@ -523,6 +544,7 @@ class TestPostgresDriverWithRealPostgres:
         # Act & Assert - should not raise
         await postgres_driver.ack("default", invalid_receipt)
 
+    @mark.asyncio
     async def test_nack_requeues_task(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -547,6 +569,7 @@ class TestPostgresDriverWithRealPostgres:
         # Receipt handle should be cleared
         assert receipt not in postgres_driver._receipt_handles
 
+    @mark.asyncio
     async def test_nack_exponential_backoff(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -586,6 +609,7 @@ class TestPostgresDriverWithRealPostgres:
         assert available_times[0] > now + 50  # At least 50 seconds (60 - tolerance)
         assert available_times[1] > now + 110  # At least 110 seconds (120 - tolerance)
 
+    @mark.asyncio
     async def test_nack_moves_to_dead_letter_after_max_attempts(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -622,6 +646,7 @@ class TestPostgresDriverWithRealPostgres:
         )
         assert queue_count == 0
 
+    @mark.asyncio
     async def test_nack_after_ack_is_safe(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -639,6 +664,7 @@ class TestPostgresDriverWithRealPostgres:
         count = await postgres_conn.fetchval(f"SELECT COUNT(*) FROM {TEST_QUEUE_TABLE}")
         assert count == 0
 
+    @mark.asyncio
     async def test_nack_invalid_receipt_is_safe(self, postgres_driver: PostgresDriver) -> None:
         """nack() with invalid receipt should not raise error."""
         # Arrange
@@ -647,6 +673,7 @@ class TestPostgresDriverWithRealPostgres:
         # Act & Assert - should not raise
         await postgres_driver.nack("default", invalid_receipt)
 
+    @mark.asyncio
     async def test_get_queue_size_returns_count(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -663,6 +690,7 @@ class TestPostgresDriverWithRealPostgres:
         # Assert
         assert size == 3
 
+    @mark.asyncio
     async def test_get_queue_size_empty_queue(self, postgres_driver: PostgresDriver) -> None:
         """get_queue_size() should return 0 for empty queue."""
         # Act
@@ -673,6 +701,7 @@ class TestPostgresDriverWithRealPostgres:
         # Assert
         assert size == 0
 
+    @mark.asyncio
     async def test_get_queue_size_includes_in_flight(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -695,6 +724,7 @@ class TestPostgresDriverWithRealPostgres:
         assert size_without == 1  # Only task2 ready
         assert size_with == 2  # task2 ready + task1 processing
 
+    @mark.asyncio
     async def test_get_queue_size_with_delayed_flag(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -715,6 +745,7 @@ class TestPostgresDriverWithRealPostgres:
         assert size_without_delayed == 1  # Only immediate task counted
         assert size_with_delayed == 2  # Both immediate and delayed tasks counted
 
+    @mark.asyncio
     async def test_delayed_task_becomes_available(self, postgres_driver: PostgresDriver) -> None:
         """Integration: Delayed task should become available after short delay."""
         # Arrange
@@ -733,6 +764,7 @@ class TestPostgresDriverWithRealPostgres:
         # Assert
         assert receipt2 is not None
 
+    @mark.asyncio
     async def test_visibility_timeout_recovery(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -765,6 +797,7 @@ class TestPostgresDriverConcurrency:
     Validates thread-safe/async-safe operations using SELECT FOR UPDATE SKIP LOCKED.
     """
 
+    @mark.asyncio
     async def test_concurrent_enqueue(self, postgres_driver: PostgresDriver) -> None:
         """Multiple concurrent enqueues should all succeed."""
         # Arrange
@@ -781,6 +814,7 @@ class TestPostgresDriverConcurrency:
         )
         assert size == num_tasks
 
+    @mark.asyncio
     async def test_concurrent_dequeue(self, postgres_driver: PostgresDriver) -> None:
         """Multiple concurrent dequeues should get unique tasks."""
         # Arrange
@@ -798,6 +832,7 @@ class TestPostgresDriverConcurrency:
         assert len(receipts) == num_tasks
         assert len(set(receipts)) == num_tasks  # All unique
 
+    @mark.asyncio
     async def test_concurrent_enqueue_dequeue(self, postgres_driver: PostgresDriver) -> None:
         """Concurrent enqueues and dequeues should work correctly."""
         num_tasks = 20
@@ -828,6 +863,7 @@ class TestPostgresDriverConcurrency:
 class TestPostgresDriverEdgeCases:
     """Test edge cases and error conditions."""
 
+    @mark.asyncio
     async def test_many_queues(self, postgres_driver: PostgresDriver) -> None:
         """Driver should handle many queues efficiently."""
         # Arrange
@@ -844,6 +880,7 @@ class TestPostgresDriverEdgeCases:
             )
             assert size == 1
 
+    @mark.asyncio
     async def test_queue_name_with_special_characters(
         self, postgres_driver: PostgresDriver
     ) -> None:
@@ -858,6 +895,7 @@ class TestPostgresDriverEdgeCases:
             assert receipt is not None
             await postgres_driver.ack(queue_name, receipt)
 
+    @mark.asyncio
     async def test_reconnect_after_disconnect(self, postgres_dsn: str) -> None:
         """Driver should be reusable after disconnect."""
         # Arrange
@@ -897,6 +935,7 @@ class TestPostgresDriverEdgeCases:
                 await driver.pool.execute(f"DROP TABLE IF EXISTS {dlq_table}")
             await driver.disconnect()
 
+    @mark.asyncio
     async def test_task_data_integrity(self, postgres_driver: PostgresDriver) -> None:
         """Task data should be exactly preserved through enqueue/dequeue cycle.
 
@@ -932,6 +971,7 @@ class TestPostgresDriverEdgeCases:
 
             await postgres_driver.ack("default", receipt)
 
+    @mark.asyncio
     async def test_delay_values(self, postgres_driver: PostgresDriver) -> None:
         """Test different delay value behaviors."""
         # Test zero delay
@@ -946,6 +986,7 @@ class TestPostgresDriverEdgeCases:
         assert receipt_negative is not None
         await postgres_driver.ack("default", receipt_negative)
 
+    @mark.asyncio
     async def test_connect_is_idempotent(self, postgres_dsn: str) -> None:
         """Multiple connect() calls should be safe."""
         # Arrange
@@ -963,6 +1004,7 @@ class TestPostgresDriverEdgeCases:
         # Cleanup
         await driver.disconnect()
 
+    @mark.asyncio
     async def test_disconnect_is_idempotent(self, postgres_dsn: str) -> None:
         """Multiple disconnect() calls should be safe."""
         # Arrange
@@ -981,6 +1023,7 @@ class TestPostgresDriverEdgeCases:
 class TestPostgresDriverDelayedTasks:
     """Test delayed task processing with various delays."""
 
+    @mark.asyncio
     async def test_delayed_task_not_immediately_available(
         self, postgres_driver: PostgresDriver, delay_seconds: int
     ) -> None:

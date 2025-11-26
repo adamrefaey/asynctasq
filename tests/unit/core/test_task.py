@@ -174,6 +174,7 @@ class TestTaskConfiguration:
 class TestTaskHandle:
     """Test Task.handle() abstract method."""
 
+    @mark.asyncio
     async def test_handle_must_be_implemented(self) -> None:
         # Arrange
         class IncompleteTask(Task[str]):
@@ -185,6 +186,7 @@ class TestTaskHandle:
             # but we're testing runtime behavior
             IncompleteTask()  # type: ignore[abstract]
 
+    @mark.asyncio
     async def test_handle_execution(self) -> None:
         # Arrange
         task_instance = ConcreteTask()
@@ -200,6 +202,7 @@ class TestTaskHandle:
 class TestTaskFailed:
     """Test Task.failed() method."""
 
+    @mark.asyncio
     async def test_failed_default_implementation(self) -> None:
         # Arrange
         task_instance = ConcreteTask()
@@ -208,6 +211,7 @@ class TestTaskFailed:
         # Act & Assert - should not raise
         await task_instance.failed(exception)
 
+    @mark.asyncio
     async def test_failed_custom_implementation(self) -> None:
         # Arrange
         failed_called = False
@@ -377,6 +381,7 @@ class TestTaskRetryAfter:
 class TestTaskDispatch:
     """Test Task.dispatch() method."""
 
+    @mark.asyncio
     async def test_dispatch_calls_get_dispatcher(self) -> None:
         # Arrange
         # Import Task to ensure it's available when dispatcher is imported
@@ -396,6 +401,7 @@ class TestTaskDispatch:
             assert task_id == "task-id-123"
             mock_dispatcher.dispatch.assert_called_once_with(task_instance)
 
+    @mark.asyncio
     async def test_dispatch_with_driver_override_string(self) -> None:
         # Arrange
         task_instance = ConcreteTask()
@@ -412,6 +418,7 @@ class TestTaskDispatch:
             # Assert
             mock_get.assert_called_once_with("redis")
 
+    @mark.asyncio
     async def test_dispatch_with_driver_override_instance(self) -> None:
         # Arrange
         task_instance = ConcreteTask()
@@ -429,6 +436,7 @@ class TestTaskDispatch:
             # Assert
             mock_get.assert_called_once_with(mock_driver)
 
+    @mark.asyncio
     async def test_dispatch_with_no_driver_override(self) -> None:
         # Arrange
         task_instance = ConcreteTask()
@@ -444,6 +452,7 @@ class TestTaskDispatch:
             # Assert
             mock_get.assert_called_once_with(None)
 
+    @mark.asyncio
     async def test_dispatch_with_delay_configured(self) -> None:
         # Arrange
         task_instance = ConcreteTask()
@@ -464,6 +473,7 @@ class TestTaskDispatch:
 class TestSyncTask:
     """Test SyncTask class."""
 
+    @mark.asyncio
     async def test_sync_task_handle_calls_handle_sync(self) -> None:
         # Arrange
         task_instance = ConcreteSyncTask()
@@ -474,6 +484,7 @@ class TestSyncTask:
         # Assert
         assert result == "sync_success"
 
+    @mark.asyncio
     async def test_sync_task_handle_runs_in_executor(self) -> None:
         # Arrange
         task_instance = ConcreteSyncTask()
@@ -571,6 +582,7 @@ class TestFunctionTask:
         # Assert
         assert task_instance._driver_override == "redis"
 
+    @mark.asyncio
     async def test_function_task_handle_async_function(self) -> None:
         # Arrange
         async def async_func(x: int) -> int:
@@ -584,6 +596,7 @@ class TestFunctionTask:
         # Assert
         assert result == 10
 
+    @mark.asyncio
     async def test_function_task_handle_sync_function(self) -> None:
         # Arrange
         def sync_func(x: int) -> int:
@@ -597,6 +610,7 @@ class TestFunctionTask:
         # Assert
         assert result == 12
 
+    @mark.asyncio
     async def test_function_task_handle_with_kwargs(self) -> None:
         # Arrange
         async def async_func(a: int, b: str) -> str:
@@ -610,6 +624,7 @@ class TestFunctionTask:
         # Assert
         assert result == "10:test"
 
+    @mark.asyncio
     async def test_function_task_handle_with_args_and_kwargs(self) -> None:
         # Arrange
         def sync_func(x: int, y: int, z: int = 0) -> int:
@@ -623,6 +638,7 @@ class TestFunctionTask:
         # Assert
         assert result == 6
 
+    @mark.asyncio
     async def test_function_task_handle_sync_function_in_executor(self) -> None:
         # Arrange
         def blocking_func() -> str:
@@ -724,6 +740,7 @@ class TestTaskDecorator:
         assert task_instance.func == test_func
         assert task_instance.args == (5,)
 
+    @mark.asyncio
     async def test_task_decorator_dispatch_method(self) -> None:
         # Arrange
         @task  # type: ignore[arg-type]  # Overload handles callable as first arg
@@ -747,6 +764,7 @@ class TestTaskDecorator:
             assert isinstance(call_args, FunctionTask)
             assert call_args.func == test_func
 
+    @mark.asyncio
     async def test_task_decorator_dispatch_with_delay(self) -> None:
         # Arrange
         @task  # type: ignore[arg-type]  # Overload handles callable as first arg
@@ -769,6 +787,7 @@ class TestTaskDecorator:
             assert isinstance(call_args, FunctionTask)
             assert call_args._delay_seconds == 60
 
+    @mark.asyncio
     async def test_task_decorator_dispatch_with_driver_override(self) -> None:
         # Arrange
         @task(driver="redis")
@@ -789,6 +808,7 @@ class TestTaskDecorator:
             # Assert
             mock_get.assert_called_once_with("redis")
 
+    @mark.asyncio
     async def test_task_decorator_chaining_delay_dispatch(self) -> None:
         # Arrange
         @task  # type: ignore[arg-type]  # Overload handles callable as first arg
@@ -853,6 +873,7 @@ class TestTaskDecorator:
         assert task_instance.args == (1,)
         assert task_instance.kwargs == {"b": "test"}
 
+    @mark.asyncio
     async def test_task_decorator_dispatch_extracts_delay_from_kwargs(self) -> None:
         # Arrange
         @task  # type: ignore[arg-type]  # Overload handles callable as first arg
@@ -918,6 +939,7 @@ class TestTaskEdgeCases:
         assert task_any.param2 == "path/to/file"
         assert task_any.param3 == "key:value"
 
+    @mark.asyncio
     async def test_task_dispatch_sets_task_id(self) -> None:
         # Arrange
         task_instance = ConcreteTask()
@@ -932,6 +954,7 @@ class TestTaskEdgeCases:
             # The dispatcher sets _task_id internally, but we can verify it was called
             mock_dispatcher.dispatch.assert_called_once()
 
+    @mark.asyncio
     async def test_task_dispatch_sets_dispatched_at(self) -> None:
         # Arrange
         task_instance = ConcreteTask()
@@ -983,6 +1006,7 @@ class TestTaskEdgeCases:
         assert task_instance.queue == "new_queue"
         assert task_instance.queue != original_queue
 
+    @mark.asyncio
     async def test_function_task_handle_with_exception(self) -> None:
         # Arrange
         def failing_func() -> None:
@@ -994,6 +1018,7 @@ class TestTaskEdgeCases:
         with raises(ValueError, match="test error"):
             await task_instance.handle()
 
+    @mark.asyncio
     async def test_function_task_handle_async_with_exception(self) -> None:
         # Arrange
         async def failing_async_func() -> None:
@@ -1035,6 +1060,7 @@ class TestTaskEdgeCases:
         # Assert
         assert test_func._task_timeout is None  # type: ignore[attr-defined]
 
+    @mark.asyncio
     async def test_task_dispatch_chain_with_multiple_calls(self) -> None:
         # Arrange
         task_instance = ConcreteTask()

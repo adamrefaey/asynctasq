@@ -1,7 +1,7 @@
 """Unit tests for worker command.
 
 Testing Strategy:
-- pytest 9.0.1 with asyncio_mode="auto" (no decorators needed)
+- pytest 9.0.1 with asyncio_mode="strict" (explicit @mark.asyncio decorators required)
 - AAA pattern (Arrange, Act, Assert)
 - Mock Worker and DriverFactory to avoid real connections
 - Fast, isolated tests
@@ -24,6 +24,7 @@ class TestRunWorker:
     @patch("async_task.cli.commands.worker.DriverFactory")
     @patch("async_task.cli.commands.worker.parse_queues")
     @patch("async_task.cli.commands.worker.logger")
+    @mark.asyncio
     async def test_run_worker_with_defaults(
         self, mock_logger, mock_parse_queues, mock_driver_factory, mock_worker_class
     ) -> None:
@@ -54,6 +55,7 @@ class TestRunWorker:
     @patch("async_task.cli.commands.worker.DriverFactory")
     @patch("async_task.cli.commands.worker.parse_queues")
     @patch("async_task.cli.commands.worker.logger")
+    @mark.asyncio
     async def test_run_worker_with_custom_queues(
         self, mock_logger, mock_parse_queues, mock_driver_factory, mock_worker_class
     ) -> None:
@@ -81,6 +83,7 @@ class TestRunWorker:
     @patch("async_task.cli.commands.worker.DriverFactory")
     @patch("async_task.cli.commands.worker.parse_queues")
     @patch("async_task.cli.commands.worker.logger")
+    @mark.asyncio
     async def test_run_worker_with_different_driver(
         self, mock_logger, mock_parse_queues, mock_driver_factory, mock_worker_class
     ) -> None:
@@ -104,6 +107,7 @@ class TestRunWorker:
     @patch("async_task.cli.commands.worker.Worker")
     @patch("async_task.cli.commands.worker.DriverFactory")
     @patch("async_task.cli.commands.worker.parse_queues")
+    @mark.asyncio
     async def test_run_worker_logs_correct_info(
         self, mock_parse_queues, mock_driver_factory, mock_worker_class
     ) -> None:
@@ -130,6 +134,7 @@ class TestRunWorker:
     @patch("async_task.cli.commands.worker.Worker")
     @patch("async_task.cli.commands.worker.DriverFactory")
     @patch("async_task.cli.commands.worker.parse_queues")
+    @mark.asyncio
     async def test_run_worker_awaits_worker_start(
         self, mock_parse_queues, mock_driver_factory, mock_worker_class
     ) -> None:

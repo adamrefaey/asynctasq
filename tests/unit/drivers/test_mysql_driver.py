@@ -19,6 +19,7 @@ from async_task.drivers.mysql_driver import MySQLDriver
 class TestMySQLDriverErrorHandling:
     """Test MySQLDriver error handling and rollback scenarios."""
 
+    @mark.asyncio
     async def test_enqueue_rollback_on_exception(self) -> None:
         """Test that enqueue() rolls back transaction on exception."""
         # Arrange
@@ -50,6 +51,7 @@ class TestMySQLDriverErrorHandling:
         mock_conn.rollback.assert_called_once()
         mock_conn.commit.assert_not_called()
 
+    @mark.asyncio
     async def test_dequeue_rollback_on_exception(self) -> None:
         """Test that dequeue() rolls back transaction on exception."""
         # Arrange
@@ -80,6 +82,7 @@ class TestMySQLDriverErrorHandling:
         # Assert - rollback was called
         mock_conn.rollback.assert_called_once()
 
+    @mark.asyncio
     async def test_dequeue_rollback_when_no_task_found(self) -> None:
         """Test that dequeue() rolls back when no task is found."""
         # Arrange
@@ -110,6 +113,7 @@ class TestMySQLDriverErrorHandling:
         assert result is None
         mock_conn.rollback.assert_called_once()
 
+    @mark.asyncio
     async def test_ack_rollback_on_exception(self) -> None:
         """Test that ack() rolls back transaction on exception."""
         # Arrange
@@ -143,6 +147,7 @@ class TestMySQLDriverErrorHandling:
         mock_conn.rollback.assert_called_once()
         mock_conn.commit.assert_not_called()
 
+    @mark.asyncio
     async def test_nack_rollback_on_exception(self) -> None:
         """Test that nack() rolls back transaction on exception."""
         # Arrange
