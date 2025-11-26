@@ -1,0 +1,109 @@
+# CLI Reference
+
+## Worker Command
+
+Start a worker to process tasks from queues.
+
+```bash
+python -m async_task worker [OPTIONS]
+```
+
+**Options:**
+
+| Option                          | Description                                    | Default                  |
+| ------------------------------- | ---------------------------------------------- | ------------------------ |
+| `--driver DRIVER`               | Queue driver (redis/postgres/mysql/sqs/memory) | `redis`                  |
+| `--queues QUEUES`               | Comma-separated queue names (priority order)   | `default`                |
+| `--concurrency N`               | Max concurrent tasks                           | `10`                     |
+| `--redis-url URL`               | Redis connection URL                           | `redis://localhost:6379` |
+| `--redis-password PASSWORD`     | Redis password                                 | `None`                   |
+| `--redis-db N`                  | Redis database number (0-15)                   | `0`                      |
+| `--postgres-dsn DSN`            | PostgreSQL connection DSN                      | -                        |
+| `--postgres-queue-table TABLE`  | PostgreSQL queue table name                    | `task_queue`             |
+| `--mysql-dsn DSN`               | MySQL connection DSN                           | -                        |
+| `--mysql-queue-table TABLE`     | MySQL queue table name                         | `task_queue`             |
+| `--sqs-region REGION`           | AWS SQS region                                 | `us-east-1`              |
+| `--sqs-queue-url-prefix PREFIX` | SQS queue URL prefix                           | -                        |
+
+**Examples:**
+
+```bash
+# Basic usage
+python -m async_task worker
+
+# Multiple queues with priority
+python -m async_task worker --queues high,default,low --concurrency 20
+
+# Redis with auth
+python -m async_task worker \
+    --driver redis \
+    --redis-url redis://localhost:6379 \
+    --redis-password secret
+
+# PostgreSQL worker
+python -m async_task worker \
+    --driver postgres \
+    --postgres-dsn postgresql://user:pass@localhost/db
+
+# MySQL worker
+python -m async_task worker \
+    --driver mysql \
+    --mysql-dsn mysql://user:pass@localhost:3306/db
+
+# SQS worker
+python -m async_task worker \
+    --driver sqs \
+    --sqs-region us-west-2
+```
+
+---
+
+## Migrate Command
+
+Initialize database schema for PostgreSQL or MySQL drivers.
+
+```bash
+python -m async_task migrate [OPTIONS]
+```
+
+**Options:**
+
+| Option                               | Description                | Default             |
+| ------------------------------------ | -------------------------- | ------------------- |
+| `--driver DRIVER`                    | Driver (postgres or mysql) | `postgres`          |
+| `--postgres-dsn DSN`                 | PostgreSQL connection DSN  | -                   |
+| `--postgres-queue-table TABLE`       | Queue table name           | `task_queue`        |
+| `--postgres-dead-letter-table TABLE` | Dead letter table name     | `dead_letter_queue` |
+| `--mysql-dsn DSN`                    | MySQL connection DSN       | -                   |
+| `--mysql-queue-table TABLE`          | Queue table name           | `task_queue`        |
+| `--mysql-dead-letter-table TABLE`    | Dead letter table name     | `dead_letter_queue` |
+
+**Examples:**
+
+```bash
+# PostgreSQL migration (default)
+python -m async_task migrate \
+    --postgres-dsn postgresql://user:pass@localhost/db
+
+# PostgreSQL with custom tables
+python -m async_task migrate \
+    --postgres-dsn postgresql://user:pass@localhost/db \
+    --postgres-queue-table my_queue \
+    --postgres-dead-letter-table my_dlq
+
+# MySQL migration
+python -m async_task migrate \
+    --driver mysql \
+    --mysql-dsn mysql://user:pass@localhost:3306/db
+
+# Using environment variables
+export ASYNC_TASK_POSTGRES_DSN=postgresql://user:pass@localhost/db
+python -m async_task migrate
+```
+
+**What it does:**
+
+- Creates queue table with optimized indexes
+- Creates dead-letter table for failed tasks
+- Idempotent (safe to run multiple times)
+- Only works with PostgreSQL and MySQL drivers

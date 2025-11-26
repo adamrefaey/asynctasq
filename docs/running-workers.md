@@ -1,0 +1,222 @@
+# Running Workers
+
+Workers continuously poll queues and execute tasks. Run workers via CLI (recommended) or programmatically.
+
+## CLI Workers (Recommended)
+
+**Basic Usage:**
+
+```bash
+# Start worker with default settings
+python -m async_task worker
+
+# Or with uv
+uv run python -m async_task worker
+```
+
+**With Driver Configuration:**
+
+```bash
+# Redis worker
+python -m async_task worker \
+    --driver redis \
+    --redis-url redis://localhost:6379 \
+    --redis-password secret \
+    --redis-db 1
+
+# PostgreSQL worker
+python -m async_task worker \
+    --driver postgres \
+    --postgres-dsn postgresql://user:pass@localhost/dbname \
+    --queues default,emails \
+    --concurrency 10
+
+# MySQL worker
+python -m async_task worker \
+    --driver mysql \
+    --mysql-dsn mysql://user:pass@localhost:3306/dbname \
+    --queues default,emails \
+    --concurrency 10
+
+# AWS SQS worker
+python -m async_task worker \
+    --driver sqs \
+    --sqs-region us-west-2 \
+    --sqs-queue-url-prefix https://sqs.us-west-2.amazonaws.com/123456789/ \
+    --queues default,emails
+```
+
+**Multiple Queues with Priority:**
+
+```bash
+# Process queues in priority order: high → default → low
+python -m async_task worker --queues high,default,low --concurrency 20
+```
+
+**Environment Variables:**
+
+```bash
+# Set environment variables
+export ASYNC_TASK_DRIVER=redis
+export ASYNC_TASK_REDIS_URL=redis://localhost:6379
+
+# Start worker (reads from env vars)
+python -m async_task worker
+```
+
+**Worker Options:**
+
+| Option          | Description                                    | Default   |
+| --------------- | ---------------------------------------------- | --------- |
+| `--driver`      | Queue driver (redis/postgres/mysql/sqs/memory) | `redis`   |
+| `--queues`      | Comma-separated queue names (priority order)   | `default` |
+| `--concurrency` | Max concurrent tasks                           | `10`      |
+
+**Driver-Specific Options:**
+
+See [Configuration](configuration.md) section for complete list of driver-specific CLI options.
+
+---
+
+## Programmatic Workers
+
+For custom worker implementations or embedding workers in applications:
+
+```python
+import asyncio
+from async_task.config import Config
+from async_task.core.driver_factory import DriverFactory
+from async_task.core.worker import Worker
+
+async def main():
+    # Create configuration
+    config = Config.from_env(driver='redis', redis_url='redis://localhost:6379')
+
+    # Create driver and connect
+    driver = DriverFactory.create_from_config(config)
+    await driver.connect()
+
+    try:
+        # Create and start worker
+        worker = Worker(
+            queue_driver=driver,
+            queues=['high-priority', 'default', 'low-priority'],
+            concurrency=10
+        )
+
+        # Start worker (blocks until SIGTERM/SIGINT)
+        await worker.start()
+    finally:
+        # Cleanup
+        await driver.disconnect()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+**Worker Parameters:**
+
+| Parameter      | Type             | Description                                    |
+| -------------- | ---------------- | ---------------------------------------------- |
+| `queue_driver` | `BaseDriver`     | Queue driver instance                          |
+| `queues`       | `list[str]`      | Queue names to process (priority order)        |
+| `concurrency`  | `int`            | Maximum concurrent tasks                       |
+| `max_tasks`    | `int \| None`    | Process N tasks then exit (None = run forever) |
+| `serializer`   | `BaseSerializer` | Custom serializer (default: MsgpackSerializer) |
+
+**Worker Behavior:**
+
+1. **Polling Loop:** Continuously checks queues until stopped
+2. **Round-Robin:** Processes queues in priority order (first = highest priority)
+3. **Concurrency Control:** Tracks active tasks, respects concurrency limit
+4. **Fair Distribution:** Polls all queues before repeating first queue
+5. **Sleep on Empty:** 100ms sleep when no tasks available (prevents CPU spinning)
+6. **Graceful Shutdown:** SIGTERM/SIGINT wait for in-flight tasks to complete
+
+**Testing/Batch Mode:**
+
+```python
+# Process exactly 10 tasks then exit
+worker = Worker(
+    queue_driver=driver,
+    queues=['default'],
+    concurrency=5,
+    max_tasks=10  # Exit after 10 tasks
+)
+await worker.start()
+```
+
+---
+
+## Multiple Workers for Different Queues
+
+Run multiple worker processes for different queue priorities:
+
+```bash
+# Terminal 1: High-priority queue with high concurrency
+python -m async_task worker --queues high-priority --concurrency 20
+
+# Terminal 2: Default queue with moderate concurrency
+python -m async_task worker --queues default --concurrency 10
+
+# Terminal 3: Low-priority and batch jobs with low concurrency
+python -m async_task worker --queues low-priority,batch --concurrency 5
+```
+
+**Benefits:**
+
+- Isolate critical tasks from low-priority work
+- Prevent slow tasks from blocking fast tasks
+- Scale different queues independently
+- Dedicate resources based on queue importance
+
+---
+
+## Graceful Shutdown
+
+Workers handle `SIGTERM` and `SIGINT` signals for clean shutdown:
+
+**Shutdown Process:**
+
+1. **Stop accepting new tasks** – No new tasks dequeued from driver
+2. **Wait for completion** – Currently processing tasks finish naturally
+3. **Disconnect** – Driver connections closed cleanly
+4. **Exit** – Process terminates gracefully
+
+**Trigger Shutdown:**
+
+```bash
+# Send SIGTERM for graceful shutdown
+kill -TERM <worker_pid>
+
+# Or use Ctrl+C for SIGINT (same behavior)
+```
+
+**Production Deployment:**
+
+Use process managers that send SIGTERM for clean shutdowns:
+
+- **systemd:** Sends SIGTERM by default
+- **supervisor:** Configure `stopasgroup=true`
+- **Kubernetes:** Sends SIGTERM before SIGKILL (grace period)
+- **Docker:** `docker stop` sends SIGTERM
+
+**Example systemd service:**
+
+```ini
+[Unit]
+Description=Async Task Worker
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/app
+ExecStart=/usr/bin/python -m async_task worker --driver redis --queues default
+Restart=always
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
