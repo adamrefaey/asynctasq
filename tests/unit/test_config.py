@@ -44,7 +44,7 @@ class TestDriverType:
 
     def test_driver_type_contains_all_drivers(self) -> None:
         # Arrange
-        expected_drivers = ("redis", "sqs", "memory", "postgres")
+        expected_drivers = ("redis", "sqs", "memory", "postgres", "mysql")
 
         # Act
         actual_drivers = get_args(DriverType)
@@ -81,6 +81,14 @@ class TestEnvVarMapping:
             "postgres_visibility_timeout_seconds",
             "postgres_min_pool_size",
             "postgres_max_pool_size",
+            "mysql_dsn",
+            "mysql_queue_table",
+            "mysql_dead_letter_table",
+            "mysql_max_attempts",
+            "mysql_retry_delay_seconds",
+            "mysql_visibility_timeout_seconds",
+            "mysql_min_pool_size",
+            "mysql_max_pool_size",
             "default_queue",
             "default_max_retries",
             "default_retry_delay",
@@ -144,7 +152,7 @@ class TestConfigDefaults:
         config = Config()
 
         # Assert
-        assert config.postgres_dsn == "postgresql://user:pass@localhost/dbname"
+        assert config.postgres_dsn == "postgresql://test:test@localhost:5432/test_db"
         assert config.postgres_queue_table == "task_queue"
         assert config.postgres_dead_letter_table == "dead_letter_queue"
         assert config.postgres_max_attempts == 3

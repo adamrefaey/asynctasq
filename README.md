@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A robust, async-first task queue system for Python with built-in FastAPI support. Seamlessly switch between Memory, Redis, PostgreSQL, and AWS SQS drivers with a Laravel-inspired API that's both powerful and elegant.
+A robust, async-first task queue system for Python with built-in FastAPI support. Seamlessly switch between Memory, Redis, PostgreSQL, MySQL, and AWS SQS drivers with a Laravel-inspired API that's both powerful and elegant.
 
 ---
 
@@ -28,7 +28,7 @@ A robust, async-first task queue system for Python with built-in FastAPI support
 ### Core Features
 
 - **Async-First Design** – Built from the ground up with asyncio for high-performance concurrent task processing
-- **Multiple Queue Drivers** – Seamlessly switch between Memory, Redis, PostgreSQL, and AWS SQS
+- **Multiple Queue Drivers** – Seamlessly switch between Memory, Redis, PostgreSQL, MySQL, and AWS SQS
 - **Laravel-Inspired API** – Familiar, elegant API for developers coming from Laravel
 - **Type-Safe** – Full type hints with mypy/pyright support
 - **ORM Integration** – Automatic serialization/deserialization of SQLAlchemy, Django, and Tortoise ORM models
@@ -43,8 +43,8 @@ A robust, async-first task queue system for Python with built-in FastAPI support
 - **Custom Serialization** – Extensible serializer system with msgpack by default
 - **Queue Priority** – Process multiple queues with configurable priority
 - **Concurrent Processing** – Configure worker concurrency for parallel task execution
-- **Dead Letter Queues** – PostgreSQL driver includes automatic DLQ for failed tasks
-- **Visibility Timeout** – PostgreSQL driver supports visibility timeout for crash recovery
+- **Dead Letter Queues** – PostgreSQL and MySQL drivers include automatic DLQ for failed tasks
+- **Visibility Timeout** – PostgreSQL and MySQL drivers support visibility timeout for crash recovery
 - **CLI Interface** – Built-in CLI for running workers and migrations
 
 ---
@@ -62,6 +62,7 @@ uv add async-task
 # With specific drivers
 uv add "async-task[redis]"      # Redis support
 uv add "async-task[postgres]"   # PostgreSQL support
+uv add "async-task[mysql]"      # MySQL support
 uv add "async-task[sqs]"        # AWS SQS support
 
 # With ORM support
@@ -85,6 +86,7 @@ pip install async-task
 # With specific drivers
 pip install "async-task[redis]"      # Redis support
 pip install "async-task[postgres]"   # PostgreSQL support
+pip install "async-task[mysql]"      # MySQL support
 pip install "async-task[sqs]"        # AWS SQS support
 
 # With ORM support
@@ -249,7 +251,7 @@ Configuration can be done via environment variables (recommended for production)
 
 ```bash
 # Driver selection
-export ASYNC_TASK_DRIVER=redis  # Options: memory, redis, postgres, sqs
+export ASYNC_TASK_DRIVER=redis  # Options: memory, redis, postgres, mysql, sqs
 
 # Redis configuration
 export ASYNC_TASK_REDIS_URL=redis://localhost:6379
@@ -260,6 +262,11 @@ export ASYNC_TASK_REDIS_DB=0
 export ASYNC_TASK_POSTGRES_DSN=postgresql://user:pass@localhost/dbname
 export ASYNC_TASK_POSTGRES_QUEUE_TABLE=task_queue
 export ASYNC_TASK_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
+
+# MySQL configuration
+export ASYNC_TASK_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
+export ASYNC_TASK_MYSQL_QUEUE_TABLE=task_queue
+export ASYNC_TASK_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
 
 # AWS SQS configuration
 export ASYNC_TASK_SQS_REGION=us-east-1
@@ -273,6 +280,7 @@ export AWS_SECRET_ACCESS_KEY=your_secret_key
 You can configure Async Task programmatically using `set_global_config()` or `Config.from_env()`. All configuration options can be passed as keyword arguments, and they override environment variables and defaults.
 
 **Configuration Precedence (highest to lowest):**
+
 1. Keyword arguments to `set_global_config()` or `Config.from_env()`
 2. Environment variables
 3. Default values
@@ -298,6 +306,16 @@ set_global_config(
     postgres_max_attempts=5,
     postgres_min_pool_size=5,
     postgres_max_pool_size=20
+)
+
+# MySQL with custom settings
+set_global_config(
+    driver='mysql',
+    mysql_dsn='mysql://user:pass@localhost:3306/mydb',
+    mysql_queue_table='my_queue',
+    mysql_max_attempts=5,
+    mysql_min_pool_size=5,
+    mysql_max_pool_size=20
 )
 
 # SQS configuration
@@ -327,7 +345,8 @@ config = Config.from_env(
 All options available for `set_global_config()` and `Config.from_env()`:
 
 **General Options:**
-- `driver` (str): Queue driver. Choices: `"redis"`, `"sqs"`, `"memory"`, `"postgres"`
+
+- `driver` (str): Queue driver. Choices: `"redis"`, `"sqs"`, `"memory"`, `"postgres"`, `"mysql"`
   - Env var: `ASYNC_TASK_DRIVER`
   - Default: `"redis"`
 - `default_queue` (str): Default queue name for tasks
@@ -344,6 +363,7 @@ All options available for `set_global_config()` and `Config.from_env()`:
   - Default: `None`
 
 **Redis Options:**
+
 - `redis_url` (str): Redis connection URL
   - Env var: `ASYNC_TASK_REDIS_URL`
   - Default: `"redis://localhost:6379"`
@@ -358,6 +378,7 @@ All options available for `set_global_config()` and `Config.from_env()`:
   - Default: `10`
 
 **PostgreSQL Options:**
+
 - `postgres_dsn` (str): PostgreSQL connection DSN
   - Env var: `ASYNC_TASK_POSTGRES_DSN`
   - Default: `"postgresql://test:test@localhost:5432/test_db"`
@@ -383,7 +404,35 @@ All options available for `set_global_config()` and `Config.from_env()`:
   - Env var: `ASYNC_TASK_POSTGRES_MAX_POOL_SIZE`
   - Default: `10`
 
+**MySQL Options:**
+
+- `mysql_dsn` (str): MySQL connection DSN
+  - Env var: `ASYNC_TASK_MYSQL_DSN`
+  - Default: `"mysql://test:test@localhost:3306/test_db"`
+- `mysql_queue_table` (str): MySQL queue table name
+  - Env var: `ASYNC_TASK_MYSQL_QUEUE_TABLE`
+  - Default: `"task_queue"`
+- `mysql_dead_letter_table` (str): MySQL dead letter table name
+  - Env var: `ASYNC_TASK_MYSQL_DEAD_LETTER_TABLE`
+  - Default: `"dead_letter_queue"`
+- `mysql_max_attempts` (int): Maximum attempts before moving to dead letter queue
+  - Env var: `ASYNC_TASK_MYSQL_MAX_ATTEMPTS`
+  - Default: `3`
+- `mysql_retry_delay_seconds` (int): Retry delay in seconds for MySQL driver
+  - Env var: `ASYNC_TASK_MYSQL_RETRY_DELAY_SECONDS`
+  - Default: `60`
+- `mysql_visibility_timeout_seconds` (int): Visibility timeout in seconds
+  - Env var: `ASYNC_TASK_MYSQL_VISIBILITY_TIMEOUT_SECONDS`
+  - Default: `300`
+- `mysql_min_pool_size` (int): Minimum connection pool size
+  - Env var: `ASYNC_TASK_MYSQL_MIN_POOL_SIZE`
+  - Default: `10`
+- `mysql_max_pool_size` (int): Maximum connection pool size
+  - Env var: `ASYNC_TASK_MYSQL_MAX_POOL_SIZE`
+  - Default: `10`
+
 **SQS Options:**
+
 - `sqs_region` (str): AWS SQS region
   - Env var: `ASYNC_TASK_SQS_REGION`
   - Default: `"us-east-1"`
@@ -426,6 +475,19 @@ set_global_config(
     postgres_visibility_timeout_seconds=600,
     postgres_min_pool_size=5,
     postgres_max_pool_size=25
+)
+
+# Complete MySQL setup
+set_global_config(
+    driver='mysql',
+    mysql_dsn='mysql://user:pass@localhost:3306/mydb',
+    mysql_queue_table='my_task_queue',
+    mysql_dead_letter_table='my_dlq',
+    mysql_max_attempts=5,
+    mysql_retry_delay_seconds=120,
+    mysql_visibility_timeout_seconds=600,
+    mysql_min_pool_size=5,
+    mysql_max_pool_size=25
 )
 
 # Complete SQS setup
@@ -471,6 +533,13 @@ python -m async_task worker --driver redis --redis-url redis://localhost:6379
 python -m async_task worker \
     --driver postgres \
     --postgres-dsn postgresql://user:pass@localhost/dbname \
+    --queues default,emails \
+    --concurrency 10
+
+# MySQL with custom configuration
+python -m async_task worker \
+    --driver mysql \
+    --mysql-dsn mysql://user:pass@localhost:3306/dbname \
     --queues default,emails \
     --concurrency 10
 ```
@@ -628,6 +697,53 @@ uv run python -m async_task migrate --driver postgres --postgres-dsn postgresql:
 
 ---
 
+### MySQL Driver
+
+Enterprise-grade driver with transactional dequeue and dead-letter queue.
+
+```python
+from async_task.drivers.mysql_driver import MySQLDriver
+
+driver = MySQLDriver(
+    dsn='mysql://user:pass@localhost:3306/dbname',
+    queue_table='task_queue',
+    dead_letter_table='dead_letter_queue',
+    max_attempts=3,
+    retry_delay_seconds=60,
+    visibility_timeout_seconds=300,
+    min_pool_size=10,
+    max_pool_size=10
+)
+```
+
+**Features:**
+
+- Transactional dequeue using `SELECT ... FOR UPDATE SKIP LOCKED`
+- Dead-letter queue for permanently failed tasks
+- Visibility timeout for crash recovery
+- Connection pooling with asyncmy
+- ACID guarantees
+- Requires MySQL 8.0+
+
+**Setup:**
+
+```bash
+# Initialize schema
+python -m async_task migrate --driver mysql --mysql-dsn mysql://user:pass@localhost:3306/dbname
+
+# Or with uv
+uv run python -m async_task migrate --driver mysql --mysql-dsn mysql://user:pass@localhost:3306/dbname
+```
+
+**Use Cases:**
+
+- Enterprise applications
+- Existing MySQL infrastructure
+- Need for ACID guarantees
+- Complex failure handling
+
+---
+
 ### AWS SQS Driver
 
 Cloud-native driver for distributed systems.
@@ -699,7 +815,7 @@ async def send_email_route(email: str, message: str):
 - **Automatic Lifecycle Management** – Driver connection on startup, graceful disconnection on shutdown
 - **Zero-Configuration Mode** – Works with environment variables out of the box
 - **Dependency Injection** – Access dispatcher and driver via FastAPI's `Depends()`
-- **Works with All Drivers** – Redis, PostgreSQL, SQS, and Memory drivers supported
+- **Works with All Drivers** – Redis, PostgreSQL, MySQL, SQS, and Memory drivers supported
 
 #### Explicit Configuration
 
@@ -890,12 +1006,13 @@ kill -TERM <worker_pid>
 | **Memory**     | Development, testing        | No setup, fast                           | Data lost on restart           |
 | **Redis**      | Production, high-throughput | Fast, reliable, distributed              | Requires Redis server          |
 | **PostgreSQL** | Enterprise, existing DB     | ACID guarantees, DLQ, visibility timeout | Requires PostgreSQL 12+        |
+| **MySQL**      | Enterprise, existing DB     | ACID guarantees, DLQ, visibility timeout | Requires MySQL 8.0+            |
 | **SQS**        | AWS, serverless             | Managed, auto-scaling, zero ops          | AWS-specific, cost per message |
 
 **Recommendation:**
 
 - **Development:** Use `memory` driver
-- **Production:** Use `redis` for most cases, `postgres` if you need ACID guarantees
+- **Production:** Use `redis` for most cases, `postgres` or `mysql` if you need ACID guarantees
 - **AWS/Serverless:** Use `sqs` for managed infrastructure
 
 ---
@@ -904,13 +1021,13 @@ kill -TERM <worker_pid>
 
 ### General Configuration
 
-| Variable                   | Default   | Description                                        |
-| -------------------------- | --------- | -------------------------------------------------- |
-| `ASYNC_TASK_DRIVER`        | `redis`   | Queue driver: `memory`, `redis`, `postgres`, `sqs` |
-| `ASYNC_TASK_DEFAULT_QUEUE` | `default` | Default queue name                                 |
-| `ASYNC_TASK_MAX_RETRIES`   | `3`       | Default max retry attempts                         |
-| `ASYNC_TASK_RETRY_DELAY`   | `60`      | Default retry delay (seconds)                      |
-| `ASYNC_TASK_TIMEOUT`       | `None`    | Default task timeout (seconds)                     |
+| Variable                   | Default   | Description                                                 |
+| -------------------------- | --------- | ----------------------------------------------------------- |
+| `ASYNC_TASK_DRIVER`        | `redis`   | Queue driver: `memory`, `redis`, `postgres`, `mysql`, `sqs` |
+| `ASYNC_TASK_DEFAULT_QUEUE` | `default` | Default queue name                                          |
+| `ASYNC_TASK_MAX_RETRIES`   | `3`       | Default max retry attempts                                  |
+| `ASYNC_TASK_RETRY_DELAY`   | `60`      | Default retry delay (seconds)                               |
+| `ASYNC_TASK_TIMEOUT`       | `None`    | Default task timeout (seconds)                              |
 
 ### Redis Configuration
 
@@ -923,16 +1040,29 @@ kill -TERM <worker_pid>
 
 ### PostgreSQL Configuration
 
-| Variable                                         | Default                                          | Description                  |
-| ------------------------------------------------ | ------------------------------------------------ | ---------------------------- |
+| Variable                                         | Default                                         | Description                  |
+| ------------------------------------------------ | ----------------------------------------------- | ---------------------------- |
 | `ASYNC_TASK_POSTGRES_DSN`                        | `postgresql://test:test@localhost:5432/test_db` | PostgreSQL connection string |
-| `ASYNC_TASK_POSTGRES_QUEUE_TABLE`                | `task_queue`                              | Queue table name             |
-| `ASYNC_TASK_POSTGRES_DEAD_LETTER_TABLE`          | `dead_letter_queue`                       | Dead letter table name       |
-| `ASYNC_TASK_POSTGRES_MAX_ATTEMPTS`               | `3`                                       | Max attempts before DLQ      |
-| `ASYNC_TASK_POSTGRES_RETRY_DELAY_SECONDS`        | `60`                                      | Retry delay (seconds)        |
-| `ASYNC_TASK_POSTGRES_VISIBILITY_TIMEOUT_SECONDS` | `300`                                     | Visibility timeout (seconds) |
-| `ASYNC_TASK_POSTGRES_MIN_POOL_SIZE`              | `10`                                      | Min connection pool size     |
-| `ASYNC_TASK_POSTGRES_MAX_POOL_SIZE`              | `10`                                      | Max connection pool size     |
+| `ASYNC_TASK_POSTGRES_QUEUE_TABLE`                | `task_queue`                                    | Queue table name             |
+| `ASYNC_TASK_POSTGRES_DEAD_LETTER_TABLE`          | `dead_letter_queue`                             | Dead letter table name       |
+| `ASYNC_TASK_POSTGRES_MAX_ATTEMPTS`               | `3`                                             | Max attempts before DLQ      |
+| `ASYNC_TASK_POSTGRES_RETRY_DELAY_SECONDS`        | `60`                                            | Retry delay (seconds)        |
+| `ASYNC_TASK_POSTGRES_VISIBILITY_TIMEOUT_SECONDS` | `300`                                           | Visibility timeout (seconds) |
+| `ASYNC_TASK_POSTGRES_MIN_POOL_SIZE`              | `10`                                            | Min connection pool size     |
+| `ASYNC_TASK_POSTGRES_MAX_POOL_SIZE`              | `10`                                            | Max connection pool size     |
+
+### MySQL Configuration
+
+| Variable                                      | Default                                    | Description                  |
+| --------------------------------------------- | ------------------------------------------ | ---------------------------- |
+| `ASYNC_TASK_MYSQL_DSN`                        | `mysql://test:test@localhost:3306/test_db` | MySQL connection string      |
+| `ASYNC_TASK_MYSQL_QUEUE_TABLE`                | `task_queue`                               | Queue table name             |
+| `ASYNC_TASK_MYSQL_DEAD_LETTER_TABLE`          | `dead_letter_queue`                        | Dead letter table name       |
+| `ASYNC_TASK_MYSQL_MAX_ATTEMPTS`               | `3`                                        | Max attempts before DLQ      |
+| `ASYNC_TASK_MYSQL_RETRY_DELAY_SECONDS`        | `60`                                       | Retry delay (seconds)        |
+| `ASYNC_TASK_MYSQL_VISIBILITY_TIMEOUT_SECONDS` | `300`                                      | Visibility timeout (seconds) |
+| `ASYNC_TASK_MYSQL_MIN_POOL_SIZE`              | `10`                                       | Min connection pool size     |
+| `ASYNC_TASK_MYSQL_MAX_POOL_SIZE`              | `10`                                       | Max connection pool size     |
 
 ### AWS SQS Configuration
 
@@ -959,7 +1089,7 @@ python -m async_task worker [OPTIONS]
 
 **General Options:**
 
-- `--driver DRIVER` – Queue driver to use. Choices: `redis`, `sqs`, `memory`, `postgres`
+- `--driver DRIVER` – Queue driver to use. Choices: `redis`, `sqs`, `memory`, `postgres`, `mysql`
   - Default: from `ASYNC_TASK_DRIVER` env var or `redis`
 - `--queues QUEUES` – Comma-separated list of queue names to process in priority order (first queue has highest priority)
   - Default: `default`
@@ -985,6 +1115,15 @@ python -m async_task worker [OPTIONS]
   - Default: from `ASYNC_TASK_POSTGRES_QUEUE_TABLE` env var or `task_queue`
 - `--postgres-dead-letter-table TABLE` – PostgreSQL dead letter table name
   - Default: from `ASYNC_TASK_POSTGRES_DEAD_LETTER_TABLE` env var or `dead_letter_queue`
+
+**MySQL Options:**
+
+- `--mysql-dsn DSN` – MySQL connection DSN
+  - Default: from `ASYNC_TASK_MYSQL_DSN` env var or `mysql://test:test@localhost:3306/test_db`
+- `--mysql-queue-table TABLE` – MySQL queue table name
+  - Default: from `ASYNC_TASK_MYSQL_QUEUE_TABLE` env var or `task_queue`
+- `--mysql-dead-letter-table TABLE` – MySQL dead letter table name
+  - Default: from `ASYNC_TASK_MYSQL_DEAD_LETTER_TABLE` env var or `dead_letter_queue`
 
 **SQS Options:**
 
@@ -1021,6 +1160,14 @@ python -m async_task worker \
     --queues default,emails \
     --concurrency 15
 
+# MySQL with custom configuration
+python -m async_task worker \
+    --driver mysql \
+    --mysql-dsn mysql://user:pass@localhost:3306/dbname \
+    --mysql-queue-table my_queue \
+    --queues default,emails \
+    --concurrency 15
+
 # SQS with custom region
 python -m async_task worker \
     --driver sqs \
@@ -1035,7 +1182,7 @@ python -m async_task worker --driver memory --queues default --concurrency 5
 
 ### Migrate Command
 
-Initialize database schema for PostgreSQL driver. This command creates the necessary tables and indexes in PostgreSQL for the task queue system. It only works with the PostgreSQL driver.
+Initialize database schema for PostgreSQL or MySQL driver. This command creates the necessary tables and indexes in PostgreSQL or MySQL for the task queue system. It only works with the PostgreSQL and MySQL drivers.
 
 ```bash
 python -m async_task migrate [OPTIONS]
@@ -1043,7 +1190,7 @@ python -m async_task migrate [OPTIONS]
 
 **Options:**
 
-- `--driver DRIVER` – Queue driver (must be `postgres` for migrate command)
+- `--driver DRIVER` – Queue driver (must be `postgres` or `mysql` for migrate command)
   - Default: `postgres` (automatically set for migrate command)
 - `--postgres-dsn DSN` – PostgreSQL connection DSN
   - Default: from `ASYNC_TASK_POSTGRES_DSN` env var or `postgresql://test:test@localhost:5432/test_db`
@@ -1051,6 +1198,15 @@ python -m async_task migrate [OPTIONS]
   - Default: from `ASYNC_TASK_POSTGRES_QUEUE_TABLE` env var or `task_queue`
 - `--postgres-dead-letter-table TABLE` – PostgreSQL dead letter table name
   - Default: from `ASYNC_TASK_POSTGRES_DEAD_LETTER_TABLE` env var or `dead_letter_queue`
+
+**MySQL Options:**
+
+- `--mysql-dsn DSN` – MySQL connection DSN
+  - Default: from `ASYNC_TASK_MYSQL_DSN` env var or `mysql://test:test@localhost:3306/test_db`
+- `--mysql-queue-table TABLE` – MySQL queue table name
+  - Default: from `ASYNC_TASK_MYSQL_QUEUE_TABLE` env var or `task_queue`
+- `--mysql-dead-letter-table TABLE` – MySQL dead letter table name
+  - Default: from `ASYNC_TASK_MYSQL_DEAD_LETTER_TABLE` env var or `dead_letter_queue`
 
 **Examples:**
 
@@ -1068,9 +1224,25 @@ python -m async_task migrate \
     --postgres-queue-table my_task_queue \
     --postgres-dead-letter-table my_dlq
 
+# MySQL migration with custom DSN
+python -m async_task migrate \
+    --driver mysql \
+    --mysql-dsn mysql://user:pass@localhost:3306/mydb
+
+# MySQL migration with custom table names
+python -m async_task migrate \
+    --driver mysql \
+    --mysql-dsn mysql://user:pass@localhost:3306/mydb \
+    --mysql-queue-table my_task_queue \
+    --mysql-dead-letter-table my_dlq
+
 # Using environment variables
 export ASYNC_TASK_POSTGRES_DSN=postgresql://user:pass@localhost:5432/mydb
 python -m async_task migrate
+
+# Or for MySQL
+export ASYNC_TASK_MYSQL_DSN=mysql://user:pass@localhost:3306/mydb
+python -m async_task migrate --driver mysql
 ```
 
 **What it does:**
@@ -1087,7 +1259,7 @@ All configuration options can be set via environment variables. CLI arguments ta
 
 **General:**
 
-- `ASYNC_TASK_DRIVER` – Queue driver (`memory`, `redis`, `postgres`, `sqs`)
+- `ASYNC_TASK_DRIVER` – Queue driver (`memory`, `redis`, `postgres`, `mysql`, `sqs`)
 - `ASYNC_TASK_DEFAULT_QUEUE` – Default queue name
 
 **Redis:**
@@ -1102,6 +1274,12 @@ All configuration options can be set via environment variables. CLI arguments ta
 - `ASYNC_TASK_POSTGRES_DSN` – PostgreSQL connection DSN
 - `ASYNC_TASK_POSTGRES_QUEUE_TABLE` – Queue table name
 - `ASYNC_TASK_POSTGRES_DEAD_LETTER_TABLE` – Dead letter table name
+
+**MySQL:**
+
+- `ASYNC_TASK_MYSQL_DSN` – MySQL connection DSN
+- `ASYNC_TASK_MYSQL_QUEUE_TABLE` – Queue table name
+- `ASYNC_TASK_MYSQL_DEAD_LETTER_TABLE` – Dead letter table name
 
 **SQS:**
 
@@ -1261,7 +1439,7 @@ task_id = await send_email(
 
 ✅ **Do:**
 
-- **Use Redis or PostgreSQL** for production (Memory driver loses data on restart)
+- **Use Redis, PostgreSQL, or MySQL** for production (Memory driver loses data on restart)
 - **Configure proper retry delays** to avoid overwhelming systems during outages
 - **Set up monitoring and alerting** for queue sizes, worker health, and failed tasks
 - **Use environment variables** for configuration (never hardcode credentials)
@@ -1340,7 +1518,7 @@ uv run pyright
 ### Docker Services for Integration Tests
 
 ```bash
-# Start services (Redis, PostgreSQL, LocalStack for SQS)
+# Start services (Redis, PostgreSQL, MySQL, LocalStack for SQS)
 just docker-up
 
 # Run integration tests
@@ -1372,6 +1550,11 @@ just docker-down
 
   - `asyncpg` ≥0.30.0
   - PostgreSQL server 12+ (for `SKIP LOCKED` support)
+
+- **MySQL Driver**:
+
+  - `asyncmy` ≥0.2.10
+  - MySQL server 8.0+ (for `SKIP LOCKED` support)
 
 - **SQS Driver**:
   - `aioboto3` ≥15.5.0
@@ -1417,7 +1600,6 @@ Inspired by [Laravel's queue system](https://laravel.com/docs/queues). Built wit
 
 ## Roadmap
 
-- [ ] MySQL driver support
 - [ ] SQLite driver support
 - [ ] Oracle driver support
 - [ ] Task batching support

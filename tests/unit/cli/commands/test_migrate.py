@@ -47,7 +47,9 @@ class TestRunMigrate:
         config = Config(driver="redis")
 
         # Act & Assert
-        with raises(MigrationError, match="Migration is only supported for PostgreSQL driver"):
+        with raises(
+            MigrationError, match="Migration is only supported for PostgreSQL and MySQL drivers"
+        ):
             await run_migrate(args, config)
 
     async def test_run_migrate_with_memory_driver_raises_error(self) -> None:
@@ -56,7 +58,9 @@ class TestRunMigrate:
         config = Config(driver="memory")
 
         # Act & Assert
-        with raises(MigrationError, match="Migration is only supported for PostgreSQL driver"):
+        with raises(
+            MigrationError, match="Migration is only supported for PostgreSQL and MySQL drivers"
+        ):
             await run_migrate(args, config)
 
     async def test_run_migrate_with_sqs_driver_raises_error(self) -> None:
@@ -65,7 +69,9 @@ class TestRunMigrate:
         config = Config(driver="sqs")
 
         # Act & Assert
-        with raises(MigrationError, match="Migration is only supported for PostgreSQL driver"):
+        with raises(
+            MigrationError, match="Migration is only supported for PostgreSQL and MySQL drivers"
+        ):
             await run_migrate(args, config)
 
     @patch("async_task.cli.commands.migrate.isinstance")
