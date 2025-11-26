@@ -17,7 +17,7 @@ from pytest import main, mark
 
 from async_task.config import Config
 from async_task.core.dispatcher import Dispatcher, cleanup, get_dispatcher
-from async_task.core.task import Task
+from async_task.core.task import FunctionTask, Task
 from async_task.drivers.base_driver import BaseDriver
 from async_task.serializers import BaseSerializer, MsgpackSerializer
 
@@ -532,6 +532,188 @@ class TestDispatcherSerializeTask:
         assert "_task_id" not in call_arg["params"]
         assert "_attempts" not in call_arg["params"]
         assert "public_param" not in call_arg["params"]
+
+    def test_serialize_task_excludes_callable_attributes(self) -> None:
+        # Arrange
+        mock_driver = MagicMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
+        task = ConcreteTask(public_param="test")
+        task._task_id = "test-id"
+        task._attempts = 1
+
+        # Add callable attributes that should be excluded
+        def some_function() -> None:
+            pass
+
+        task.callable_attr = some_function  # type: ignore[attr-defined]
+        task.lambda_attr = lambda x: x  # type: ignore[attr-defined]
+
+        # Act
+        dispatcher._serialize_task(task)
+
+        # Assert
+        call_arg = mock_serializer.serialize.call_args[0][0]
+        params = call_arg["params"]
+        assert "public_param" in params
+        assert "callable_attr" not in params
+        assert "lambda_attr" not in params
+
+    def test_serialize_function_task_includes_function_metadata(self) -> None:
+        # Arrange
+        mock_driver = MagicMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
+
+        def test_func(x: int, y: str) -> str:
+            """Test function."""
+            return f"{x}:{y}"
+
+        task = FunctionTask(test_func, 1, y="test")
+        task._task_id = "test-id"
+        task._attempts = 0
+        task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+        # Act
+        dispatcher._serialize_task(task)
+
+        # Assert
+        mock_serializer.serialize.assert_called_once()
+        call_arg = mock_serializer.serialize.call_args[0][0]
+        assert call_arg["class"] == f"{FunctionTask.__module__}.{FunctionTask.__name__}"
+        assert call_arg["metadata"]["func_name"] == "test_func"
+        assert call_arg["metadata"]["func_module"] == test_func.__module__
+        assert "func_file" not in call_arg["metadata"]  # Not __main__ module
+
+    def test_serialize_function_task_handles_main_module_with_file_path(self) -> None:
+        # Arrange
+        import tempfile
+        from pathlib import Path
+
+        mock_driver = MagicMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
+
+        # Create a temporary Python file and define a function in it
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write("def test_func(x):\n    return x * 2\n")
+            temp_file = Path(f.name)
+
+        try:
+            # Import the function from the temp file
+            import importlib.util
+
+            spec = importlib.util.spec_from_file_location("temp_module", temp_file)
+            if spec is None or spec.loader is None:
+                raise ValueError("Could not load module spec")
+            temp_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(temp_module)
+
+            # Set module name to __main__ to simulate main module
+            temp_module.test_func.__module__ = "__main__"  # type: ignore[attr-defined]
+
+            task = FunctionTask(temp_module.test_func, 5)  # type: ignore[attr-defined]
+            task._task_id = "test-id"
+            task._attempts = 0
+            task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+            # Act
+            dispatcher._serialize_task(task)
+
+            # Assert
+            call_arg = mock_serializer.serialize.call_args[0][0]
+            assert call_arg["metadata"]["func_name"] == "test_func"
+            assert call_arg["metadata"]["func_module"] == "__main__"
+            assert "func_file" in call_arg["metadata"]
+            assert call_arg["metadata"]["func_file"] == str(temp_file)
+        finally:
+            # Cleanup
+            temp_file.unlink()
+
+    def test_serialize_function_task_handles_main_module_file_path_error(self) -> None:
+        # Arrange
+        mock_driver = MagicMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
+
+        # Create a mock function that simulates __main__ module
+        # but will raise an error when trying to get file path
+        mock_func = MagicMock()
+        mock_func.__name__ = "test_func"
+        mock_func.__module__ = "__main__"
+
+        # Make inspect.getfile raise an error
+        with patch("async_task.core.dispatcher.inspect.getfile") as mock_getfile:
+            mock_getfile.side_effect = OSError("Cannot get file path")
+
+            task = FunctionTask(mock_func)
+            task._task_id = "test-id"
+            task._attempts = 0
+            task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+            # Act
+            dispatcher._serialize_task(task)
+
+            # Assert
+            call_arg = mock_serializer.serialize.call_args[0][0]
+            assert call_arg["metadata"]["func_name"] == "test_func"
+            assert call_arg["metadata"]["func_module"] == "__main__"
+            assert "func_file" not in call_arg["metadata"]  # Fallback doesn't include func_file
+
+    def test_serialize_function_task_handles_main_module_type_error(self) -> None:
+        # Arrange
+        mock_driver = MagicMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
+
+        # Create a mock function that simulates __main__ module
+        # but will raise TypeError when trying to get file path
+        mock_func = MagicMock()
+        mock_func.__name__ = "test_func"
+        mock_func.__module__ = "__main__"
+
+        # Make inspect.getfile raise TypeError
+        with patch("async_task.core.dispatcher.inspect.getfile") as mock_getfile:
+            mock_getfile.side_effect = TypeError("Cannot get file path")
+
+            task = FunctionTask(mock_func)
+            task._task_id = "test-id"
+            task._attempts = 0
+            task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+            # Act
+            dispatcher._serialize_task(task)
+
+            # Assert
+            call_arg = mock_serializer.serialize.call_args[0][0]
+            assert call_arg["metadata"]["func_name"] == "test_func"
+            assert call_arg["metadata"]["func_module"] == "__main__"
+            assert "func_file" not in call_arg["metadata"]  # Fallback doesn't include func_file
+
+    def test_serialize_function_task_excludes_func_from_params(self) -> None:
+        # Arrange
+        mock_driver = MagicMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
+
+        def test_func(x: int) -> int:
+            return x * 2
+
+        task = FunctionTask(test_func, 5)
+        task._task_id = "test-id"
+        task._attempts = 0
+
+        # Act
+        dispatcher._serialize_task(task)
+
+        # Assert
+        call_arg = mock_serializer.serialize.call_args[0][0]
+        params = call_arg["params"]
+        # func is callable, so it should be excluded from params
+        assert "func" not in params
+        # args and kwargs should be included (they're not callable)
+        assert "args" in params
+        assert "kwargs" in params
 
 
 @mark.unit
