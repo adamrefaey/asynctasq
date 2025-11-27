@@ -18,7 +18,7 @@ from async_task.config import (
     get_global_config,
     set_global_config,
 )
-from async_task.drivers import DriverType
+from async_task.drivers import DRIVERS, DriverType
 
 
 @fixture
@@ -44,7 +44,7 @@ class TestDriverType:
 
     def test_driver_type_contains_all_drivers(self) -> None:
         # Arrange
-        expected_drivers = ("redis", "sqs", "postgres", "mysql", "rabbitmq")
+        expected_drivers = DRIVERS
 
         # Act
         actual_drivers = get_args(DriverType)
@@ -413,6 +413,51 @@ class TestConfigValidation:
             postgres_max_pool_size=50,
         )
         assert config is not None
+
+    # --- MySQL validation tests (merged here to keep config tests together) ---
+    def test_validate_mysql_max_attempts_zero_raises_error(self, clean_env) -> None:
+        with raises(ValueError, match="mysql_max_attempts must be positive"):
+            Config.from_env(mysql_max_attempts=0)
+
+    def test_validate_mysql_max_attempts_negative_raises_error(self, clean_env) -> None:
+        with raises(ValueError, match="mysql_max_attempts must be positive"):
+            Config.from_env(mysql_max_attempts=-5)
+
+    def test_validate_mysql_retry_delay_negative_raises_error(self, clean_env) -> None:
+        with raises(ValueError, match="mysql_retry_delay_seconds must be non-negative"):
+            Config.from_env(mysql_retry_delay_seconds=-1)
+
+    def test_validate_mysql_visibility_timeout_zero_raises_error(self, clean_env) -> None:
+        with raises(ValueError, match="mysql_visibility_timeout_seconds must be positive"):
+            Config.from_env(mysql_visibility_timeout_seconds=0)
+
+    def test_validate_mysql_min_pool_size_zero_raises_error(self, clean_env) -> None:
+        with raises(ValueError, match="mysql_min_pool_size must be positive"):
+            Config.from_env(mysql_min_pool_size=0)
+
+    def test_validate_mysql_max_pool_size_zero_raises_error(self, clean_env) -> None:
+        with raises(ValueError, match="mysql_max_pool_size must be positive"):
+            Config.from_env(mysql_max_pool_size=0)
+
+    def test_validate_mysql_min_greater_than_max_raises_error(self, clean_env) -> None:
+        with raises(
+            ValueError, match="mysql_min_pool_size cannot be greater than mysql_max_pool_size"
+        ):
+            Config.from_env(mysql_min_pool_size=20, mysql_max_pool_size=10)
+
+    def test_validate_mysql_valid_extreme_values_passes(self, clean_env) -> None:
+        config = Config.from_env(
+            mysql_max_attempts=10,
+            mysql_retry_delay_seconds=0,
+            mysql_visibility_timeout_seconds=1,
+            mysql_min_pool_size=1,
+            mysql_max_pool_size=1000,
+        )
+        assert config.mysql_max_attempts == 10
+        assert config.mysql_retry_delay_seconds == 0
+        assert config.mysql_visibility_timeout_seconds == 1
+        assert config.mysql_min_pool_size == 1
+        assert config.mysql_max_pool_size == 1000
 
 
 @mark.unit
