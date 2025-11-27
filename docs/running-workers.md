@@ -68,7 +68,7 @@ python -m async_task worker
 
 | Option          | Description                                  | Default   |
 | --------------- | -------------------------------------------- | --------- |
-| `--driver`      | Queue driver (redis/postgres/mysql/sqs)      | `redis`   |
+| `--driver`      | Queue driver (redis/postgres/mysql/rabbitmq/sqs)      | `redis`   |
 | `--queues`      | Comma-separated queue names (priority order) | `default` |
 | `--concurrency` | Max concurrent tasks                         | `10`      |
 

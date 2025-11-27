@@ -195,7 +195,7 @@ python -m async_task worker
 ## Quick Reference
 
 - **One-line setup:** `just init` — install deps and pre-commit hooks
-- **Start services:** `just services-up` — Redis, Postgres, MySQL, RabbitMQ for local integration tests
+- **Start services:** `just services-up` — Redis, PostgreSQL, MySQL, RabbitMQ, LocalStack (SQS) for local integration tests
 - **Run tests:** `just test` (or `pytest`) — use `just test-unit` / `just test-integration` to scope
 - **Run with coverage:** `just test-cov` or `pytest --cov=src/async_task --cov-report=html`
 - **Run the worker locally:** `python -m async_task worker`

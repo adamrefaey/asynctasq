@@ -12,7 +12,7 @@ python -m async_task worker [OPTIONS]
 
 | Option                          | Description                                  | Default                  |
 | ------------------------------- | -------------------------------------------- | ------------------------ |
-| `--driver DRIVER`               | Queue driver (redis/postgres/mysql/sqs)      | `redis`                  |
+| `--driver DRIVER`               | Queue driver (redis/postgres/mysql/rabbitmq/sqs) | `redis`                  |
 | `--queues QUEUES`               | Comma-separated queue names (priority order) | `default`                |
 | `--concurrency N`               | Max concurrent tasks                         | `10`                     |
 | `--redis-url URL`               | Redis connection URL                         | `redis://localhost:6379` |
@@ -54,6 +54,12 @@ python -m async_task worker \
 python -m async_task worker \
     --driver sqs \
     --sqs-region us-west-2
+
+# RabbitMQ worker
+python -m async_task worker \
+    --driver rabbitmq \
+    --queues default,emails \
+    --concurrency 5
 ```
 
 ---

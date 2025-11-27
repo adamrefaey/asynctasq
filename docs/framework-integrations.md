@@ -121,4 +121,4 @@ python -m async_task worker \
 - Graceful driver disconnection on shutdown
 - Zero-configuration with environment variables
 - Dependency injection for dispatcher and driver access
-- Works with all drivers (Redis, PostgreSQL, MySQL, SQS)
+- Works with all drivers (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS)

@@ -54,16 +54,16 @@ python -m async_task worker --queues low-priority,batch --concurrency 5
 ```python
 class ProcessPayment(Task[bool]):
     async def failed(self, exception: Exception) -> None:
-        # Log with context
+        # Log with context (ensure `logger` is defined/imported in your module)
         logger.error(
             f"Payment failed for user {self.user_id}",
             extra={
                 "task_id": self._task_id,
                 "attempts": self._attempts,
                 "user_id": self.user_id,
-                "amount": self.amount
+                "amount": self.amount,
             },
-            exc_info=exception
+            exc_info=exception,
         )
         # Alert on critical failures
         await notify_admin(exception)
@@ -79,7 +79,7 @@ class ProcessPayment(Task[bool]):
 - Use connection pooling (configured automatically)
 - Monitor queue sizes and adjust worker count accordingly
 - Consider task batching for high-volume operations
-- Use Redis driver for production (fastest)
+- Prefer `redis` for general production use; use `postgres` or `mysql` when you need ACID guarantees
 
 ## Production Deployment
 
