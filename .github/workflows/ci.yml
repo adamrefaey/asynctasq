@@ -190,9 +190,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: async_task_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -204,8 +204,10 @@ jobs:
       mysql:
         image: mysql:8
         env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: async_task_test
+          MYSQL_ROOT_PASSWORD: test
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+          MYSQL_DATABASE: test_db
         options: >-
           --health-cmd "mysqladmin ping"
           --health-interval 10s
@@ -287,34 +289,53 @@ jobs:
             return 1
           }
 
-          echo "Waiting for postgres:5432..."
-          wait_port 127.0.0.1 5432 || { echo "postgres not ready"; exit 1; }
+            echo "Waiting for postgres:5432..."
+            wait_port postgres 5432 || { echo "postgres not ready"; exit 1; }
 
-          echo "Waiting for redis:6379..."
-          wait_port 127.0.0.1 6379 || { echo "redis not ready"; exit 1; }
+            echo "Waiting for redis:6379..."
+            wait_port redis 6379 || { echo "redis not ready"; exit 1; }
 
-          echo "Waiting for mysql:3306..."
-          wait_port 127.0.0.1 3306 || { echo "mysql not ready"; exit 1; }
+            echo "Waiting for mysql:3306..."
+            wait_port mysql 3306 || { echo "mysql not ready"; exit 1; }
 
-          echo "Waiting for rabbitmq:5672..."
-          wait_port 127.0.0.1 5672 || { echo "rabbitmq not ready"; exit 1; }
+            echo "Waiting for rabbitmq:5672..."
+            wait_port rabbitmq 5672 || { echo "rabbitmq not ready"; exit 1; }
 
-          echo "Waiting for localstack:4566..."
-          wait_port 127.0.0.1 4566 || { echo "localstack not ready"; exit 1; }
+            echo "Waiting for localstack:4566..."
+            wait_port localstack 4566 || { echo "localstack not ready"; exit 1; }
 
       - name: Create LocalStack SQS queue
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install "boto3==1.40.61" "botocore==1.40.61" "s3transfer==0.14.0"
-          python .github/scripts/create_sqs_queue.py
+          LOCALSTACK_ENDPOINT=http://localstack:4566 LOCALSTACK_QUEUE_NAME=test-queue python .github/scripts/create_sqs_queue.py
+
+      - name: Initialize Postgres and MySQL schemas
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client default-mysql-client
+
+          echo "Initializing Postgres schemas..."
+          export PGPASSWORD=test
+          for f in tests/infrastructure/postgres-init/*.sql; do
+            echo "Applying $f to Postgres"
+            psql -h postgres -U test -d test_db -f "$f" || true
+          done
+
+          echo "Initializing MySQL schemas..."
+          for f in tests/infrastructure/mysql-init/*.sql; do
+            echo "Applying $f to MySQL"
+            mysql -h mysql -u test -ptest test_db < "$f" || true
+          done
 
       - name: Run integration tests (activate .venv)
         env:
-          ASYNC_TASK_REDIS_URL: redis://localhost:6379
-          ASYNC_TASK_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/async_task_test
-          ASYNC_TASK_MYSQL_URL: mysql://root:root@127.0.0.1:3306/async_task_test
-          ASYNC_TASK_RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+          ASYNC_TASK_REDIS_URL: redis://redis:6379
+          ASYNC_TASK_POSTGRES_URL: postgresql://test:test@postgres:5432/test_db
+          ASYNC_TASK_MYSQL_URL: mysql://test:test@mysql:3306/test_db
+          ASYNC_TASK_RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
         run: |
           set -euo pipefail
           if [ -f .venv/bin/activate ]; then
