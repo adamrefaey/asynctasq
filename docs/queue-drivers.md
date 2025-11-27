@@ -339,11 +339,11 @@ set_global_config(
 | **PostgreSQL** | Enterprise     | ACID, DLQ, visibility timeout, transactions   | Requires PostgreSQL setup      | PostgreSQL 14+ |
 | **MySQL**      | Enterprise     | ACID, DLQ, visibility timeout, transactions   | Requires MySQL setup           | MySQL 8.0+     |
 | **RabbitMQ**   | Production     | AMQP standard, mature, no plugins needed      | Requires RabbitMQ server       | RabbitMQ 3.8+  |
-| **SQS**        | AWS/Serverless | Managed, auto-scaling, zero ops, multi-region | AWS-specific, cost per message | AWS account    |
+| **AWS SQS**    | AWS/Serverless | Managed, auto-scaling, zero ops, multi-region | AWS-specific, cost per message | AWS account    |
 
 **Recommendation:**
 
 - **Production (general):** Use `redis` for most applications
-- **Production (enterprise):** Use `postgres` or `mysql` if you need ACID guarantees
-- **Production (AMQP):** Use `rabbitmq` if you have existing RabbitMQ infrastructure
-- **AWS/Cloud-native:** Use `sqs` for managed infrastructure
+- **Production (enterprise):** Use `postgres` or `mysql` when you need ACID guarantees
+- **AMQP-based systems:** Use `rabbitmq` if you have existing RabbitMQ infrastructure
+- **AWS/cloud-native:** Use `sqs` for managed infrastructure

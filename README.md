@@ -71,7 +71,7 @@ A modern, async-first, type-safe task queue Python package inspired by Laravel. 
 
 ### Multi-Driver Flexibility
 
-- **Switch drivers instantly** – Change one config line to swap between Redis, PostgreSQL, MySQL, or AWS SQS
+- **Switch drivers instantly** – Change one config line to swap between Redis, PostgreSQL, MySQL, RabbitMQ, or AWS SQS
 - **Same API everywhere** – Write once, run on any driver without code changes
 - **Per-task driver override** – Different tasks can use different drivers in the same application
 - **Production-ready options** – From Redis to enterprise databases to managed cloud queues
@@ -219,7 +219,7 @@ python -m async_task worker
 | ----------------------- | -------------------------------------------------- | ----------------------------------- |
 | **Async Support**       | ✅ Async-first, built with asyncio                 | ❌ No native asyncio support        |
 | **Type Safety**         | ✅ Full type hints, Generic[T]                     | ⚠️ Third-party stubs (celery-types) |
-| **Multi-Driver**        | ✅ 4 drivers (Redis/PG/MySQL/SQS)                  | ⚠️ Redis/RabbitMQ/SQS brokers       |
+| **Multi-Driver**        | ✅ 5 drivers (Redis/PostgreSQL/MySQL/RabbitMQ/SQS) | ⚠️ Redis/RabbitMQ/SQS brokers       |
 | **ORM Integration**     | ✅ Auto-serialization (SQLAlchemy/Django/Tortoise) | ❌ Manual serialization             |
 | **Serialization**       | ✅ msgpack (fast, binary)                          | ⚠️ JSON/pickle (slower)             |
 | **FastAPI Integration** | ✅ First-class, lifespan management                | ⚠️ Manual setup                     |
