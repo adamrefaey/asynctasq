@@ -204,7 +204,7 @@ python -m async_task worker
 
 ## CI & Contributing (short)
 
-- **CI runs on PRs and pushes to `main`** and includes lint, type checks and tests across Python 3.11–3.13.
+- **CI runs on PRs and pushes to `main`** and includes lint, type checks and tests across Python 3.11–3.14.
 - **Pre-commit hooks** enforce formatting and static checks locally before commits (see `./setup-pre-commit.sh`).
 - **Branch protection:** enable required status checks (CI success, lint, unit/integration jobs) for `main`.
 - **Coverage badge:** the repository updates `.github/coverage.svg` automatically via `.github/workflows/coverage-badge.yml`.
