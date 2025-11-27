@@ -1173,14 +1173,14 @@ Function-based tasks in Async Task provide a simple, powerful way to convert any
 
 ### Key Features
 
-✅ **Simple syntax** - Just add `@task` decorator to any function  
-✅ **Flexible configuration** - Queue, retries, timeout, driver via decorator  
-✅ **Multiple dispatch methods** - Direct dispatch, delayed execution, method chaining  
-✅ **Async and sync support** - Automatic thread pool for sync functions  
-✅ **ORM integration** - Automatic serialization for SQLAlchemy, Django, Tortoise  
-✅ **Driver overrides** - Per-task driver selection (string or instance)  
-✅ **Method chaining** - Fluent API for runtime configuration overrides  
-✅ **Type safety** - Full type hints and Generic support  
+✅ **Simple syntax** - Just add `@task` decorator to any function
+✅ **Flexible configuration** - Queue, retries, timeout, driver via decorator
+✅ **Multiple dispatch methods** - Direct dispatch, delayed execution, method chaining
+✅ **Async and sync support** - Automatic thread pool for sync functions
+✅ **ORM integration** - Automatic serialization for SQLAlchemy, Django, Tortoise
+✅ **Driver overrides** - Per-task driver selection (string or instance)
+✅ **Method chaining** - Fluent API for runtime configuration overrides
+✅ **Type safety** - Full type hints and Generic support
 ✅ **Payload optimization** - ORM models serialized as lightweight references
 
 ### Quick Start

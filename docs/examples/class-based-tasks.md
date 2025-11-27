@@ -1847,16 +1847,16 @@ Class-based tasks in Async Task provide a powerful, flexible way to create reusa
 
 ### Key Features
 
-✅ **Lifecycle hooks** - `handle()`, `failed()`, `should_retry()` for complete control  
-✅ **Reusable and testable** - Class-based design for better organization  
-✅ **Flexible configuration** - Queue, retries, timeout, driver via class attributes  
-✅ **Multiple dispatch methods** - Direct dispatch, delayed execution, method chaining  
-✅ **Async and sync support** - `Task` for async, `SyncTask` for blocking operations  
-✅ **ORM integration** - Automatic serialization for SQLAlchemy, Django, Tortoise  
-✅ **Driver overrides** - Per-task driver selection (string or instance)  
-✅ **Method chaining** - Fluent API for runtime configuration overrides  
-✅ **Type safety** - Full type hints and Generic support  
-✅ **Task metadata** - Access task ID, attempts, dispatched time  
+✅ **Lifecycle hooks** - `handle()`, `failed()`, `should_retry()` for complete control
+✅ **Reusable and testable** - Class-based design for better organization
+✅ **Flexible configuration** - Queue, retries, timeout, driver via class attributes
+✅ **Multiple dispatch methods** - Direct dispatch, delayed execution, method chaining
+✅ **Async and sync support** - `Task` for async, `SyncTask` for blocking operations
+✅ **ORM integration** - Automatic serialization for SQLAlchemy, Django, Tortoise
+✅ **Driver overrides** - Per-task driver selection (string or instance)
+✅ **Method chaining** - Fluent API for runtime configuration overrides
+✅ **Type safety** - Full type hints and Generic support
+✅ **Task metadata** - Access task ID, attempts, dispatched time
 ✅ **Payload optimization** - ORM models serialized as lightweight references
 
 ### Quick Start

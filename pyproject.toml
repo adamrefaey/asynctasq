@@ -78,74 +78,17 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-select = [
-    "E",     # pycodestyle errors
-    "W",     # pycodestyle warnings
-    "F",     # pyflakes
-    "I",     # isort
-    "B",     # flake8-bugbear
-    "C4",    # flake8-comprehensions
-    "UP",    # pyupgrade
-    "N",     # pep8-naming
-    "YTT",   # flake8-2020
-    "ASYNC", # flake8-async
-    "S",     # flake8-bandit (security)
-    "BLE",   # flake8-blind-except
-    "A",     # flake8-builtins
-    "COM",   # flake8-commas
-    "C90",   # mccabe complexity
-    "DTZ",   # flake8-datetimez
-    "T10",   # flake8-debugger
-    "EM",    # flake8-errmsg
-    "EXE",   # flake8-executable
-    "ISC",   # flake8-implicit-str-concat
-    "ICN",   # flake8-import-conventions
-    "G",     # flake8-logging-format
-    "INP",   # flake8-no-pep420
-    "PIE",   # flake8-pie
-    "T20",   # flake8-print
-    "PT",    # flake8-pytest-style
-    "Q",     # flake8-quotes
-    "RSE",   # flake8-raise
-    "RET",   # flake8-return
-    "SLF",   # flake8-self
-    "SIM",   # flake8-simplify
-    "TID",   # flake8-tidy-imports
-    # flake8-type-checking (removed - not recognized by ruff)
-    "ARG",  # flake8-unused-arguments
-    "PTH",  # flake8-use-pathlib
-    "ERA",  # eradicate
-    "PD",   # pandas-vet
-    "PGH",  # pygrep-hooks
-    "PL",   # pylint
-    "TRY",  # tryceratops
-    "FLY",  # flynt
-    "NPY",  # numpy-specific
-    "PERF", # perflint
-    "RUF",  # ruff-specific
-]
-ignore = [
-    "E501",    # line too long (handled by formatter)
-    "S101",    # use of assert detected (pytest uses assertions)
-    "S311",    # standard pseudo-random generators are not suitable for cryptographic purposes
-    "TRY003",  # avoid specifying long messages outside exception class
-    "PLR0913", # too many arguments
-    "PLR2004", # magic value used in comparison
-    "COM812",  # trailing comma missing (conflicts with formatter)
-    "ISC001",  # single line implicit string concatenation (conflicts with formatter)
-]
 
-[tool.ruff.per-file-ignores]
-"tests/**/*.py" = [
-    "S101",    # use of assert in tests
-    "ARG001",  # unused function argument (fixtures)
-    "PLR2004", # magic values in tests
-    "S105",    # possible hardcoded password (test credentials)
-    "S106",    # possible hardcoded password (test credentials)
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
 ]
-"__init__.py" = [
-    "F401", # imported but unused (re-exports)
-]
+ignore = ["E501"] # line too long (handled by formatter)
 
 [tool.ruff.isort]
 known-first-party = ["async_task"]

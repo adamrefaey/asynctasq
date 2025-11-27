@@ -23,12 +23,13 @@ Note:
 """
 
 import asyncio
-import json
 from collections.abc import AsyncGenerator
+import json
+from typing import Any, cast
 
 import aioboto3
-import pytest_asyncio
 from pytest import fixture, main, mark, raises
+import pytest_asyncio
 
 from async_task.drivers.sqs_driver import SQSDriver
 
@@ -62,13 +63,17 @@ async def sqs_client(localstack_endpoint: str, aws_region: str) -> AsyncGenerato
     Note: LocalStack doesn't require real AWS credentials.
     """
     session = aioboto3.Session()
-    async with session.client(
-        "sqs",
-        endpoint_url=localstack_endpoint,
-        region_name=aws_region,
-        aws_access_key_id="test",
-        aws_secret_access_key="test",
-    ) as client:
+    client_cm = cast(
+        Any,
+        session.client(
+            "sqs",
+            endpoint_url=localstack_endpoint,
+            region_name=aws_region,
+            aws_access_key_id="test",
+            aws_secret_access_key="test",
+        ),
+    )
+    async with client_cm as client:
         yield client
 
 
@@ -596,13 +601,17 @@ class TestSQSDriverEdgeCases:
         num_queues = 20
         payload = json.dumps({"task": "data"}).encode("utf-8")
         session = aioboto3.Session()
-        async with session.client(
-            "sqs",
-            endpoint_url=LOCALSTACK_ENDPOINT,
-            region_name=aws_region,
-            aws_access_key_id="test",
-            aws_secret_access_key="test",
-        ) as client:
+        client_cm = cast(
+            Any,
+            session.client(
+                "sqs",
+                endpoint_url=LOCALSTACK_ENDPOINT,
+                region_name=aws_region,
+                aws_access_key_id="test",
+                aws_secret_access_key="test",
+            ),
+        )
+        async with client_cm as client:
             for i in range(num_queues):
                 await client.create_queue(QueueName=f"queue-{i}")
         for i in range(num_queues):
@@ -622,13 +631,17 @@ class TestSQSDriverEdgeCases:
         ]  # SQS does not allow colons in queue names
         payload = json.dumps({"task": "data"}).encode("utf-8")
         session = aioboto3.Session()
-        async with session.client(
-            "sqs",
-            endpoint_url=LOCALSTACK_ENDPOINT,
-            region_name=aws_region,
-            aws_access_key_id="test",
-            aws_secret_access_key="test",
-        ) as client:
+        client_cm = cast(
+            Any,
+            session.client(
+                "sqs",
+                endpoint_url=LOCALSTACK_ENDPOINT,
+                region_name=aws_region,
+                aws_access_key_id="test",
+                aws_secret_access_key="test",
+            ),
+        )
+        async with client_cm as client:
             for queue_name in queue_names:
                 await client.create_queue(QueueName=queue_name)
         for queue_name in queue_names:

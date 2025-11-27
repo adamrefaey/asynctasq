@@ -24,9 +24,9 @@ from collections.abc import AsyncGenerator
 from time import time
 
 import aio_pika
-import pytest_asyncio
 from aio_pika.abc import AbstractRobustConnection
 from pytest import fixture, main, mark
+import pytest_asyncio
 
 from async_task.drivers.rabbitmq_driver import RabbitMQDriver
 

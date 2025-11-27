@@ -1,10 +1,10 @@
 import asyncio
-import importlib.util
-import logging
-import signal
 from collections.abc import Sequence
 from datetime import datetime
+import importlib.util
+import logging
 from pathlib import Path
+import signal
 
 from ..drivers.base_driver import BaseDriver
 from ..serializers.base_serializer import BaseSerializer

@@ -28,8 +28,8 @@ from time import time
 from uuid import uuid4
 
 import asyncmy
-import pytest_asyncio
 from pytest import fixture, main, mark
+import pytest_asyncio
 
 from async_task.drivers.mysql_driver import MySQLDriver
 

@@ -19,18 +19,18 @@ Note:
 """
 
 import asyncio
-import contextvars
 from collections.abc import AsyncGenerator
+import contextvars
 from datetime import datetime
 
+from asgiref.sync import sync_to_async
 import asyncpg
 import django
-import pytest_asyncio
-from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.exceptions import AppRegistryNotReady
 from django.db import connections, models
 from pytest import fixture, main, mark, skip
+import pytest_asyncio
 from sqlalchemy import Column, DateTime, Integer, String, create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker

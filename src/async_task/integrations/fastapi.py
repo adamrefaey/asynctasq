@@ -4,9 +4,9 @@ Provides seamless integration with FastAPI applications through lifespan managem
 and dependency injection.
 """
 
-import logging
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+import logging
+from typing import TYPE_CHECKING, Any
 
 from ..config import Config, get_global_config
 from ..core.dispatcher import Dispatcher
@@ -16,7 +16,6 @@ from ..drivers.base_driver import BaseDriver
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-    from fastapi import FastAPI
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ class AsyncTaskIntegration:
         self._initialized = False
 
     @asynccontextmanager
-    async def lifespan(self, app: "FastAPI") -> "AsyncGenerator[None, None]":
+    async def lifespan(self, app: Any) -> "AsyncGenerator[None, None]":
         """FastAPI lifespan context manager.
 
         Handles startup and shutdown of queue drivers:

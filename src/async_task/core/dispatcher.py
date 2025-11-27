@@ -1,8 +1,8 @@
+from datetime import UTC, datetime
 import inspect
 import logging
-import uuid
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
+import uuid
 
 from ..config import Config, DriverType, get_global_config
 from ..drivers.base_driver import BaseDriver

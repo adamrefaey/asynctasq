@@ -1,6 +1,6 @@
 import asyncio
-import struct
 from dataclasses import dataclass, field
+import struct
 from time import time as current_time
 
 import aio_pika

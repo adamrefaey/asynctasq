@@ -587,8 +587,8 @@ class TestDispatcherSerializeTask:
 
     def test_serialize_function_task_handles_main_module_with_file_path(self) -> None:
         # Arrange
-        import tempfile
         from pathlib import Path
+        import tempfile
 
         mock_driver = MagicMock(spec=BaseDriver)
         mock_serializer = MagicMock(spec=BaseSerializer)

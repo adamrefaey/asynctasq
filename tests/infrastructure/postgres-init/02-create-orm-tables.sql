@@ -57,4 +57,3 @@ GRANT ALL PRIVILEGES ON TABLE tortoise_test_orders TO test;
 GRANT ALL PRIVILEGES ON SEQUENCE sqlalchemy_test_users_id_seq TO test;
 GRANT ALL PRIVILEGES ON SEQUENCE django_test_products_id_seq TO test;
 GRANT ALL PRIVILEGES ON SEQUENCE tortoise_test_orders_id_seq TO test;
-

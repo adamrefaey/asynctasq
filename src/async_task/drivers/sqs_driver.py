@@ -82,9 +82,11 @@ class SQSDriver(BaseDriver):
         if self.endpoint_url:
             client_kwargs["endpoint_url"] = self.endpoint_url
 
-        self.client = await self._exit_stack.enter_async_context(
-            self.session.client("sqs", **client_kwargs)
-        )
+        # aioboto3's client is an async context manager but types from
+        # types-aiobotocore may not perfectly match; cast to Any so Pyright
+        # accepts the enter_async_context usage here.
+        client_cm = cast(Any, self.session.client("sqs", **client_kwargs))
+        self.client = await self._exit_stack.enter_async_context(client_cm)
 
     async def disconnect(self) -> None:
         """Close connection and cleanup resources.

@@ -1373,8 +1373,8 @@ class TestWorkerDeserializeTask:
     @mark.asyncio
     async def test_deserialize_task_handles_function_task_with_main_module(self) -> None:
         # Arrange
-        import tempfile
         from pathlib import Path
+        import tempfile
 
         mock_driver = AsyncMock(spec=BaseDriver)
         mock_serializer = MagicMock(spec=BaseSerializer)

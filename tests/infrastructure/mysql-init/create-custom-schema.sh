@@ -96,4 +96,3 @@ echo -e "${YELLOW}    dsn='mysql://test:test@localhost:3306/test_db',${NC}"
 echo -e "${YELLOW}    queue_table='${QUEUE_TABLE}',${NC}"
 echo -e "${YELLOW}    dead_letter_table='${DLQ_TABLE}'${NC}"
 echo -e "${YELLOW})${NC}"
-

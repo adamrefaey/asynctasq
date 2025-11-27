@@ -53,4 +53,3 @@ SELECT '  - Created table: task_queue' AS message;
 SELECT '  - Created index: idx_task_queue_lookup' AS message;
 SELECT '  - Created table: dead_letter_queue' AS message;
 SELECT '  - Granted permissions to user: test' AS message;
-

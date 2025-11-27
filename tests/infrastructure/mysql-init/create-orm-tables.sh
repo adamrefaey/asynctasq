@@ -55,4 +55,3 @@ echo -e "${GREEN}  - Created SQLAlchemy tables: sqlalchemy_test_users, sqlalchem
 echo -e "${GREEN}  - Created Django table: django_test_products${NC}"
 echo -e "${GREEN}  - Created Tortoise table: tortoise_test_orders${NC}"
 echo -e "${GREEN}  - Granted permissions to user: ${DB_USER}${NC}"
-

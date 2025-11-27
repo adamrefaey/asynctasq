@@ -1,0 +1,88 @@
+# Pre-commit hooks configuration - tuned for fast local checks and reliable CI
+# See https://pre-commit.com for details
+
+default_language_version:
+  # Use the `python` executable from the active environment so pre-commit
+  # can reuse your project's `.venv` if it's activated before installing
+  # hooks. This avoids duplicating heavy dependencies in the pre-commit
+  # environment and keeps local dev faster/consistent with CI.
+  python: python
+
+repos:
+  # Ruff - fast linter + formatter. We run the fixer first, then the formatter.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+        types_or: [python, pyi]
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # Pyright - static type checker. Keep additional deps minimal here.
+  # If you need Pyright to resolve many third-party packages, prefer running
+  # Pyright in CI with the project's venv or add only required items below.
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.407
+    hooks:
+      - id: pyright
+        # Pragmatic set of packages so Pyright inside pre-commit can resolve
+        # common optional imports used by drivers and tests. CI can run a
+        # stricter environment using the project's venv if necessary.
+        additional_dependencies:
+          - msgpack>=1.1.0
+          - pytest>=7.0.0
+          - pytest-asyncio>=1.3.0
+          - aio-pika>=9.0.0
+          - asyncpg>=0.30.0
+          - asyncmy>=0.2.10
+          - redis>=4.0.0
+          - aioboto3>=8.0.0
+          - types-aiobotocore-sqs>=0.0.1
+          - sqlalchemy>=2.0.0
+          - django>=4.2
+          - tortoise-orm>=0.25.0
+
+  # Standard hooks for whitespace, JSON/TOML/YAML checks and basic safety
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # Validate pyproject.toml schema. In CI without network, consider adding
+  # 'validate-pyproject-schema-store[all]' as an additional_dependency here.
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.24.1
+    hooks:
+      - id: validate-pyproject
+        # additional_dependencies: ["validate-pyproject-schema-store[all]"]
+
+  # Secrets detection (gitleaks). Use a baseline or CI run to minimize noise.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+        args: ["--redact"]
+
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ""
+  autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

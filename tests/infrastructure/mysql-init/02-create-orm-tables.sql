@@ -57,4 +57,3 @@ GRANT ALL PRIVILEGES ON test_db.sqlalchemy_test_user_sessions TO 'test'@'%';
 GRANT ALL PRIVILEGES ON test_db.django_test_products TO 'test'@'%';
 GRANT ALL PRIVILEGES ON test_db.tortoise_test_orders TO 'test'@'%';
 FLUSH PRIVILEGES;
-

@@ -23,8 +23,8 @@ import asyncio
 from collections.abc import AsyncGenerator
 from time import time
 
-import pytest_asyncio
 from pytest import fixture, main, mark
+import pytest_asyncio
 from redis.asyncio import Redis
 
 from async_task.drivers.redis_driver import RedisDriver, maybe_await
