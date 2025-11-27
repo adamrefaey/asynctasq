@@ -4,9 +4,11 @@ import logging
 from typing import TYPE_CHECKING, cast
 import uuid
 
-from ..config import Config, DriverType, get_global_config
-from ..drivers.base_driver import BaseDriver
-from ..serializers import BaseSerializer, MsgpackSerializer
+from async_task.config import Config, get_global_config
+from async_task.drivers import DriverType
+from async_task.drivers.base_driver import BaseDriver
+from async_task.serializers import BaseSerializer, MsgpackSerializer
+
 from .driver_factory import DriverFactory
 
 if TYPE_CHECKING:

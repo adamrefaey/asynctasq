@@ -13,8 +13,9 @@ from unittest.mock import MagicMock, patch
 
 from pytest import main, mark, raises
 
-from async_task.config import Config, DriverType
+from async_task.config import Config
 from async_task.core.driver_factory import DriverFactory
+from async_task.drivers import DriverType
 from async_task.drivers.mysql_driver import MySQLDriver
 from async_task.drivers.postgres_driver import PostgresDriver
 from async_task.drivers.redis_driver import RedisDriver

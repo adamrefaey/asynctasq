@@ -6,7 +6,7 @@ import functools
 import inspect
 from typing import Any, Generic, Protocol, Self, TypeVar, overload
 
-from ..drivers.base_driver import BaseDriver
+from async_task.drivers.base_driver import BaseDriver
 
 T = TypeVar("T")
 

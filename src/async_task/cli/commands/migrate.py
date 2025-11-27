@@ -3,10 +3,10 @@
 import argparse
 import logging
 
-from ...config import Config
-from ...core.driver_factory import DriverFactory
-from ...drivers.mysql_driver import MySQLDriver
-from ...drivers.postgres_driver import PostgresDriver
+from async_task.config import Config
+from async_task.core.driver_factory import DriverFactory
+from async_task.drivers.mysql_driver import MySQLDriver
+from async_task.drivers.postgres_driver import PostgresDriver
 
 logger = logging.getLogger(__name__)
 

@@ -8,10 +8,10 @@ from contextlib import asynccontextmanager
 import logging
 from typing import TYPE_CHECKING, Any
 
-from ..config import Config, get_global_config
-from ..core.dispatcher import Dispatcher
-from ..core.driver_factory import DriverFactory
-from ..drivers.base_driver import BaseDriver
+from async_task.config import Config, get_global_config
+from async_task.core.dispatcher import Dispatcher
+from async_task.core.driver_factory import DriverFactory
+from async_task.drivers.base_driver import BaseDriver
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator

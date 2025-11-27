@@ -6,9 +6,10 @@ import logging
 from pathlib import Path
 import signal
 
-from ..drivers.base_driver import BaseDriver
-from ..serializers.base_serializer import BaseSerializer
-from ..serializers.msgpack_serializer import MsgpackSerializer
+from async_task.drivers.base_driver import BaseDriver
+from async_task.serializers.base_serializer import BaseSerializer
+from async_task.serializers.msgpack_serializer import MsgpackSerializer
+
 from .task import Task
 
 logger = logging.getLogger(__name__)

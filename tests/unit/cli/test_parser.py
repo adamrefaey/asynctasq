@@ -12,6 +12,7 @@ import argparse
 from pytest import main, mark, raises
 
 from async_task.cli.parser import add_driver_args, create_parser
+from async_task.drivers import DRIVERS
 
 
 @mark.unit
@@ -116,7 +117,7 @@ class TestAddDriverArgs:
         add_driver_args(parser)
 
         # Act & Assert
-        for driver in ["redis", "sqs", "postgres", "mysql"]:
+        for driver in DRIVERS:
             args = parser.parse_args(["--driver", driver])
             assert args.driver == driver
 

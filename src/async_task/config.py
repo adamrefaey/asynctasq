@@ -1,10 +1,9 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import os
-from typing import Any, Literal, TypeAlias
+from typing import Any
 
-DriverType: TypeAlias = Literal["redis", "sqs", "postgres", "mysql", "rabbitmq"]
-
+from async_task.drivers import DriverType
 
 # Environment variable mapping: field_name -> (env_var, default_value, type_converter)
 ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {

@@ -15,10 +15,10 @@ from pytest import fixture, main, mark, raises
 from async_task.config import (
     ENV_VAR_MAPPING,
     Config,
-    DriverType,
     get_global_config,
     set_global_config,
 )
+from async_task.drivers import DriverType
 
 
 @fixture
