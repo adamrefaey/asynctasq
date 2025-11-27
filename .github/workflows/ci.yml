@@ -348,8 +348,8 @@ jobs:
 
           echo "Initializing MySQL schemas..."
           for f in tests/infrastructure/mysql-init/*.sql; do
-            echo "Applying $f to MySQL"
-            mysql -h 127.0.0.1 -u test -ptest test_db < "$f"
+            echo "Applying $f to MySQL as root"
+            mysql -h 127.0.0.1 -u root -ptest test_db < "$f"
           done
 
       - name: Run integration tests (activate .venv)
