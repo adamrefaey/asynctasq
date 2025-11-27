@@ -47,14 +47,38 @@ jobs:
           python -m pip install --upgrade pip
           uv sync --all-extras --group dev
 
-      - name: Check formatting with Ruff
-        run: ruff format --check .
+      - name: Add project .venv to PATH
+        run: |
+          echo "${{ github.workspace }}/.venv/bin" >> $GITHUB_PATH
 
-      - name: Lint with Ruff
-        run: ruff check .
+      - name: Verify lint tools are available
+        run: |
+          echo "PATH=$PATH"
+          if ! command -v ruff >/dev/null 2>&1; then
+            echo "ruff not found in PATH; listing .venv/bin:";
+            ls -la .venv/bin || true;
+            python -m pip show ruff || true;
+            exit 1;
+          fi
+          ruff --version
+          if ! command -v pyright >/dev/null 2>&1; then
+            echo "pyright not found in PATH; attempting to show package info:";
+            python -m pip show pyright || true;
+          else
+            pyright --version || true
+          fi
 
-      - name: Type check with Pyright
-        run: pyright
+      - name: Run linters (activate .venv)
+        run: |
+          set -euo pipefail
+          # activate the virtualenv for this step so ruff/pyright are from .venv
+          if [ -f .venv/bin/activate ]; then
+            # shellcheck disable=SC1091
+            . .venv/bin/activate
+          fi
+          ruff format --check .
+          ruff check .
+          pyright
 
   unit-tests:
     name: Unit Tests (Python ${{ matrix.python-version }})
@@ -94,8 +118,27 @@ jobs:
           python -m pip install --upgrade pip
           uv sync --all-extras --group dev
 
-      - name: Run unit tests
-        run: pytest tests/unit -v --cov=src/async_task --cov-report=xml --cov-report=term-missing
+      - name: Add project .venv to PATH
+        run: |
+          echo "${{ github.workspace }}/.venv/bin" >> $GITHUB_PATH
+
+      - name: Verify test tools are available
+        run: |
+          if ! command -v pytest >/dev/null 2>&1; then
+            echo "pytest not found in PATH; listing .venv/bin:";
+            ls -la .venv/bin || true;
+            python -m pip show pytest || true;
+            exit 1;
+          fi
+          pytest --version
+
+      - name: Run unit tests (activate .venv)
+        run: |
+          set -euo pipefail
+          if [ -f .venv/bin/activate ]; then
+            . .venv/bin/activate
+          fi
+          pytest tests/unit -v --cov=src/async_task --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage artifact
         if: ${{ always() }}
@@ -204,6 +247,20 @@ jobs:
           python -m pip install --upgrade pip
           uv sync --all-extras --group dev
 
+      - name: Add project .venv to PATH
+        run: |
+          echo "${{ github.workspace }}/.venv/bin" >> $GITHUB_PATH
+
+      - name: Verify test tools are available
+        run: |
+          if ! command -v pytest >/dev/null 2>&1; then
+            echo "pytest not found in PATH; listing .venv/bin:";
+            ls -la .venv/bin || true;
+            python -m pip show pytest || true;
+            exit 1;
+          fi
+          pytest --version
+
       - name: Wait for services (robust)
         run: |
           set -e
@@ -216,13 +273,18 @@ jobs:
           # wait for rabbitmq
           for i in {1..60}; do rabbitmq-diagnostics -q ping && break || sleep 1; done
 
-      - name: Run integration tests
+      - name: Run integration tests (activate .venv)
         env:
           ASYNC_TASK_REDIS_URL: redis://localhost:6379
           ASYNC_TASK_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/async_task_test
           ASYNC_TASK_MYSQL_URL: mysql://root:root@127.0.0.1:3306/async_task_test
           ASYNC_TASK_RABBITMQ_URL: amqp://guest:guest@localhost:5672/
-        run: pytest tests/integration -v --cov=src/async_task --cov-report=xml --cov-report=term-missing
+        run: |
+          set -euo pipefail
+          if [ -f .venv/bin/activate ]; then
+            . .venv/bin/activate
+          fi
+          pytest tests/integration -v --cov=src/async_task --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage artifact
         if: ${{ always() }}
