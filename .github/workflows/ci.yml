@@ -165,6 +165,18 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
 
     services:
+      localstack:
+        image: localstack/localstack:4.0
+        ports:
+          - "127.0.0.1:4566:4566"
+        env:
+          SERVICES: sqs
+        options: >-
+          --health-cmd "awslocal sqs list-queues || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+          --health-start-period 10s
       redis:
         image: redis:7-alpine
         options: >-
@@ -272,6 +284,21 @@ jobs:
           for i in {1..60}; do mysqladmin ping -h 127.0.0.1 --silent && break || sleep 1; done
           # wait for rabbitmq
           for i in {1..60}; do rabbitmq-diagnostics -q ping && break || sleep 1; done
+          # wait for localstack (SQS)
+          for i in {1..60}; do
+            if curl -sS http://127.0.0.1:4566/health >/dev/null 2>&1; then
+              break
+            else
+              sleep 1
+            fi
+          done
+
+      - name: Create LocalStack SQS queue
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install awscli
+          AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test aws --endpoint-url=http://127.0.0.1:4566 sqs create-queue --queue-name test-queue
 
       - name: Run integration tests (activate .venv)
         env:
