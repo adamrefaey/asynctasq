@@ -1211,5 +1211,327 @@ class TestRabbitMQDriverEdgeCases:
             assert driver._delayed_exchange is not None
 
 
+@mark.unit
+class TestRabbitMQDriverGetQueueStats:
+    """Test RabbitMQDriver.get_queue_stats() method."""
+
+    @mark.asyncio
+    async def test_get_queue_stats_returns_stats(self) -> None:
+        """Test get_queue_stats() returns QueueStats."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_queue = AsyncMock()
+        mock_delayed_queue = AsyncMock()
+        mock_queue_state = MagicMock()
+        mock_queue_state.message_count = 5
+        mock_delayed_state = MagicMock()
+        mock_delayed_state.message_count = 2
+        mock_queue.declare = AsyncMock(return_value=mock_queue_state)
+        mock_delayed_queue.declare = AsyncMock(return_value=mock_delayed_state)
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(side_effect=[mock_queue, mock_delayed_queue])
+            mock_queue.bind = AsyncMock()
+            mock_delayed_queue.bind = AsyncMock()
+
+            await driver.connect()
+
+            # Act
+            stats = await driver.get_queue_stats("default")
+
+            # Assert
+            assert stats.name == "default"
+            assert stats.depth == 7  # 5 + 2 (main + delayed)
+            assert stats.processing == 0
+            assert stats.completed_total == 0
+            assert stats.failed_total == 0
+
+    @mark.asyncio
+    async def test_get_queue_stats_includes_in_flight(self) -> None:
+        """Test get_queue_stats() includes in-flight messages in processing count."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_queue = AsyncMock()
+        mock_delayed_queue = AsyncMock()
+        mock_queue_state = MagicMock()
+        mock_queue_state.message_count = 3
+        mock_delayed_state = MagicMock()
+        mock_delayed_state.message_count = 1
+        mock_queue.declare = AsyncMock(return_value=mock_queue_state)
+        mock_delayed_queue.declare = AsyncMock(return_value=mock_delayed_state)
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(side_effect=[mock_queue, mock_delayed_queue])
+            mock_queue.bind = AsyncMock()
+            mock_delayed_queue.bind = AsyncMock()
+
+            await driver.connect()
+            driver._in_flight_per_queue["default"] = 2  # 2 in-flight messages
+
+            # Act
+            stats = await driver.get_queue_stats("default")
+
+            # Assert
+            assert stats.processing == 2
+            assert stats.depth == 4  # 3 + 1 (main + delayed)
+
+
+@mark.unit
+class TestRabbitMQDriverGetAllQueueNames:
+    """Test RabbitMQDriver.get_all_queue_names() method."""
+
+    @mark.asyncio
+    async def test_get_all_queue_names_returns_cached_queues(self) -> None:
+        """Test get_all_queue_names() returns queue names from cache."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_queue1 = AsyncMock()
+        mock_queue2 = AsyncMock()
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(side_effect=[mock_queue1, mock_queue2])
+            mock_queue1.bind = AsyncMock()
+            mock_queue2.bind = AsyncMock()
+
+            await driver.connect()
+            await driver._ensure_queue("queue1")
+            await driver._ensure_queue("queue2")
+
+            # Act
+            queue_names = await driver.get_all_queue_names()
+
+            # Assert
+            assert "queue1" in queue_names
+            assert "queue2" in queue_names
+            assert len(queue_names) == 2
+
+    @mark.asyncio
+    async def test_get_all_queue_names_excludes_delayed_queues(self) -> None:
+        """Test get_all_queue_names() excludes delayed queue names."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_queue = AsyncMock()
+        mock_delayed_queue = AsyncMock()
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(side_effect=[mock_queue, mock_delayed_queue])
+            mock_queue.bind = AsyncMock()
+            mock_delayed_queue.bind = AsyncMock()
+
+            await driver.connect()
+            await driver._ensure_queue("default")
+            await driver._ensure_delayed_queue("default")  # Creates "default_delayed"
+
+            # Act
+            queue_names = await driver.get_all_queue_names()
+
+            # Assert
+            assert "default" in queue_names
+            assert "default_delayed" not in queue_names
+
+    @mark.asyncio
+    async def test_get_all_queue_names_returns_empty_when_no_queues(self) -> None:
+        """Test get_all_queue_names() returns empty list when no queues accessed."""
+        # Arrange
+        driver = RabbitMQDriver()
+
+        # Act
+        queue_names = await driver.get_all_queue_names()
+
+        # Assert
+        assert queue_names == []
+
+
+@mark.unit
+class TestRabbitMQDriverGetGlobalStats:
+    """Test RabbitMQDriver.get_global_stats() method."""
+
+    @mark.asyncio
+    async def test_get_global_stats_aggregates_all_queues(self) -> None:
+        """Test get_global_stats() aggregates stats from all queues."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_queue1 = AsyncMock()
+        mock_queue2 = AsyncMock()
+        mock_delayed_queue1 = AsyncMock()
+        mock_delayed_queue2 = AsyncMock()
+        mock_queue1_state = MagicMock()
+        mock_queue1_state.message_count = 3
+        mock_queue2_state = MagicMock()
+        mock_queue2_state.message_count = 2
+        mock_delayed1_state = MagicMock()
+        mock_delayed1_state.message_count = 1
+        mock_delayed2_state = MagicMock()
+        mock_delayed2_state.message_count = 1
+        mock_queue1.declare = AsyncMock(return_value=mock_queue1_state)
+        mock_queue2.declare = AsyncMock(return_value=mock_queue2_state)
+        mock_delayed_queue1.declare = AsyncMock(return_value=mock_delayed1_state)
+        mock_delayed_queue2.declare = AsyncMock(return_value=mock_delayed2_state)
+
+        with patch(
+            "async_task.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(
+                side_effect=[mock_queue1, mock_delayed_queue1, mock_queue2, mock_delayed_queue2]
+            )
+            mock_queue1.bind = AsyncMock()
+            mock_queue2.bind = AsyncMock()
+            mock_delayed_queue1.bind = AsyncMock()
+            mock_delayed_queue2.bind = AsyncMock()
+
+            await driver.connect()
+            await driver._ensure_queue("queue1")
+            await driver._ensure_queue("queue2")
+            driver._in_flight_per_queue["queue1"] = 1
+            driver._in_flight_per_queue["queue2"] = 2
+
+            # Act
+            stats = await driver.get_global_stats()
+
+            # Assert
+            assert stats["pending"] == 7  # 3 + 2 + 1 + 1 (all queues + delayed)
+            assert stats["running"] == 3  # 1 + 2 (in-flight from both queues)
+            assert stats["completed"] == 0
+            assert stats["failed"] == 0
+            assert stats["total"] == 10  # 7 + 3
+
+    @mark.asyncio
+    async def test_get_global_stats_returns_zero_when_no_queues(self) -> None:
+        """Test get_global_stats() returns zeros when no queues exist."""
+        # Arrange
+        driver = RabbitMQDriver()
+
+        # Act
+        stats = await driver.get_global_stats()
+
+        # Assert
+        assert stats["pending"] == 0
+        assert stats["running"] == 0
+        assert stats["completed"] == 0
+        assert stats["failed"] == 0
+        assert stats["total"] == 0
+
+
+@mark.unit
+class TestRabbitMQDriverTaskManagement:
+    """Test RabbitMQDriver task management methods (AMQP limitations)."""
+
+    @mark.asyncio
+    async def test_get_running_tasks_returns_empty(self) -> None:
+        """Test get_running_tasks() returns empty list (AMQP limitation)."""
+        # Arrange
+        driver = RabbitMQDriver()
+
+        # Act
+        tasks = await driver.get_running_tasks(limit=50, offset=0)
+
+        # Assert
+        assert tasks == []
+
+    @mark.asyncio
+    async def test_get_tasks_returns_empty(self) -> None:
+        """Test get_tasks() returns empty list (AMQP limitation)."""
+        # Arrange
+        driver = RabbitMQDriver()
+
+        # Act
+        tasks, total = await driver.get_tasks(status="pending", queue="default", limit=50, offset=0)
+
+        # Assert
+        assert tasks == []
+        assert total == 0
+
+    @mark.asyncio
+    async def test_get_task_by_id_returns_none(self) -> None:
+        """Test get_task_by_id() returns None (AMQP limitation)."""
+        # Arrange
+        driver = RabbitMQDriver()
+
+        # Act
+        task = await driver.get_task_by_id("test-task-id")
+
+        # Assert
+        assert task is None
+
+    @mark.asyncio
+    async def test_retry_task_returns_false(self) -> None:
+        """Test retry_task() returns False (AMQP limitation)."""
+        # Arrange
+        driver = RabbitMQDriver()
+
+        # Act
+        result = await driver.retry_task("test-task-id")
+
+        # Assert
+        assert result is False
+
+    @mark.asyncio
+    async def test_delete_task_returns_false(self) -> None:
+        """Test delete_task() returns False (AMQP limitation)."""
+        # Arrange
+        driver = RabbitMQDriver()
+
+        # Act
+        result = await driver.delete_task("test-task-id")
+
+        # Assert
+        assert result is False
+
+    @mark.asyncio
+    async def test_get_worker_stats_returns_empty(self) -> None:
+        """Test get_worker_stats() returns empty list (AMQP limitation)."""
+        # Arrange
+        driver = RabbitMQDriver()
+
+        # Act
+        workers = await driver.get_worker_stats()
+
+        # Assert
+        assert workers == []
+
+
 if __name__ == "__main__":
     main([__file__, "-s", "-m", "unit"])

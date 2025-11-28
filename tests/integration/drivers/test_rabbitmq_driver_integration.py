@@ -1093,5 +1093,219 @@ class TestRabbitMQDriverAdditionalCoverage:
         await rabbitmq_driver.ack("default", receipt2)
 
 
+@mark.integration
+class TestRabbitMQDriverManagementMethods:
+    """Test RabbitMQDriver management and stats methods."""
+
+    @mark.asyncio
+    async def test_get_queue_stats_returns_correct_stats(
+        self, rabbitmq_driver: RabbitMQDriver
+    ) -> None:
+        """Test get_queue_stats() returns correct queue statistics."""
+        # Arrange
+        await rabbitmq_driver.enqueue("stats_queue", b"task1")
+        await rabbitmq_driver.enqueue("stats_queue", b"task2")
+        await rabbitmq_driver.enqueue("stats_queue", b"task3")
+
+        # Act
+        stats = await rabbitmq_driver.get_queue_stats("stats_queue")
+
+        # Assert
+        assert stats.name == "stats_queue"
+        assert stats.depth >= 3  # At least 3 tasks
+        assert stats.processing == 0  # No in-flight tasks
+        assert stats.completed_total == 0  # AMQP doesn't track completed
+        assert stats.failed_total == 0  # AMQP doesn't track failed
+
+    @mark.asyncio
+    async def test_get_queue_stats_includes_delayed_tasks(
+        self, rabbitmq_driver: RabbitMQDriver
+    ) -> None:
+        """Test get_queue_stats() includes delayed tasks in depth."""
+        # Arrange
+        await rabbitmq_driver.enqueue("stats_queue", b"immediate")
+        await rabbitmq_driver.enqueue("stats_queue", b"delayed", delay_seconds=100)
+
+        # Act
+        stats = await rabbitmq_driver.get_queue_stats("stats_queue")
+
+        # Assert
+        assert stats.depth >= 2  # Immediate + delayed
+
+    @mark.asyncio
+    async def test_get_queue_stats_includes_in_flight(
+        self, rabbitmq_driver: RabbitMQDriver
+    ) -> None:
+        """Test get_queue_stats() includes in-flight messages in processing count."""
+        # Arrange
+        await rabbitmq_driver.enqueue("stats_queue", b"task1")
+        await rabbitmq_driver.enqueue("stats_queue", b"task2")
+
+        # Dequeue to create in-flight messages
+        receipt1 = await rabbitmq_driver.dequeue("stats_queue", poll_seconds=0)
+        receipt2 = await rabbitmq_driver.dequeue("stats_queue", poll_seconds=0)
+
+        assert receipt1 is not None
+        assert receipt2 is not None
+
+        # Act
+        stats = await rabbitmq_driver.get_queue_stats("stats_queue")
+
+        # Assert
+        assert stats.processing == 2  # 2 in-flight messages
+
+        # Cleanup
+        await rabbitmq_driver.ack("stats_queue", receipt1)
+        await rabbitmq_driver.ack("stats_queue", receipt2)
+
+    @mark.asyncio
+    async def test_get_all_queue_names_returns_accessed_queues(
+        self, rabbitmq_driver: RabbitMQDriver
+    ) -> None:
+        """Test get_all_queue_names() returns queues that have been accessed."""
+        # Arrange
+        await rabbitmq_driver.enqueue("queue_a", b"task1")
+        await rabbitmq_driver.enqueue("queue_b", b"task2")
+        await rabbitmq_driver.enqueue("queue_c", b"task3")
+
+        # Act
+        queue_names = await rabbitmq_driver.get_all_queue_names()
+
+        # Assert
+        assert "queue_a" in queue_names
+        assert "queue_b" in queue_names
+        assert "queue_c" in queue_names
+
+    @mark.asyncio
+    async def test_get_all_queue_names_excludes_delayed_queues(
+        self, rabbitmq_driver: RabbitMQDriver
+    ) -> None:
+        """Test get_all_queue_names() excludes delayed queue names."""
+        # Arrange
+        await rabbitmq_driver.enqueue("main_queue", b"delayed", delay_seconds=100)
+
+        # Act
+        queue_names = await rabbitmq_driver.get_all_queue_names()
+
+        # Assert
+        assert "main_queue" in queue_names
+        assert "main_queue_delayed" not in queue_names
+
+    @mark.asyncio
+    async def test_get_global_stats_aggregates_all_queues(
+        self, rabbitmq_driver: RabbitMQDriver
+    ) -> None:
+        """Test get_global_stats() aggregates stats from all queues."""
+        # Arrange
+        await rabbitmq_driver.enqueue("global_queue1", b"task1")
+        await rabbitmq_driver.enqueue("global_queue1", b"task2")
+        await rabbitmq_driver.enqueue("global_queue2", b"task3")
+
+        # Act
+        stats = await rabbitmq_driver.get_global_stats()
+
+        # Assert
+        assert stats["pending"] >= 3  # At least 3 tasks across queues
+        assert stats["running"] >= 0
+        assert stats["completed"] == 0  # AMQP doesn't track completed
+        assert stats["failed"] == 0  # AMQP doesn't track failed
+        assert stats["total"] >= 3
+
+    @mark.asyncio
+    async def test_get_global_stats_includes_in_flight(
+        self, rabbitmq_driver: RabbitMQDriver
+    ) -> None:
+        """Test get_global_stats() includes in-flight messages."""
+        # Arrange
+        await rabbitmq_driver.enqueue("global_queue", b"task1")
+        await rabbitmq_driver.enqueue("global_queue", b"task2")
+
+        receipt1 = await rabbitmq_driver.dequeue("global_queue", poll_seconds=0)
+        receipt2 = await rabbitmq_driver.dequeue("global_queue", poll_seconds=0)
+
+        assert receipt1 is not None
+        assert receipt2 is not None
+
+        # Act
+        stats = await rabbitmq_driver.get_global_stats()
+
+        # Assert
+        assert stats["running"] >= 2  # At least 2 in-flight
+        assert stats["total"] >= 2
+
+        # Cleanup
+        await rabbitmq_driver.ack("global_queue", receipt1)
+        await rabbitmq_driver.ack("global_queue", receipt2)
+
+    @mark.asyncio
+    async def test_get_running_tasks_returns_empty(self, rabbitmq_driver: RabbitMQDriver) -> None:
+        """Test get_running_tasks() returns empty list (AMQP limitation)."""
+        # Arrange
+        await rabbitmq_driver.enqueue("default", b"task")
+        receipt = await rabbitmq_driver.dequeue("default", poll_seconds=0)
+
+        # Act
+        tasks = await rabbitmq_driver.get_running_tasks(limit=50, offset=0)
+
+        # Assert - AMQP doesn't track task metadata
+        assert tasks == []
+
+        # Cleanup
+        if receipt is not None:
+            await rabbitmq_driver.ack("default", receipt)
+
+    @mark.asyncio
+    async def test_get_tasks_returns_empty(self, rabbitmq_driver: RabbitMQDriver) -> None:
+        """Test get_tasks() returns empty list (AMQP limitation)."""
+        # Arrange
+        await rabbitmq_driver.enqueue("default", b"task1")
+        await rabbitmq_driver.enqueue("default", b"task2")
+
+        # Act
+        tasks, total = await rabbitmq_driver.get_tasks(
+            status="pending", queue="default", limit=50, offset=0
+        )
+
+        # Assert - AMQP doesn't track task metadata
+        assert tasks == []
+        assert total == 0
+
+    @mark.asyncio
+    async def test_get_task_by_id_returns_none(self, rabbitmq_driver: RabbitMQDriver) -> None:
+        """Test get_task_by_id() returns None (AMQP limitation)."""
+        # Act
+        task = await rabbitmq_driver.get_task_by_id("test-task-id")
+
+        # Assert - AMQP doesn't track task IDs
+        assert task is None
+
+    @mark.asyncio
+    async def test_retry_task_returns_false(self, rabbitmq_driver: RabbitMQDriver) -> None:
+        """Test retry_task() returns False (AMQP limitation)."""
+        # Act
+        result = await rabbitmq_driver.retry_task("test-task-id")
+
+        # Assert - AMQP doesn't track task IDs or failed tasks
+        assert result is False
+
+    @mark.asyncio
+    async def test_delete_task_returns_false(self, rabbitmq_driver: RabbitMQDriver) -> None:
+        """Test delete_task() returns False (AMQP limitation)."""
+        # Act
+        result = await rabbitmq_driver.delete_task("test-task-id")
+
+        # Assert - AMQP doesn't track task IDs
+        assert result is False
+
+    @mark.asyncio
+    async def test_get_worker_stats_returns_empty(self, rabbitmq_driver: RabbitMQDriver) -> None:
+        """Test get_worker_stats() returns empty list (AMQP limitation)."""
+        # Act
+        workers = await rabbitmq_driver.get_worker_stats()
+
+        # Assert - AMQP doesn't track worker information
+        assert workers == []
+
+
 if __name__ == "__main__":
     main([__file__, "-s", "-m", "integration"])

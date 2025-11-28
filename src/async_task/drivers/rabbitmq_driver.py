@@ -12,6 +12,8 @@ from aio_pika.abc import (
     AbstractRobustConnection,
 )
 
+from async_task.core.models import QueueStats, TaskInfo, WorkerInfo
+
 from .base_driver import BaseDriver
 
 
@@ -34,6 +36,8 @@ class RabbitMQDriver(BaseDriver):
         - Message acknowledgments for reliable processing
         - Queue auto-creation on enqueue/dequeue operations
         - Polling support with configurable timeout
+        - Queue statistics via get_queue_stats() and get_global_stats()
+        - Queue name discovery via get_all_queue_names()
 
     Design Decisions:
         - Direct exchange pattern: Simple routing (queue_name = routing_key)
@@ -47,6 +51,20 @@ class RabbitMQDriver(BaseDriver):
         - Polling implementation: Manual loop with 100ms intervals (not blocking AMQP)
         - Receipt handle: Uses task data bytes as key (enables idempotent ack/nack)
 
+    AMQP Limitations:
+        AMQP protocol doesn't track task metadata (IDs, status, timestamps, worker info).
+        The following methods return empty/None/False results due to these limitations:
+        - get_running_tasks(): Returns empty list (no task metadata tracking)
+        - get_tasks(): Returns empty list (no task history tracking)
+        - get_task_by_id(): Returns None (no task ID tracking)
+        - retry_task(): Returns False (no failed task tracking)
+        - delete_task(): Returns False (no task ID tracking)
+        - get_worker_stats(): Returns empty list (no worker tracking)
+
+        For full task tracking capabilities, use a driver with external storage
+        (PostgreSQL, MySQL, Redis) or implement a hybrid approach with external
+        task metadata storage alongside RabbitMQ for message delivery.
+
     Requirements:
         - Python 3.11+, aio-pika 9.0+, RabbitMQ server 3.8+
         - No plugins required for delayed messages
@@ -55,6 +73,7 @@ class RabbitMQDriver(BaseDriver):
     url: str = "amqp://guest:guest@localhost:5672/"
     exchange_name: str = "async_task"
     prefetch_count: int = 1
+    management_url: str | None = None  # Optional: http://guest:guest@localhost:15672
     connection: AbstractRobustConnection | None = field(default=None, init=False, repr=False)
     channel: AbstractChannel | None = field(default=None, init=False, repr=False)
     _queues: dict[str, AbstractQueue] = field(default_factory=dict, init=False, repr=False)
@@ -572,3 +591,215 @@ class RabbitMQDriver(BaseDriver):
         for message in messages_to_requeue:
             # Requeue by nacking with requeue=True
             await message.nack(requeue=True)
+
+    async def get_queue_stats(self, queue: str) -> QueueStats:
+        """Get real-time statistics for a specific queue.
+
+        Args:
+            queue: Queue name
+
+        Returns:
+            QueueStats with depth, processing count, totals
+
+        Implementation:
+            - Uses queue.declare() to get message_count (ready messages)
+            - Uses in-flight tracking for processing count
+            - Note: AMQP doesn't track completed/failed totals without external storage
+            - Management API can provide more detailed stats if management_url is set
+        """
+        if self.channel is None:
+            await self.connect()
+            assert self.channel is not None
+
+        # Get main queue stats
+        main_queue = await self._ensure_queue(queue)
+        main_state = await main_queue.declare()
+        depth = main_state.message_count or 0
+
+        # Get delayed queue stats
+        delayed_queue = await self._ensure_delayed_queue(queue)
+        delayed_state = await delayed_queue.declare()
+        delayed_count = delayed_state.message_count or 0
+
+        # Processing count from in-flight tracking
+        processing = self._in_flight_per_queue.get(queue, 0)
+
+        # Total depth includes delayed
+        total_depth = depth + delayed_count
+
+        return QueueStats(
+            name=queue,
+            depth=total_depth,
+            processing=processing,
+            completed_total=0,  # AMQP doesn't track completed tasks
+            failed_total=0,  # AMQP doesn't track failed tasks
+            avg_duration_ms=None,  # Not available without external tracking
+            throughput_per_minute=None,  # Not available without external tracking
+        )
+
+    async def get_all_queue_names(self) -> list[str]:
+        """Get list of all queue names.
+
+        Returns:
+            List of queue names
+
+        Implementation:
+            - Returns queue names from _queues cache (queues that have been accessed)
+            - For complete list, requires Management API or queue discovery
+            - Note: This only returns queues that have been created/accessed by this driver instance
+        """
+        # Return queue names from cache (excluding delayed queues)
+        queue_names = set()
+        for queue_name in self._queues.keys():
+            # Filter out delayed queue names
+            if not queue_name.endswith("_delayed"):
+                queue_names.add(queue_name)
+
+        return sorted(queue_names)
+
+    async def get_global_stats(self) -> dict[str, int]:
+        """Get global task statistics across all queues.
+
+        Returns:
+            Dictionary with keys: pending, running, completed, failed, total
+
+        Implementation:
+            - Aggregates stats from all known queues
+            - Note: AMQP doesn't track completed/failed totals without external storage
+        """
+        if self.channel is None:
+            await self.connect()
+            assert self.channel is not None
+
+        queue_names = await self.get_all_queue_names()
+
+        pending = 0
+        running = 0
+
+        for queue_name in queue_names:
+            stats = await self.get_queue_stats(queue_name)
+            pending += stats.depth
+            running += stats.processing
+
+        return {
+            "pending": pending,
+            "running": running,
+            "completed": 0,  # AMQP doesn't track completed tasks
+            "failed": 0,  # AMQP doesn't track failed tasks
+            "total": pending + running,
+        }
+
+    async def get_running_tasks(self, limit: int = 50, offset: int = 0) -> list[TaskInfo]:
+        """Get currently running tasks with pagination.
+
+        Args:
+            limit: Maximum tasks to return (default: 50, max: 500)
+            offset: Pagination offset
+
+        Returns:
+            List of TaskInfo objects with status="running"
+
+        Implementation:
+            - AMQP doesn't expose running task metadata
+            - Returns empty list (requires external tracking for full implementation)
+        """
+        # AMQP doesn't track running task metadata
+        # Would require external storage (Redis/DB) to track task IDs, status, etc.
+        return []
+
+    async def get_tasks(
+        self,
+        status: str | None = None,
+        queue: str | None = None,
+        worker_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        order_by: str = "enqueued_at",
+        order_direction: str = "desc",
+    ) -> tuple[list[TaskInfo], int]:
+        """Get tasks with filtering and pagination.
+
+        Args:
+            status: Filter by status (pending, running, completed, failed)
+            queue: Filter by queue name
+            worker_id: Filter by worker ID
+            limit: Maximum tasks to return
+            offset: Pagination offset
+            order_by: Field to sort by (enqueued_at, started_at, duration_ms)
+            order_direction: 'asc' or 'desc'
+
+        Returns:
+            Tuple of (tasks, total_count) for pagination
+
+        Implementation:
+            - AMQP doesn't track task metadata (IDs, status, timestamps)
+            - Returns empty list (requires external storage for full implementation)
+        """
+        # AMQP doesn't track task metadata
+        # Would require external storage (Redis/DB) to track task history
+        return [], 0
+
+    async def get_task_by_id(self, task_id: str) -> TaskInfo | None:
+        """Get detailed task information by ID.
+
+        Args:
+            task_id: Task UUID
+
+        Returns:
+            TaskInfo object or None if not found
+
+        Implementation:
+            - AMQP doesn't track task IDs or metadata
+            - Returns None (requires external storage for full implementation)
+        """
+        # AMQP doesn't track task IDs or metadata
+        # Would require external storage (Redis/DB) to track task history
+        return None
+
+    async def retry_task(self, task_id: str) -> bool:
+        """Retry a failed task by re-enqueueing it.
+
+        Args:
+            task_id: Task UUID to retry
+
+        Returns:
+            True if successfully re-enqueued, False otherwise
+
+        Implementation:
+            - AMQP doesn't track task IDs or failed task history
+            - Returns False (requires external storage for full implementation)
+        """
+        # AMQP doesn't track task IDs or failed task history
+        # Would require external storage (Redis/DB) to track and retry failed tasks
+        return False
+
+    async def delete_task(self, task_id: str) -> bool:
+        """Delete a task from queue/history.
+
+        Args:
+            task_id: Task UUID to delete
+
+        Returns:
+            True if deleted, False if not found
+
+        Implementation:
+            - AMQP doesn't track task IDs
+            - Returns False (requires external storage for full implementation)
+        """
+        # AMQP doesn't track task IDs
+        # Would require external storage (Redis/DB) to track and delete tasks
+        return False
+
+    async def get_worker_stats(self) -> list[WorkerInfo]:
+        """Get statistics for all active workers.
+
+        Returns:
+            List of WorkerInfo objects
+
+        Implementation:
+            - AMQP doesn't track worker information
+            - Returns empty list (requires external storage for full implementation)
+        """
+        # AMQP doesn't track worker information
+        # Would require external storage (Redis/DB) to track worker heartbeats and stats
+        return []
