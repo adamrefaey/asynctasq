@@ -1,8 +1,11 @@
 import asyncio
 from dataclasses import dataclass, field
+import datetime as dt
 from uuid import uuid4
 
 from asyncpg import Pool, create_pool
+
+from async_task.core.models import QueueStats, TaskInfo, WorkerInfo
 
 from .base_driver import BaseDriver
 
@@ -337,3 +340,282 @@ class PostgresDriver(BaseDriver):
 
         row = await self.pool.fetchrow(query, queue_name)
         return row["count"] if row else 0
+
+    async def get_queue_stats(self, queue: str) -> QueueStats:
+        """Return basic stats for a single queue."""
+        if self.pool is None:
+            await self.connect()
+            assert self.pool is not None
+
+        depth_q = f"SELECT COUNT(*) FROM {self.queue_table} WHERE queue_name=$1 AND status='pending' AND available_at <= NOW() AND (locked_until IS NULL OR locked_until < NOW())"
+        processing_q = (
+            f"SELECT COUNT(*) FROM {self.queue_table} WHERE queue_name=$1 AND status='processing'"
+        )
+        failed_q = f"SELECT COUNT(*) FROM {self.dead_letter_table} WHERE queue_name=$1"
+
+        async with self.pool.acquire() as conn:
+            depth_row = await conn.fetchrow(depth_q, queue)
+            depth = int(depth_row["count"]) if depth_row else 0
+
+            proc_row = await conn.fetchrow(processing_q, queue)
+            processing = int(proc_row["count"]) if proc_row else 0
+
+            failed_row = await conn.fetchrow(failed_q, queue)
+            failed_total = int(failed_row["count"]) if failed_row else 0
+
+        return QueueStats(
+            name=queue,
+            depth=depth,
+            processing=processing,
+            completed_total=0,
+            failed_total=failed_total,
+            avg_duration_ms=None,
+            throughput_per_minute=None,
+        )
+
+    async def get_all_queue_names(self) -> list[str]:
+        """Return list of distinct queue names."""
+        if self.pool is None:
+            await self.connect()
+            assert self.pool is not None
+
+        q = f"SELECT DISTINCT queue_name FROM {self.queue_table}"
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(q)
+            return [r["queue_name"] for r in rows] if rows else []
+
+    async def get_global_stats(self) -> dict[str, int]:
+        """Return simple global stats across all queues."""
+        if self.pool is None:
+            await self.connect()
+            assert self.pool is not None
+
+        pending_q = f"SELECT COUNT(*) FROM {self.queue_table} WHERE status='pending'"
+        processing_q = f"SELECT COUNT(*) FROM {self.queue_table} WHERE status='processing'"
+        failed_q = f"SELECT COUNT(*) FROM {self.dead_letter_table}"
+        total_q = f"SELECT COUNT(*) FROM {self.queue_table}"
+
+        async with self.pool.acquire() as conn:
+            pending_row = await conn.fetchrow(pending_q)
+            pending = pending_row["count"] if pending_row else 0
+            proc_row = await conn.fetchrow(processing_q)
+            processing = proc_row["count"] if proc_row else 0
+            failed_row = await conn.fetchrow(failed_q)
+            failed = failed_row["count"] if failed_row else 0
+            total_row = await conn.fetchrow(total_q)
+            total = total_row["count"] if total_row else 0
+
+        return {
+            "pending": int(pending),
+            "running": int(processing),
+            "failed": int(failed),
+            "total": int(total),
+        }
+
+    async def get_running_tasks(self, limit: int = 50, offset: int = 0) -> list[TaskInfo]:
+        """Return list of tasks currently processing."""
+        if self.pool is None:
+            await self.connect()
+            assert self.pool is not None
+
+        q = f"SELECT id, queue_name, attempts, max_attempts, created_at, updated_at FROM {self.queue_table} WHERE status='processing' ORDER BY updated_at DESC LIMIT $1 OFFSET $2"
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(q, limit, offset)
+
+        tasks: list[TaskInfo] = []
+        for row in rows or []:
+            id_ = row["id"]
+            queue_name = row["queue_name"]
+            attempts = row["attempts"]
+            max_attempts = row["max_attempts"]
+            created_at = row["created_at"]
+            updated_at = row["updated_at"]
+
+            if hasattr(created_at, "isoformat"):
+                enqueued_at = created_at
+            else:
+                enqueued_at = dt.datetime.now(dt.UTC)
+
+            started_at = updated_at if hasattr(updated_at, "isoformat") else None
+
+            tasks.append(
+                TaskInfo(
+                    id=str(id_),
+                    name="",
+                    queue=queue_name,
+                    status="processing",
+                    enqueued_at=enqueued_at,
+                    started_at=started_at,
+                    attempt=int(attempts) if attempts is not None else 1,
+                    max_retries=int(max_attempts)
+                    if max_attempts is not None
+                    else self.max_attempts,
+                )
+            )
+        return tasks
+
+    async def get_tasks(
+        self,
+        status: str | None = None,
+        queue: str | None = None,
+        worker_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        order_by: str = "enqueued_at",
+        order_direction: str = "desc",
+    ) -> tuple[list[TaskInfo], int]:
+        """Return list of tasks with pagination and total count."""
+        if self.pool is None:
+            await self.connect()
+            assert self.pool is not None
+
+        col = "created_at" if order_by == "enqueued_at" else order_by
+        order_direction = "ASC" if order_direction.lower() == "asc" else "DESC"
+
+        conditions: list[str] = []
+        params: list = []
+        if status:
+            params.append(status)
+            conditions.append(f"status = ${len(params)}")
+        if queue:
+            params.append(queue)
+            conditions.append(f"queue_name = ${len(params)}")
+
+        where = " AND ".join(conditions) if conditions else "1=1"
+
+        limit_idx = len(params) + 1
+        offset_idx = len(params) + 2
+
+        q = f"SELECT id, queue_name, status, attempts, max_attempts, created_at, updated_at FROM {self.queue_table} WHERE {where} ORDER BY {col} {order_direction} LIMIT ${limit_idx} OFFSET ${offset_idx}"
+        count_q = f"SELECT COUNT(*) FROM {self.queue_table} WHERE {where}"
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(q, *(*params, limit, offset))
+            total_row = await conn.fetchrow(count_q, *params)
+            total = int(total_row["count"]) if total_row else 0
+
+        tasks: list[TaskInfo] = []
+        for row in rows or []:
+            id_ = row["id"]
+            queue_name = row["queue_name"]
+            status_ = row["status"]
+            attempts = row["attempts"]
+            max_attempts = row["max_attempts"]
+            created_at = row["created_at"]
+            updated_at = row["updated_at"]
+
+            if hasattr(created_at, "isoformat"):
+                enqueued_at = created_at
+            else:
+                enqueued_at = dt.datetime.now(dt.UTC)
+
+            started_at = updated_at if hasattr(updated_at, "isoformat") else None
+
+            tasks.append(
+                TaskInfo(
+                    id=str(id_),
+                    name="",
+                    queue=queue_name,
+                    status=status_,
+                    enqueued_at=enqueued_at,
+                    started_at=started_at,
+                    attempt=int(attempts) if attempts is not None else 1,
+                    max_retries=int(max_attempts)
+                    if max_attempts is not None
+                    else self.max_attempts,
+                )
+            )
+
+        return tasks, int(total)
+
+    async def get_task_by_id(self, task_id: str) -> TaskInfo | None:
+        """Return a single task by id (searches queue table)."""
+        if self.pool is None:
+            await self.connect()
+            assert self.pool is not None
+
+        q = f"SELECT id, queue_name, status, attempts, max_attempts, created_at, updated_at FROM {self.queue_table} WHERE id = $1"
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(q, int(task_id))
+            if not row:
+                return None
+
+        id_ = row["id"]
+        queue_name = row["queue_name"]
+        status_ = row["status"]
+        attempts = row["attempts"]
+        max_attempts = row["max_attempts"]
+        created_at = row["created_at"]
+        updated_at = row["updated_at"]
+
+        if hasattr(created_at, "isoformat"):
+            enqueued_at = created_at
+        else:
+            enqueued_at = dt.datetime.now(dt.UTC)
+
+        started_at = updated_at if hasattr(updated_at, "isoformat") else None
+
+        return TaskInfo(
+            id=str(id_),
+            name="",
+            queue=queue_name,
+            status=status_,
+            enqueued_at=enqueued_at,
+            started_at=started_at,
+            attempt=int(attempts) if attempts is not None else 1,
+            max_retries=int(max_attempts) if max_attempts is not None else self.max_attempts,
+        )
+
+    async def retry_task(self, task_id: str) -> bool:
+        """Retry a failed task from dead-letter table by moving it back to the queue.
+
+        Returns True if retried, False if not found.
+        """
+        if self.pool is None:
+            await self.connect()
+            assert self.pool is not None
+
+        sel = f"SELECT queue_name, payload, attempts FROM {self.dead_letter_table} WHERE id = $1"
+        ins = f"INSERT INTO {self.queue_table} (queue_name, payload, available_at, status, attempts, max_attempts, created_at) VALUES ($1, $2, NOW(), 'pending', $3, $4, NOW())"
+        del_q = f"DELETE FROM {self.dead_letter_table} WHERE id = $1"
+
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(sel, task_id)
+                if not row:
+                    return False
+                # Defensive extraction
+                if len(row) >= 3:
+                    queue_name, payload, attempts = (
+                        row["queue_name"],
+                        row["payload"],
+                        row["attempts"],
+                    )
+                else:
+                    return False
+
+                await conn.execute(
+                    ins, queue_name, payload, 0 if attempts is None else attempts, self.max_attempts
+                )
+                await conn.execute(del_q, task_id)
+                return True
+
+    async def delete_task(self, task_id: str) -> bool:
+        """Delete a task from queue or dead-letter tables. Returns True if deleted."""
+        if self.pool is None:
+            await self.connect()
+            assert self.pool is not None
+
+        del_q = f"DELETE FROM {self.queue_table} WHERE id = $1 RETURNING id"
+        del_dlq = f"DELETE FROM {self.dead_letter_table} WHERE id = $1 RETURNING id"
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(del_q, task_id)
+            if row:
+                return True
+            row2 = await conn.fetchrow(del_dlq, task_id)
+            return bool(row2)
+
+    async def get_worker_stats(self) -> list[WorkerInfo]:
+        """Return worker stats. Not implemented in Postgres driver; return empty list."""
+        return []

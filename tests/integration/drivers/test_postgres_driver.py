@@ -1448,6 +1448,130 @@ class TestPostgresDriverWithRealPostgres:
         assert size1 == 2
         assert size2 == 1
 
+    @mark.asyncio
+    async def test_get_all_queue_names_and_global_stats(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """get_all_queue_names() and get_global_stats() should report queues and counts."""
+        # Arrange
+        await postgres_driver.enqueue("qa", b"a")
+        await postgres_driver.enqueue("qb", b"b")
+
+        # Dequeue one task to create a processing entry
+        receipt = await postgres_driver.dequeue("qa", poll_seconds=0)
+        assert receipt is not None
+
+        # Act
+        names = await postgres_driver.get_all_queue_names()
+        stats = await postgres_driver.get_global_stats()
+
+        # Assert
+        assert "qa" in names and "qb" in names
+        assert stats["total"] >= 2
+        # One processing (dequeued), one pending
+        assert stats["running"] >= 1
+        assert stats["pending"] >= 1
+
+        # Cleanup
+        await postgres_driver.ack("qa", receipt)
+
+    @mark.asyncio
+    async def test_get_running_tasks_get_tasks_and_get_task_by_id(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """get_running_tasks(), get_tasks(), and get_task_by_id() should return correct data."""
+        # Arrange
+        await postgres_driver.enqueue("default", b"r1")
+        await postgres_driver.enqueue("default", b"r2")
+        await postgres_driver.enqueue("other", b"o1")
+
+        # Move one to processing
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        assert receipt is not None
+        task_id = postgres_driver._receipt_handles.get(receipt)
+        assert task_id is not None
+
+        # Act - running tasks
+        running = await postgres_driver.get_running_tasks(limit=10)
+        assert any(t.queue == "default" and t.status == "processing" for t in running)
+
+        # Act - filtered tasks
+        tasks, total = await postgres_driver.get_tasks(
+            status="processing", queue="default", limit=10, offset=0
+        )
+        assert total >= 1
+        assert len(tasks) >= 1
+
+        # Act - get_task_by_id
+        sample = tasks[0]
+        # `sample.id` is a string representation of the DB serial id; convert to int
+        fetched = await postgres_driver.get_task_by_id(sample.id)
+        assert fetched is not None
+        assert fetched.id == sample.id
+
+        # Cleanup
+        await postgres_driver.ack("default", receipt)
+
+    @mark.asyncio
+    async def test_retry_and_delete_task_and_get_worker_stats(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """retry_task() should move DLQ entry back to queue; delete_task() should remove task; get_worker_stats() returns []."""
+        # Arrange - insert directly into DLQ
+        row = await postgres_conn.fetchrow(
+            f"INSERT INTO {TEST_DLQ_TABLE} (queue_name, payload, attempts, error_message) VALUES ($1, $2, $3, $4) RETURNING id",
+            "default",
+            b"dlq_payload",
+            2,
+            "error",
+        )
+        assert row is not None
+        dlq_id = row["id"]
+
+        # Act - retry
+        retried = await postgres_driver.retry_task(dlq_id)
+        assert retried is True
+
+        # Assert - DLQ should no longer contain the entry and queue should have it
+        dlq_count = await postgres_conn.fetchval(
+            f"SELECT COUNT(*) FROM {TEST_DLQ_TABLE} WHERE id = $1", dlq_id
+        )
+        assert dlq_count == 0
+
+        qrow = await postgres_conn.fetchrow(
+            f"SELECT id FROM {TEST_QUEUE_TABLE} WHERE queue_name = $1", "default"
+        )
+        assert qrow is not None
+        qid = qrow["id"]
+
+        # Act - delete from main queue
+        deleted = await postgres_driver.delete_task(qid)
+        assert deleted is True
+
+        # Assert - ensure it's gone
+        exists = await postgres_conn.fetchval(
+            f"SELECT COUNT(*) FROM {TEST_QUEUE_TABLE} WHERE id = $1", qid
+        )
+        assert exists == 0
+
+        # Insert into DLQ then delete DLQ entry via delete_task
+        row2 = await postgres_conn.fetchrow(
+            f"INSERT INTO {TEST_DLQ_TABLE} (queue_name, payload, attempts, error_message) VALUES ($1, $2, $3, $4) RETURNING id",
+            "default",
+            b"dlq2",
+            1,
+            "err2",
+        )
+        assert row2 is not None
+        dlq2 = row2["id"]
+        deleted2 = await postgres_driver.delete_task(dlq2)
+        assert deleted2 is True
+
+        # get_worker_stats should return empty list for PostgresDriver
+        workers = await postgres_driver.get_worker_stats()
+        assert isinstance(workers, list)
+        assert workers == []
+
 
 @mark.integration
 class TestPostgresDriverConcurrency:
