@@ -7,6 +7,8 @@ from aioboto3 import Session
 from types_aiobotocore_sqs import SQSClient
 from types_aiobotocore_sqs.literals import QueueAttributeFilterType
 
+from async_task.core.models import QueueStats, TaskInfo, WorkerInfo
+
 from .base_driver import BaseDriver
 
 
@@ -312,6 +314,35 @@ class SQSDriver(BaseDriver):
 
         return count
 
+    async def get_queue_stats(self, queue: str) -> QueueStats:
+        """Return basic QueueStats for the named queue using SQS attributes.
+
+        Since SQS only provides approximate counts, this returns conservative
+        values and leaves other fields as sensible defaults.
+        """
+        # Import locally to avoid circular import at module import time
+        from async_task.core.models import QueueStats
+
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        queue_url = await self._get_queue_url(queue)
+        attrs = await self.client.get_queue_attributes(
+            QueueUrl=queue_url,
+            AttributeNames=[
+                "ApproximateNumberOfMessages",
+                "ApproximateNumberOfMessagesDelayed",
+                "ApproximateNumberOfMessagesNotVisible",
+            ],
+        )
+
+        a = attrs.get("Attributes", {})
+        depth = int(a.get("ApproximateNumberOfMessages", 0))
+        in_flight = int(a.get("ApproximateNumberOfMessagesNotVisible", 0))
+
+        return QueueStats(name=queue, depth=depth, processing=in_flight)
+
     async def _get_queue_url(self, queue_name: str) -> str:
         """Get queue URL with caching.
 
@@ -344,3 +375,102 @@ class SQSDriver(BaseDriver):
 
         self._queue_urls[queue_name] = queue_url
         return queue_url
+
+    # The following methods implement monitoring APIs required by BaseDriver.
+    # SQS does not track individual task metadata/history, so many of these
+    # operations are implemented with conservative defaults or limited
+    # functionality and documented accordingly.
+
+    async def get_all_queue_names(self) -> list[str]:
+        """List queue names using ListQueues API. Returns short names when
+        possible (last path component of URL)."""
+
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        response = await self.client.list_queues()
+        urls = response.get("QueueUrls", []) or []
+        names: list[str] = []
+        for u in urls:
+            # Extract the last component as the queue name
+            names.append(u.rstrip("/").split("/")[-1])
+        return names
+
+    async def get_global_stats(self) -> dict[str, int]:
+        """Return very small set of global stats based on listing queues and
+        summing approximate counts. This is expensive for large numbers of
+        queues but acceptable for monitoring endpoints."""
+
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        total_pending = 0
+        total_in_flight = 0
+
+        response = await self.client.list_queues()
+        urls = response.get("QueueUrls", []) or []
+        for u in urls:
+            qname = u.rstrip("/").split("/")[-1]
+            stats = await self.get_queue_stats(qname)
+            total_pending += stats.depth
+            total_in_flight += stats.processing
+
+        return {
+            "pending": total_pending,
+            "running": total_in_flight,
+            "completed": 0,
+            "failed": 0,
+            "total": total_pending + total_in_flight,
+        }
+
+    async def get_running_tasks(self, limit: int = 50, offset: int = 0) -> list[TaskInfo]:
+        """SQS cannot enumerate running tasks. Return empty list.
+
+        This keeps the interface stable for monitor components that call the
+        method but rely on other backends for richer data.
+        """
+
+        return []
+
+    async def get_tasks(
+        self,
+        status: str | None = None,
+        queue: str | None = None,
+        worker_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        order_by: str = "enqueued_at",
+        order_direction: str = "desc",
+    ) -> tuple[list[TaskInfo], int]:
+        """SQS does not provide task history. Return empty list and 0 total.
+
+        Monitor components that need history should use Redis/Postgres backends.
+        """
+
+        return ([], 0)
+
+    async def get_task_by_id(self, task_id: str) -> TaskInfo | None:
+        """Not supported for SQS driver: return None."""
+
+        return None
+
+    async def retry_task(self, task_id: str) -> bool:
+        """Not applicable for SQS-only driver; return False."""
+
+        return False
+
+    async def delete_task(self, task_id: str) -> bool:
+        """Not supported for SQS driver; return False."""
+
+        return False
+
+    async def get_worker_stats(self) -> list[WorkerInfo]:
+        """SQS does not track workers. Return empty list.
+
+        Systems requiring worker tracking should implement a registry using
+        Redis or a database and use a different driver implementation.
+        """
+
+        return []

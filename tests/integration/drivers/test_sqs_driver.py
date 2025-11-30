@@ -522,6 +522,42 @@ class TestSQSDriverWithLocalStack:
         # Cleanup
         await driver.disconnect()
 
+    @mark.asyncio
+    async def test_list_queues_and_stats(self, sqs_driver: SQSDriver, aws_region: str) -> None:
+        """Test listing queues and getting stats via the driver."""
+        # Ensure at least our test queue exists
+        names = await sqs_driver.get_all_queue_names()
+        assert TEST_QUEUE_NAME in names
+
+        stats = await sqs_driver.get_queue_stats(TEST_QUEUE_NAME)
+        assert stats.name == TEST_QUEUE_NAME
+        assert isinstance(stats.depth, int)
+
+    @mark.asyncio
+    async def test_global_stats(self, sqs_driver: SQSDriver) -> None:
+        """Test that get_global_stats returns a dict with expected keys."""
+        g = await sqs_driver.get_global_stats()
+        assert isinstance(g, dict)
+        for k in ("pending", "running", "completed", "failed", "total"):
+            assert k in g
+
+    @mark.asyncio
+    async def test_unsupported_monitoring_methods(self, sqs_driver: SQSDriver) -> None:
+        """Methods that SQS can't support should return empty/False values."""
+        running = await sqs_driver.get_running_tasks()
+        assert running == []
+
+        tasks, total = await sqs_driver.get_tasks()
+        assert tasks == [] and total == 0
+
+        by_id = await sqs_driver.get_task_by_id("non-existent")
+        assert by_id is None
+
+        assert await sqs_driver.retry_task("nope") is False
+        assert await sqs_driver.delete_task("nope") is False
+        workers = await sqs_driver.get_worker_stats()
+        assert workers == []
+
 
 @mark.integration
 class TestSQSDriverConcurrency:
