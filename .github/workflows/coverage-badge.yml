@@ -5,6 +5,10 @@ on:
     workflows: ["CI"]
     types: [completed]
 
+permissions:
+  actions: read
+  contents: write
+
 jobs:
   coverage-badge:
     if: ${{ github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push' }}
@@ -12,6 +16,12 @@ jobs:
     permissions:
       actions: read
       contents: write
+    env:
+      # Fallback token used to download artifacts when the automatically
+      # provided `GITHUB_TOKEN` is not present (org policy or other).
+      # Set `ARTIFACT_DOWNLOAD_TOKEN` in repository secrets to a PAT with
+      # repo permissions (or reuse `PERSONAL_ACCESS_TOKEN`).
+      ARTIFACT_DOWNLOAD_TOKEN: ${{ secrets.ARTIFACT_DOWNLOAD_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || '' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -42,10 +52,21 @@ jobs:
           # The workflow_run id and repository are available in the event payload
           PCT="unknown"
           if [ -n "${{ github.event.workflow_run.id }}" ]; then
+            # Prefer the automatically provided GITHUB_TOKEN. If it's not
+            # available (possible due to org policies or runner configuration),
+            # fall back to a repository secret `ARTIFACT_DOWNLOAD_TOKEN` which
+            # should contain a PAT with repo access.
+            if [ -n "${GITHUB_TOKEN:-}" ]; then
+              echo "Using provided GITHUB_TOKEN to download artifacts"
+            elif [ -n "${ARTIFACT_DOWNLOAD_TOKEN:-}" ]; then
+              echo "GITHUB_TOKEN missing; using ARTIFACT_DOWNLOAD_TOKEN fallback"
+              export GITHUB_TOKEN="$ARTIFACT_DOWNLOAD_TOKEN"
+            else
+              echo "No token available for artifact download (GITHUB_TOKEN nor ARTIFACT_DOWNLOAD_TOKEN)"
+            fi
+
             if [ -n "${GITHUB_TOKEN:-}" ]; then
               PCT=$(python3 .github/scripts/download_and_merge_artifacts.py "${{ github.event.workflow_run.id }}" "${{ github.repository }}" || true)
-            else
-              echo "GITHUB_TOKEN missing; cannot download artifacts"
             fi
           else
             echo "workflow_run.id not available in event payload"
