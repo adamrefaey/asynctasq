@@ -5,13 +5,10 @@ on:
     workflows: ["CI"]
     types:
       - completed
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   test-badge:
+    if: ${{ github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -85,17 +82,35 @@ jobs:
           echo "status=$STATUS" >> $GITHUB_OUTPUT
           echo "color=$COLOR" >> $GITHUB_OUTPUT
 
+      - name: Prepare pytest icon
+        id: pytest-icon
+        run: |
+          if [ -f .github/icons/pytest.svg ]; then
+            ICON_BASE64=$(base64 -w0 .github/icons/pytest.svg)
+            echo "icon=data:image/svg+xml;base64,$ICON_BASE64" >> $GITHUB_OUTPUT
+          else
+            echo "icon=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate test status badge
         uses: emibcn/badge-action@v2.0.2
         with:
           label: "Tests"
           status: ${{ steps.badge-values.outputs.status }}
           color: ${{ steps.badge-values.outputs.color }}
-          icon: "pytest"
+          icon: ${{ steps.pytest-icon.outputs.icon }}
           path: ".github/tests.svg"
 
+      - name: Ensure icon is embedded in SVG
+        run: |
+          FILE=.github/tests.svg
+          ICON=.github/icons/pytest.svg
+          if [ -f "$FILE" ] && [ -f "$ICON" ]; then
+            ICON_B64=$(base64 -w0 "$ICON")
+            perl -0777 -pe "s/xlink:href=\"[^\"]*\"/xlink:href=\"data:image\/svg\+xml;base64,$ICON_B64\"/s" -i "$FILE"
+          fi
+
       - name: Commit test badge
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           GIT_USER_NAME: ${{ secrets.GIT_USER_NAME || github.actor }}
@@ -113,6 +128,8 @@ jobs:
             auth_remote=$(echo "$remote_url" | sed -E "s#https://#https://${PERSONAL_ACCESS_TOKEN}@#")
             git remote set-url origin "$auth_remote"
           fi
+          # Pull latest changes to avoid conflicts with other badge workflows
+          git pull --rebase origin main || true
           git add .github/tests.svg || true
           if ! git diff --staged --quiet; then
             if [ -n "${GPG_PRIVATE_KEY:-}" ]; then

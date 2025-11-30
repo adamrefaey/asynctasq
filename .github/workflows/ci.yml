@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '.github/*.svg'
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - '.github/*.svg'
 
 # Prevent multiple workflows from running concurrently on the same PR
 concurrency:

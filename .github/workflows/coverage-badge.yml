@@ -1,13 +1,13 @@
 name: Update coverage badge
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
 
 jobs:
   coverage-badge:
+    if: ${{ github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -85,17 +85,36 @@ jobs:
             echo "color=lightgrey" >> $GITHUB_OUTPUT
           fi
 
+      - name: Prepare code icon
+        id: code-icon
+        run: |
+          if [ -f .github/icons/codecov.svg ]; then
+            ICON_BASE64=$(base64 -w0 .github/icons/codecov.svg)
+            echo "icon=data:image/svg+xml;base64,$ICON_BASE64" >> $GITHUB_OUTPUT
+          else
+            echo "icon=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate coverage badge with icon
         uses: emibcn/badge-action@v2.0.2
         with:
           label: "Coverage"
           status: ${{ steps.coverage.outputs.percentage }}
           color: ${{ steps.coverage-color.outputs.color }}
-          icon: "codecov"
+          icon: ${{ steps.code-icon.outputs.icon }}
           path: ".github/coverage.svg"
 
+      - name: Ensure icon is embedded in SVG
+        run: |
+          FILE=.github/coverage.svg
+          ICON=.github/icons/codecov.svg
+          if [ -f "$FILE" ] && [ -f "$ICON" ]; then
+            ICON_B64=$(base64 -w0 "$ICON")
+            # Replace any xlink:href="..." in the file with the data URL
+            perl -0777 -pe "s/xlink:href=\"[^\"]*\"/xlink:href=\"data:image\/svg\+xml;base64,$ICON_B64\"/s" -i "$FILE"
+          fi
+
       - name: Commit coverage badge
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           # Provide your personal access token in repository secrets as
           # PERSONAL_ACCESS_TOKEN. Also optionally set GIT_USER_NAME and
@@ -124,6 +143,8 @@ jobs:
             auth_remote=$(echo "$remote_url" | sed -E "s#https://#https://${PERSONAL_ACCESS_TOKEN}@#")
             git remote set-url origin "$auth_remote"
           fi
+          # Pull latest changes to avoid conflicts with other badge workflows
+          git pull --rebase origin main || true
           git add .github/coverage.svg || true
           if ! git diff --staged --quiet; then
             # If a GPG private key is provided in secrets, import it and

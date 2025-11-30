@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <title>Pytest</title>
+  <defs>
+    <style><![CDATA[
+      :root{ --pt-bg:#4B8BBE; --pt-stroke:#FFE873 }
+      @media (prefers-color-scheme: dark) {
+        :root{ --pt-bg:#9cc3ff; --pt-stroke:#fff3b8 }
+      }
+    ]]></style>
+  </defs>
+  <circle cx="12" cy="12" r="10" fill="var(--pt-bg)" />
+  <path d="M8 12c1.5-3 6-3 7 0" stroke="var(--pt-stroke)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+</svg>

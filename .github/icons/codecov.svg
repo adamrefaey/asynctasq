@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <title>Code</title>
+  <defs>
+    <style><![CDATA[
+      :root{ --cv-bg:#e36209; --cv-arrow:#ffffff }
+      @media (prefers-color-scheme: dark) {
+        :root{ --cv-bg:#ffb57f; --cv-arrow:#1a1a1a }
+      }
+    ]]></style>
+  </defs>
+  <rect width="24" height="24" rx="4" fill="var(--cv-bg)" />
+  <path d="M9 8l4 4-4 4" stroke="var(--cv-arrow)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
