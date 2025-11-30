@@ -13,7 +13,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
 
@@ -37,7 +37,7 @@ jobs:
           fi
 
       - name: Generate Python version badge
-        uses: emibcn/badge-action@v2.0.2
+        uses: emibcn/badge-action@v2
         with:
           label: "Python"
           status: "3.11 | 3.12 | 3.13 | 3.14"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse a coverage XML file and print a percentage like '90.0%' or 'unknown'.
+"""Parse a coverage XML file and print an integer percentage like '93%' or 'unknown'.
 
 Supports common formats: coverage.py (line-rate), JaCoCo <counter type="LINE">,
 Cobertura attributes, and a fallback that counts <line hits="..."> elements.
@@ -24,7 +24,7 @@ def parse_coverage(path: Path) -> str:
         if lr:
             try:
                 v = float(lr)
-                return f"{v * 100:.1f}%"
+                return f"{round(v * 100)}%"
             except Exception:
                 pass
 
@@ -36,7 +36,7 @@ def parse_coverage(path: Path) -> str:
                     missed = int(elem.attrib.get("missed", 0))
                     total = covered + missed
                     pct = (covered / total) if total > 0 else 0.0
-                    return f"{pct * 100:.1f}%"
+                    return f"{round(pct * 100)}%"
                 except Exception:
                     pass
 
@@ -47,7 +47,7 @@ def parse_coverage(path: Path) -> str:
                     covered = int(elem.attrib["lines-covered"])
                     valid = int(elem.attrib["lines-valid"])
                     pct = (covered / valid) if valid > 0 else 0.0
-                    return f"{pct * 100:.1f}%"
+                    return f"{round(pct * 100)}%"
                 except Exception:
                     pass
             if "lines_covered" in elem.attrib and "lines_valid" in elem.attrib:
@@ -55,7 +55,7 @@ def parse_coverage(path: Path) -> str:
                     covered = int(elem.attrib["lines_covered"])
                     valid = int(elem.attrib["lines_valid"])
                     pct = (covered / valid) if valid > 0 else 0.0
-                    return f"{pct * 100:.1f}%"
+                    return f"{round(pct * 100)}%"
                 except Exception:
                     pass
 
@@ -72,7 +72,7 @@ def parse_coverage(path: Path) -> str:
                     pass
         if total > 0:
             pct = covered_count / total
-            return f"{pct * 100:.1f}%"
+            return f"{round(pct * 100)}%"
 
         return "unknown"
     except Exception:
