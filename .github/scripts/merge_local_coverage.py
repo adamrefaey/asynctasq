@@ -4,75 +4,71 @@
 Usage: merge_local_coverage.py [artifacts_dir]
 
 Prints either a percentage like "85%" or the string "unknown".
+
+This script properly merges coverage from multiple coverage.xml files by tracking
+which lines are covered in each source file across all reports, avoiding double-counting.
 """
 
+from collections import defaultdict
 from pathlib import Path
 import sys
 from xml.etree import ElementTree as ET
 
 
-def parse_root_counts(path: Path):
-    try:
-        root = ET.parse(path).getroot()
-    except Exception:
-        return None
-    covered = root.attrib.get("lines-covered") or root.attrib.get("lines_covered")
-    valid = root.attrib.get("lines-valid") or root.attrib.get("lines_valid")
-    if covered is not None and valid is not None:
-        try:
-            return int(covered), int(valid)
-        except Exception:
-            return None
-    lr = root.attrib.get("line-rate") or root.attrib.get("line_rate")
-    if lr is not None and (
-        valid := root.attrib.get("lines-valid") or root.attrib.get("lines_valid")
-    ):
-        try:
-            v = float(lr)
-            return int(float(valid) * v), int(valid)
-        except Exception:
-            return None
-    return None
-
-
-def fallback_count(path: Path):
-    try:
-        tree = ET.parse(path)
-        root = tree.getroot()
-    except Exception:
-        return 0, 0
-    total = 0
-    covered = 0
-    for elem in root.iter():
-        if elem.tag.lower().endswith("line") and "hits" in elem.attrib:
-            total += 1
-            try:
-                if int(elem.attrib.get("hits", "0")) > 0:
-                    covered += 1
-            except Exception:
-                pass
-    return covered, total
-
-
 def main(argv):
     artifacts_dir = argv[1] if len(argv) > 1 else "artifacts"
     p = Path(artifacts_dir)
-    total_covered = 0
-    total_valid = 0
+
     if not p.exists():
         print("unknown")
         return 0
-    for f in p.rglob("coverage.xml"):
-        counts = parse_root_counts(f)
-        if counts is None:
-            counts = fallback_count(f)
-        covered, valid = counts
-        total_covered += covered
-        total_valid += valid
-    if total_valid == 0:
+
+    # Collect all coverage data across all coverage.xml files
+    all_file_coverage = defaultdict(set)
+    all_file_lines = defaultdict(set)
+
+    coverage_files = list(p.rglob("coverage.xml"))
+    if not coverage_files:
         print("unknown")
         return 0
-    pct = round((total_covered / total_valid) * 100)
+
+    for coverage_file in coverage_files:
+        try:
+            tree = ET.parse(coverage_file)
+            root = tree.getroot()
+        except Exception:
+            continue
+
+        # Navigate through packages/classes to find all lines
+        for package in root.iter("package"):
+            for cls in package.iter("class"):
+                filename = cls.attrib.get("filename")
+                if not filename:
+                    continue
+
+                for line in cls.iter("line"):
+                    line_num = line.attrib.get("number")
+                    hits = line.attrib.get("hits", "0")
+                    try:
+                        if line_num:
+                            line_num_int = int(line_num)
+                            # Track all valid lines
+                            all_file_lines[filename].add(line_num_int)
+                            # Track covered lines
+                            if int(hits) > 0:
+                                all_file_coverage[filename].add(line_num_int)
+                    except (ValueError, TypeError):
+                        continue
+
+    # Calculate total coverage
+    total_lines = sum(len(lines) for lines in all_file_lines.values())
+    total_covered = sum(len(all_file_coverage[filename]) for filename in all_file_lines.keys())
+
+    if total_lines == 0:
+        print("unknown")
+        return 0
+
+    pct = round((total_covered / total_lines) * 100)
     print(f"{pct}%")
     return 0
 
