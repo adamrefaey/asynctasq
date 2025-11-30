@@ -524,6 +524,125 @@ class TestRedisDriverWithRealRedis:
         # Assert
         assert result == task_data
 
+    @mark.asyncio
+    async def test_get_queue_stats_and_inspection_methods(
+        self, redis_driver: RedisDriver, redis_client: Redis
+    ) -> None:
+        """Integration: test get_queue_stats, get_all_queue_names, get_global_stats."""
+        # Arrange - prepare a queue with pending, processing and stats
+        await maybe_await(redis_client.lpush("queue:statsq", b"a", b"b"))
+        await maybe_await(redis_client.lpush("queue:statsq:processing", b"p1"))
+        await maybe_await(redis_client.set("queue:statsq:stats:completed", 7))
+        await maybe_await(redis_client.set("queue:statsq:stats:failed", 1))
+
+        # Act - get queue stats
+        stats = await redis_driver.get_queue_stats("statsq")
+
+        # Assert
+        assert stats.name == "statsq"
+        assert stats.depth == 2
+        assert stats.processing == 1
+        assert stats.completed_total == 7
+        assert stats.failed_total == 1
+
+        # Create another queue and verify get_all_queue_names + global aggregation
+        await maybe_await(redis_client.lpush("queue:alpha", b"x"))
+        await maybe_await(redis_client.lpush("queue:beta", b"y", b"z"))
+        await maybe_await(redis_client.lpush("queue:beta:processing", b"r"))
+        await maybe_await(redis_client.set("queue:alpha:stats:completed", 2))
+        await maybe_await(redis_client.set("queue:beta:stats:failed", 3))
+
+        names = await redis_driver.get_all_queue_names()
+        assert {"statsq", "alpha", "beta"}.issubset(set(names))
+
+        totals = await redis_driver.get_global_stats()
+        # pending: statsq(2) + alpha(1) + beta(2) = 5
+        assert totals["pending"] == 5
+        # running: statsq(1) + beta(1) = 2
+        assert totals["running"] == 2
+        assert totals["completed"] >= 2
+        assert totals["failed"] >= 3
+
+    @mark.asyncio
+    async def test_task_listing_and_lookup_and_retry_delete(
+        self, redis_driver: RedisDriver, redis_client: Redis
+    ) -> None:
+        """Integration: test get_running_tasks, get_tasks, get_task_by_id, retry_task, delete_task."""
+        # Arrange - create pending and processing items with 36-char IDs
+        id36 = "i" * 36
+        raw_pending = (id36 + ":pending").encode()
+        raw_processing = (id36 + ":processing").encode()
+        await maybe_await(redis_client.lpush("queue:q", raw_pending))
+        await maybe_await(redis_client.lpush("queue:q:processing", raw_processing))
+
+        # Act - running tasks
+        running = await redis_driver.get_running_tasks(limit=10)
+
+        # Assert
+        assert any(r.queue == "q" for r in running)
+        assert any((r.id == id36) or (r.id == "") for r in running)
+
+        # get_tasks should return both pending and running
+        tasks, total = await redis_driver.get_tasks()
+        assert total >= 2
+
+        # get_task_by_id should find the id
+        found = await redis_driver.get_task_by_id(id36)
+        assert found is not None
+        assert found.id == id36
+
+        # Retry task: add to dead list and retry
+        tid = "retry-1"
+        raw_dead = (tid + ":x").encode()
+        await maybe_await(redis_client.lpush("queue:q:dead", raw_dead))
+        ok = await redis_driver.retry_task(tid)
+        assert ok is True
+        # After retry, item should be back on main queue
+        popped = await maybe_await(redis_client.rpop("queue:q"))
+        assert popped == raw_dead
+
+        # Delete task: add item to pending/processing/dead and delete by id prefix
+        tid2 = "del-1"
+        raw1 = (tid2 + ":a").encode()
+        raw2 = (tid2 + ":b").encode()
+        await maybe_await(redis_client.lpush("queue:q", raw1))
+        await maybe_await(redis_client.lpush("queue:q:processing", raw2))
+        await maybe_await(redis_client.lpush("queue:q:dead", raw1))
+
+        removed = await redis_driver.delete_task(tid2)
+        assert removed is True
+        # Ensure items are no longer present
+        pending_items = await maybe_await(redis_client.lrange("queue:q", 0, -1))
+        processing_items = await maybe_await(redis_client.lrange("queue:q:processing", 0, -1))
+        dead_items = await maybe_await(redis_client.lrange("queue:q:dead", 0, -1))
+        assert all(not (it.startswith(tid2.encode())) for it in pending_items)
+        assert all(not (it.startswith(tid2.encode())) for it in processing_items)
+        assert all(not (it.startswith(tid2.encode())) for it in dead_items)
+
+    @mark.asyncio
+    async def test_get_worker_stats_integration(
+        self, redis_driver: RedisDriver, redis_client: Redis
+    ) -> None:
+        """Integration: test get_worker_stats reads worker hashes."""
+        # Arrange - create a worker hash
+        await maybe_await(
+            redis_client.hset(
+                "worker:abc",
+                mapping={
+                    "status": "busy",
+                    "tasks_processed": "4",
+                    "uptime_seconds": "123",
+                    "last_heartbeat": str(time()),
+                },
+            )
+        )
+
+        # Act
+        workers = await redis_driver.get_worker_stats()
+
+        # Assert - find worker abc
+        assert any(w.worker_id == "abc" for w in workers)
+
 
 @mark.integration
 class TestRedisDriverConcurrency:

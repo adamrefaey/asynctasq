@@ -1,9 +1,12 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from inspect import isawaitable
 from time import time
 from typing import Any
 
 from redis.asyncio import Redis
+
+from async_task.core.models import QueueStats, TaskInfo, WorkerInfo
 
 from .base_driver import BaseDriver
 
@@ -259,3 +262,337 @@ class RedisDriver(BaseDriver):
                 pipe.lpush(main_key, *ready_tasks)
                 pipe.zremrangebyscore(delayed_key, 0, now)
                 await pipe.execute()
+
+    # --- Metadata / Inspection methods -------------------------------------------------
+
+    async def get_queue_stats(self, queue: str) -> QueueStats:
+        """
+        Basic stats for a specific queue.
+
+        Note: This implementation uses simple counters derived from list/zset sizes.
+        More advanced stats (avg_duration, throughput) are not collected here and
+        will return defaults.
+        """
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        depth = int(await maybe_await(self.client.llen(f"queue:{queue}")))
+        processing = int(await maybe_await(self.client.llen(f"queue:{queue}:processing")))
+        completed_raw = await maybe_await(self.client.get(f"queue:{queue}:stats:completed"))
+        completed_total = int(completed_raw or 0)
+        failed_raw = await maybe_await(self.client.get(f"queue:{queue}:stats:failed"))
+        failed_total = int(failed_raw or 0)
+
+        return QueueStats(
+            name=queue,
+            depth=depth,
+            processing=processing,
+            completed_total=completed_total,
+            failed_total=failed_total,
+            avg_duration_ms=None,
+            throughput_per_minute=None,
+        )
+
+    async def get_all_queue_names(self) -> list[str]:
+        """Return all queue names discovered by key patterns.
+
+        Uses SCAN to avoid blocking Redis in production.
+        """
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        queues: set[str] = set()
+
+        # Use scan_iter helper when available; redis-py provides scan_iter as sync and async
+        # but to keep compatibility we'll use scan until cursor==0
+        cur = 0
+        while True:
+            cur, keys = await maybe_await(self.client.scan(cur))
+            for k in keys:
+                # keys are bytes because decode_responses=False
+                if isinstance(k, bytes):
+                    k = k.decode()
+                if k.startswith("queue:"):
+                    # strip prefix and any suffix like :processing or :delayed
+                    name = k.split(":")[1]
+                    queues.add(name)
+            if cur == 0:
+                break
+
+        return sorted(queues)
+
+    async def get_global_stats(self) -> dict[str, int]:
+        """Aggregate simple global stats across all queues.
+
+        Implementation is intentionally conservative: sums per-queue counters.
+        """
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        queues = await self.get_all_queue_names()
+        pending = 0
+        running = 0
+        completed = 0
+        failed = 0
+
+        for q in queues:
+            pending += int(await maybe_await(self.client.llen(f"queue:{q}")))
+            running += int(await maybe_await(self.client.llen(f"queue:{q}:processing")))
+            completed_raw = await maybe_await(self.client.get(f"queue:{q}:stats:completed"))
+            completed += int(completed_raw or 0)
+            failed_raw = await maybe_await(self.client.get(f"queue:{q}:stats:failed"))
+            failed += int(failed_raw or 0)
+
+        total = pending + running + completed + failed
+        return {
+            "pending": pending,
+            "running": running,
+            "completed": completed,
+            "failed": failed,
+            "total": total,
+        }
+
+    async def get_running_tasks(self, limit: int = 50, offset: int = 0) -> list[TaskInfo]:
+        """Return tasks currently in processing lists.
+
+        This reads from all `queue:*:processing` lists and returns TaskInfo stubs.
+        """
+        # TaskInfo and datetime imported at module level for ruff/formatting
+
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        queues = await self.get_all_queue_names()
+        running: list[TaskInfo] = []
+
+        for q in queues:
+            processing_key = f"queue:{q}:processing"
+            items = await maybe_await(self.client.lrange(processing_key, 0, -1))
+            for raw in items:
+                # best-effort: decode bytes -> string for id placeholder
+                task_id = (
+                    raw[:36].decode()
+                    if isinstance(raw, (bytes, bytearray)) and len(raw) >= 36
+                    else None
+                )
+                ti = TaskInfo(
+                    id=task_id or "",
+                    name="",
+                    queue=q,
+                    status="running",
+                    enqueued_at=datetime.utcnow(),
+                    started_at=datetime.utcnow(),
+                    worker_id=None,
+                )
+                running.append(ti)
+
+        # Apply pagination
+        return running[offset : offset + limit]
+
+    async def get_tasks(
+        self,
+        status: str | None = None,
+        queue: str | None = None,
+        worker_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        order_by: str = "enqueued_at",
+        order_direction: str = "desc",
+    ) -> tuple[list["TaskInfo"], int]:
+        """Return tasks with optional filtering.
+
+        This driver does not store a full task history by default; therefore this
+        method provides a best-effort by scanning simple keys. For real deployments
+        users should enable task-history storage.
+        """
+
+        # TaskInfo and datetime imported at module level
+
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        queues = [queue] if queue else await self.get_all_queue_names()
+        results: list[TaskInfo] = []
+
+        for q in queues:
+            # pending
+            if status is None or status == "pending":
+                pending_items = await maybe_await(self.client.lrange(f"queue:{q}", 0, -1))
+                for raw in pending_items:
+                    results.append(
+                        TaskInfo(
+                            id=(
+                                raw[:36].decode()
+                                if isinstance(raw, (bytes, bytearray)) and len(raw) >= 36
+                                else ""
+                            ),
+                            name="",
+                            queue=q,
+                            status="pending",
+                            enqueued_at=datetime.utcnow(),
+                        )
+                    )
+
+            # running
+            if status is None or status == "running":
+                processing_items = await maybe_await(
+                    self.client.lrange(f"queue:{q}:processing", 0, -1)
+                )
+                for raw in processing_items:
+                    results.append(
+                        TaskInfo(
+                            id=(
+                                raw[:36].decode()
+                                if isinstance(raw, (bytes, bytearray)) and len(raw) >= 36
+                                else ""
+                            ),
+                            name="",
+                            queue=q,
+                            status="running",
+                            enqueued_at=datetime.utcnow(),
+                        )
+                    )
+
+        total = len(results)
+
+        # Simple ordering: we don't have timestamps per-item here, so keep natural order
+        if order_direction == "desc":
+            results = list(reversed(results))
+
+        paged = results[offset : offset + limit]
+        return paged, total
+
+    async def get_task_by_id(self, task_id: str) -> TaskInfo | None:
+        """Best-effort lookup by scanning pending and processing lists for matching id.
+
+        Returns TaskInfo or None if not found.
+        """
+        # TaskInfo and datetime imported at module level
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        queues = await self.get_all_queue_names()
+
+        for q in queues:
+            for key_suffix, status in (("", "pending"), (":processing", "running")):
+                items = await maybe_await(self.client.lrange(f"queue:{q}{key_suffix}", 0, -1))
+                for raw in items:
+                    if isinstance(raw, (bytes, bytearray)):
+                        raw_id = raw[:36].decode() if len(raw) >= 36 else None
+                        if raw_id == task_id:
+                            return TaskInfo(
+                                id=task_id,
+                                name="",
+                                queue=q,
+                                status=status,
+                                enqueued_at=datetime.utcnow(),
+                            )
+
+        return None
+
+    async def retry_task(self, task_id: str) -> bool:
+        """Retry a failed task by moving it back to the queue.
+
+        This implementation searches for the task in a dead-letter list `queue:{q}:dead`.
+        If found, it LPUSHes it back to the main queue and increments attempt counter.
+        """
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        queues = await self.get_all_queue_names()
+
+        for q in queues:
+            dead_key = f"queue:{q}:dead"
+            items = await maybe_await(self.client.lrange(dead_key, 0, -1))
+            for raw in items:
+                if isinstance(raw, (bytes, bytearray)) and raw.startswith(task_id.encode()):
+                    # remove from dead list and push back to main queue
+                    await maybe_await(self.client.lrem(dead_key, 1, raw))  # type: ignore[arg-type]
+                    await maybe_await(self.client.rpush(f"queue:{q}", raw))
+                    return True
+
+        return False
+
+    async def delete_task(self, task_id: str) -> bool:
+        """Delete a task from pending, processing, or dead lists.
+
+        Returns True if removed from any list.
+        """
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        queues = await self.get_all_queue_names()
+
+        for q in queues:
+            removed = 0
+            for key_suffix in ("", ":processing", ":dead"):
+                key = f"queue:{q}{key_suffix}"
+                # lrem requires the exact member bytes - we'll remove by prefix match
+                items = await maybe_await(self.client.lrange(key, 0, -1))
+                for raw in items:
+                    if isinstance(raw, (bytes, bytearray)) and raw.startswith(task_id.encode()):
+                        await maybe_await(self.client.lrem(key, 1, raw))  # type: ignore[arg-type]
+                        removed += 1
+            if removed > 0:
+                return True
+
+        return False
+
+    async def get_worker_stats(self) -> list[WorkerInfo]:
+        """Return worker heartbeats stored in `workers:{id}` hashes.
+
+        Best-effort: scans keys `worker:*` and builds WorkerInfo objects.
+        """
+        # WorkerInfo and datetime imported at module level
+        if self.client is None:
+            await self.connect()
+            assert self.client is not None
+
+        workers: list[WorkerInfo] = []
+        cur = 0
+        while True:
+            cur, keys = await maybe_await(self.client.scan(cur, match="worker:*"))
+            for k in keys:
+                if isinstance(k, bytes):
+                    k = k.decode()
+                worker_id = k.split(":", 1)[1]
+                data = await maybe_await(self.client.hgetall(k))
+                status = (
+                    (data.get(b"status") or data.get("status") or b"idle").decode()
+                    if data
+                    else "idle"
+                )
+                last_hb = None
+                if data:
+                    ts = data.get(b"last_heartbeat") or data.get("last_heartbeat")
+                    try:
+                        last_hb = datetime.utcfromtimestamp(float(ts)) if ts else None
+                    except Exception:
+                        last_hb = None
+
+                workers.append(
+                    WorkerInfo(
+                        worker_id=worker_id,
+                        status=status,
+                        current_task_id=None,
+                        tasks_processed=int(
+                            data.get(b"tasks_processed") or data.get("tasks_processed") or 0
+                        ),
+                        uptime_seconds=int(
+                            data.get(b"uptime_seconds") or data.get("uptime_seconds") or 0
+                        ),
+                        last_heartbeat=last_hb,
+                    )
+                )
+            if cur == 0:
+                break
+
+        return workers

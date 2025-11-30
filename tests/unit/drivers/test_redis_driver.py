@@ -885,6 +885,245 @@ class TestRedisDriverEdgeCases:
         assert result2 == b"task"
 
 
+@mark.unit
+class TestRedisDriverInspectionAndManagement:
+    """Unit tests for metadata/management methods added to RedisDriver."""
+
+    @patch("async_task.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_queue_stats_returns_stats(self, mock_redis_class: MagicMock) -> None:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.llen = AsyncMock(side_effect=[4, 2])
+        mock_client.get = AsyncMock(side_effect=[b"10", b"3"])
+        driver = RedisDriver()
+        await driver.connect()
+
+        # Act
+        stats = await driver.get_queue_stats("default")
+
+        # Assert
+        assert stats.name == "default"
+        assert stats.depth == 4
+        assert stats.processing == 2
+        assert stats.completed_total == 10
+        assert stats.failed_total == 3
+
+    @patch("async_task.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_all_queue_names_scans_keys(self, mock_redis_class: MagicMock) -> None:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        # Simulate scan returning queue keys in two pages
+        mock_client.scan = AsyncMock(
+            side_effect=[(1, [b"queue:alpha", b"queue:beta:processing"]), (0, [b"other:key"])]
+        )
+        driver = RedisDriver()
+        await driver.connect()
+
+        # Act
+        names = await driver.get_all_queue_names()
+
+        # Assert
+        assert sorted(names) == ["alpha", "beta"]
+
+    @patch("async_task.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_global_stats_sums_counters(self, mock_redis_class: MagicMock) -> None:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        # get_all_queue_names will call scan; stub it to return queues
+        driver = RedisDriver()
+        await driver.connect()
+        # Patch get_all_queue_names to return known queues
+        driver.get_all_queue_names = AsyncMock(return_value=["q1", "q2"])
+
+        # llen for q1,q2 and processing; get for stats
+        async def llen_side(key, *a, **k):
+            if key == "queue:q1":
+                return 2
+            if key == "queue:q1:processing":
+                return 1
+            if key == "queue:q2":
+                return 3
+            if key == "queue:q2:processing":
+                return 0
+            return 0
+
+        async def get_side(key, *a, **k):
+            if key == "queue:q1:stats:completed":
+                return b"5"
+            if key == "queue:q2:stats:failed":
+                return b"2"
+            return None
+
+        mock_client.llen = AsyncMock(side_effect=llen_side)
+        mock_client.get = AsyncMock(side_effect=get_side)
+
+        # Act
+        totals = await driver.get_global_stats()
+
+        # Assert
+        assert totals["pending"] == 5  # 2 + 3
+        assert totals["running"] == 1  # 1 + 0
+        assert totals["completed"] == 5
+        assert totals["failed"] == 2
+
+    @patch("async_task.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_running_tasks_and_pagination(self, mock_redis_class: MagicMock) -> None:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        # get_all_queue_names returns one queue
+        driver = RedisDriver()
+        await driver.connect()
+        driver.get_all_queue_names = AsyncMock(return_value=["default"])
+        # processing list contains two items
+        mock_client.lrange = AsyncMock(return_value=[b"id-1234567890abcdef-task", b"short"])
+
+        # Act
+        running = await driver.get_running_tasks(limit=1, offset=0)
+
+        # Assert - pagination limits returned items
+        assert isinstance(running, list)
+        assert len(running) == 1
+        assert running[0].queue == "default"
+
+    @patch("async_task.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_tasks_filters_and_counts(self, mock_redis_class: MagicMock) -> None:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        driver = RedisDriver()
+        await driver.connect()
+        driver.get_all_queue_names = AsyncMock(return_value=["default"])
+
+        # pending has one, processing has one
+        async def lrange_side(key, *a, **k):
+            if key == "queue:default":
+                return [b"pending_task_abcdefghij1234567890"]
+            if key == "queue:default:processing":
+                return [b"processing_task_abcdefghij1234567890"]
+            return []
+
+        mock_client.lrange = AsyncMock(side_effect=lrange_side)
+
+        # Act - no status filter (both)
+        results, total = await driver.get_tasks()
+
+        # Assert
+        assert total == 2
+        assert len(results) == 2
+
+    @patch("async_task.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_task_by_id_finds_match(self, mock_redis_class: MagicMock) -> None:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        driver = RedisDriver()
+        await driver.connect()
+        driver.get_all_queue_names = AsyncMock(return_value=["q"])
+        # pending contains an item starting with id
+        # Use 36-char id so driver's slicing picks it up
+        task_id = "t" * 36
+        mock_client.lrange = AsyncMock(return_value=[(task_id + "-rest").encode()])
+
+        # Act
+        ti = await driver.get_task_by_id(task_id)
+
+        # Assert
+        assert ti is not None
+        assert ti.id == task_id
+
+    @patch("async_task.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_retry_task_moves_from_dead(self, mock_redis_class: MagicMock) -> None:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        driver = RedisDriver()
+        await driver.connect()
+        driver.get_all_queue_names = AsyncMock(return_value=["q"])
+        # dead list contains a raw that starts with task id
+        task_id = "retry-id-1"
+        raw = (task_id + ":payload").encode()
+        mock_client.lrange = AsyncMock(return_value=[raw])
+        mock_client.lrem = AsyncMock(return_value=1)
+        mock_client.rpush = AsyncMock(return_value=1)
+
+        # Act
+        ok = await driver.retry_task(task_id)
+
+        # Assert
+        assert ok is True
+        mock_client.lrem.assert_called_once()
+        mock_client.rpush.assert_called_once()
+
+    @patch("async_task.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_delete_task_removes_matching(self, mock_redis_class: MagicMock) -> None:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        driver = RedisDriver()
+        await driver.connect()
+        driver.get_all_queue_names = AsyncMock(return_value=["q"])
+        task_id = "delme-1"
+        raw = (task_id + ":foo").encode()
+
+        # lrange for '' returns the item
+        async def lrange_side(key, *a, **k):
+            if key.endswith(":dead"):
+                return [raw]
+            return []
+
+        mock_client.lrange = AsyncMock(side_effect=lrange_side)
+        mock_client.lrem = AsyncMock(return_value=1)
+
+        # Act
+        removed = await driver.delete_task(task_id)
+
+        # Assert
+        assert removed is True
+        mock_client.lrem.assert_called_once()
+
+    @patch("async_task.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_worker_stats_parses_hashes(self, mock_redis_class: MagicMock) -> None:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        driver = RedisDriver()
+        await driver.connect()
+        # Simulate scan returning one worker key
+        mock_client.scan = AsyncMock(side_effect=[(0, [b"worker:abc"])])
+        # hgetall returns bytes keys/values
+        mock_client.hgetall = AsyncMock(
+            return_value={
+                b"status": b"busy",
+                b"tasks_processed": b"7",
+                b"uptime_seconds": b"100",
+                b"last_heartbeat": b"0",
+            }
+        )
+
+        # Act
+        workers = await driver.get_worker_stats()
+
+        # Assert
+        assert isinstance(workers, list)
+        assert len(workers) == 1
+        w = workers[0]
+        assert w.worker_id == "abc"
+        assert w.status == "busy"
+
+
 if __name__ == "__main__":
     from pytest import main
 
