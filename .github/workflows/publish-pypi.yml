@@ -54,6 +54,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: dists
+          path: dist
+
+      - name: List dist files
+        run: |
+          echo "Contents of dist/"
+          ls -la dist || true
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
