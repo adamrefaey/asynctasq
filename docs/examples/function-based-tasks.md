@@ -65,7 +65,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-**Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](../running-workers.md) for details.
+**Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](https://github.com/adamrefaey/async-task/blob/main/docs/running-workers.md) for details.
 
 ### Simple Sync Task
 
@@ -598,7 +598,7 @@ async def main():
 - Models are fetched fresh from the database when the task executes, ensuring data consistency
 - Only the primary key is serialized, reducing queue payload size by 90%+ for large models
 - Multiple models in the same task are fetched in parallel for efficiency
-- See [ORM Integrations](../orm-integrations.md) for complete setup instructions and worker configuration
+- See [ORM Integrations](https://github.com/adamrefaey/async-task/blob/main/docs/orm-integrations.md) for complete setup instructions and worker configuration
 
 ### Django ORM Integration
 
@@ -1073,7 +1073,7 @@ Here's a complete, runnable example demonstrating multiple function-based task p
 - Driver overrides
 - Delayed execution
 
-**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](../running-workers.md)).
+**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](https://github.com/adamrefaey/async-task/blob/main/docs/running-workers.md)).
 
 ```python
 import asyncio
@@ -1209,16 +1209,16 @@ Function-based tasks in Async Task provide a simple, powerful way to convert any
    print(f"Task ID: {task_id}")
    ```
 
-4. **Run workers** to process tasks (see [Running Workers](../running-workers.md))
+4. **Run workers** to process tasks (see [Running Workers](https://github.com/adamrefaey/async-task/blob/main/docs/running-workers.md))
 
 **Note:** Tasks will not execute until a worker process is running. The `dispatch()` call returns immediately after queuing the task.
 
 ### Next Steps
 
-- Learn about [task definitions](../task-definitions.md) for class-based tasks
-- Explore [queue drivers](../queue-drivers.md) for production setup
-- Check [ORM integrations](../orm-integrations.md) for database model support
-- Review [best practices](../best-practices.md) for production usage
+- Learn about [task definitions](https://github.com/adamrefaey/async-task/blob/main/docs/task-definitions.md) for class-based tasks
+- Explore [queue drivers](https://github.com/adamrefaey/async-task/blob/main/docs/queue-drivers.md) for production setup
+- Check [ORM integrations](https://github.com/adamrefaey/async-task/blob/main/docs/orm-integrations.md) for database model support
+- Review [best practices](https://github.com/adamrefaey/async-task/blob/main/docs/best-practices.md) for production usage
 
 All examples above are ready to use - just configure your driver and start dispatching tasks!
 

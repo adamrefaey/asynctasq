@@ -73,7 +73,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-**Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](../running-workers.md) for details.
+**Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](https://github.com/adamrefaey/async-task/blob/main/docs/running-workers.md) for details.
 
 ### Task with Parameters
 
@@ -996,11 +996,11 @@ async def main():
 **Important Notes:**
 
 - **Session context variable is required:** You must set `_async_task_session_var` on each model class for SQLAlchemy integration to work
-- **Worker configuration:** For production, ensure the session context variable is set in your worker process (see [ORM Integrations](../orm-integrations.md))
+-- **Worker configuration:** For production, ensure the session context variable is set in your worker process (see [ORM Integrations](https://github.com/adamrefaey/async-task/blob/main/docs/orm-integrations.md))
 - **Fresh data:** Models are fetched fresh from the database when the task executes, ensuring data consistency
 - **Payload optimization:** Only the primary key is serialized, reducing queue payload size by 90%+ for large models
 - **Parallel fetching:** Multiple models in the same task are fetched in parallel for efficiency
-- See [ORM Integrations](../orm-integrations.md) for complete setup instructions and worker configuration
+- See [ORM Integrations](https://github.com/adamrefaey/async-task/blob/main/docs/orm-integrations.md) for complete setup instructions and worker configuration
 
 ### Django ORM Integration
 
@@ -1707,7 +1707,7 @@ Here's a complete, runnable example demonstrating multiple class-based task patt
 - Delayed execution
 - Lifecycle hooks
 
-**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](../running-workers.md)).
+**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](https://github.com/adamrefaey/async-task/blob/main/docs/running-workers.md)).
 
 ```python
 import asyncio
@@ -1893,16 +1893,16 @@ Class-based tasks in Async Task provide a powerful, flexible way to create reusa
    print(f"Task ID: {task_id}")
    ```
 
-4. **Run workers** to process tasks (see [Running Workers](../running-workers.md))
+4. **Run workers** to process tasks (see [Running Workers](https://github.com/adamrefaey/async-task/blob/main/docs/running-workers.md))
 
 **Important:** Tasks will not execute until a worker process is running. The `dispatch()` call returns immediately after queuing the task - it does not wait for task execution. The returned task ID can be used to track task status in your monitoring system.
 
 ### Next Steps
 
-- Learn about [function-based tasks](./function-based-tasks.md) for simpler task definitions
-- Explore [queue drivers](../queue-drivers.md) for production setup
-- Check [ORM integrations](../orm-integrations.md) for database model support
-- Review [best practices](../best-practices.md) for production usage
+- Learn about [function-based tasks](https://github.com/adamrefaey/async-task/blob/main/docs/examples/function-based-tasks.md) for simpler task definitions
+- Explore [queue drivers](https://github.com/adamrefaey/async-task/blob/main/docs/queue-drivers.md) for production setup
+- Check [ORM integrations](https://github.com/adamrefaey/async-task/blob/main/docs/orm-integrations.md) for database model support
+- Review [best practices](https://github.com/adamrefaey/async-task/blob/main/docs/best-practices.md) for production usage
 
 All examples above are ready to use - just configure your driver and start dispatching tasks!
 

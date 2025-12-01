@@ -1,8 +1,8 @@
 # Async Task
 
-[![Tests](.github/tests.svg)](https://github.com/adamrefaey/async-task/actions/workflows/ci.yml)
-[![Coverage](.github/coverage.svg)](.github/coverage.svg)
-[![Python Version](.github/python-version.svg)](https://www.python.org/downloads/)
+[![Tests](https://raw.githubusercontent.com/adamrefaey/async-task/main/.github/tests.svg)](https://github.com/adamrefaey/async-task/actions/workflows/ci.yml)
+[![Coverage](https://raw.githubusercontent.com/adamrefaey/async-task/main/.github/coverage.svg)](https://raw.githubusercontent.com/adamrefaey/async-task/main/.github/coverage.svg)
+[![Python Version](https://raw.githubusercontent.com/adamrefaey/async-task/main/.github/python-version.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A modern, async-first, type-safe task queue Python package inspired by Laravel. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+. Features ACID guarantees, dead-letter queues, crash recovery.
@@ -207,13 +207,13 @@ python -m async_task worker
 - **Run tests:** `just test` (or `pytest`) — use `just test-unit` / `just test-integration` to scope
 - **Run with coverage:** `just test-cov` or `pytest --cov=src/async_task --cov-report=html`
 - **Run the worker locally:** `python -m async_task worker`
-- **Pre-commit hooks:** `./setup-pre-commit.sh` or `just setup-hooks`
+- **Pre-commit hooks:** [`./setup-pre-commit.sh`](https://github.com/adamrefaey/async-task/blob/main/setup-pre-commit.sh) or `just setup-hooks`
 - **Format / lint / typecheck:** `just format`, `just lint`, `just typecheck`
 
 ## CI & Contributing (short)
 
 - **CI runs on PRs and pushes to `main`** and includes lint, type checks and tests across Python 3.11–3.14.
-- **Pre-commit hooks** enforce formatting and static checks locally before commits (see `./setup-pre-commit.sh`).
+- **Pre-commit hooks** enforce formatting and static checks locally before commits (see [`./setup-pre-commit.sh`](https://github.com/adamrefaey/async-task/blob/main/setup-pre-commit.sh)).
 - **Branch protection:** enable required status checks (CI success, lint, unit/integration jobs) for `main`.
 - **Coverage badge:** the repository updates `.github/coverage.svg` automatically via `.github/workflows/coverage-badge.yml`.
 - **Run full CI locally:** `just ci` (runs format/lint/typecheck/tests like the workflow).
@@ -354,15 +354,15 @@ python -m async_task worker
 
 For detailed documentation, see the following guides:
 
-- **[Installation](docs/installation.md)** – Installation instructions for uv and pip
-- **[Queue Drivers](docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
-- **[ORM Integrations](docs/orm-integrations.md)** – SQLAlchemy, Django, Tortoise ORM
-- **[Framework Integrations](docs/framework-integrations.md)** – FastAPI integration
-- **[Task Definitions](docs/task-definitions.md)** – Function-based and class-based tasks
-- **[Running Workers](docs/running-workers.md)** – CLI and programmatic workers
-- **[Configuration](docs/configuration.md)** – Environment variables, programmatic, CLI
-- **[CLI Reference](docs/cli-reference.md)** – Complete command reference
-- **[Best Practices](docs/best-practices.md)** – Task design, queue organization, production deployment
+- **[Installation](https://github.com/adamrefaey/async-task/blob/main/docs/installation.md)** – Installation instructions for uv and pip
+- **[Queue Drivers](https://github.com/adamrefaey/async-task/blob/main/docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
+- **[ORM Integrations](https://github.com/adamrefaey/async-task/blob/main/docs/orm-integrations.md)** – SQLAlchemy, Django, Tortoise ORM
+- **[Framework Integrations](https://github.com/adamrefaey/async-task/blob/main/docs/framework-integrations.md)** – FastAPI integration
+- **[Task Definitions](https://github.com/adamrefaey/async-task/blob/main/docs/task-definitions.md)** – Function-based and class-based tasks
+- **[Running Workers](https://github.com/adamrefaey/async-task/blob/main/docs/running-workers.md)** – CLI and programmatic workers
+- **[Configuration](https://github.com/adamrefaey/async-task/blob/main/docs/configuration.md)** – Environment variables, programmatic, CLI
+- **[CLI Reference](https://github.com/adamrefaey/async-task/blob/main/docs/cli-reference.md)** – Complete command reference
+- **[Best Practices](https://github.com/adamrefaey/async-task/blob/main/docs/best-practices.md)** – Task design, queue organization, production deployment
 
 ---
 
@@ -370,20 +370,20 @@ For detailed documentation, see the following guides:
 
 For complete examples, see the following guides:
 
-- **[Function-Based Tasks Examples](docs/examples/function-based-tasks.md)** – Complete examples guide
-- **[Class-Based Tasks Examples](docs/examples/class-based-tasks.md)** – Complete examples guide
+- **[Function-Based Tasks Examples](https://github.com/adamrefaey/async-task/blob/main/docs/examples/function-based-tasks.md)** – Complete examples guide
+- **[Class-Based Tasks Examples](https://github.com/adamrefaey/async-task/blob/main/docs/examples/class-based-tasks.md)** – Complete examples guide
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome! Please see [CONTRIBUTING.md](https://github.com/adamrefaey/async-task/blob/main/CONTRIBUTING.md) for guidelines.
 
 ---
 
 ## License
 
-MIT License – see [LICENSE](LICENSE) file for details.
+MIT License – see [LICENSE](https://github.com/adamrefaey/async-task/blob/main/LICENSE) file for details.
 
 ---
 
