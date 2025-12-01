@@ -5,8 +5,6 @@ import logging
 
 from async_task_q.config import Config
 from async_task_q.core.driver_factory import DriverFactory
-from async_task_q.drivers.mysql_driver import MySQLDriver
-from async_task_q.drivers.postgres_driver import PostgresDriver
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +33,11 @@ async def run_migrate(args: argparse.Namespace, config: Config) -> None:
 
         driver = DriverFactory.create_from_config(config, driver_type="postgres")
 
+        try:
+            from async_task_q.drivers.postgres_driver import PostgresDriver
+        except Exception:
+            raise MigrationError("Postgres driver not available")
+
         if not isinstance(driver, PostgresDriver):
             raise MigrationError("Driver factory did not return a PostgresDriver instance")
 
@@ -56,6 +59,11 @@ async def run_migrate(args: argparse.Namespace, config: Config) -> None:
         logger.info(f"  Dead letter table: {config.mysql_dead_letter_table}")
 
         driver = DriverFactory.create_from_config(config, driver_type="mysql")
+
+        try:
+            from async_task_q.drivers.mysql_driver import MySQLDriver
+        except Exception:
+            raise MigrationError("MySQL driver not available")
 
         if not isinstance(driver, MySQLDriver):
             raise MigrationError("Driver factory did not return a MySQLDriver instance")

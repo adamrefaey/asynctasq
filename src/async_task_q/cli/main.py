@@ -5,7 +5,8 @@ import asyncio
 import logging
 import sys
 
-from .commands import MigrationError, run_migrate, run_worker
+from .commands.migrate import MigrationError, run_migrate
+from .commands.worker import run_worker
 from .config import build_config
 from .parser import create_parser
 from .utils import setup_logging
