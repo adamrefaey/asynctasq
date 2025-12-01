@@ -66,3 +66,6 @@ jobs:
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: false
+          verbose: true
+          packages-dir: dist
+          print-hash: true
