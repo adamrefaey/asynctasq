@@ -136,16 +136,12 @@ publish-test:
 
 # Create and push a git tag (usage: just tag v1.2.3)
 tag TAG:
-	@python - <<'PY'
-import os,sys,subprocess
-tag = "{{TAG}}"
-if not tag.startswith('v'):
-    print("Tag should start with 'v', e.g. v1.2.3")
-    sys.exit(1)
-subprocess.check_call(['git','tag',tag])
-subprocess.check_call(['git','push','origin',tag])
-print('✅ Pushed', tag)
-PY
+	@if [ "$(printf '%s' '{{TAG}}' | cut -c1)" != "v" ]; then \
+		echo "Tag should start with 'v', e.g. v1.2.3"; exit 1; \
+	fi
+	git tag {{TAG}}
+	git push origin {{TAG}}
+	@echo "✅ Pushed {{TAG}}"
 
 
 
