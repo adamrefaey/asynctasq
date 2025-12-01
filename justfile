@@ -123,12 +123,31 @@ build:
 # Publish to PyPI (requires credentials)
 publish:
 	uv build
+	uv run python -m pip install --upgrade build twine
+	uv run python -m twine check dist/*
 	uv publish
 
 # Publish to Test PyPI
 publish-test:
 	uv build
+	uv run python -m pip install --upgrade build twine
+	uv run python -m twine check dist/*
 	uv publish --index-url https://test.pypi.org/legacy/
+
+# Create and push a git tag (usage: just tag v1.2.3)
+tag TAG:
+	@python - <<'PY'
+import os,sys,subprocess
+tag = "{{TAG}}"
+if not tag.startswith('v'):
+    print("Tag should start with 'v', e.g. v1.2.3")
+    sys.exit(1)
+subprocess.check_call(['git','tag',tag])
+subprocess.check_call(['git','push','origin',tag])
+print('✅ Pushed', tag)
+PY
+
+
 
 # Generate coverage badge
 coverage-badge:
