@@ -1,37 +1,37 @@
-"""CLI entry point for q-task.
+"""CLI entry point for async-task-q.
 
-Q Task provides a command-line interface for managing task queues and workers.
+Async Task Q provides a command-line interface for managing task queues and workers.
 
 Commands:
     worker       Start a worker to process tasks from queues
     migrate      Initialize database schema for PostgreSQL or MySQL driver
 
 Usage:
-    python -m q_task <command> [OPTIONS]
+    python -m async_task_q <command> [OPTIONS]
 
 Examples:
     # Start a worker with default settings
-    python -m q_task worker
+    python -m async_task_q worker
 
     # Start a worker with specific queues and concurrency
-    python -m q_task worker --queues high-priority,default,low-priority --concurrency 20
+    python -m async_task_q worker --queues high-priority,default,low-priority --concurrency 20
 
     # Start a worker with Redis driver
-    python -m q_task worker --driver redis --redis-url redis://localhost:6379
+    python -m async_task_q worker --driver redis --redis-url redis://localhost:6379
 
     # Initialize PostgreSQL schema
-    python -m q_task migrate --postgres-dsn postgresql://user:pass@localhost/dbname
+    python -m async_task_q migrate --postgres-dsn postgresql://user:pass@localhost/dbname
 
 Worker Command:
     Start a worker to process tasks from queues.
 
     Usage:
-        python -m q_task worker [OPTIONS]
+        python -m async_task_q worker [OPTIONS]
 
     Options:
         --driver DRIVER
             Queue driver to use. Choices: redis, sqs, postgres, mysql
-            Default: from q_task_DRIVER env var or 'redis'
+            Default: from async_task_q_DRIVER env var or 'redis'
 
         --queues QUEUES
             Comma-separated list of queue names to process in priority order
@@ -45,58 +45,58 @@ Worker Command:
         Redis Options:
             --redis-url URL
                 Redis connection URL
-                Default: from q_task_REDIS_URL env var or 'redis://localhost:6379'
+                Default: from async_task_q_REDIS_URL env var or 'redis://localhost:6379'
 
             --redis-password PASSWORD
                 Redis password
-                Default: from q_task_REDIS_PASSWORD env var
+                Default: from async_task_q_REDIS_PASSWORD env var
 
             --redis-db N
                 Redis database number (0-15)
-                Default: from q_task_REDIS_DB env var or 0
+                Default: from async_task_q_REDIS_DB env var or 0
 
             --redis-max-connections N
                 Redis max connections in pool
-                Default: from q_task_REDIS_MAX_CONNECTIONS env var or 10
+                Default: from async_task_q_REDIS_MAX_CONNECTIONS env var or 10
 
         PostgreSQL Options:
             --postgres-dsn DSN
                 PostgreSQL connection DSN
-                Default: from q_task_POSTGRES_DSN env var or
+                Default: from async_task_q_POSTGRES_DSN env var or
                 'postgresql://test:test@localhost:5432/test_db'
 
             --postgres-queue-table TABLE
                 PostgreSQL queue table name
-                Default: from q_task_POSTGRES_QUEUE_TABLE env var or 'task_queue'
+                Default: from async_task_q_POSTGRES_QUEUE_TABLE env var or 'task_queue'
 
             --postgres-dead-letter-table TABLE
                 PostgreSQL dead letter table name
-                Default: from q_task_POSTGRES_DEAD_LETTER_TABLE env var or
+                Default: from async_task_q_POSTGRES_DEAD_LETTER_TABLE env var or
                 'dead_letter_queue'
 
         MySQL Options:
             --mysql-dsn DSN
                 MySQL connection DSN
-                Default: from q_task_MYSQL_DSN env var or
+                Default: from async_task_q_MYSQL_DSN env var or
                 'mysql://test:test@localhost:3306/test_db'
 
             --mysql-queue-table TABLE
                 MySQL queue table name
-                Default: from q_task_MYSQL_QUEUE_TABLE env var or 'task_queue'
+                Default: from async_task_q_MYSQL_QUEUE_TABLE env var or 'task_queue'
 
             --mysql-dead-letter-table TABLE
                 MySQL dead letter table name
-                Default: from q_task_MYSQL_DEAD_LETTER_TABLE env var or
+                Default: from async_task_q_MYSQL_DEAD_LETTER_TABLE env var or
                 'dead_letter_queue'
 
         SQS Options:
             --sqs-region REGION
                 AWS SQS region
-                Default: from q_task_SQS_REGION env var or 'us-east-1'
+                Default: from async_task_q_SQS_REGION env var or 'us-east-1'
 
             --sqs-queue-url-prefix PREFIX
                 SQS queue URL prefix
-                Default: from q_task_SQS_QUEUE_PREFIX env var
+                Default: from async_task_q_SQS_QUEUE_PREFIX env var
 
             --aws-access-key-id KEY
                 AWS access key ID
@@ -108,20 +108,20 @@ Worker Command:
 
     Examples:
         # Basic usage with default settings
-        python -m q_task worker
+        python -m async_task_q worker
 
         # Multiple queues with priority order
-        python -m q_task worker --queues high,default,low --concurrency 20
+        python -m async_task_q worker --queues high,default,low --concurrency 20
 
         # Redis with authentication
-        python -m q_task worker \\
+        python -m async_task_q worker \\
             --driver redis \\
             --redis-url redis://localhost:6379 \\
             --redis-password secret \\
             --redis-db 1
 
         # PostgreSQL with custom configuration
-        python -m q_task worker \\
+        python -m async_task_q worker \\
             --driver postgres \\
             --postgres-dsn postgresql://user:pass@localhost/dbname \\
             --postgres-queue-table my_queue \\
@@ -129,7 +129,7 @@ Worker Command:
             --concurrency 15
 
         # MySQL with custom configuration
-        python -m q_task worker \\
+        python -m async_task_q worker \\
             --driver mysql \\
             --mysql-dsn mysql://user:pass@localhost:3306/dbname \\
             --mysql-queue-table my_queue \\
@@ -137,7 +137,7 @@ Worker Command:
             --concurrency 15
 
         # SQS with custom region
-        python -m q_task worker \\
+        python -m async_task_q worker \\
             --driver sqs \\
             --sqs-region us-west-2 \\
             --sqs-queue-url-prefix https://sqs.us-west-2.amazonaws.com/123456789/ \\
@@ -151,7 +151,7 @@ Migrate Command:
     for the task queue system. It works with both PostgreSQL and MySQL drivers.
 
     Usage:
-        python -m q_task migrate [OPTIONS]
+        python -m async_task_q migrate [OPTIONS]
 
     Options:
         --driver DRIVER
@@ -160,53 +160,53 @@ Migrate Command:
 
         --postgres-dsn DSN
             PostgreSQL connection DSN
-            Default: from q_task_POSTGRES_DSN env var or
+            Default: from async_task_q_POSTGRES_DSN env var or
             'postgresql://test:test@localhost:5432/test_db'
 
         --postgres-queue-table TABLE
             PostgreSQL queue table name
-            Default: from q_task_POSTGRES_QUEUE_TABLE env var or 'task_queue'
+            Default: from async_task_q_POSTGRES_QUEUE_TABLE env var or 'task_queue'
 
         --postgres-dead-letter-table TABLE
             PostgreSQL dead letter table name
-            Default: from q_task_POSTGRES_DEAD_LETTER_TABLE env var or
+            Default: from async_task_q_POSTGRES_DEAD_LETTER_TABLE env var or
             'dead_letter_queue'
 
         --mysql-dsn DSN
             MySQL connection DSN
-            Default: from q_task_MYSQL_DSN env var or
+            Default: from async_task_q_MYSQL_DSN env var or
             'mysql://test:test@localhost:3306/test_db'
 
         --mysql-queue-table TABLE
             MySQL queue table name
-            Default: from q_task_MYSQL_QUEUE_TABLE env var or 'task_queue'
+            Default: from async_task_q_MYSQL_QUEUE_TABLE env var or 'task_queue'
 
         --mysql-dead-letter-table TABLE
             MySQL dead letter table name
-            Default: from q_task_MYSQL_DEAD_LETTER_TABLE env var or
+            Default: from async_task_q_MYSQL_DEAD_LETTER_TABLE env var or
             'dead_letter_queue'
 
     Examples:
         # Basic migration with default settings
-        python -m q_task migrate
+        python -m async_task_q migrate
 
         # Migration with custom DSN
-        python -m q_task migrate \\
+        python -m async_task_q migrate \\
             --postgres-dsn postgresql://user:pass@localhost:5432/mydb
 
         # Migration with custom table names
-        python -m q_task migrate \\
+        python -m async_task_q migrate \\
             --postgres-dsn postgresql://user:pass@localhost:5432/mydb \\
             --postgres-queue-table my_task_queue \\
             --postgres-dead-letter-table my_dlq
 
         # MySQL migration
-        python -m q_task migrate \\
+        python -m async_task_q migrate \\
             --driver mysql \\
             --mysql-dsn mysql://user:pass@localhost:3306/mydb
 
         # MySQL migration with custom table names
-        python -m q_task migrate \\
+        python -m async_task_q migrate \\
             --driver mysql \\
             --mysql-dsn mysql://user:pass@localhost:3306/mydb \\
             --mysql-queue-table my_task_queue \\
@@ -217,28 +217,28 @@ Environment Variables:
     take precedence over environment variables.
 
     General:
-        q_task_DRIVER              Queue driver (redis, postgres, mysql, sqs)
-        q_task_DEFAULT_QUEUE       Default queue name
+        async_task_q_DRIVER              Queue driver (redis, postgres, mysql, sqs)
+        async_task_q_DEFAULT_QUEUE       Default queue name
 
     Redis:
-        q_task_REDIS_URL           Redis connection URL
-        q_task_REDIS_PASSWORD      Redis password
-        q_task_REDIS_DB            Redis database number
-        q_task_REDIS_MAX_CONNECTIONS  Redis max connections
+        async_task_q_REDIS_URL           Redis connection URL
+        async_task_q_REDIS_PASSWORD      Redis password
+        async_task_q_REDIS_DB            Redis database number
+        async_task_q_REDIS_MAX_CONNECTIONS  Redis max connections
 
     PostgreSQL:
-        q_task_POSTGRES_DSN        PostgreSQL connection DSN
-        q_task_POSTGRES_QUEUE_TABLE  Queue table name
-        q_task_POSTGRES_DEAD_LETTER_TABLE  Dead letter table name
+        async_task_q_POSTGRES_DSN        PostgreSQL connection DSN
+        async_task_q_POSTGRES_QUEUE_TABLE  Queue table name
+        async_task_q_POSTGRES_DEAD_LETTER_TABLE  Dead letter table name
 
     MySQL:
-        q_task_MYSQL_DSN           MySQL connection DSN
-        q_task_MYSQL_QUEUE_TABLE   Queue table name
-        q_task_MYSQL_DEAD_LETTER_TABLE  Dead letter table name
+        async_task_q_MYSQL_DSN           MySQL connection DSN
+        async_task_q_MYSQL_QUEUE_TABLE   Queue table name
+        async_task_q_MYSQL_DEAD_LETTER_TABLE  Dead letter table name
 
     SQS:
-        q_task_SQS_REGION          AWS region
-        q_task_SQS_QUEUE_PREFIX    SQS queue URL prefix
+        async_task_q_SQS_REGION          AWS region
+        async_task_q_SQS_QUEUE_PREFIX    SQS queue URL prefix
         AWS_ACCESS_KEY_ID              AWS access key ID
         AWS_SECRET_ACCESS_KEY          AWS secret access key
 

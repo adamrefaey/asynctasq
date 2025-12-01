@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import fixture, main, mark, raises
 
-from q_task.serializers.orm_handler import OrmHandler
+from async_task_q.serializers.orm_handler import OrmHandler
 
 
 # Test fixtures
@@ -68,8 +68,8 @@ class TestOrmHandlerModelDetection:
         assert handler.is_orm_model({"key": "value"}) is False
         assert handler.is_orm_model([1, 2, 3]) is False
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
-    @patch("q_task.serializers.orm_handler.DeclarativeBase", MagicMock)
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.DeclarativeBase", MagicMock)
     def test_is_sqlalchemy_model_with_mapper(self, handler):
         """Test SQLAlchemy model detection via __mapper__."""
         obj = MagicMock()
@@ -78,14 +78,14 @@ class TestOrmHandlerModelDetection:
             mock_inspect.return_value = MagicMock()
             assert handler._is_sqlalchemy_model(obj) is True
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
     def test_is_sqlalchemy_model_with_base_class(self, handler):
         """Test SQLAlchemy model detection via DeclarativeBase."""
         # Create a mock that will pass isinstance check
         mock_base = type("MockBase", (), {})
         obj = MagicMock()
         # Make obj appear to be an instance of DeclarativeBase
-        with patch("q_task.serializers.orm_handler.DeclarativeBase", mock_base):
+        with patch("async_task_q.serializers.orm_handler.DeclarativeBase", mock_base):
             # Use spec to make isinstance work
             obj.__class__.__bases__ = (mock_base,)
             # This will check isinstance which should work with the base class
@@ -93,7 +93,7 @@ class TestOrmHandlerModelDetection:
             obj.__mapper__ = MagicMock()
             assert handler._is_sqlalchemy_model(obj) is True
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
     def test_is_sqlalchemy_model_with_inspect(self, handler):
         """Test SQLAlchemy model detection via inspect."""
         obj = MagicMock()
@@ -101,20 +101,20 @@ class TestOrmHandlerModelDetection:
             mock_inspect.return_value = MagicMock()
             assert handler._is_sqlalchemy_model(obj) is True
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", False)
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", False)
     def test_is_sqlalchemy_model_when_not_available(self, handler):
         """Test SQLAlchemy detection when not available."""
         obj = MagicMock()
         assert handler._is_sqlalchemy_model(obj) is False
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
     def test_is_sqlalchemy_model_exception_handling(self, handler):
         """Test SQLAlchemy detection handles exceptions."""
         obj = MagicMock()
         with patch("sqlalchemy.inspect", side_effect=Exception()):
             assert handler._is_sqlalchemy_model(obj) is False
 
-    @patch("q_task.serializers.orm_handler.DJANGO_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.DJANGO_AVAILABLE", True)
     def test_is_django_model(self, handler):
         """Test Django model detection."""
 
@@ -125,35 +125,35 @@ class TestOrmHandlerModelDetection:
         obj = MockDjangoModelClass()
         mock_django = MagicMock()
         mock_django.db.models.Model = MockDjangoModelClass
-        with patch("q_task.serializers.orm_handler.django", mock_django):
+        with patch("async_task_q.serializers.orm_handler.django", mock_django):
             # Make obj an instance of the Model class
             obj.__class__ = MockDjangoModelClass
             assert handler._is_django_model(obj) is True
 
-    @patch("q_task.serializers.orm_handler.DJANGO_AVAILABLE", False)
+    @patch("async_task_q.serializers.orm_handler.DJANGO_AVAILABLE", False)
     def test_is_django_model_when_not_available(self, handler):
         """Test Django detection when not available."""
         obj = MagicMock()
         assert handler._is_django_model(obj) is False
 
-    @patch("q_task.serializers.orm_handler.DJANGO_AVAILABLE", True)
-    @patch("q_task.serializers.orm_handler.django", None)
+    @patch("async_task_q.serializers.orm_handler.DJANGO_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.django", None)
     def test_is_django_model_when_django_is_none(self, handler):
         """Test Django detection when django is None."""
         obj = MagicMock()
         assert handler._is_django_model(obj) is False
 
-    @patch("q_task.serializers.orm_handler.DJANGO_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.DJANGO_AVAILABLE", True)
     def test_is_django_model_exception_handling(self, handler):
         """Test Django detection handles exceptions."""
         obj = MagicMock()
         mock_django = MagicMock()
         mock_django.db.models.Model = MagicMock
-        with patch("q_task.serializers.orm_handler.django", mock_django):
+        with patch("async_task_q.serializers.orm_handler.django", mock_django):
             with patch("builtins.isinstance", side_effect=Exception()):
                 assert handler._is_django_model(obj) is False
 
-    @patch("q_task.serializers.orm_handler.TORTOISE_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.TORTOISE_AVAILABLE", True)
     def test_is_tortoise_model(self, handler):
         """Test Tortoise ORM model detection."""
 
@@ -162,30 +162,30 @@ class TestOrmHandlerModelDetection:
             pass
 
         obj = MockTortoiseModelClass()
-        with patch("q_task.serializers.orm_handler.TortoiseModel", MockTortoiseModelClass):
+        with patch("async_task_q.serializers.orm_handler.TortoiseModel", MockTortoiseModelClass):
             # Make obj an instance of the Model class
             obj.__class__ = MockTortoiseModelClass
             assert handler._is_tortoise_model(obj) is True
 
-    @patch("q_task.serializers.orm_handler.TORTOISE_AVAILABLE", False)
+    @patch("async_task_q.serializers.orm_handler.TORTOISE_AVAILABLE", False)
     def test_is_tortoise_model_when_not_available(self, handler):
         """Test Tortoise detection when not available."""
         obj = MagicMock()
         assert handler._is_tortoise_model(obj) is False
 
-    @patch("q_task.serializers.orm_handler.TORTOISE_AVAILABLE", True)
-    @patch("q_task.serializers.orm_handler.TortoiseModel", None)
+    @patch("async_task_q.serializers.orm_handler.TORTOISE_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.TortoiseModel", None)
     def test_is_tortoise_model_when_tortoise_is_none(self, handler):
         """Test Tortoise detection when TortoiseModel is None."""
         obj = MagicMock()
         assert handler._is_tortoise_model(obj) is False
 
-    @patch("q_task.serializers.orm_handler.TORTOISE_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.TORTOISE_AVAILABLE", True)
     def test_is_tortoise_model_exception_handling(self, handler):
         """Test Tortoise detection handles exceptions."""
         obj = MagicMock()
         mock_tortoise = MagicMock()
-        with patch("q_task.serializers.orm_handler.TortoiseModel", mock_tortoise):
+        with patch("async_task_q.serializers.orm_handler.TortoiseModel", mock_tortoise):
             with patch("builtins.isinstance", side_effect=Exception()):
                 assert handler._is_tortoise_model(obj) is False
 
@@ -198,14 +198,14 @@ class TestOrmHandlerGetOrmType:
         """Test getting ORM type for non-ORM object returns None."""
         assert handler._get_orm_type("string") is None
 
-    @patch("q_task.serializers.orm_handler.OrmHandler._is_sqlalchemy_model")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._is_sqlalchemy_model")
     def test_get_orm_type_sqlalchemy(self, mock_is_sqlalchemy, handler):
         """Test getting ORM type for SQLAlchemy model."""
         obj = MagicMock()
         mock_is_sqlalchemy.return_value = True
         assert handler._get_orm_type(obj) == "sqlalchemy"
 
-    @patch("q_task.serializers.orm_handler.OrmHandler._is_django_model")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._is_django_model")
     def test_get_orm_type_django(self, mock_is_django, handler):
         """Test getting ORM type for Django model."""
         obj = MagicMock()
@@ -213,7 +213,7 @@ class TestOrmHandlerGetOrmType:
         mock_is_django.return_value = True
         assert handler._get_orm_type(obj) == "django"
 
-    @patch("q_task.serializers.orm_handler.OrmHandler._is_tortoise_model")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._is_tortoise_model")
     def test_get_orm_type_tortoise(self, mock_is_tortoise, handler):
         """Test getting ORM type for Tortoise model."""
         obj = MagicMock()
@@ -232,8 +232,8 @@ class TestOrmHandlerGetModelPk:
         with raises(ValueError, match="not a recognized ORM model"):
             handler._get_model_pk("string")
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_orm_type")
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_orm_type")
     def test_get_model_pk_sqlalchemy_single_pk(self, mock_get_type, handler):
         """Test getting PK from SQLAlchemy model with single PK."""
         obj = MagicMock()
@@ -250,8 +250,8 @@ class TestOrmHandlerGetModelPk:
             result = handler._get_model_pk(obj)
             assert result == 123
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_orm_type")
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_orm_type")
     def test_get_model_pk_sqlalchemy_composite_pk(self, mock_get_type, handler):
         """Test getting PK from SQLAlchemy model with composite PK."""
         obj = MagicMock()
@@ -271,18 +271,18 @@ class TestOrmHandlerGetModelPk:
             result = handler._get_model_pk(obj)
             assert result == (1, 2)
 
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_orm_type")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_orm_type")
     def test_get_model_pk_sqlalchemy_not_available(self, mock_get_type, handler):
         """Test getting PK from SQLAlchemy when not available raises ValueError."""
         obj = MagicMock()
         mock_get_type.return_value = "sqlalchemy"
         # Temporarily set SQLALCHEMY_AVAILABLE to False
-        with patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", False):
+        with patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", False):
             # The ImportError is caught and re-raised as ValueError
             with raises(ValueError, match="Failed to get primary key"):
                 handler._get_model_pk(obj)
 
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_orm_type")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_orm_type")
     def test_get_model_pk_django(self, mock_get_type, handler):
         """Test getting PK from Django model."""
         obj = MagicMock()
@@ -291,7 +291,7 @@ class TestOrmHandlerGetModelPk:
         result = handler._get_model_pk(obj)
         assert result == 456
 
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_orm_type")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_orm_type")
     def test_get_model_pk_tortoise(self, mock_get_type, handler):
         """Test getting PK from Tortoise model."""
         obj = MagicMock()
@@ -300,8 +300,8 @@ class TestOrmHandlerGetModelPk:
         result = handler._get_model_pk(obj)
         assert result == 789
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_orm_type")
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_orm_type")
     def test_get_model_pk_exception_handling(self, mock_get_type, handler):
         """Test getting PK handles exceptions."""
         obj = MagicMock()
@@ -328,9 +328,9 @@ class TestOrmHandlerGetModelClassPath:
 class TestOrmHandlerSerializeModel:
     """Test model serialization."""
 
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_orm_type")
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_model_pk")
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_model_class_path")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_orm_type")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_model_pk")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_model_class_path")
     def test_serialize_model_sqlalchemy(self, mock_get_path, mock_get_pk, mock_get_type, handler):
         """Test serializing SQLAlchemy model."""
         obj = MagicMock()
@@ -344,9 +344,9 @@ class TestOrmHandlerSerializeModel:
             "__orm_class__": "test.module.TestModel",
         }
 
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_orm_type")
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_model_pk")
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_model_class_path")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_orm_type")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_model_pk")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_model_class_path")
     def test_serialize_model_django(self, mock_get_path, mock_get_pk, mock_get_type, handler):
         """Test serializing Django model."""
         obj = MagicMock()
@@ -360,7 +360,7 @@ class TestOrmHandlerSerializeModel:
             "__orm_class__": "test.module.DjangoModel",
         }
 
-    @patch("q_task.serializers.orm_handler.OrmHandler._get_orm_type")
+    @patch("async_task_q.serializers.orm_handler.OrmHandler._get_orm_type")
     def test_serialize_model_with_non_orm_object(self, mock_get_type, handler):
         """Test serializing non-ORM object raises ValueError."""
         obj = MagicMock()
@@ -515,14 +515,14 @@ class TestOrmHandlerGetOrmTypeFromReference:
 class TestOrmHandlerFetchSqlalchemyModel:
     """Test SQLAlchemy model fetching."""
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", False)
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", False)
     @mark.asyncio
     async def test_fetch_sqlalchemy_model_not_available(self, handler):
         """Test fetching when SQLAlchemy is not available."""
         with raises(ImportError, match="SQLAlchemy is not installed"):
             await handler._fetch_sqlalchemy_model(MagicMock(), 123)
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
     @mark.asyncio
     async def test_fetch_sqlalchemy_model_with_async_session(self, handler):
         """Test fetching with async session."""
@@ -538,24 +538,24 @@ class TestOrmHandlerFetchSqlalchemyModel:
 
         session_var = contextvars.ContextVar("session")
         session_var.set(mock_session)
-        model_class._q_task_session_var = session_var
+        model_class._async_task_q_session_var = session_var
 
         with patch("sqlalchemy.ext.asyncio.AsyncSession", MockAsyncSession):
             result = await handler._fetch_sqlalchemy_model(model_class, 123)
             assert result == mock_model
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
     @mark.asyncio
     async def test_fetch_sqlalchemy_model_without_session(self, handler):
         """Test fetching without session raises RuntimeError."""
         model_class = MagicMock()
-        model_class._q_task_session_var = None
+        model_class._async_task_q_session_var = None
 
         with patch("sqlalchemy.ext.asyncio.AsyncSession"):
             with raises(RuntimeError, match="SQLAlchemy session not available"):
                 await handler._fetch_sqlalchemy_model(model_class, 123)
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
     @mark.asyncio
     async def test_fetch_sqlalchemy_model_fallback_to_sync(self, handler):
         """Test falling back to sync session when async not available."""
@@ -571,7 +571,7 @@ class TestOrmHandlerFetchSqlalchemyModel:
 
         session_var = contextvars.ContextVar("session")
         session_var.set(mock_session)
-        model_class._q_task_session_var = session_var
+        model_class._async_task_q_session_var = session_var
 
         # Patch the import inside the method to raise ImportError
         # This simulates the case where AsyncSession is not available
@@ -589,12 +589,12 @@ class TestOrmHandlerFetchSqlalchemyModel:
                     result = await handler._fetch_sqlalchemy_model(model_class, 123)
                     assert result == mock_model
 
-    @patch("q_task.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.SQLALCHEMY_AVAILABLE", True)
     @mark.asyncio
     async def test_fetch_sqlalchemy_model_sync_without_session(self, handler):
         """Test sync fallback without session raises RuntimeError."""
         model_class = MagicMock()
-        model_class._q_task_session_var = None
+        model_class._async_task_q_session_var = None
 
         with patch("sqlalchemy.ext.asyncio.AsyncSession", side_effect=ImportError):
             with patch("asyncio.get_event_loop") as mock_loop:
@@ -614,14 +614,14 @@ class TestOrmHandlerFetchSqlalchemyModel:
 class TestOrmHandlerFetchDjangoModel:
     """Test Django model fetching."""
 
-    @patch("q_task.serializers.orm_handler.DJANGO_AVAILABLE", False)
+    @patch("async_task_q.serializers.orm_handler.DJANGO_AVAILABLE", False)
     @mark.asyncio
     async def test_fetch_django_model_not_available(self, handler):
         """Test fetching when Django is not available."""
         with raises(ImportError, match="Django is not installed"):
             await handler._fetch_django_model(MagicMock(), 123)
 
-    @patch("q_task.serializers.orm_handler.DJANGO_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.DJANGO_AVAILABLE", True)
     @mark.asyncio
     async def test_fetch_django_model_async(self, handler):
         """Test fetching Django model with async."""
@@ -633,7 +633,7 @@ class TestOrmHandlerFetchDjangoModel:
         assert result == mock_model
         model_class.objects.aget.assert_called_once_with(pk=123)
 
-    @patch("q_task.serializers.orm_handler.DJANGO_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.DJANGO_AVAILABLE", True)
     @mark.asyncio
     async def test_fetch_django_model_fallback_to_sync(self, handler):
         """Test falling back to sync when async not available."""
@@ -651,14 +651,14 @@ class TestOrmHandlerFetchDjangoModel:
 class TestOrmHandlerFetchTortoiseModel:
     """Test Tortoise ORM model fetching."""
 
-    @patch("q_task.serializers.orm_handler.TORTOISE_AVAILABLE", False)
+    @patch("async_task_q.serializers.orm_handler.TORTOISE_AVAILABLE", False)
     @mark.asyncio
     async def test_fetch_tortoise_model_not_available(self, handler):
         """Test fetching when Tortoise is not available."""
         with raises(ImportError, match="Tortoise ORM is not installed"):
             await handler._fetch_tortoise_model(MagicMock(), 123)
 
-    @patch("q_task.serializers.orm_handler.TORTOISE_AVAILABLE", True)
+    @patch("async_task_q.serializers.orm_handler.TORTOISE_AVAILABLE", True)
     @mark.asyncio
     async def test_fetch_tortoise_model(self, handler):
         """Test fetching Tortoise model."""

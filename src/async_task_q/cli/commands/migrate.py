@@ -3,10 +3,10 @@
 import argparse
 import logging
 
-from q_task.config import Config
-from q_task.core.driver_factory import DriverFactory
-from q_task.drivers.mysql_driver import MySQLDriver
-from q_task.drivers.postgres_driver import PostgresDriver
+from async_task_q.config import Config
+from async_task_q.core.driver_factory import DriverFactory
+from async_task_q.drivers.mysql_driver import MySQLDriver
+from async_task_q.drivers.postgres_driver import PostgresDriver
 
 logger = logging.getLogger(__name__)
 

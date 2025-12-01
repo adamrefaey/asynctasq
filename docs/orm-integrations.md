@@ -1,6 +1,6 @@
 # ORM Integrations
 
-Q Task automatically handles ORM model serialization and deserialization, reducing queue payload size and ensuring fresh data.
+Async Task Q automatically handles ORM model serialization and deserialization, reducing queue payload size and ensuring fresh data.
 
 ## How It Works
 
@@ -27,10 +27,10 @@ Q Task automatically handles ORM model serialization and deserialization, reduci
 
 ```bash
 # With uv
-uv add "q-task[sqlalchemy]"
+uv add "async-task-q[sqlalchemy]"
 
 # With pip
-pip install "q-task[sqlalchemy]"
+pip install "async-task-q[sqlalchemy]"
 ```
 
 **Requirements:**
@@ -43,8 +43,8 @@ pip install "q-task[sqlalchemy]"
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from q_task.core.task import task
-from q_task.serializers.orm_handler import set_sqlalchemy_session_factory
+from async_task_q.core.task import task
+from async_task_q.serializers.orm_handler import set_sqlalchemy_session_factory
 
 # Define your models
 class Base(DeclarativeBase):
@@ -98,10 +98,10 @@ async def main():
 
 ```bash
 # With uv
-uv add "q-task[django]"
+uv add "async-task-q[django]"
 
 # With pip
-pip install "q-task[django]"
+pip install "async-task-q[django]"
 ```
 
 **Requirements:**
@@ -113,7 +113,7 @@ pip install "q-task[django]"
 
 ```python
 from django.db import models
-from q_task.core.task import task
+from async_task_q.core.task import task
 
 # Define your Django model
 class User(models.Model):
@@ -148,10 +148,10 @@ async def main():
 
 ```bash
 # With uv
-uv add "q-task[tortoise]"
+uv add "async-task-q[tortoise]"
 
 # With pip
-pip install "q-task[tortoise]"
+pip install "async-task-q[tortoise]"
 ```
 
 **Requirements:**
@@ -163,7 +163,7 @@ pip install "q-task[tortoise]"
 ```python
 from tortoise import fields
 from tortoise.models import Model
-from q_task.core.task import task
+from async_task_q.core.task import task
 
 # Define your Tortoise model
 class User(Model):

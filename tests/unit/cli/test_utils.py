@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from pytest import main, mark
 
-from q_task.cli.utils import DEFAULT_CONCURRENCY, DEFAULT_QUEUE, parse_queues, setup_logging
+from async_task_q.cli.utils import DEFAULT_CONCURRENCY, DEFAULT_QUEUE, parse_queues, setup_logging
 
 
 @mark.unit
@@ -34,7 +34,7 @@ class TestConstants:
 class TestSetupLogging:
     """Test setup_logging() function."""
 
-    @patch("q_task.cli.utils.logging.basicConfig")
+    @patch("async_task_q.cli.utils.logging.basicConfig")
     def test_setup_logging_configures_basic_config(self, mock_basic_config) -> None:
         # Act
         setup_logging()

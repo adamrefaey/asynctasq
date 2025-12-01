@@ -15,11 +15,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import main, mark, raises
 
-from q_task.core.task import FunctionTask, Task
-from q_task.core.worker import Worker
-from q_task.drivers.base_driver import BaseDriver
-from q_task.serializers.base_serializer import BaseSerializer
-from q_task.serializers.msgpack_serializer import MsgpackSerializer
+from async_task_q.core.task import FunctionTask, Task
+from async_task_q.core.worker import Worker
+from async_task_q.drivers.base_driver import BaseDriver
+from async_task_q.serializers.base_serializer import BaseSerializer
+from async_task_q.serializers.msgpack_serializer import MsgpackSerializer
 
 
 # Test implementations for abstract Task
@@ -159,7 +159,7 @@ class TestWorkerStart:
         # Act
         with (
             patch.object(worker, "_run", new_callable=AsyncMock) as mock_run,
-            patch("q_task.core.worker.asyncio.get_event_loop") as mock_get_loop,
+            patch("async_task_q.core.worker.asyncio.get_event_loop") as mock_get_loop,
         ):
             mock_loop = MagicMock()
             mock_get_loop.return_value = mock_loop
@@ -239,7 +239,7 @@ class TestWorkerStart:
 
         with (
             patch.object(worker, "_run", new_callable=AsyncMock) as mock_run,
-            patch("q_task.core.worker.logger") as mock_logger,
+            patch("async_task_q.core.worker.logger") as mock_logger,
         ):
             mock_run.side_effect = asyncio.CancelledError()
             try:
@@ -481,7 +481,7 @@ class TestWorkerRun:
 
         with (
             patch.object(worker, "_fetch_task", side_effect=failing_fetch),
-            patch("q_task.core.worker.logger"),
+            patch("async_task_q.core.worker.logger"),
         ):
             # Act & Assert
             # Exception should propagate and stop the loop
@@ -720,7 +720,7 @@ class TestWorkerProcessTask:
 
         with (
             patch.object(worker, "_deserialize_task", return_value=task),
-            patch("q_task.core.worker.logger") as mock_logger,
+            patch("async_task_q.core.worker.logger") as mock_logger,
         ):
             # Act
             await worker._process_task(task_data, "test_queue")
@@ -749,7 +749,7 @@ class TestWorkerProcessTask:
 
         with (
             patch.object(worker, "_deserialize_task", return_value=task),
-            patch("q_task.core.worker.logger") as mock_logger,
+            patch("async_task_q.core.worker.logger") as mock_logger,
         ):
             # Act
             await worker._process_task(task_data, "test_queue")
@@ -798,7 +798,7 @@ class TestWorkerProcessTask:
         with (
             patch.object(worker, "_deserialize_task", side_effect=timeout_error),
             patch.object(worker.queue_driver, "enqueue", new_callable=AsyncMock) as mock_enqueue,
-            patch("q_task.core.worker.logger") as mock_logger,
+            patch("async_task_q.core.worker.logger") as mock_logger,
         ):
             # Act
             await worker._process_task(task_data, "test_queue")
@@ -1028,7 +1028,7 @@ class TestWorkerHandleTaskFailure:
         # Mock serialize to raise exception
         with (
             patch.object(worker, "_serialize_task", side_effect=ValueError("Serialization failed")),
-            patch("q_task.core.worker.logger"),
+            patch("async_task_q.core.worker.logger"),
         ):
             # Act & Assert
             # Exception should propagate (not caught in current implementation)
@@ -1565,7 +1565,7 @@ class TestWorkerHandleShutdown:
         mock_driver = AsyncMock(spec=BaseDriver)
         worker = Worker(queue_driver=mock_driver)
 
-        with patch("q_task.core.worker.logger") as mock_logger:
+        with patch("async_task_q.core.worker.logger") as mock_logger:
             # Act
             worker._handle_shutdown()
 
@@ -1629,7 +1629,7 @@ class TestWorkerCleanup:
         worker = Worker(queue_driver=mock_driver)
         worker._tasks = set()
 
-        with patch("q_task.core.worker.logger") as mock_logger:
+        with patch("async_task_q.core.worker.logger") as mock_logger:
             # Act
             await worker._cleanup()
 

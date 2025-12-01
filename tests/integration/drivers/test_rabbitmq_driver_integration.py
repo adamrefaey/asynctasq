@@ -28,11 +28,11 @@ from aio_pika.abc import AbstractRobustConnection
 from pytest import fixture, main, mark
 import pytest_asyncio
 
-from q_task.drivers.rabbitmq_driver import RabbitMQDriver
+from async_task_q.drivers.rabbitmq_driver import RabbitMQDriver
 
 # Test configuration
 RABBITMQ_URL = "amqp://guest:guest@localhost:5672/"
-TEST_EXCHANGE = "test_q_task"
+TEST_EXCHANGE = "test_async_task_q"
 
 
 @fixture(scope="session")

@@ -3,9 +3,9 @@
 import argparse
 import logging
 
-from q_task.cli.utils import DEFAULT_CONCURRENCY, parse_queues
-from q_task.core.driver_factory import DriverFactory
-from q_task.core.worker import Worker
+from async_task_q.cli.utils import DEFAULT_CONCURRENCY, parse_queues
+from async_task_q.core.driver_factory import DriverFactory
+from async_task_q.core.worker import Worker
 
 logger = logging.getLogger(__name__)
 

@@ -15,11 +15,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import main, mark
 
-from q_task.config import Config
-from q_task.core.dispatcher import Dispatcher, cleanup, get_dispatcher
-from q_task.core.task import FunctionTask, Task
-from q_task.drivers.base_driver import BaseDriver
-from q_task.serializers import BaseSerializer, MsgpackSerializer
+from async_task_q.config import Config
+from async_task_q.core.dispatcher import Dispatcher, cleanup, get_dispatcher
+from async_task_q.core.task import FunctionTask, Task
+from async_task_q.drivers.base_driver import BaseDriver
+from async_task_q.serializers import BaseSerializer, MsgpackSerializer
 
 
 # Test implementations for abstract Task
@@ -115,8 +115,8 @@ class TestDispatcherGetDriver:
         task._driver_override = "redis"  # type: ignore[attr-defined]
 
         with (
-            patch("q_task.core.dispatcher.get_global_config") as mock_get_config,
-            patch("q_task.core.dispatcher.DriverFactory.create_from_config") as mock_create,
+            patch("async_task_q.core.dispatcher.get_global_config") as mock_get_config,
+            patch("async_task_q.core.dispatcher.DriverFactory.create_from_config") as mock_create,
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
@@ -142,8 +142,8 @@ class TestDispatcherGetDriver:
         task2._driver_override = "redis"  # type: ignore[attr-defined]
 
         with (
-            patch("q_task.core.dispatcher.get_global_config") as mock_get_config,
-            patch("q_task.core.dispatcher.DriverFactory.create_from_config") as mock_create,
+            patch("async_task_q.core.dispatcher.get_global_config") as mock_get_config,
+            patch("async_task_q.core.dispatcher.DriverFactory.create_from_config") as mock_create,
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
@@ -361,8 +361,8 @@ class TestDispatcherDispatch:
             task._delay_seconds = 0  # type: ignore[attr-defined]
 
         with (
-            patch("q_task.core.dispatcher.get_global_config") as mock_get_config,
-            patch("q_task.core.dispatcher.DriverFactory.create_from_config") as mock_create,
+            patch("async_task_q.core.dispatcher.get_global_config") as mock_get_config,
+            patch("async_task_q.core.dispatcher.DriverFactory.create_from_config") as mock_create,
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
@@ -643,7 +643,7 @@ class TestDispatcherSerializeTask:
         mock_func.__module__ = "__main__"
 
         # Make inspect.getfile raise an error
-        with patch("q_task.core.dispatcher.inspect.getfile") as mock_getfile:
+        with patch("async_task_q.core.dispatcher.inspect.getfile") as mock_getfile:
             mock_getfile.side_effect = OSError("Cannot get file path")
 
             task = FunctionTask(mock_func)
@@ -673,7 +673,7 @@ class TestDispatcherSerializeTask:
         mock_func.__module__ = "__main__"
 
         # Make inspect.getfile raise TypeError
-        with patch("q_task.core.dispatcher.inspect.getfile") as mock_getfile:
+        with patch("async_task_q.core.dispatcher.inspect.getfile") as mock_getfile:
             mock_getfile.side_effect = TypeError("Cannot get file path")
 
             task = FunctionTask(mock_func)
@@ -723,9 +723,9 @@ class TestGetDispatcher:
     def test_get_dispatcher_with_none_uses_default_config(self) -> None:
         # Arrange
         with (
-            patch("q_task.core.dispatcher.get_global_config") as mock_get_config,
-            patch("q_task.core.dispatcher.DriverFactory.create_from_config") as mock_create,
-            patch("q_task.core.dispatcher.Dispatcher") as mock_dispatcher_class,
+            patch("async_task_q.core.dispatcher.get_global_config") as mock_get_config,
+            patch("async_task_q.core.dispatcher.DriverFactory.create_from_config") as mock_create,
+            patch("async_task_q.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
@@ -746,9 +746,9 @@ class TestGetDispatcher:
     def test_get_dispatcher_with_string_creates_from_config(self) -> None:
         # Arrange
         with (
-            patch("q_task.core.dispatcher.get_global_config") as mock_get_config,
-            patch("q_task.core.dispatcher.DriverFactory.create_from_config") as mock_create,
-            patch("q_task.core.dispatcher.Dispatcher") as mock_dispatcher_class,
+            patch("async_task_q.core.dispatcher.get_global_config") as mock_get_config,
+            patch("async_task_q.core.dispatcher.DriverFactory.create_from_config") as mock_create,
+            patch("async_task_q.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
@@ -768,7 +768,7 @@ class TestGetDispatcher:
     def test_get_dispatcher_with_base_driver_instance(self) -> None:
         # Arrange
         mock_driver = MagicMock(spec=BaseDriver)
-        with patch("q_task.core.dispatcher.Dispatcher") as mock_dispatcher_class:
+        with patch("async_task_q.core.dispatcher.Dispatcher") as mock_dispatcher_class:
             mock_dispatcher = MagicMock(spec=Dispatcher)
             mock_dispatcher_class.return_value = mock_dispatcher
 
@@ -781,14 +781,14 @@ class TestGetDispatcher:
 
     def test_get_dispatcher_caches_dispatchers(self) -> None:
         # Arrange - clear cache first
-        from q_task.core.dispatcher import _dispatchers
+        from async_task_q.core.dispatcher import _dispatchers
 
         _dispatchers.clear()
 
         with (
-            patch("q_task.core.dispatcher.get_global_config") as mock_get_config,
-            patch("q_task.core.dispatcher.DriverFactory.create_from_config") as mock_create,
-            patch("q_task.core.dispatcher.Dispatcher") as mock_dispatcher_class,
+            patch("async_task_q.core.dispatcher.get_global_config") as mock_get_config,
+            patch("async_task_q.core.dispatcher.DriverFactory.create_from_config") as mock_create,
+            patch("async_task_q.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
@@ -810,14 +810,14 @@ class TestGetDispatcher:
 
     def test_get_dispatcher_creates_separate_dispatchers_for_different_drivers(self) -> None:
         # Arrange - clear cache first
-        from q_task.core.dispatcher import _dispatchers
+        from async_task_q.core.dispatcher import _dispatchers
 
         _dispatchers.clear()
 
         with (
-            patch("q_task.core.dispatcher.get_global_config") as mock_get_config,
-            patch("q_task.core.dispatcher.DriverFactory.create_from_config") as mock_create,
-            patch("q_task.core.dispatcher.Dispatcher") as mock_dispatcher_class,
+            patch("async_task_q.core.dispatcher.get_global_config") as mock_get_config,
+            patch("async_task_q.core.dispatcher.DriverFactory.create_from_config") as mock_create,
+            patch("async_task_q.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
@@ -846,7 +846,7 @@ class TestGetDispatcher:
         # Arrange
         driver1 = MagicMock(spec=BaseDriver)
         driver2 = MagicMock(spec=BaseDriver)
-        with patch("q_task.core.dispatcher.Dispatcher") as mock_dispatcher_class:
+        with patch("async_task_q.core.dispatcher.Dispatcher") as mock_dispatcher_class:
             dispatcher1 = MagicMock(spec=Dispatcher)
             dispatcher2 = MagicMock(spec=Dispatcher)
             mock_dispatcher_class.side_effect = [dispatcher1, dispatcher2]
@@ -863,15 +863,15 @@ class TestGetDispatcher:
 
     def test_get_dispatcher_handles_config_none_creates_from_env(self) -> None:
         # Arrange - clear cache first
-        from q_task.core.dispatcher import _dispatchers
+        from async_task_q.core.dispatcher import _dispatchers
 
         _dispatchers.clear()
 
         with (
-            patch("q_task.core.dispatcher.get_global_config") as mock_get_config,
-            patch("q_task.core.dispatcher.Config.from_env") as mock_from_env,
-            patch("q_task.core.dispatcher.DriverFactory.create_from_config") as mock_create,
-            patch("q_task.core.dispatcher.Dispatcher") as mock_dispatcher_class,
+            patch("async_task_q.core.dispatcher.get_global_config") as mock_get_config,
+            patch("async_task_q.core.dispatcher.Config.from_env") as mock_from_env,
+            patch("async_task_q.core.dispatcher.DriverFactory.create_from_config") as mock_create,
+            patch("async_task_q.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
             mock_get_config.return_value = None
             mock_config = MagicMock(spec=Config)
@@ -897,7 +897,7 @@ class TestGetDispatcher:
         # Arrange
         driver1 = MagicMock(spec=BaseDriver)
         driver2 = MagicMock(spec=BaseDriver)
-        with patch("q_task.core.dispatcher.Dispatcher") as mock_dispatcher_class:
+        with patch("async_task_q.core.dispatcher.Dispatcher") as mock_dispatcher_class:
             dispatcher1 = MagicMock(spec=Dispatcher)
             dispatcher2 = MagicMock(spec=Dispatcher)
             mock_dispatcher_class.side_effect = [dispatcher1, dispatcher2]
@@ -928,7 +928,7 @@ class TestCleanup:
     @mark.asyncio
     async def test_cleanup_with_no_dispatchers_returns_early(self) -> None:
         # Arrange - ensure _dispatchers is empty
-        from q_task.core.dispatcher import _dispatchers
+        from async_task_q.core.dispatcher import _dispatchers
 
         _dispatchers.clear()
 
@@ -940,7 +940,7 @@ class TestCleanup:
     @mark.asyncio
     async def test_cleanup_disconnects_all_drivers(self) -> None:
         # Arrange
-        from q_task.core.dispatcher import _dispatchers
+        from async_task_q.core.dispatcher import _dispatchers
 
         _dispatchers.clear()
         driver1 = AsyncMock(spec=BaseDriver)
@@ -961,7 +961,7 @@ class TestCleanup:
     @mark.asyncio
     async def test_cleanup_handles_disconnect_errors_gracefully(self) -> None:
         # Arrange
-        from q_task.core.dispatcher import _dispatchers
+        from async_task_q.core.dispatcher import _dispatchers
 
         _dispatchers.clear()
         driver1 = AsyncMock(spec=BaseDriver)
@@ -984,7 +984,7 @@ class TestCleanup:
     @mark.asyncio
     async def test_cleanup_clears_cache_after_disconnect(self) -> None:
         # Arrange
-        from q_task.core.dispatcher import _dispatchers
+        from async_task_q.core.dispatcher import _dispatchers
 
         _dispatchers.clear()
         driver = AsyncMock(spec=BaseDriver)
@@ -1001,7 +1001,7 @@ class TestCleanup:
     @mark.asyncio
     async def test_cleanup_called_multiple_times_is_safe(self) -> None:
         # Arrange
-        from q_task.core.dispatcher import _dispatchers
+        from async_task_q.core.dispatcher import _dispatchers
 
         _dispatchers.clear()
         driver = AsyncMock(spec=BaseDriver)

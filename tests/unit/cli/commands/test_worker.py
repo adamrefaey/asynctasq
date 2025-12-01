@@ -12,18 +12,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import main, mark
 
-from q_task.cli.commands.worker import run_worker
-from q_task.config import Config
+from async_task_q.cli.commands.worker import run_worker
+from async_task_q.config import Config
 
 
 @mark.unit
 class TestRunWorker:
     """Test run_worker() function."""
 
-    @patch("q_task.cli.commands.worker.Worker")
-    @patch("q_task.cli.commands.worker.DriverFactory")
-    @patch("q_task.cli.commands.worker.parse_queues")
-    @patch("q_task.cli.commands.worker.logger")
+    @patch("async_task_q.cli.commands.worker.Worker")
+    @patch("async_task_q.cli.commands.worker.DriverFactory")
+    @patch("async_task_q.cli.commands.worker.parse_queues")
+    @patch("async_task_q.cli.commands.worker.logger")
     @mark.asyncio
     async def test_run_worker_with_defaults(
         self, mock_logger, mock_parse_queues, mock_driver_factory, mock_worker_class
@@ -51,10 +51,10 @@ class TestRunWorker:
         mock_worker.start.assert_awaited_once()
         mock_logger.info.assert_called_once()
 
-    @patch("q_task.cli.commands.worker.Worker")
-    @patch("q_task.cli.commands.worker.DriverFactory")
-    @patch("q_task.cli.commands.worker.parse_queues")
-    @patch("q_task.cli.commands.worker.logger")
+    @patch("async_task_q.cli.commands.worker.Worker")
+    @patch("async_task_q.cli.commands.worker.DriverFactory")
+    @patch("async_task_q.cli.commands.worker.parse_queues")
+    @patch("async_task_q.cli.commands.worker.logger")
     @mark.asyncio
     async def test_run_worker_with_custom_queues(
         self, mock_logger, mock_parse_queues, mock_driver_factory, mock_worker_class
@@ -79,10 +79,10 @@ class TestRunWorker:
             concurrency=20,
         )
 
-    @patch("q_task.cli.commands.worker.Worker")
-    @patch("q_task.cli.commands.worker.DriverFactory")
-    @patch("q_task.cli.commands.worker.parse_queues")
-    @patch("q_task.cli.commands.worker.logger")
+    @patch("async_task_q.cli.commands.worker.Worker")
+    @patch("async_task_q.cli.commands.worker.DriverFactory")
+    @patch("async_task_q.cli.commands.worker.parse_queues")
+    @patch("async_task_q.cli.commands.worker.logger")
     @mark.asyncio
     async def test_run_worker_with_different_driver(
         self, mock_logger, mock_parse_queues, mock_driver_factory, mock_worker_class
@@ -104,9 +104,9 @@ class TestRunWorker:
         mock_logger.info.assert_called_once()
         assert "driver=sqs" in str(mock_logger.info.call_args)
 
-    @patch("q_task.cli.commands.worker.Worker")
-    @patch("q_task.cli.commands.worker.DriverFactory")
-    @patch("q_task.cli.commands.worker.parse_queues")
+    @patch("async_task_q.cli.commands.worker.Worker")
+    @patch("async_task_q.cli.commands.worker.DriverFactory")
+    @patch("async_task_q.cli.commands.worker.parse_queues")
     @mark.asyncio
     async def test_run_worker_logs_correct_info(
         self, mock_parse_queues, mock_driver_factory, mock_worker_class
@@ -121,7 +121,7 @@ class TestRunWorker:
         mock_parse_queues.return_value = ["high", "low"]
 
         # Act
-        with patch("q_task.cli.commands.worker.logger") as mock_logger:
+        with patch("async_task_q.cli.commands.worker.logger") as mock_logger:
             await run_worker(args, config)
 
             # Assert
@@ -131,9 +131,9 @@ class TestRunWorker:
             assert "queues=['high', 'low']" in log_message or "high" in log_message
             assert "concurrency=15" in log_message
 
-    @patch("q_task.cli.commands.worker.Worker")
-    @patch("q_task.cli.commands.worker.DriverFactory")
-    @patch("q_task.cli.commands.worker.parse_queues")
+    @patch("async_task_q.cli.commands.worker.Worker")
+    @patch("async_task_q.cli.commands.worker.DriverFactory")
+    @patch("async_task_q.cli.commands.worker.parse_queues")
     @mark.asyncio
     async def test_run_worker_awaits_worker_start(
         self, mock_parse_queues, mock_driver_factory, mock_worker_class

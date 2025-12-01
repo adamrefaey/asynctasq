@@ -31,7 +31,7 @@ import asyncmy
 from pytest import fixture, main, mark
 import pytest_asyncio
 
-from q_task.drivers.mysql_driver import MySQLDriver
+from async_task_q.drivers.mysql_driver import MySQLDriver
 
 # Test configuration
 MYSQL_DSN = "mysql://test:test@localhost:3306/test_db"

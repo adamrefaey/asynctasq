@@ -5,7 +5,7 @@
 Start a worker to process tasks from queues.
 
 ```bash
-python -m q_task worker [OPTIONS]
+python -m async_task_q worker [OPTIONS]
 ```
 
 **Options:**
@@ -29,34 +29,34 @@ python -m q_task worker [OPTIONS]
 
 ```bash
 # Basic usage
-python -m q_task worker
+python -m async_task_q worker
 
 # Multiple queues with priority
-python -m q_task worker --queues high,default,low --concurrency 20
+python -m async_task_q worker --queues high,default,low --concurrency 20
 
 # Redis with auth
-python -m q_task worker \
+python -m async_task_q worker \
     --driver redis \
     --redis-url redis://localhost:6379 \
     --redis-password secret
 
 # PostgreSQL worker
-python -m q_task worker \
+python -m async_task_q worker \
     --driver postgres \
     --postgres-dsn postgresql://user:pass@localhost/db
 
 # MySQL worker
-python -m q_task worker \
+python -m async_task_q worker \
     --driver mysql \
     --mysql-dsn mysql://user:pass@localhost:3306/db
 
 # SQS worker
-python -m q_task worker \
+python -m async_task_q worker \
     --driver sqs \
     --sqs-region us-west-2
 
 # RabbitMQ worker
-python -m q_task worker \
+python -m async_task_q worker \
     --driver rabbitmq \
     --queues default,emails \
     --concurrency 5
@@ -69,7 +69,7 @@ python -m q_task worker \
 Initialize database schema for PostgreSQL or MySQL drivers.
 
 ```bash
-python -m q_task migrate [OPTIONS]
+python -m async_task_q migrate [OPTIONS]
 ```
 
 **Options:**
@@ -88,23 +88,23 @@ python -m q_task migrate [OPTIONS]
 
 ```bash
 # PostgreSQL migration (default)
-python -m q_task migrate \
+python -m async_task_q migrate \
     --postgres-dsn postgresql://user:pass@localhost/db
 
 # PostgreSQL with custom tables
-python -m q_task migrate \
+python -m async_task_q migrate \
     --postgres-dsn postgresql://user:pass@localhost/db \
     --postgres-queue-table my_queue \
     --postgres-dead-letter-table my_dlq
 
 # MySQL migration
-python -m q_task migrate \
+python -m async_task_q migrate \
     --driver mysql \
     --mysql-dsn mysql://user:pass@localhost:3306/db
 
 # Using environment variables
-export q_task_POSTGRES_DSN=postgresql://user:pass@localhost/db
-python -m q_task migrate
+export async_task_q_POSTGRES_DSN=postgresql://user:pass@localhost/db
+python -m async_task_q migrate
 ```
 
 **What it does:**

@@ -1,8 +1,8 @@
 from typing import Any, get_args
 
-from q_task.config import Config
-from q_task.drivers import DriverType
-from q_task.drivers.base_driver import BaseDriver
+from async_task_q.config import Config
+from async_task_q.drivers import DriverType
+from async_task_q.drivers.base_driver import BaseDriver
 
 
 class DriverFactory:
@@ -76,7 +76,7 @@ class DriverFactory:
         """
         match driver_type:
             case "redis":
-                from q_task.drivers.redis_driver import RedisDriver
+                from async_task_q.drivers.redis_driver import RedisDriver
 
                 return RedisDriver(
                     url=kwargs.get("redis_url", "redis://localhost:6379"),
@@ -85,7 +85,7 @@ class DriverFactory:
                     max_connections=kwargs.get("redis_max_connections", 10),
                 )
             case "sqs":
-                from q_task.drivers.sqs_driver import SQSDriver
+                from async_task_q.drivers.sqs_driver import SQSDriver
 
                 return SQSDriver(
                     region_name=kwargs.get("sqs_region", "us-east-1"),
@@ -94,7 +94,7 @@ class DriverFactory:
                     aws_secret_access_key=kwargs.get("aws_secret_access_key"),
                 )
             case "postgres":
-                from q_task.drivers.postgres_driver import PostgresDriver
+                from async_task_q.drivers.postgres_driver import PostgresDriver
 
                 return PostgresDriver(
                     dsn=kwargs.get("postgres_dsn", "postgresql://user:pass@localhost/dbname"),
@@ -109,7 +109,7 @@ class DriverFactory:
                     max_pool_size=kwargs.get("postgres_max_pool_size", 10),
                 )
             case "mysql":
-                from q_task.drivers.mysql_driver import MySQLDriver
+                from async_task_q.drivers.mysql_driver import MySQLDriver
 
                 return MySQLDriver(
                     dsn=kwargs.get("mysql_dsn", "mysql://user:pass@localhost:3306/dbname"),
@@ -122,11 +122,11 @@ class DriverFactory:
                     max_pool_size=kwargs.get("mysql_max_pool_size", 10),
                 )
             case "rabbitmq":
-                from q_task.drivers.rabbitmq_driver import RabbitMQDriver
+                from async_task_q.drivers.rabbitmq_driver import RabbitMQDriver
 
                 return RabbitMQDriver(
                     url=kwargs.get("rabbitmq_url", "amqp://guest:guest@localhost:5672/"),
-                    exchange_name=kwargs.get("rabbitmq_exchange_name", "q_task"),
+                    exchange_name=kwargs.get("rabbitmq_exchange_name", "async_task_q"),
                     prefetch_count=kwargs.get("rabbitmq_prefetch_count", 1),
                 )
             case _:

@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import main, mark, raises
 
-from q_task.core.task import FunctionTask, SyncTask, Task, task
-from q_task.drivers.base_driver import BaseDriver
+from async_task_q.core.task import FunctionTask, SyncTask, Task, task
+from async_task_q.drivers.base_driver import BaseDriver
 
 
 # Test implementations for abstract Task
@@ -385,7 +385,7 @@ class TestTaskDispatch:
     async def test_dispatch_calls_get_dispatcher(self) -> None:
         # Arrange
         # Import Task to ensure it's available when dispatcher is imported
-        from q_task.core.task import Task  # noqa: F401
+        from async_task_q.core.task import Task  # noqa: F401
 
         task_instance = ConcreteTask()
         mock_dispatcher = AsyncMock()
@@ -393,7 +393,7 @@ class TestTaskDispatch:
 
         # Patch at the dispatcher module level (where it's defined)
         # This works because the import inside dispatch() will use the patched version
-        with patch("q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
+        with patch("async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
             # Act
             task_id = await task_instance.dispatch()
 
@@ -410,7 +410,7 @@ class TestTaskDispatch:
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-456")
 
         with patch(
-            "q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher
+            "async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher
         ) as mock_get:
             # Act
             await task_instance.dispatch()
@@ -428,7 +428,7 @@ class TestTaskDispatch:
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-789")
 
         with patch(
-            "q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher
+            "async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher
         ) as mock_get:
             # Act
             await task_instance.dispatch()
@@ -444,7 +444,7 @@ class TestTaskDispatch:
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-default")
 
         with patch(
-            "q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher
+            "async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher
         ) as mock_get:
             # Act
             await task_instance.dispatch()
@@ -460,7 +460,7 @@ class TestTaskDispatch:
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-delayed")
 
-        with patch("q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
+        with patch("async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
             # Act
             await task_instance.dispatch()
 
@@ -750,7 +750,7 @@ class TestTaskDecorator:
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-123")
 
-        with patch("q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
+        with patch("async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
             # Act
             # Use cast to access dynamically added attributes
             func_any = cast(Any, test_func)
@@ -774,7 +774,7 @@ class TestTaskDecorator:
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-delayed")
 
-        with patch("q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
+        with patch("async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
             # Act
             # Use cast to access dynamically added attributes
             func_any = cast(Any, test_func)
@@ -798,7 +798,7 @@ class TestTaskDecorator:
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-driver")
 
         with patch(
-            "q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher
+            "async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher
         ) as mock_get:
             # Act
             # Use cast to access dynamically added attributes
@@ -818,7 +818,7 @@ class TestTaskDecorator:
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-chained")
 
-        with patch("q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
+        with patch("async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
             # Act - Use __call__ explicitly to get FunctionTask for chaining
             # Use cast to access dynamically added attributes
             func_any = cast(Any, test_func)
@@ -883,7 +883,7 @@ class TestTaskDecorator:
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id")
 
-        with patch("q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
+        with patch("async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
             # Act
             # Use cast to access dynamically added attributes
             func_any = cast(Any, test_func)
@@ -946,7 +946,7 @@ class TestTaskEdgeCases:
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch = AsyncMock(return_value="test-task-id")
 
-        with patch("q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
+        with patch("async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
             # Act
             await task_instance.dispatch()
 
@@ -961,7 +961,7 @@ class TestTaskEdgeCases:
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch = AsyncMock(return_value="test-task-id")
 
-        with patch("q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
+        with patch("async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
             # Act
             await task_instance.dispatch()
 
@@ -1067,7 +1067,7 @@ class TestTaskEdgeCases:
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch = AsyncMock(side_effect=["id1", "id2", "id3"])
 
-        with patch("q_task.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
+        with patch("async_task_q.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
             # Act
             id1 = await task_instance.dispatch()
             id2 = await task_instance.dispatch()

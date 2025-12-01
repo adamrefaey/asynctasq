@@ -31,7 +31,7 @@ import aioboto3
 from pytest import fixture, main, mark, raises
 import pytest_asyncio
 
-from q_task.drivers.sqs_driver import SQSDriver
+from async_task_q.drivers.sqs_driver import SQSDriver
 
 # Test configuration
 TEST_REGION = "us-east-1"

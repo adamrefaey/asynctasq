@@ -14,7 +14,7 @@ from aio_pika.abc import (
 from aio_pika.exceptions import AMQPConnectionError as AioPikaConnectionError
 import aiormq.exceptions as _aiormq_excs
 
-from q_task.core.models import QueueStats, TaskInfo, WorkerInfo
+from async_task_q.core.models import QueueStats, TaskInfo, WorkerInfo
 
 from .base_driver import BaseDriver
 
@@ -73,7 +73,7 @@ class RabbitMQDriver(BaseDriver):
     """
 
     url: str = "amqp://guest:guest@localhost:5672/"
-    exchange_name: str = "q_task"
+    exchange_name: str = "async_task_q"
     prefetch_count: int = 1
     management_url: str | None = None  # Optional: http://guest:guest@localhost:15672
     connection: AbstractRobustConnection | None = field(default=None, init=False, repr=False)

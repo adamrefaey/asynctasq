@@ -2,16 +2,16 @@
 
 ## FastAPI Integration
 
-Q Task provides seamless FastAPI integration with automatic lifecycle management and dependency injection.
+Async Task Q provides seamless FastAPI integration with automatic lifecycle management and dependency injection.
 
 **Installation:**
 
 ```bash
 # With uv
-uv add "q-task[fastapi]"
+uv add "async-task-q[fastapi]"
 
 # With pip
-pip install "q-task[fastapi]"
+pip install "async-task-q[fastapi]"
 ```
 
 **Requirements:**
@@ -22,18 +22,18 @@ pip install "q-task[fastapi]"
 
 ```python
 from fastapi import FastAPI, Depends
-from q_task.integrations.fastapi import AsyncTaskIntegration
-from q_task.core.task import task
-from q_task.core.dispatcher import Dispatcher
-from q_task.drivers.base_driver import BaseDriver
+from async_task_q.integrations.fastapi import AsyncTaskIntegration
+from async_task_q.core.task import task
+from async_task_q.core.dispatcher import Dispatcher
+from async_task_q.drivers.base_driver import BaseDriver
 
 # Auto-configure from environment variables
-# q_task_DRIVER=redis
-# q_task_REDIS_URL=redis://localhost:6379
-q_task = AsyncTaskIntegration()
+# async_task_q_DRIVER=redis
+# async_task_q_REDIS_URL=redis://localhost:6379
+async_task_q = AsyncTaskIntegration()
 
-# Create FastAPI app with q_task lifespan
-app = FastAPI(lifespan=q_task.lifespan)
+# Create FastAPI app with async_task_q lifespan
+app = FastAPI(lifespan=async_task_q.lifespan)
 
 # Define a task
 @task(queue='emails')
@@ -51,15 +51,15 @@ async def send_email_route(to: str, subject: str, body: str):
 **Explicit Configuration:**
 
 ```python
-from q_task.config import Config
+from async_task_q.config import Config
 
 config = Config(
     driver="redis",
     redis_url="redis://localhost:6379",
     redis_db=1
 )
-q_task = AsyncTaskIntegration(config=config)
-app = FastAPI(lifespan=q_task.lifespan)
+async_task_q = AsyncTaskIntegration(config=config)
+app = FastAPI(lifespan=async_task_q.lifespan)
 ```
 
 **Dependency Injection:**
@@ -67,7 +67,7 @@ app = FastAPI(lifespan=q_task.lifespan)
 ```python
 @app.post("/dispatch-task")
 async def dispatch_task(
-    dispatcher: Dispatcher = Depends(q_task.get_dispatcher)
+    dispatcher: Dispatcher = Depends(async_task_q.get_dispatcher)
 ):
     # Use dispatcher directly
     task_id = await dispatcher.dispatch(my_task)
@@ -75,7 +75,7 @@ async def dispatch_task(
 
 @app.get("/queue-stats")
 async def get_stats(
-    driver: BaseDriver = Depends(q_task.get_driver)
+    driver: BaseDriver = Depends(async_task_q.get_driver)
 ):
     # Access driver for queue inspection
     size = await driver.get_queue_size("default")
@@ -85,12 +85,12 @@ async def get_stats(
 **Custom Driver Instance:**
 
 ```python
-from q_task.drivers.redis_driver import RedisDriver
+from async_task_q.drivers.redis_driver import RedisDriver
 
 # Use pre-configured driver
 custom_driver = RedisDriver(url='redis://cache-server:6379', db=2)
-q_task = AsyncTaskIntegration(driver=custom_driver)
-app = FastAPI(lifespan=q_task.lifespan)
+async_task_q = AsyncTaskIntegration(driver=custom_driver)
+app = FastAPI(lifespan=async_task_q.lifespan)
 ```
 
 **Important Notes:**
@@ -108,7 +108,7 @@ app = FastAPI(lifespan=q_task.lifespan)
 uvicorn app:app --host 0.0.0.0 --port 8000
 
 # Terminal 2: Start worker
-python -m q_task worker \
+python -m async_task_q worker \
     --driver redis \
     --redis-url redis://localhost:6379 \
     --queues default,emails \

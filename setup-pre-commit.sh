@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-# Setup pre-commit hooks for q-task
+# Setup pre-commit hooks for async-task-q
 # Usage:
 #   ./setup-pre-commit.sh          # install hooks
 #   ./setup-pre-commit.sh --all    # install hooks and run `pre-commit run --all-files`
@@ -11,7 +11,7 @@ echodo() {
     "$@"
 }
 
-echo "Setting up pre-commit hooks for q-task..."
+echo "Setting up pre-commit hooks for async-task-q..."
 
 # Helper: try to run a command if available
 command_exists() {

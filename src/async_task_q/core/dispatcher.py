@@ -4,10 +4,10 @@ import logging
 from typing import TYPE_CHECKING, cast
 import uuid
 
-from q_task.config import Config, get_global_config
-from q_task.drivers import DriverType
-from q_task.drivers.base_driver import BaseDriver
-from q_task.serializers import BaseSerializer, MsgpackSerializer
+from async_task_q.config import Config, get_global_config
+from async_task_q.drivers import DriverType
+from async_task_q.drivers.base_driver import BaseDriver
+from async_task_q.serializers import BaseSerializer, MsgpackSerializer
 
 from .driver_factory import DriverFactory
 

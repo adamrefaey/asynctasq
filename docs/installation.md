@@ -6,48 +6,48 @@
 
 ```bash
 # Basic installation
-uv add q-task
+uv add async-task-q
 
 # With specific drivers
-uv add "q-task[redis]"      # Redis support
-uv add "q-task[postgres]"   # PostgreSQL support
-uv add "q-task[mysql]"      # MySQL support
-uv add "q-task[rabbitmq]"   # RabbitMQ support
-uv add "q-task[sqs]"        # AWS SQS support
+uv add "async-task-q[redis]"      # Redis support
+uv add "async-task-q[postgres]"   # PostgreSQL support
+uv add "async-task-q[mysql]"      # MySQL support
+uv add "async-task-q[rabbitmq]"   # RabbitMQ support
+uv add "async-task-q[sqs]"        # AWS SQS support
 
 # With ORM support
-uv add "q-task[sqlalchemy]" # SQLAlchemy
-uv add "q-task[django]"     # Django
-uv add "q-task[tortoise]"   # Tortoise ORM
+uv add "async-task-q[sqlalchemy]" # SQLAlchemy
+uv add "async-task-q[django]"     # Django
+uv add "async-task-q[tortoise]"   # Tortoise ORM
 
 # With framework integrations
-uv add "q-task[fastapi]"    # FastAPI integration
+uv add "async-task-q[fastapi]"    # FastAPI integration
 
 # Complete installation with all features
-uv add "q-task[all]"
+uv add "async-task-q[all]"
 ```
 
 ## Using pip
 
 ```bash
 # Basic installation
-pip install q-task
+pip install async-task-q
 
 # With specific drivers
-pip install "q-task[redis]"
-pip install "q-task[postgres]"
-pip install "q-task[mysql]"
-pip install "q-task[rabbitmq]"
-pip install "q-task[sqs]"
+pip install "async-task-q[redis]"
+pip install "async-task-q[postgres]"
+pip install "async-task-q[mysql]"
+pip install "async-task-q[rabbitmq]"
+pip install "async-task-q[sqs]"
 
 # With ORM support
-pip install "q-task[sqlalchemy]"
-pip install "q-task[django]"
-pip install "q-task[tortoise]"
+pip install "async-task-q[sqlalchemy]"
+pip install "async-task-q[django]"
+pip install "async-task-q[tortoise]"
 
 # With framework integrations
-pip install "q-task[fastapi]"
+pip install "async-task-q[fastapi]"
 
 # Complete installation
-pip install "q-task[all]"
+pip install "async-task-q[all]"
 ```

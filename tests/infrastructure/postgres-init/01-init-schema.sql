@@ -1,4 +1,4 @@
--- PostgreSQL Schema Initialization for q-task Queue System
+-- PostgreSQL Schema Initialization for async-task-q Queue System
 -- This script is automatically executed when the PostgreSQL container starts for the first time
 -- Creates the default task_queue and dead_letter_queue tables
 

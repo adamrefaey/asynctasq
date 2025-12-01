@@ -1,6 +1,6 @@
 # Class-Based Tasks: Complete Examples Guide
 
-This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of class-based tasks in Q Task.
+This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of class-based tasks in Async Task Q.
 
 Class-based tasks use the `Task` base class to create reusable, testable tasks with lifecycle hooks, custom retry logic, and advanced configuration options.
 
@@ -37,14 +37,14 @@ Class-based tasks use the `Task` base class to create reusable, testable tasks w
 
 ## Basic Usage
 
-### Simple Q Task
+### Simple Async Task Q
 
 The simplest class-based task extends `Task` and implements the `handle()` method. All parameters passed to the constructor are automatically available as instance attributes:
 
 ```python
 import asyncio
-from q_task.core.task import Task
-from q_task.config import set_global_config
+from async_task_q.core.task import Task
+from async_task_q.config import set_global_config
 
 # Configure the queue driver
 # Note: Use 'redis', 'postgres', 'mysql', or 'sqs' for production
@@ -73,15 +73,15 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-**Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](https://github.com/adamrefaey/q-task/blob/main/docs/running-workers.md) for details.
+**Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](https://github.com/adamrefaey/async-task-q/blob/main/docs/running-workers.md) for details.
 
 ### Task with Parameters
 
 Tasks accept parameters via `__init__`, which are automatically stored as instance attributes. All parameters passed to `__init__` (except `**kwargs`) should be explicitly assigned to instance attributes:
 
 ```python
-from q_task.core.task import Task
-from q_task.config import set_global_config
+from async_task_q.core.task import Task
+from async_task_q.config import set_global_config
 
 set_global_config(driver='redis')
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 ### Minimal Task (Uses Defaults)
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class SimpleTask(Task[None]):
     """Task with default configuration."""
@@ -127,7 +127,7 @@ class SimpleTask(Task[None]):
 ### Task with Class-Level Configuration
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class SendEmail(Task[bool]):
     """Send email with custom configuration."""
@@ -153,7 +153,7 @@ class SendEmail(Task[bool]):
 ### Task with Type Hints
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 from typing import Dict, Any
 
 class ProcessOrder(Task[Dict[str, Any]]):
@@ -197,7 +197,7 @@ All configuration options can be set as class attributes. These settings apply t
 Use different queues to organize tasks by priority, type, or processing requirements:
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 # Different queues for different task types
 class SendEmail(Task[None]):
@@ -228,7 +228,7 @@ class SendPushNotification(Task[None]):
 ### Retry Configuration
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 # High retry count for critical operations
 class ChargeCreditCard(Task[bool]):
@@ -263,7 +263,7 @@ class CallExternalAPI(Task[dict]):
 ### Timeout Configuration
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 # Short timeout for quick operations
 class QuickOperation(Task[None]):
@@ -296,7 +296,7 @@ class BackgroundCleanup(Task[None]):
 ### Combined Configuration
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class CriticalOperation(Task[dict]):
     """Fully configured critical task."""
@@ -330,7 +330,7 @@ Class-based tasks provide three lifecycle hooks for complete control over task e
 The `handle()` method is where your main task logic goes. It's the only required method:
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class ProcessOrder(Task[bool]):
     queue = "orders"
@@ -366,7 +366,7 @@ class ProcessOrder(Task[bool]):
 The `failed()` method is called when a task fails after exhausting all retry attempts. Use it for cleanup, logging, alerting, or compensation:
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 import logging
 
 logger = logging.getLogger(__name__)
@@ -429,7 +429,7 @@ class ProcessPayment(Task[bool]):
 The `should_retry()` method allows you to implement custom retry logic based on the exception type. Return `True` to retry, `False` to fail immediately:
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 import httpx
 
 class CallExternalAPI(Task[dict]):
@@ -470,7 +470,7 @@ class CallExternalAPI(Task[dict]):
 **Common Retry Patterns:**
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class SmartRetryTask(Task[None]):
     """Example of various retry patterns."""
@@ -504,7 +504,7 @@ class SmartRetryTask(Task[None]):
 ### Complete Lifecycle Example
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 import logging
 
 logger = logging.getLogger(__name__)
@@ -614,7 +614,7 @@ Tasks are dispatched by creating an instance and calling `.dispatch()`. The meth
 The simplest way to dispatch a task:
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class SendEmail(Task[bool]):
     queue = "emails"
@@ -644,7 +644,7 @@ async def main():
 You can delay task execution using method chaining:
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class SendReminder(Task[None]):
     queue = "reminders"
@@ -672,7 +672,7 @@ async def main():
 
 ## Async vs Sync Tasks
 
-Q Task supports both async and synchronous class-based tasks. The framework automatically handles the execution differences:
+Async Task Q supports both async and synchronous class-based tasks. The framework automatically handles the execution differences:
 
 - **Async tasks** (`Task`): Run directly in the event loop (recommended for I/O-bound tasks)
 - **Sync tasks** (`SyncTask`): Automatically run in a thread pool (useful for CPU-bound or blocking operations)
@@ -689,12 +689,12 @@ Q Task supports both async and synchronous class-based tasks. The framework auto
 | Async libraries available             | **Task**     | Native async support                  |
 | Only sync libraries available         | **SyncTask** | Works with any blocking library       |
 
-### Q Task (Recommended)
+### Async Task Q (Recommended)
 
 Use `Task` for I/O-bound operations (API calls, database queries, file operations):
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 import asyncio
 
 class FetchUserData(Task[dict]):
@@ -723,7 +723,7 @@ class FetchUserData(Task[dict]):
 Use `SyncTask` for CPU-bound operations or when using blocking libraries:
 
 ```python
-from q_task.core.task import SyncTask
+from async_task_q.core.task import SyncTask
 import time
 
 class HeavyComputation(SyncTask[int]):
@@ -752,13 +752,13 @@ class HeavyComputation(SyncTask[int]):
 ### Mixed Async/Sync in Same Application
 
 ```python
-from q_task.core.task import Task, SyncTask
+from async_task_q.core.task import Task, SyncTask
 import asyncio
 import time
 
 # Async task
 class AsyncOperation(Task[str]):
-    queue = "q-tasks"
+    queue = "async-task-qs"
 
     def __init__(self, data: str, **kwargs):
         super().__init__(**kwargs)
@@ -793,8 +793,8 @@ async def main():
 ### Per-Task Driver Override (String)
 
 ```python
-from q_task.core.task import Task
-from q_task.config import set_global_config
+from async_task_q.core.task import Task
+from async_task_q.config import set_global_config
 
 # Global config uses redis driver
 set_global_config(driver='redis')
@@ -829,8 +829,8 @@ class NormalTask(Task[None]):
 You can also pass a driver instance directly for complete control over driver configuration:
 
 ```python
-from q_task.core.task import Task
-from q_task.drivers.redis_driver import RedisDriver
+from async_task_q.core.task import Task
+from async_task_q.drivers.redis_driver import RedisDriver
 
 # Create a custom driver instance with specific configuration
 custom_redis = RedisDriver(
@@ -870,8 +870,8 @@ async def main():
 ### Multiple Drivers in Same Application
 
 ```python
-from q_task.core.task import Task
-from q_task.config import set_global_config
+from async_task_q.core.task import Task
+from async_task_q.config import set_global_config
 
 # Default driver
 set_global_config(driver='redis')
@@ -920,7 +920,7 @@ class RedisTask(Task[None]):
 import contextvars
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 # Define models
 class Base(DeclarativeBase):
@@ -947,8 +947,8 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 session_var = contextvars.ContextVar('session')
 
 # Set the context variable on model classes
-User._q_task_session_var = session_var
-Order._q_task_session_var = session_var
+User._async_task_q_session_var = session_var
+Order._async_task_q_session_var = session_var
 
 # Task with ORM model parameter
 class SendWelcomeEmail(Task[None]):
@@ -995,18 +995,18 @@ async def main():
 
 **Important Notes:**
 
-- **Session context variable is required:** You must set `_q_task_session_var` on each model class for SQLAlchemy integration to work
--- **Worker configuration:** For production, ensure the session context variable is set in your worker process (see [ORM Integrations](https://github.com/adamrefaey/q-task/blob/main/docs/orm-integrations.md))
+- **Session context variable is required:** You must set `_async_task_q_session_var` on each model class for SQLAlchemy integration to work
+-- **Worker configuration:** For production, ensure the session context variable is set in your worker process (see [ORM Integrations](https://github.com/adamrefaey/async-task-q/blob/main/docs/orm-integrations.md))
 - **Fresh data:** Models are fetched fresh from the database when the task executes, ensuring data consistency
 - **Payload optimization:** Only the primary key is serialized, reducing queue payload size by 90%+ for large models
 - **Parallel fetching:** Multiple models in the same task are fetched in parallel for efficiency
-- See [ORM Integrations](https://github.com/adamrefaey/q-task/blob/main/docs/orm-integrations.md) for complete setup instructions and worker configuration
+- See [ORM Integrations](https://github.com/adamrefaey/async-task-q/blob/main/docs/orm-integrations.md) for complete setup instructions and worker configuration
 
 ### Django ORM Integration
 
 ```python
 from django.db import models
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 # Define Django model
 class User(models.Model):
@@ -1056,7 +1056,7 @@ async def main():
 ```python
 from tortoise import fields
 from tortoise.models import Model
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 # Define Tortoise model
 class User(Model):
@@ -1117,7 +1117,7 @@ await TaskClass(param=value).on_queue("queue").delay(60).dispatch()
 ### Basic Method Chaining
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class ProcessData(Task[None]):
     queue = "default"
@@ -1139,7 +1139,7 @@ async def main():
 ### Queue Override with Chaining
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class SendNotification(Task[None]):
     queue = "default"
@@ -1165,7 +1165,7 @@ async def main():
 Override the retry delay for specific dispatches:
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class CallAPI(Task[dict]):
     queue = "api"
@@ -1196,7 +1196,7 @@ async def main():
 ### Complex Chaining
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class ComplexTask(Task[None]):
     queue = "default"
@@ -1233,7 +1233,7 @@ Tasks automatically track metadata that you can access in your task methods:
 ### Accessing Metadata
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 from datetime import datetime
 
 class MyTask(Task[None]):
@@ -1249,7 +1249,7 @@ class MyTask(Task[None]):
 ### Using Metadata for Logging
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1272,7 +1272,7 @@ class LoggedTask(Task[dict]):
 ### Using Metadata for Conditional Logic
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class SmartRetryTask(Task[None]):
     max_retries = 5
@@ -1307,7 +1307,7 @@ class SmartRetryTask(Task[None]):
 
 ```python
 import asyncio
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 from typing import Optional
 
 class SendEmail(Task[dict]):
@@ -1366,7 +1366,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 from decimal import Decimal
 
 class ProcessPayment(Task[dict]):
@@ -1428,7 +1428,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from q_task.core.task import SyncTask
+from async_task_q.core.task import SyncTask
 from datetime import datetime, timedelta
 
 class GenerateReport(SyncTask[dict]):
@@ -1483,7 +1483,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 from pathlib import Path
 
 class ProcessImage(Task[dict]):
@@ -1531,7 +1531,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 import httpx
 
 class DeliverWebhook(Task[dict]):
@@ -1589,7 +1589,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class SyncUserData(Task[dict]):
     queue = "sync"
@@ -1637,7 +1637,7 @@ Process multiple items in a single task:
 
 ```python
 import asyncio
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 from typing import List
 
 class ProcessBatch(Task[dict]):
@@ -1707,12 +1707,12 @@ Here's a complete, runnable example demonstrating multiple class-based task patt
 - Delayed execution
 - Lifecycle hooks
 
-**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](https://github.com/adamrefaey/q-task/blob/main/docs/running-workers.md)).
+**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](https://github.com/adamrefaey/async-task-q/blob/main/docs/running-workers.md)).
 
 ```python
 import asyncio
-from q_task.core.task import Task, SyncTask
-from q_task.config import set_global_config
+from async_task_q.core.task import Task, SyncTask
+from async_task_q.config import set_global_config
 
 # Configure (use 'redis' or 'postgres' for production)
 set_global_config(driver='redis')
@@ -1843,7 +1843,7 @@ if __name__ == "__main__":
 
 ## Summary
 
-Class-based tasks in Q Task provide a powerful, flexible way to create reusable, testable background tasks with complete control over execution lifecycle.
+Class-based tasks in Async Task Q provide a powerful, flexible way to create reusable, testable background tasks with complete control over execution lifecycle.
 
 ### Key Features
 
@@ -1864,14 +1864,14 @@ Class-based tasks in Q Task provide a powerful, flexible way to create reusable,
 1. **Configure your driver:**
 
    ```python
-   from q_task.config import set_global_config
+   from async_task_q.config import set_global_config
    set_global_config(driver='redis')  # or 'postgres', 'mysql', 'sqs'
    ```
 
 2. **Define a task class:**
 
    ```python
-   from q_task.core.task import Task
+   from async_task_q.core.task import Task
 
    class SendEmail(Task[bool]):
        queue = "emails"
@@ -1893,16 +1893,16 @@ Class-based tasks in Q Task provide a powerful, flexible way to create reusable,
    print(f"Task ID: {task_id}")
    ```
 
-4. **Run workers** to process tasks (see [Running Workers](https://github.com/adamrefaey/q-task/blob/main/docs/running-workers.md))
+4. **Run workers** to process tasks (see [Running Workers](https://github.com/adamrefaey/async-task-q/blob/main/docs/running-workers.md))
 
 **Important:** Tasks will not execute until a worker process is running. The `dispatch()` call returns immediately after queuing the task - it does not wait for task execution. The returned task ID can be used to track task status in your monitoring system.
 
 ### Next Steps
 
-- Learn about [function-based tasks](https://github.com/adamrefaey/q-task/blob/main/docs/examples/function-based-tasks.md) for simpler task definitions
-- Explore [queue drivers](https://github.com/adamrefaey/q-task/blob/main/docs/queue-drivers.md) for production setup
-- Check [ORM integrations](https://github.com/adamrefaey/q-task/blob/main/docs/orm-integrations.md) for database model support
-- Review [best practices](https://github.com/adamrefaey/q-task/blob/main/docs/best-practices.md) for production usage
+- Learn about [function-based tasks](https://github.com/adamrefaey/async-task-q/blob/main/docs/examples/function-based-tasks.md) for simpler task definitions
+- Explore [queue drivers](https://github.com/adamrefaey/async-task-q/blob/main/docs/queue-drivers.md) for production setup
+- Check [ORM integrations](https://github.com/adamrefaey/async-task-q/blob/main/docs/orm-integrations.md) for database model support
+- Review [best practices](https://github.com/adamrefaey/async-task-q/blob/main/docs/best-practices.md) for production usage
 
 All examples above are ready to use - just configure your driver and start dispatching tasks!
 
@@ -1915,7 +1915,7 @@ All examples above are ready to use - just configure your driver and start dispa
 Tasks should handle their own errors gracefully. The framework will retry failed tasks according to the `max_retries` configuration and `should_retry()` logic:
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 import httpx
 
 class CallExternalAPI(Task[dict]):
@@ -1953,7 +1953,7 @@ class CallExternalAPI(Task[dict]):
 Store task IDs for monitoring and debugging. Task IDs are UUID strings that uniquely identify each dispatched task:
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class SendWelcomeEmail(Task[None]):
     queue = "emails"
@@ -2012,7 +2012,7 @@ Class-based tasks are easier to test than function-based tasks because you can i
 
 ```python
 import pytest
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class SendEmail(Task[bool]):
     queue = "emails"

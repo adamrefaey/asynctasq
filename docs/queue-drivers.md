@@ -1,6 +1,6 @@
 # Queue Drivers
 
-Q Task supports five production-ready queue drivers with identical APIs.
+Async Task Q supports five production-ready queue drivers with identical APIs.
 
 ## Redis Driver
 
@@ -20,26 +20,26 @@ Q Task supports five production-ready queue drivers with identical APIs.
 
 ```bash
 # With uv
-uv add "q-task[redis]"
+uv add "async-task-q[redis]"
 
 # With pip
-pip install "q-task[redis]"
+pip install "async-task-q[redis]"
 ```
 
 **Configuration:**
 
 ```bash
 # Environment variables
-export q_task_DRIVER=redis
-export q_task_REDIS_URL=redis://localhost:6379
-export q_task_REDIS_PASSWORD=secret  # Optional
-export q_task_REDIS_DB=0
-export q_task_REDIS_MAX_CONNECTIONS=10
+export async_task_q_DRIVER=redis
+export async_task_q_REDIS_URL=redis://localhost:6379
+export async_task_q_REDIS_PASSWORD=secret  # Optional
+export async_task_q_REDIS_DB=0
+export async_task_q_REDIS_MAX_CONNECTIONS=10
 ```
 
 ```python
 # Programmatic configuration
-from q_task.config import set_global_config
+from async_task_q.config import set_global_config
 
 set_global_config(
     driver='redis',
@@ -79,30 +79,30 @@ set_global_config(
 
 ```bash
 # With uv
-uv add "q-task[postgres]"
+uv add "async-task-q[postgres]"
 
 # With pip
-pip install "q-task[postgres]"
+pip install "async-task-q[postgres]"
 ```
 
 **Configuration:**
 
 ```bash
 # Environment variables
-export q_task_DRIVER=postgres
-export q_task_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
-export q_task_POSTGRES_QUEUE_TABLE=task_queue
-export q_task_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
-export q_task_POSTGRES_MAX_ATTEMPTS=3
-export q_task_POSTGRES_RETRY_DELAY_SECONDS=60
-export q_task_POSTGRES_VISIBILITY_TIMEOUT_SECONDS=300
-export q_task_POSTGRES_MIN_POOL_SIZE=10
-export q_task_POSTGRES_MAX_POOL_SIZE=10
+export async_task_q_DRIVER=postgres
+export async_task_q_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
+export async_task_q_POSTGRES_QUEUE_TABLE=task_queue
+export async_task_q_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
+export async_task_q_POSTGRES_MAX_ATTEMPTS=3
+export async_task_q_POSTGRES_RETRY_DELAY_SECONDS=60
+export async_task_q_POSTGRES_VISIBILITY_TIMEOUT_SECONDS=300
+export async_task_q_POSTGRES_MIN_POOL_SIZE=10
+export async_task_q_POSTGRES_MAX_POOL_SIZE=10
 ```
 
 ```python
 # Programmatic configuration
-from q_task.config import set_global_config
+from async_task_q.config import set_global_config
 
 set_global_config(
     driver='postgres',
@@ -121,10 +121,10 @@ set_global_config(
 
 ```bash
 # Initialize database schema (creates queue and dead-letter tables)
-python -m q_task migrate --driver postgres --postgres-dsn postgresql://user:pass@localhost/dbname
+python -m async_task_q migrate --driver postgres --postgres-dsn postgresql://user:pass@localhost/dbname
 
 # Or with uv
-uv run python -m q_task migrate --driver postgres --postgres-dsn postgresql://user:pass@localhost/dbname
+uv run python -m async_task_q migrate --driver postgres --postgres-dsn postgresql://user:pass@localhost/dbname
 ```
 
 **Use cases:** Enterprise apps, existing PostgreSQL infrastructure, need for ACID guarantees, complex failure handling
@@ -150,30 +150,30 @@ uv run python -m q_task migrate --driver postgres --postgres-dsn postgresql://us
 
 ```bash
 # With uv
-uv add "q-task[mysql]"
+uv add "async-task-q[mysql]"
 
 # With pip
-pip install "q-task[mysql]"
+pip install "async-task-q[mysql]"
 ```
 
 **Configuration:**
 
 ```bash
 # Environment variables
-export q_task_DRIVER=mysql
-export q_task_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
-export q_task_MYSQL_QUEUE_TABLE=task_queue
-export q_task_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
-export q_task_MYSQL_MAX_ATTEMPTS=3
-export q_task_MYSQL_RETRY_DELAY_SECONDS=60
-export q_task_MYSQL_VISIBILITY_TIMEOUT_SECONDS=300
-export q_task_MYSQL_MIN_POOL_SIZE=10
-export q_task_MYSQL_MAX_POOL_SIZE=10
+export async_task_q_DRIVER=mysql
+export async_task_q_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
+export async_task_q_MYSQL_QUEUE_TABLE=task_queue
+export async_task_q_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
+export async_task_q_MYSQL_MAX_ATTEMPTS=3
+export async_task_q_MYSQL_RETRY_DELAY_SECONDS=60
+export async_task_q_MYSQL_VISIBILITY_TIMEOUT_SECONDS=300
+export async_task_q_MYSQL_MIN_POOL_SIZE=10
+export async_task_q_MYSQL_MAX_POOL_SIZE=10
 ```
 
 ```python
 # Programmatic configuration
-from q_task.config import set_global_config
+from async_task_q.config import set_global_config
 
 set_global_config(
     driver='mysql',
@@ -192,10 +192,10 @@ set_global_config(
 
 ```bash
 # Initialize database schema
-python -m q_task migrate --driver mysql --mysql-dsn mysql://user:pass@localhost:3306/dbname
+python -m async_task_q migrate --driver mysql --mysql-dsn mysql://user:pass@localhost:3306/dbname
 
 # Or with uv
-uv run python -m q_task migrate --driver mysql --mysql-dsn mysql://user:pass@localhost:3306/dbname
+uv run python -m async_task_q migrate --driver mysql --mysql-dsn mysql://user:pass@localhost:3306/dbname
 ```
 
 **Use cases:** Enterprise apps, existing MySQL infrastructure, need for ACID guarantees, complex failure handling
@@ -221,26 +221,26 @@ uv run python -m q_task migrate --driver mysql --mysql-dsn mysql://user:pass@loc
 
 ```bash
 # With uv
-uv add "q-task[sqs]"
+uv add "async-task-q[sqs]"
 
 # With pip
-pip install "q-task[sqs]"
+pip install "async-task-q[sqs]"
 ```
 
 **Configuration:**
 
 ```bash
 # Environment variables
-export q_task_DRIVER=sqs
-export q_task_SQS_REGION=us-east-1
-export q_task_SQS_QUEUE_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
+export async_task_q_DRIVER=sqs
+export async_task_q_SQS_REGION=us-east-1
+export async_task_q_SQS_QUEUE_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
 ```
 
 ```python
 # Programmatic configuration
-from q_task.config import set_global_config
+from async_task_q.config import set_global_config
 
 set_global_config(
     driver='sqs',
@@ -284,30 +284,30 @@ set_global_config(
 
 ```bash
 # With uv
-uv add "q-task[rabbitmq]"
+uv add "async-task-q[rabbitmq]"
 
 # With pip
-pip install "q-task[rabbitmq]"
+pip install "async-task-q[rabbitmq]"
 ```
 
 **Configuration:**
 
 ```bash
 # Environment variables
-export q_task_DRIVER=rabbitmq
-export q_task_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-export q_task_RABBITMQ_EXCHANGE_NAME=q_task
-export q_task_RABBITMQ_PREFETCH_COUNT=1
+export async_task_q_DRIVER=rabbitmq
+export async_task_q_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+export async_task_q_RABBITMQ_EXCHANGE_NAME=async_task_q
+export async_task_q_RABBITMQ_PREFETCH_COUNT=1
 ```
 
 ```python
 # Programmatic configuration
-from q_task.config import set_global_config
+from async_task_q.config import set_global_config
 
 set_global_config(
     driver='rabbitmq',
     rabbitmq_url='amqp://user:pass@localhost:5672/',
-    rabbitmq_exchange_name='q_task',
+    rabbitmq_exchange_name='async_task_q',
     rabbitmq_prefetch_count=1
 )
 ```

@@ -7,7 +7,7 @@ from aioboto3 import Session
 from types_aiobotocore_sqs import SQSClient
 from types_aiobotocore_sqs.literals import QueueAttributeFilterType
 
-from q_task.core.models import QueueStats, TaskInfo, WorkerInfo
+from async_task_q.core.models import QueueStats, TaskInfo, WorkerInfo
 
 from .base_driver import BaseDriver
 
@@ -321,7 +321,7 @@ class SQSDriver(BaseDriver):
         values and leaves other fields as sensible defaults.
         """
         # Import locally to avoid circular import at module import time
-        from q_task.core.models import QueueStats
+        from async_task_q.core.models import QueueStats
 
         if self.client is None:
             await self.connect()

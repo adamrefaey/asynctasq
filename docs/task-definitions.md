@@ -1,6 +1,6 @@
 # Task Definitions
 
-Q Task supports two task definition styles: **function-based** (simple, inline) and **class-based** (reusable, testable).
+Async Task Q supports two task definition styles: **function-based** (simple, inline) and **class-based** (reusable, testable).
 
 ## Function-Based Tasks
 
@@ -9,7 +9,7 @@ Use the `@task` decorator for simple, inline task definitions.
 **Basic Function Task:**
 
 ```python
-from q_task.core.task import task
+from async_task_q.core.task import task
 
 @task
 async def send_email(to: str, subject: str, body: str):
@@ -70,7 +70,7 @@ Use the `Task` base class for complex tasks with lifecycle hooks and custom retr
 **Basic Class Task:**
 
 ```python
-from q_task.core.task import Task
+from async_task_q.core.task import Task
 
 class ProcessPayment(Task[bool]):
     queue = "payments"
@@ -160,7 +160,7 @@ task_id = await ProcessPayment(user_id=123, amount=99.99) \
 **Synchronous Class Tasks:**
 
 ```python
-from q_task.core.task import SyncTask
+from async_task_q.core.task import SyncTask
 
 class GenerateReport(SyncTask[str]):
     queue = "reports"
