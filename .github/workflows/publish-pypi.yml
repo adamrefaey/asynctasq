@@ -25,7 +25,7 @@ jobs:
 
       - name: Use publish project name for PyPI
         run: |
-          sed -i 's/name = "q-task"/name = "async-queue-task"/' pyproject.toml
+          sed -i 's/name = "q-task"/name = "async-task-q"/' pyproject.toml
           cat >> pyproject.toml <<'TOM'
           [tool.hatch.build.targets.wheel]
           packages = ["src/q_task"]
