@@ -1,3 +1,4 @@
+# yamllint disable=comments-indentation,truthy
 name: Publish to TestPyPI (on tag)
 
 on:
@@ -23,7 +24,11 @@ jobs:
       - name: Use test project name for TestPyPI
         run: |
           sed -i 's/name = "async-task"/name = "async-task-test"/' pyproject.toml
-          echo 'pyproject.toml updated for TestPyPI build'
+          cat >> pyproject.toml <<'TOM'
+          [tool.hatch.build.targets.wheel]
+          packages = ["src/async_task"]
+          TOM
+          echo 'pyproject.toml updated for TestPyPI build (name + hatch wheel packages)'
 
       - name: Install build deps
         run: |
