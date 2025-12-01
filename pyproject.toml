@@ -1,5 +1,5 @@
 [project]
-name = "async-task"
+name = "q-task"
 version = "0.9.1"
 description = "A modern, async-first, type-safe task queue Python package inspired by Laravel. Native FastAPI integration. Switch between multiple queue backends (Memory, Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic, smart ORM serialization using msgpack reduces payloads by 90%+."
 readme = "README.md"
@@ -45,13 +45,13 @@ tortoise = ["tortoise-orm>=0.25.1"]
 fastapi = ["fastapi>=0.115.0"]
 
 all = [
-    "async-task[redis,sqs,postgres,mysql,rabbitmq,sqlite,oracle,sqlalchemy,django,tortoise,fastapi]",
+    "q-task[redis,sqs,postgres,mysql,rabbitmq,sqlite,oracle,sqlalchemy,django,tortoise,fastapi]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/adamrefaey/async-task"
-Repository = "https://github.com/adamrefaey/async-task"
-Issues = "https://github.com/adamrefaey/async-task/issues"
+Homepage = "https://github.com/adamrefaey/q-task"
+Repository = "https://github.com/adamrefaey/q-task"
+Issues = "https://github.com/adamrefaey/q-task/issues"
 
 
 [build-system]
@@ -92,7 +92,7 @@ select = [
 ignore = ["E501"] # line too long (handled by formatter)
 
 [tool.ruff.isort]
-known-first-party = ["async_task"]
+known-first-party = ["q_task"]
 force-sort-within-sections = true
 
 [tool.ruff.mccabe]
@@ -120,7 +120,7 @@ python_functions = ["test_*"]
 addopts = [
     "-s",
     "-v",
-    # "--cov=async_task",
+    # "--cov=q_task",
     # "--cov-branch",
     # "--cov-report=term-missing",
     # "--cov-report=html",

@@ -45,7 +45,7 @@ from tortoise.fields import (
 )
 from tortoise.models import Model
 
-from async_task.serializers.orm_handler import OrmHandler
+from q_task.serializers.orm_handler import OrmHandler
 
 # Test configuration
 POSTGRES_DSN = "postgresql://test:test@localhost:5432/test_db"
@@ -257,7 +257,7 @@ class TestSQLAlchemyIntegration:
         # Set session in context for deserialization
         session_var = contextvars.ContextVar("session")
         session_var.set(async_session)
-        SQLAlchemyUser._async_task_session_var = session_var
+        SQLAlchemyUser._q_task_session_var = session_var
 
         # Serialize
         serialized = orm_handler.serialize_model(user)
@@ -291,7 +291,7 @@ class TestSQLAlchemyIntegration:
         # Set session in context for deserialization
         session_var = contextvars.ContextVar("session")
         session_var.set(sync_session)
-        SQLAlchemyUser._async_task_session_var = session_var
+        SQLAlchemyUser._q_task_session_var = session_var
 
         # Serialize
         serialized = orm_handler.serialize_model(user)
@@ -326,7 +326,7 @@ class TestSQLAlchemyIntegration:
         # Set session in context
         session_var = contextvars.ContextVar("session")
         session_var.set(async_session)
-        SQLAlchemyUserSession._async_task_session_var = session_var
+        SQLAlchemyUserSession._q_task_session_var = session_var
 
         # Serialize
         serialized = orm_handler.serialize_model(session)
@@ -626,7 +626,7 @@ class TestCrossOrmIntegration:
         # Set session
         session_var = contextvars.ContextVar("session")
         session_var.set(async_session)
-        SQLAlchemyUser._async_task_session_var = session_var
+        SQLAlchemyUser._q_task_session_var = session_var
 
         # Create mixed data structure
         data = {
@@ -702,7 +702,7 @@ class TestRoundTripIntegration:
         # Set session
         session_var = contextvars.ContextVar("session")
         session_var.set(async_session)
-        SQLAlchemyUser._async_task_session_var = session_var
+        SQLAlchemyUser._q_task_session_var = session_var
 
         # Round-trip
         serialized = orm_handler.process_for_serialization({"user": user, "extra": "data"})

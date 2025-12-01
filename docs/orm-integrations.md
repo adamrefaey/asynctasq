@@ -1,6 +1,6 @@
 # ORM Integrations
 
-Async Task automatically handles ORM model serialization and deserialization, reducing queue payload size and ensuring fresh data.
+Q Task automatically handles ORM model serialization and deserialization, reducing queue payload size and ensuring fresh data.
 
 ## How It Works
 
@@ -27,10 +27,10 @@ Async Task automatically handles ORM model serialization and deserialization, re
 
 ```bash
 # With uv
-uv add "async-task[sqlalchemy]"
+uv add "q-task[sqlalchemy]"
 
 # With pip
-pip install "async-task[sqlalchemy]"
+pip install "q-task[sqlalchemy]"
 ```
 
 **Requirements:**
@@ -43,8 +43,8 @@ pip install "async-task[sqlalchemy]"
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from async_task.core.task import task
-from async_task.serializers.orm_handler import set_sqlalchemy_session_factory
+from q_task.core.task import task
+from q_task.serializers.orm_handler import set_sqlalchemy_session_factory
 
 # Define your models
 class Base(DeclarativeBase):
@@ -98,10 +98,10 @@ async def main():
 
 ```bash
 # With uv
-uv add "async-task[django]"
+uv add "q-task[django]"
 
 # With pip
-pip install "async-task[django]"
+pip install "q-task[django]"
 ```
 
 **Requirements:**
@@ -113,7 +113,7 @@ pip install "async-task[django]"
 
 ```python
 from django.db import models
-from async_task.core.task import task
+from q_task.core.task import task
 
 # Define your Django model
 class User(models.Model):
@@ -148,10 +148,10 @@ async def main():
 
 ```bash
 # With uv
-uv add "async-task[tortoise]"
+uv add "q-task[tortoise]"
 
 # With pip
-pip install "async-task[tortoise]"
+pip install "q-task[tortoise]"
 ```
 
 **Requirements:**
@@ -163,7 +163,7 @@ pip install "async-task[tortoise]"
 ```python
 from tortoise import fields
 from tortoise.models import Model
-from async_task.core.task import task
+from q_task.core.task import task
 
 # Define your Tortoise model
 class User(Model):

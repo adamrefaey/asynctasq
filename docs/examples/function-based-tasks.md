@@ -1,6 +1,6 @@
 # Function-Based Tasks: Complete Examples Guide
 
-This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of function-based tasks in Async Task.
+This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of function-based tasks in Q Task.
 
 Function-based tasks allow you to convert any Python function (async or sync) into a background task by simply adding the `@task` decorator. Tasks are automatically serialized, queued, and executed by workers.
 
@@ -34,14 +34,14 @@ Function-based tasks allow you to convert any Python function (async or sync) in
 
 ## Basic Usage
 
-### Simple Async Task
+### Simple Q Task
 
 The simplest way to create a task is to add the `@task` decorator to an async function:
 
 ```python
 import asyncio
-from async_task.core.task import task
-from async_task.config import set_global_config
+from q_task.core.task import task
+from q_task.config import set_global_config
 
 # Configure the queue driver
 # Note: Use 'redis', 'postgres', 'mysql', or 'sqs' for production
@@ -65,15 +65,15 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-**Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](https://github.com/adamrefaey/async-task/blob/main/docs/running-workers.md) for details.
+**Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](https://github.com/adamrefaey/q-task/blob/main/docs/running-workers.md) for details.
 
 ### Simple Sync Task
 
 Synchronous functions are automatically executed in a thread pool, so you can use blocking operations without converting to async:
 
 ```python
-from async_task.core.task import task
-from async_task.config import set_global_config
+from q_task.core.task import task
+from q_task.config import set_global_config
 
 set_global_config(driver='redis')
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
 ### Without Parentheses (Default Configuration)
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task  # Uses all defaults: queue='default', max_retries=3, etc.
 async def simple_task():
@@ -115,7 +115,7 @@ async def simple_task():
 ### With Parentheses (Custom Configuration)
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task(queue='emails', max_retries=5, retry_delay=120, timeout=30)
 async def send_email(to: str, subject: str, body: str):
@@ -145,7 +145,7 @@ All configuration options can be set via the `@task` decorator. These settings a
 Use different queues to organize tasks by priority, type, or processing requirements:
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 # Different queues for different task types
 @task(queue='emails')
@@ -173,7 +173,7 @@ async def send_push_notification(user_id: int, message: str):
 ### Retry Configuration
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 # High retry count for critical operations
 @task(queue='payments', max_retries=10, retry_delay=30)
@@ -200,7 +200,7 @@ async def call_external_api(endpoint: str):
 ### Timeout Configuration
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 # Short timeout for quick operations
 @task(queue='quick', timeout=5)
@@ -227,7 +227,7 @@ async def background_cleanup():
 ### Combined Configuration
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task(
     queue='critical',
@@ -261,7 +261,7 @@ Tasks are dispatched using the `.dispatch()` method on the decorated function. T
 The simplest way to dispatch a task is to call `.dispatch()` with the function's parameters:
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task(queue='emails')
 async def send_email(to: str, subject: str, body: str):
@@ -282,7 +282,7 @@ async def main():
 You can delay task execution using either the `delay` parameter or method chaining:
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task(queue='reminders')
 async def send_reminder(user_id: int, message: str):
@@ -306,7 +306,7 @@ async def main():
 ### Dispatch with Positional Arguments
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task
 async def process_items(item1: str, item2: str, item3: str):
@@ -320,7 +320,7 @@ async def main():
 ### Dispatch with Mixed Arguments
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task
 async def update_user(user_id: int, name: str, email: str, active: bool = True):
@@ -340,7 +340,7 @@ async def main():
 
 ## Async vs Sync Functions
 
-Async Task supports both async and synchronous functions. The framework automatically handles the execution differences:
+Q Task supports both async and synchronous functions. The framework automatically handles the execution differences:
 
 - **Async functions**: Run directly in the event loop (recommended for I/O-bound tasks)
 - **Sync functions**: Automatically run in a thread pool (useful for CPU-bound or blocking operations)
@@ -360,7 +360,7 @@ Async Task supports both async and synchronous functions. The framework automati
 Use async functions for I/O-bound operations (API calls, database queries, file operations):
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 import asyncio
 
 @task(queue='api')
@@ -382,7 +382,7 @@ async def fetch_user_data(user_id: int):
 Use sync functions for CPU-bound operations or when using blocking libraries:
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 import time
 
 @task(queue='processing')
@@ -402,12 +402,12 @@ def heavy_computation(numbers: list[int]) -> int:
 ### Mixed Async/Sync in Same Application
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 import asyncio
 import time
 
 # Async task
-@task(queue='async-tasks')
+@task(queue='q-tasks')
 async def async_operation(data: str):
     await asyncio.sleep(0.1)
     return f"Processed: {data}"
@@ -431,8 +431,8 @@ async def main():
 ### Per-Task Driver Override (String)
 
 ```python
-from async_task.core.task import task
-from async_task.config import set_global_config
+from q_task.core.task import task
+from q_task.config import set_global_config
 
 # Global config uses redis driver
 set_global_config(driver='redis')
@@ -461,8 +461,8 @@ async def normal_task(data: str):
 You can also pass a driver instance directly for complete control over driver configuration:
 
 ```python
-from async_task.core.task import task
-from async_task.drivers.redis_driver import RedisDriver
+from q_task.core.task import task
+from q_task.drivers.redis_driver import RedisDriver
 
 # Create a custom driver instance with specific configuration
 custom_redis = RedisDriver(
@@ -494,8 +494,8 @@ async def main():
 ### Multiple Drivers in Same Application
 
 ```python
-from async_task.core.task import task
-from async_task.config import set_global_config
+from q_task.core.task import task
+from q_task.config import set_global_config
 
 # Default driver
 set_global_config(driver='redis')
@@ -532,7 +532,7 @@ async def redis_task(data: str):
 import contextvars
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from async_task.core.task import task
+from q_task.core.task import task
 
 # Define models
 class Base(DeclarativeBase):
@@ -559,8 +559,8 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 session_var = contextvars.ContextVar('session')
 
 # Set the context variable on model classes
-User._async_task_session_var = session_var
-Order._async_task_session_var = session_var
+User._q_task_session_var = session_var
+Order._q_task_session_var = session_var
 
 # Task with ORM model parameter
 @task(queue='emails')
@@ -598,13 +598,13 @@ async def main():
 - Models are fetched fresh from the database when the task executes, ensuring data consistency
 - Only the primary key is serialized, reducing queue payload size by 90%+ for large models
 - Multiple models in the same task are fetched in parallel for efficiency
-- See [ORM Integrations](https://github.com/adamrefaey/async-task/blob/main/docs/orm-integrations.md) for complete setup instructions and worker configuration
+- See [ORM Integrations](https://github.com/adamrefaey/q-task/blob/main/docs/orm-integrations.md) for complete setup instructions and worker configuration
 
 ### Django ORM Integration
 
 ```python
 from django.db import models
-from async_task.core.task import task
+from q_task.core.task import task
 
 # Define Django model
 class User(models.Model):
@@ -641,7 +641,7 @@ async def main():
 ```python
 from tortoise import fields
 from tortoise.models import Model
-from async_task.core.task import task
+from q_task.core.task import task
 
 # Define Tortoise model
 class User(Model):
@@ -695,7 +695,7 @@ await task_function(arg1, arg2).on_queue("queue").delay(60).dispatch()
 ### Basic Method Chaining
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task(queue='default')
 async def process_data(data: str):
@@ -711,7 +711,7 @@ async def main():
 ### Queue Override with Chaining
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task(queue='default')
 async def send_notification(message: str):
@@ -731,7 +731,7 @@ async def main():
 Override the retry delay for specific dispatches:
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task(queue='api', max_retries=3, retry_delay=60)
 async def call_api(endpoint: str):
@@ -753,7 +753,7 @@ async def main():
 ### Complex Chaining
 
 ```python
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task(queue='default')
 async def complex_task(data: dict):
@@ -777,7 +777,7 @@ async def main():
 
 ```python
 import asyncio
-from async_task.core.task import task
+from q_task.core.task import task
 from typing import Optional
 
 @task(queue='emails', max_retries=5, retry_delay=60, timeout=30)
@@ -819,7 +819,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from async_task.core.task import task
+from q_task.core.task import task
 from decimal import Decimal
 
 @task(
@@ -861,7 +861,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from async_task.core.task import task
+from q_task.core.task import task
 from datetime import datetime, timedelta
 
 @task(queue='reports', timeout=3600)  # 1 hour timeout
@@ -904,7 +904,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from async_task.core.task import task
+from q_task.core.task import task
 from pathlib import Path
 
 @task(queue='images', max_retries=3, timeout=300)
@@ -940,7 +940,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from async_task.core.task import task
+from q_task.core.task import task
 import httpx
 
 @task(
@@ -982,7 +982,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from async_task.core.task import task
+from q_task.core.task import task
 
 @task(queue='sync', max_retries=3, retry_delay=300)
 async def sync_user_data(
@@ -1019,7 +1019,7 @@ Process multiple items in a single task:
 
 ```python
 import asyncio
-from async_task.core.task import task
+from q_task.core.task import task
 from typing import List
 
 @task(queue='batch', timeout=1800)  # 30 minutes timeout
@@ -1073,12 +1073,12 @@ Here's a complete, runnable example demonstrating multiple function-based task p
 - Driver overrides
 - Delayed execution
 
-**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](https://github.com/adamrefaey/async-task/blob/main/docs/running-workers.md)).
+**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](https://github.com/adamrefaey/q-task/blob/main/docs/running-workers.md)).
 
 ```python
 import asyncio
-from async_task.core.task import task
-from async_task.config import set_global_config
+from q_task.core.task import task
+from q_task.config import set_global_config
 
 # Configure (use 'redis' or 'postgres' for production)
 set_global_config(driver='redis')
@@ -1169,7 +1169,7 @@ if __name__ == "__main__":
 
 ## Summary
 
-Function-based tasks in Async Task provide a simple, powerful way to convert any Python function into a background task.
+Function-based tasks in Q Task provide a simple, powerful way to convert any Python function into a background task.
 
 ### Key Features
 
@@ -1188,14 +1188,14 @@ Function-based tasks in Async Task provide a simple, powerful way to convert any
 1. **Configure your driver:**
 
    ```python
-   from async_task.config import set_global_config
+   from q_task.config import set_global_config
    set_global_config(driver='redis')  # or 'postgres', 'mysql', 'sqs'
    ```
 
 2. **Define a task:**
 
    ```python
-   from async_task.core.task import task
+   from q_task.core.task import task
 
    @task(queue='emails')
    async def send_email(to: str, subject: str):
@@ -1209,16 +1209,16 @@ Function-based tasks in Async Task provide a simple, powerful way to convert any
    print(f"Task ID: {task_id}")
    ```
 
-4. **Run workers** to process tasks (see [Running Workers](https://github.com/adamrefaey/async-task/blob/main/docs/running-workers.md))
+4. **Run workers** to process tasks (see [Running Workers](https://github.com/adamrefaey/q-task/blob/main/docs/running-workers.md))
 
 **Note:** Tasks will not execute until a worker process is running. The `dispatch()` call returns immediately after queuing the task.
 
 ### Next Steps
 
-- Learn about [task definitions](https://github.com/adamrefaey/async-task/blob/main/docs/task-definitions.md) for class-based tasks
-- Explore [queue drivers](https://github.com/adamrefaey/async-task/blob/main/docs/queue-drivers.md) for production setup
-- Check [ORM integrations](https://github.com/adamrefaey/async-task/blob/main/docs/orm-integrations.md) for database model support
-- Review [best practices](https://github.com/adamrefaey/async-task/blob/main/docs/best-practices.md) for production usage
+- Learn about [task definitions](https://github.com/adamrefaey/q-task/blob/main/docs/task-definitions.md) for class-based tasks
+- Explore [queue drivers](https://github.com/adamrefaey/q-task/blob/main/docs/queue-drivers.md) for production setup
+- Check [ORM integrations](https://github.com/adamrefaey/q-task/blob/main/docs/orm-integrations.md) for database model support
+- Review [best practices](https://github.com/adamrefaey/q-task/blob/main/docs/best-practices.md) for production usage
 
 All examples above are ready to use - just configure your driver and start dispatching tasks!
 

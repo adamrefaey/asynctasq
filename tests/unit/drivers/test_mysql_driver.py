@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from pytest import mark, raises
 
-from async_task.drivers.mysql_driver import MySQLDriver
+from q_task.drivers.mysql_driver import MySQLDriver
 
 
 @mark.unit

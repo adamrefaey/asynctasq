@@ -1,4 +1,4 @@
-"""Serialization implementations for async-task.
+"""Serialization implementations for q-task.
 
 This module provides the serializer abstraction and concrete implementations
 for encoding/decoding task data.

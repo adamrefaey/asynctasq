@@ -1,4 +1,4 @@
-"""FastAPI integration for async_task.
+"""FastAPI integration for q_task.
 
 Provides seamless integration with FastAPI applications through lifespan management
 and dependency injection.
@@ -8,10 +8,10 @@ from contextlib import asynccontextmanager
 import logging
 from typing import TYPE_CHECKING, Any
 
-from async_task.config import Config, get_global_config
-from async_task.core.dispatcher import Dispatcher
-from async_task.core.driver_factory import DriverFactory
-from async_task.drivers.base_driver import BaseDriver
+from q_task.config import Config, get_global_config
+from q_task.core.dispatcher import Dispatcher
+from q_task.core.driver_factory import DriverFactory
+from q_task.drivers.base_driver import BaseDriver
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncTaskIntegration:
-    """FastAPI integration for async_task.
+    """FastAPI integration for q_task.
 
     Manages the lifecycle of queue drivers and dispatchers within FastAPI applications.
     Handles connection setup on startup and cleanup on shutdown.
@@ -29,17 +29,17 @@ class AsyncTaskIntegration:
     Example:
         ```python
         from fastapi import FastAPI
-        from async_task.integrations.fastapi import AsyncTaskIntegration
+        from q_task.integrations.fastapi import AsyncTaskIntegration
 
         # Auto-configure from environment variables
-        async_task = AsyncTaskIntegration()
-        app = FastAPI(lifespan=async_task.lifespan)
+        q_task = AsyncTaskIntegration()
+        app = FastAPI(lifespan=q_task.lifespan)
 
         # Or with explicit configuration
-        from async_task.config import Config
+        from q_task.config import Config
         config = Config(driver="redis", redis_url="redis://localhost:6379")
-        async_task = AsyncTaskIntegration(config=config)
-        app = FastAPI(lifespan=async_task.lifespan)
+        q_task = AsyncTaskIntegration(config=config)
+        app = FastAPI(lifespan=q_task.lifespan)
         ```
     """
 
@@ -149,14 +149,14 @@ class AsyncTaskIntegration:
         Example:
             ```python
             from fastapi import Depends
-            from async_task.integrations.fastapi import AsyncTaskIntegration
+            from q_task.integrations.fastapi import AsyncTaskIntegration
 
-            async_task = AsyncTaskIntegration()
-            app = FastAPI(lifespan=async_task.lifespan)
+            q_task = AsyncTaskIntegration()
+            app = FastAPI(lifespan=q_task.lifespan)
 
             @app.post("/dispatch")
             async def dispatch_task(
-                dispatcher: Dispatcher = Depends(async_task.get_dispatcher)
+                dispatcher: Dispatcher = Depends(q_task.get_dispatcher)
             ):
                 # Use dispatcher to dispatch tasks directly
                 task_id = await dispatcher.dispatch(my_task)
@@ -182,14 +182,14 @@ class AsyncTaskIntegration:
         Example:
             ```python
             from fastapi import Depends
-            from async_task.integrations.fastapi import AsyncTaskIntegration
+            from q_task.integrations.fastapi import AsyncTaskIntegration
 
-            async_task = AsyncTaskIntegration()
-            app = FastAPI(lifespan=async_task.lifespan)
+            q_task = AsyncTaskIntegration()
+            app = FastAPI(lifespan=q_task.lifespan)
 
             @app.get("/queue-stats")
             async def get_stats(
-                driver: BaseDriver = Depends(async_task.get_driver)
+                driver: BaseDriver = Depends(q_task.get_driver)
             ):
                 size = await driver.get_queue_size("default")
                 return {"queue_size": size}

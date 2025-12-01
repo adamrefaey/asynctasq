@@ -12,18 +12,18 @@ from typing import get_args
 
 from pytest import fixture, main, mark, raises
 
-from async_task.config import (
+from q_task.config import (
     ENV_VAR_MAPPING,
     Config,
     get_global_config,
     set_global_config,
 )
-from async_task.drivers import DRIVERS, DriverType
+from q_task.drivers import DRIVERS, DriverType
 
 
 @fixture
 def clean_env(monkeypatch):
-    """Clear all async_task environment variables."""
+    """Clear all q_task environment variables."""
     for _, (env_var, _, _) in ENV_VAR_MAPPING.items():
         monkeypatch.delenv(env_var, raising=False)
 
@@ -31,11 +31,11 @@ def clean_env(monkeypatch):
 @fixture
 def reset_global_config():
     """Reset global config before and after each test."""
-    import async_task.config
+    import q_task.config
 
-    async_task.config._global_config = None
+    q_task.config._global_config = None
     yield
-    async_task.config._global_config = None
+    q_task.config._global_config = None
 
 
 @mark.unit
@@ -114,7 +114,7 @@ class TestEnvVarMapping:
     def test_driver_env_var_mapping(self) -> None:
         # Assert
         env_var, default, converter = ENV_VAR_MAPPING["driver"]
-        assert env_var == "ASYNC_TASK_DRIVER"
+        assert env_var == "q_task_DRIVER"
         assert default == "redis"
         assert converter is str
 
@@ -190,7 +190,7 @@ class TestConfigFromEnv:
 
     def test_from_env_loads_driver_from_env(self, monkeypatch) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_DRIVER", "redis")
+        monkeypatch.setenv("q_task_DRIVER", "redis")
 
         # Act
         config = Config.from_env()
@@ -200,10 +200,10 @@ class TestConfigFromEnv:
 
     def test_from_env_loads_redis_settings(self, monkeypatch) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_REDIS_URL", "redis://custom:6380")
-        monkeypatch.setenv("ASYNC_TASK_REDIS_PASSWORD", "secret123")
-        monkeypatch.setenv("ASYNC_TASK_REDIS_DB", "5")
-        monkeypatch.setenv("ASYNC_TASK_REDIS_MAX_CONNECTIONS", "50")
+        monkeypatch.setenv("q_task_REDIS_URL", "redis://custom:6380")
+        monkeypatch.setenv("q_task_REDIS_PASSWORD", "secret123")
+        monkeypatch.setenv("q_task_REDIS_DB", "5")
+        monkeypatch.setenv("q_task_REDIS_MAX_CONNECTIONS", "50")
 
         # Act
         config = Config.from_env()
@@ -216,8 +216,8 @@ class TestConfigFromEnv:
 
     def test_from_env_loads_sqs_settings(self, monkeypatch) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_SQS_REGION", "us-west-2")
-        monkeypatch.setenv("ASYNC_TASK_SQS_QUEUE_PREFIX", "https://sqs.us-west-2/")
+        monkeypatch.setenv("q_task_SQS_REGION", "us-west-2")
+        monkeypatch.setenv("q_task_SQS_QUEUE_PREFIX", "https://sqs.us-west-2/")
         monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test_key")
         monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test_secret")
 
@@ -232,14 +232,14 @@ class TestConfigFromEnv:
 
     def test_from_env_loads_postgres_settings(self, monkeypatch) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_POSTGRES_DSN", "postgresql://test:test@db:5432/test")
-        monkeypatch.setenv("ASYNC_TASK_POSTGRES_QUEUE_TABLE", "custom_queue")
-        monkeypatch.setenv("ASYNC_TASK_POSTGRES_DEAD_LETTER_TABLE", "custom_dlq")
-        monkeypatch.setenv("ASYNC_TASK_POSTGRES_MAX_ATTEMPTS", "5")
-        monkeypatch.setenv("ASYNC_TASK_POSTGRES_RETRY_DELAY_SECONDS", "120")
-        monkeypatch.setenv("ASYNC_TASK_POSTGRES_VISIBILITY_TIMEOUT_SECONDS", "600")
-        monkeypatch.setenv("ASYNC_TASK_POSTGRES_MIN_POOL_SIZE", "5")
-        monkeypatch.setenv("ASYNC_TASK_POSTGRES_MAX_POOL_SIZE", "20")
+        monkeypatch.setenv("q_task_POSTGRES_DSN", "postgresql://test:test@db:5432/test")
+        monkeypatch.setenv("q_task_POSTGRES_QUEUE_TABLE", "custom_queue")
+        monkeypatch.setenv("q_task_POSTGRES_DEAD_LETTER_TABLE", "custom_dlq")
+        monkeypatch.setenv("q_task_POSTGRES_MAX_ATTEMPTS", "5")
+        monkeypatch.setenv("q_task_POSTGRES_RETRY_DELAY_SECONDS", "120")
+        monkeypatch.setenv("q_task_POSTGRES_VISIBILITY_TIMEOUT_SECONDS", "600")
+        monkeypatch.setenv("q_task_POSTGRES_MIN_POOL_SIZE", "5")
+        monkeypatch.setenv("q_task_POSTGRES_MAX_POOL_SIZE", "20")
 
         # Act
         config = Config.from_env()
@@ -256,10 +256,10 @@ class TestConfigFromEnv:
 
     def test_from_env_loads_task_defaults(self, monkeypatch) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_DEFAULT_QUEUE", "high_priority")
-        monkeypatch.setenv("ASYNC_TASK_MAX_RETRIES", "5")
-        monkeypatch.setenv("ASYNC_TASK_RETRY_DELAY", "120")
-        monkeypatch.setenv("ASYNC_TASK_TIMEOUT", "300")
+        monkeypatch.setenv("q_task_DEFAULT_QUEUE", "high_priority")
+        monkeypatch.setenv("q_task_MAX_RETRIES", "5")
+        monkeypatch.setenv("q_task_RETRY_DELAY", "120")
+        monkeypatch.setenv("q_task_TIMEOUT", "300")
 
         # Act
         config = Config.from_env()
@@ -285,8 +285,8 @@ class TestConfigFromEnv:
 
     def test_from_env_overrides_take_precedence(self, monkeypatch) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_DRIVER", "redis")
-        monkeypatch.setenv("ASYNC_TASK_DEFAULT_QUEUE", "from_env")
+        monkeypatch.setenv("q_task_DRIVER", "redis")
+        monkeypatch.setenv("q_task_DEFAULT_QUEUE", "from_env")
 
         # Act
         config = Config.from_env(driver="redis", default_queue="override")
@@ -297,8 +297,8 @@ class TestConfigFromEnv:
 
     def test_from_env_converts_integer_types(self, monkeypatch) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_REDIS_DB", "10")
-        monkeypatch.setenv("ASYNC_TASK_MAX_RETRIES", "7")
+        monkeypatch.setenv("q_task_REDIS_DB", "10")
+        monkeypatch.setenv("q_task_MAX_RETRIES", "7")
 
         # Act
         config = Config.from_env()
@@ -503,8 +503,8 @@ class TestGlobalConfig:
 
     def test_set_global_config_with_env_vars(self, monkeypatch, reset_global_config) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_DRIVER", "sqs")
-        monkeypatch.setenv("ASYNC_TASK_DEFAULT_QUEUE", "from_env")
+        monkeypatch.setenv("q_task_DRIVER", "sqs")
+        monkeypatch.setenv("q_task_DEFAULT_QUEUE", "from_env")
 
         # Act
         set_global_config(default_queue="override")
@@ -605,7 +605,7 @@ class TestConfigEdgeCases:
 
     def test_env_var_none_string_converts_to_none(self, monkeypatch) -> None:
         # Arrange - Some systems might set env vars to empty strings
-        monkeypatch.setenv("ASYNC_TASK_REDIS_PASSWORD", "")
+        monkeypatch.setenv("q_task_REDIS_PASSWORD", "")
 
         # Act
         config = Config.from_env()
@@ -656,8 +656,8 @@ class TestConfigTypeConversion:
 
     def test_int_conversion_from_string(self, monkeypatch) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_REDIS_DB", "7")
-        monkeypatch.setenv("ASYNC_TASK_MAX_RETRIES", "10")
+        monkeypatch.setenv("q_task_REDIS_DB", "7")
+        monkeypatch.setenv("q_task_MAX_RETRIES", "10")
 
         # Act
         config = Config.from_env()
@@ -668,8 +668,8 @@ class TestConfigTypeConversion:
 
     def test_str_conversion_preserves_string(self, monkeypatch) -> None:
         # Arrange
-        monkeypatch.setenv("ASYNC_TASK_DRIVER", "redis")
-        monkeypatch.setenv("ASYNC_TASK_DEFAULT_QUEUE", "default")
+        monkeypatch.setenv("q_task_DRIVER", "redis")
+        monkeypatch.setenv("q_task_DEFAULT_QUEUE", "default")
 
         # Act
         config = Config.from_env()

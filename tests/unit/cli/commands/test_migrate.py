@@ -12,8 +12,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import main, mark, raises
 
-from async_task.cli.commands.migrate import MigrationError, run_migrate
-from async_task.config import Config
+from q_task.cli.commands.migrate import MigrationError, run_migrate
+from q_task.config import Config
 
 
 @mark.unit
@@ -77,10 +77,10 @@ class TestRunMigrate:
         ):
             await run_migrate(args, config)
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.PostgresDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
-    @patch("async_task.cli.commands.migrate.logger")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.PostgresDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_with_postgres_driver_success(
         self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
@@ -110,9 +110,9 @@ class TestRunMigrate:
         mock_driver.disconnect.assert_awaited_once()
         assert mock_logger.info.call_count >= 4  # Initial info + success messages
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.PostgresDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.PostgresDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
     @mark.asyncio
     async def test_run_migrate_with_wrong_driver_type_raises_error(
         self, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
@@ -131,10 +131,10 @@ class TestRunMigrate:
         ):
             await run_migrate(args, config)
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.PostgresDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
-    @patch("async_task.cli.commands.migrate.logger")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.PostgresDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_logs_configuration(
         self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
@@ -167,10 +167,10 @@ class TestRunMigrate:
         assert any("custom_queue" in str(call) for call in mock_logger.info.call_args_list)
         assert any("custom_dlq" in str(call) for call in mock_logger.info.call_args_list)
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.PostgresDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
-    @patch("async_task.cli.commands.migrate.logger")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.PostgresDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_logs_success_messages(
         self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
@@ -200,9 +200,9 @@ class TestRunMigrate:
         assert any("idx_task_queue_lookup" in str(call) for call in mock_logger.info.call_args_list)
         assert any("dead_letter_queue" in str(call) for call in mock_logger.info.call_args_list)
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.PostgresDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.PostgresDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
     @mark.asyncio
     async def test_run_migrate_disconnects_on_error(
         self, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
@@ -224,9 +224,9 @@ class TestRunMigrate:
         # Assert - disconnect should be called even on error
         mock_driver.disconnect.assert_awaited_once()
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.PostgresDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.PostgresDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
     @mark.asyncio
     async def test_run_migrate_disconnects_on_connect_error(
         self, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
@@ -247,10 +247,10 @@ class TestRunMigrate:
         # Assert - disconnect should still be called
         mock_driver.disconnect.assert_awaited_once()
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.PostgresDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
-    @patch("async_task.cli.commands.migrate.logger")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.PostgresDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_with_custom_table_names(
         self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
@@ -276,10 +276,10 @@ class TestRunMigrate:
         assert any("my_dlq" in str(call) for call in mock_logger.info.call_args_list)
         assert any("idx_my_queue_lookup" in str(call) for call in mock_logger.info.call_args_list)
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.MySQLDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
-    @patch("async_task.cli.commands.migrate.logger")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.MySQLDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_with_mysql_driver_success(
         self, mock_logger, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
@@ -307,9 +307,9 @@ class TestRunMigrate:
         mock_driver.disconnect.assert_awaited_once()
         assert mock_logger.info.call_count >= 4  # Initial info + success messages
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.MySQLDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.MySQLDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
     @mark.asyncio
     async def test_run_migrate_with_wrong_mysql_driver_type_raises_error(
         self, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
@@ -326,10 +326,10 @@ class TestRunMigrate:
         with raises(MigrationError, match="Driver factory did not return a MySQLDriver instance"):
             await run_migrate(args, config)
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.MySQLDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
-    @patch("async_task.cli.commands.migrate.logger")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.MySQLDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_logs_mysql_configuration(
         self, mock_logger, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
@@ -361,10 +361,10 @@ class TestRunMigrate:
         assert any("custom_queue" in str(call) for call in mock_logger.info.call_args_list)
         assert any("custom_dlq" in str(call) for call in mock_logger.info.call_args_list)
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.MySQLDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
-    @patch("async_task.cli.commands.migrate.logger")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.MySQLDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_logs_mysql_success_messages(
         self, mock_logger, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
@@ -394,9 +394,9 @@ class TestRunMigrate:
         assert any("idx_task_queue_lookup" in str(call) for call in mock_logger.info.call_args_list)
         assert any("dead_letter_queue" in str(call) for call in mock_logger.info.call_args_list)
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.MySQLDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.MySQLDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
     @mark.asyncio
     async def test_run_migrate_mysql_disconnects_on_error(
         self, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
@@ -418,9 +418,9 @@ class TestRunMigrate:
         # Assert - disconnect should be called even on error
         mock_driver.disconnect.assert_awaited_once()
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.MySQLDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.MySQLDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
     @mark.asyncio
     async def test_run_migrate_mysql_disconnects_on_connect_error(
         self, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
@@ -441,10 +441,10 @@ class TestRunMigrate:
         # Assert - disconnect should still be called
         mock_driver.disconnect.assert_awaited_once()
 
-    @patch("async_task.cli.commands.migrate.isinstance")
-    @patch("async_task.cli.commands.migrate.MySQLDriver")
-    @patch("async_task.cli.commands.migrate.DriverFactory")
-    @patch("async_task.cli.commands.migrate.logger")
+    @patch("q_task.cli.commands.migrate.isinstance")
+    @patch("q_task.cli.commands.migrate.MySQLDriver")
+    @patch("q_task.cli.commands.migrate.DriverFactory")
+    @patch("q_task.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_mysql_with_custom_table_names(
         self, mock_logger, mock_driver_factory, mock_mysql_driver_class, mock_isinstance

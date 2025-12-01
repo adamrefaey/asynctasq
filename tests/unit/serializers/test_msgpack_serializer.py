@@ -20,7 +20,7 @@ from uuid import UUID, uuid4
 import msgpack
 from pytest import fixture, main, mark, raises
 
-from async_task.serializers.msgpack_serializer import MsgpackSerializer
+from q_task.serializers.msgpack_serializer import MsgpackSerializer
 
 
 # Test fixtures

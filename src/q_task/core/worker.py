@@ -6,9 +6,9 @@ import logging
 from pathlib import Path
 import signal
 
-from async_task.drivers.base_driver import BaseDriver
-from async_task.serializers.base_serializer import BaseSerializer
-from async_task.serializers.msgpack_serializer import MsgpackSerializer
+from q_task.drivers.base_driver import BaseDriver
+from q_task.serializers.base_serializer import BaseSerializer
+from q_task.serializers.msgpack_serializer import MsgpackSerializer
 
 from .task import Task
 

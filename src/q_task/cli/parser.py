@@ -2,7 +2,7 @@
 
 import argparse
 
-from async_task.drivers import DRIVERS
+from q_task.drivers import DRIVERS
 
 from .utils import DEFAULT_CONCURRENCY, DEFAULT_QUEUE
 
@@ -20,7 +20,7 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
         type=str,
         choices=list(DRIVERS),
         default=default_driver,
-        help="Queue driver to use (default: from ASYNC_TASK_DRIVER env var or 'redis')",
+        help="Queue driver to use (default: from q_task_DRIVER env var or 'redis')",
     )
 
     # Redis options
@@ -28,22 +28,22 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
     redis_group.add_argument(
         "--redis-url",
         type=str,
-        help="Redis connection URL (default: from ASYNC_TASK_REDIS_URL env var or 'redis://localhost:6379')",
+        help="Redis connection URL (default: from q_task_REDIS_URL env var or 'redis://localhost:6379')",
     )
     redis_group.add_argument(
         "--redis-password",
         type=str,
-        help="Redis password (default: from ASYNC_TASK_REDIS_PASSWORD env var)",
+        help="Redis password (default: from q_task_REDIS_PASSWORD env var)",
     )
     redis_group.add_argument(
         "--redis-db",
         type=int,
-        help="Redis database number (default: from ASYNC_TASK_REDIS_DB env var or 0)",
+        help="Redis database number (default: from q_task_REDIS_DB env var or 0)",
     )
     redis_group.add_argument(
         "--redis-max-connections",
         type=int,
-        help="Redis max connections (default: from ASYNC_TASK_REDIS_MAX_CONNECTIONS env var or 10)",
+        help="Redis max connections (default: from q_task_REDIS_MAX_CONNECTIONS env var or 10)",
     )
 
     # SQS options
@@ -51,12 +51,12 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
     sqs_group.add_argument(
         "--sqs-region",
         type=str,
-        help="AWS SQS region (default: from ASYNC_TASK_SQS_REGION env var or 'us-east-1')",
+        help="AWS SQS region (default: from q_task_SQS_REGION env var or 'us-east-1')",
     )
     sqs_group.add_argument(
         "--sqs-queue-url-prefix",
         type=str,
-        help="SQS queue URL prefix (default: from ASYNC_TASK_SQS_QUEUE_PREFIX env var)",
+        help="SQS queue URL prefix (default: from q_task_SQS_QUEUE_PREFIX env var)",
     )
     sqs_group.add_argument(
         "--aws-access-key-id",
@@ -74,17 +74,17 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
     postgres_group.add_argument(
         "--postgres-dsn",
         type=str,
-        help="PostgreSQL connection DSN (default: from ASYNC_TASK_POSTGRES_DSN env var)",
+        help="PostgreSQL connection DSN (default: from q_task_POSTGRES_DSN env var)",
     )
     postgres_group.add_argument(
         "--postgres-queue-table",
         type=str,
-        help="PostgreSQL queue table name (default: from ASYNC_TASK_POSTGRES_QUEUE_TABLE env var or 'task_queue')",
+        help="PostgreSQL queue table name (default: from q_task_POSTGRES_QUEUE_TABLE env var or 'task_queue')",
     )
     postgres_group.add_argument(
         "--postgres-dead-letter-table",
         type=str,
-        help="PostgreSQL dead letter table name (default: from ASYNC_TASK_POSTGRES_DEAD_LETTER_TABLE env var or 'dead_letter_queue')",
+        help="PostgreSQL dead letter table name (default: from q_task_POSTGRES_DEAD_LETTER_TABLE env var or 'dead_letter_queue')",
     )
 
     # MySQL options
@@ -92,17 +92,17 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
     mysql_group.add_argument(
         "--mysql-dsn",
         type=str,
-        help="MySQL connection DSN (default: from ASYNC_TASK_MYSQL_DSN env var)",
+        help="MySQL connection DSN (default: from q_task_MYSQL_DSN env var)",
     )
     mysql_group.add_argument(
         "--mysql-queue-table",
         type=str,
-        help="MySQL queue table name (default: from ASYNC_TASK_MYSQL_QUEUE_TABLE env var or 'task_queue')",
+        help="MySQL queue table name (default: from q_task_MYSQL_QUEUE_TABLE env var or 'task_queue')",
     )
     mysql_group.add_argument(
         "--mysql-dead-letter-table",
         type=str,
-        help="MySQL dead letter table name (default: from ASYNC_TASK_MYSQL_DEAD_LETTER_TABLE env var or 'dead_letter_queue')",
+        help="MySQL dead letter table name (default: from q_task_MYSQL_DEAD_LETTER_TABLE env var or 'dead_letter_queue')",
     )
 
 
@@ -113,7 +113,7 @@ def create_parser() -> argparse.ArgumentParser:
         Configured argument parser with all subcommands
     """
     parser = argparse.ArgumentParser(
-        description="Async Task - Task queue system for Python",
+        description="Q Task - Task queue system for Python",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 

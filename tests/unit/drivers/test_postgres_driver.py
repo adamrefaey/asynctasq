@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from pytest import mark
 
-from async_task.drivers.postgres_driver import PostgresDriver
+from q_task.drivers.postgres_driver import PostgresDriver
 
 
 @mark.unit

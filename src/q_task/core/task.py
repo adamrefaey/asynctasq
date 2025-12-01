@@ -6,13 +6,13 @@ import functools
 import inspect
 from typing import Any, Generic, Protocol, Self, TypeVar, overload
 
-from async_task.drivers.base_driver import BaseDriver
+from q_task.drivers.base_driver import BaseDriver
 
 T = TypeVar("T")
 
 
 class Task(ABC, Generic[T]):
-    """Base class for all Async Task tasks."""
+    """Base class for all Q Task tasks."""
 
     # Task configuration (can be overridden by subclasses)
     queue: str = "default"

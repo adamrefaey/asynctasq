@@ -1,14 +1,14 @@
-# Contributing to Async Task
+# Contributing to Q Task
 
-Thank you for your interest in contributing to Async Task! We welcome contributions from the community.
+Thank you for your interest in contributing to Q Task! We welcome contributions from the community.
 
 ## Getting Started
 
 1. **Fork the repository** on GitHub
 2. **Clone your fork:**
    ```bash
-   git clone https://github.com/yourusername/async-task.git
-   cd async-task
+   git clone https://github.com/yourusername/q-task.git
+   cd q-task
    ```
 3. **Install uv** (if not already installed):
    ```bash
@@ -40,7 +40,7 @@ uv run pytest -m unit
 uv run pytest -m integration
 
 # Run tests with coverage report
-uv run pytest --cov=async_task --cov-branch --cov-report=term-missing --cov-report=html
+uv run pytest --cov=q_task --cov-branch --cov-report=term-missing --cov-report=html
 
 # Run a specific test file
 uv run pytest tests/unit/core/test_task.py
@@ -183,7 +183,7 @@ We aim to review PRs within 48 hours. If you haven't received feedback after a w
 
 ### Project Structure
 
-- `src/async_task/` - Main source code
+- `src/q_task/` - Main source code
 - `tests/unit/` - Unit tests (no external dependencies)
 - `tests/integration/` - Integration tests (require Docker services)
 - `tests/infrastructure/` - Docker Compose configuration for test services
@@ -192,7 +192,7 @@ We aim to review PRs within 48 hours. If you haven't received feedback after a w
 
 If you're adding a new queue driver:
 
-1. Create driver class in `src/async_task/drivers/`
+1. Create driver class in `src/q_task/drivers/`
 2. Inherit from `BaseDriver`
 3. Implement required methods: `connect()`, `disconnect()`, `enqueue()`, `dequeue()`, etc.
 4. Add unit tests in `tests/unit/drivers/`
@@ -204,7 +204,7 @@ If you're adding a new queue driver:
 
 If you're adding support for a new ORM:
 
-1. Extend `OrmHandler` in `src/async_task/serializers/orm_handler.py`
+1. Extend `OrmHandler` in `src/q_task/serializers/orm_handler.py`
 2. Add detection logic for the ORM model type
 3. Implement serialization (model → reference)
 4. Implement deserialization (reference → model)

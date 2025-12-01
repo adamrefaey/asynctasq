@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import main, mark
 
-from async_task.drivers.redis_driver import RedisDriver, maybe_await
+from q_task.drivers.redis_driver import RedisDriver, maybe_await
 
 
 @mark.unit
@@ -108,7 +108,7 @@ class TestRedisDriverInitialization:
         assert driver.max_connections == 20
         assert driver.client is None
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_connect_creates_redis_client(self, mock_redis_class: MagicMock) -> None:
         """Test connect creates Redis client with correct parameters."""
@@ -131,7 +131,7 @@ class TestRedisDriverInitialization:
         )
         assert driver.client == mock_client
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_connect_is_idempotent(self, mock_redis_class: MagicMock) -> None:
         """Test multiple connect calls are safe."""
@@ -197,7 +197,7 @@ class TestRedisDriverInitialization:
 class TestRedisDriverEnqueue:
     """Test task enqueueing functionality."""
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_enqueue_immediate_task(self, mock_redis_class: MagicMock) -> None:
         """Test enqueue immediate task (delay=0) uses LPUSH."""
@@ -214,8 +214,8 @@ class TestRedisDriverEnqueue:
         # Assert
         mock_client.lpush.assert_called_once_with("queue:default", b"task_data")
 
-    @patch("async_task.drivers.redis_driver.Redis")
-    @patch("async_task.drivers.redis_driver.time")
+    @patch("q_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.time")
     @mark.asyncio
     async def test_enqueue_delayed_task(
         self, mock_time: MagicMock, mock_redis_class: MagicMock
@@ -235,7 +235,7 @@ class TestRedisDriverEnqueue:
         # Assert
         mock_client.zadd.assert_called_once_with("queue:default:delayed", {b"delayed_task": 1005.0})
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_enqueue_auto_connects(self, mock_redis_class: MagicMock) -> None:
         """Test enqueue automatically connects if not connected."""
@@ -252,7 +252,7 @@ class TestRedisDriverEnqueue:
         mock_redis_class.from_url.assert_called_once()
         mock_client.lpush.assert_called_once()
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_enqueue_handles_awaitable_result(self, mock_redis_class: MagicMock) -> None:
         """Test enqueue handles awaitable Redis results."""
@@ -276,7 +276,7 @@ class TestRedisDriverEnqueue:
 class TestRedisDriverDequeue:
     """Test task dequeuing functionality."""
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_dequeue_uses_lmove(self, mock_redis_class: MagicMock) -> None:
         """Test dequeue uses LMOVE to move task to processing."""
@@ -297,7 +297,7 @@ class TestRedisDriverDequeue:
         )
         assert result == b"task_data"
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_dequeue_uses_blmove_with_poll(self, mock_redis_class: MagicMock) -> None:
         """Test dequeue uses BLMOVE when poll_seconds > 0."""
@@ -318,7 +318,7 @@ class TestRedisDriverDequeue:
         )
         assert result == b"task_data"
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_dequeue_returns_none_when_empty(self, mock_redis_class: MagicMock) -> None:
         """Test dequeue returns None when queue is empty."""
@@ -336,7 +336,7 @@ class TestRedisDriverDequeue:
         # Assert
         assert result is None
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_dequeue_auto_connects(self, mock_redis_class: MagicMock) -> None:
         """Test dequeue automatically connects if not connected."""
@@ -354,8 +354,8 @@ class TestRedisDriverDequeue:
         mock_redis_class.from_url.assert_called_once()
         mock_client.lmove.assert_called_once()
 
-    @patch("async_task.drivers.redis_driver.Redis")
-    @patch("async_task.drivers.redis_driver.time")
+    @patch("q_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.time")
     @mark.asyncio
     async def test_dequeue_processes_delayed_tasks(
         self, mock_time: MagicMock, mock_redis_class: MagicMock
@@ -399,8 +399,8 @@ class TestRedisDriverDequeue:
         mock_pipe.zremrangebyscore.assert_called_once_with("queue:default:delayed", 0, 1000.0)
         mock_pipe.execute.assert_called_once()
 
-    @patch("async_task.drivers.redis_driver.Redis")
-    @patch("async_task.drivers.redis_driver.time")
+    @patch("q_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.time")
     @mark.asyncio
     async def test_dequeue_skips_not_ready_delayed_tasks(
         self, mock_time: MagicMock, mock_redis_class: MagicMock
@@ -428,7 +428,7 @@ class TestRedisDriverDequeue:
 class TestRedisDriverAck:
     """Test task acknowledgment functionality."""
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_ack_removes_from_processing(self, mock_redis_class: MagicMock) -> None:
         """Test ack removes task from processing list."""
@@ -445,7 +445,7 @@ class TestRedisDriverAck:
         # Assert
         mock_client.lrem.assert_called_once_with("queue:default:processing", 1, b"task_data")
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_ack_auto_connects(self, mock_redis_class: MagicMock) -> None:
         """Test ack automatically connects if not connected."""
@@ -462,7 +462,7 @@ class TestRedisDriverAck:
         mock_redis_class.from_url.assert_called_once()
         mock_client.lrem.assert_called_once()
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_ack_handles_awaitable_result(self, mock_redis_class: MagicMock) -> None:
         """Test ack handles awaitable Redis results."""
@@ -486,7 +486,7 @@ class TestRedisDriverAck:
 class TestRedisDriverNack:
     """Test task rejection/retry functionality."""
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_nack_requeues_task(self, mock_redis_class: MagicMock) -> None:
         """Test nack requeues task if it exists in processing."""
@@ -505,7 +505,7 @@ class TestRedisDriverNack:
         mock_client.lrem.assert_called_once_with("queue:default:processing", 1, b"task_data")
         mock_client.lpush.assert_called_once_with("queue:default", b"task_data")
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_nack_does_not_requeue_if_not_in_processing(
         self, mock_redis_class: MagicMock
@@ -525,7 +525,7 @@ class TestRedisDriverNack:
         mock_client.lrem.assert_called_once()
         mock_client.lpush.assert_not_called()  # Should not requeue
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_nack_auto_connects(self, mock_redis_class: MagicMock) -> None:
         """Test nack automatically connects if not connected."""
@@ -542,7 +542,7 @@ class TestRedisDriverNack:
         mock_redis_class.from_url.assert_called_once()
         mock_client.lrem.assert_called_once()
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_nack_handles_awaitable_result(self, mock_redis_class: MagicMock) -> None:
         """Test nack handles awaitable Redis results."""
@@ -567,7 +567,7 @@ class TestRedisDriverNack:
 class TestRedisDriverGetQueueSize:
     """Test queue size reporting functionality."""
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_queue_size_returns_main_queue_size(
         self, mock_redis_class: MagicMock
@@ -589,7 +589,7 @@ class TestRedisDriverGetQueueSize:
         mock_client.llen.assert_called_once_with("queue:default")
         assert size == 5
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_queue_size_includes_delayed(self, mock_redis_class: MagicMock) -> None:
         """Test get_queue_size includes delayed tasks when requested."""
@@ -609,7 +609,7 @@ class TestRedisDriverGetQueueSize:
         mock_client.zcard.assert_called_once_with("queue:default:delayed")
         assert size == 5  # 3 + 2
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_queue_size_includes_in_flight(self, mock_redis_class: MagicMock) -> None:
         """Test get_queue_size includes in-flight tasks when requested."""
@@ -627,7 +627,7 @@ class TestRedisDriverGetQueueSize:
         assert mock_client.llen.call_count == 2
         assert size == 4  # 3 + 1
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_queue_size_includes_all(self, mock_redis_class: MagicMock) -> None:
         """Test get_queue_size includes all when both flags are True."""
@@ -645,7 +645,7 @@ class TestRedisDriverGetQueueSize:
         # Assert
         assert size == 6  # 3 + 1 + 2
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_queue_size_auto_connects(self, mock_redis_class: MagicMock) -> None:
         """Test get_queue_size automatically connects if not connected."""
@@ -662,7 +662,7 @@ class TestRedisDriverGetQueueSize:
         mock_redis_class.from_url.assert_called_once()
         mock_client.llen.assert_called_once()
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_queue_size_handles_awaitable_result(
         self, mock_redis_class: MagicMock
@@ -693,8 +693,8 @@ class TestRedisDriverGetQueueSize:
 class TestRedisDriverProcessDelayedTasks:
     """Test delayed task processing functionality."""
 
-    @patch("async_task.drivers.redis_driver.Redis")
-    @patch("async_task.drivers.redis_driver.time")
+    @patch("q_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.time")
     @mark.asyncio
     async def test_process_delayed_tasks_moves_ready_tasks(
         self, mock_time: MagicMock, mock_redis_class: MagicMock
@@ -737,8 +737,8 @@ class TestRedisDriverProcessDelayedTasks:
         mock_pipe.zremrangebyscore.assert_called_once_with("queue:default:delayed", 0, 1000.0)
         mock_pipe.execute.assert_called_once()
 
-    @patch("async_task.drivers.redis_driver.Redis")
-    @patch("async_task.drivers.redis_driver.time")
+    @patch("q_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.time")
     @mark.asyncio
     async def test_process_delayed_tasks_no_ready_tasks(
         self, mock_time: MagicMock, mock_redis_class: MagicMock
@@ -760,8 +760,8 @@ class TestRedisDriverProcessDelayedTasks:
         mock_client.zrangebyscore.assert_called_once()
         mock_client.pipeline.assert_not_called()  # Pipeline not used when no tasks
 
-    @patch("async_task.drivers.redis_driver.Redis")
-    @patch("async_task.drivers.redis_driver.time")
+    @patch("q_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.time")
     @mark.asyncio
     async def test_process_delayed_tasks_uses_transaction(
         self, mock_time: MagicMock, mock_redis_class: MagicMock
@@ -802,7 +802,7 @@ class TestRedisDriverProcessDelayedTasks:
 class TestRedisDriverEdgeCases:
     """Test edge cases and error conditions."""
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_enqueue_with_negative_delay(self, mock_redis_class: MagicMock) -> None:
         """Test enqueue with negative delay is treated as immediate."""
@@ -820,7 +820,7 @@ class TestRedisDriverEdgeCases:
         mock_client.lpush.assert_called_once()
         mock_client.zadd.assert_not_called()
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_dequeue_with_zero_poll(self, mock_redis_class: MagicMock) -> None:
         """Test dequeue with poll_seconds=0 uses non-blocking LMOVE."""
@@ -839,7 +839,7 @@ class TestRedisDriverEdgeCases:
         mock_client.lmove.assert_called_once()
         mock_client.blmove.assert_not_called()
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_queue_size_empty_queue(self, mock_redis_class: MagicMock) -> None:
         """Test get_queue_size returns 0 for empty queue."""
@@ -858,7 +858,7 @@ class TestRedisDriverEdgeCases:
         # Assert
         assert size == 0
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_operations_with_different_queue_names(self, mock_redis_class: MagicMock) -> None:
         """Test operations work with different queue names."""
@@ -889,7 +889,7 @@ class TestRedisDriverEdgeCases:
 class TestRedisDriverInspectionAndManagement:
     """Unit tests for metadata/management methods added to RedisDriver."""
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_queue_stats_returns_stats(self, mock_redis_class: MagicMock) -> None:
         # Arrange
@@ -910,7 +910,7 @@ class TestRedisDriverInspectionAndManagement:
         assert stats.completed_total == 10
         assert stats.failed_total == 3
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_all_queue_names_scans_keys(self, mock_redis_class: MagicMock) -> None:
         # Arrange
@@ -929,7 +929,7 @@ class TestRedisDriverInspectionAndManagement:
         # Assert
         assert sorted(names) == ["alpha", "beta"]
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_global_stats_sums_counters(self, mock_redis_class: MagicMock) -> None:
         # Arrange
@@ -972,7 +972,7 @@ class TestRedisDriverInspectionAndManagement:
         assert totals["completed"] == 5
         assert totals["failed"] == 2
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_running_tasks_and_pagination(self, mock_redis_class: MagicMock) -> None:
         # Arrange
@@ -993,7 +993,7 @@ class TestRedisDriverInspectionAndManagement:
         assert len(running) == 1
         assert running[0].queue == "default"
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_tasks_filters_and_counts(self, mock_redis_class: MagicMock) -> None:
         # Arrange
@@ -1020,7 +1020,7 @@ class TestRedisDriverInspectionAndManagement:
         assert total == 2
         assert len(results) == 2
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_task_by_id_finds_match(self, mock_redis_class: MagicMock) -> None:
         # Arrange
@@ -1041,7 +1041,7 @@ class TestRedisDriverInspectionAndManagement:
         assert ti is not None
         assert ti.id == task_id
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_retry_task_moves_from_dead(self, mock_redis_class: MagicMock) -> None:
         # Arrange
@@ -1065,7 +1065,7 @@ class TestRedisDriverInspectionAndManagement:
         mock_client.lrem.assert_called_once()
         mock_client.rpush.assert_called_once()
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_delete_task_removes_matching(self, mock_redis_class: MagicMock) -> None:
         # Arrange
@@ -1093,7 +1093,7 @@ class TestRedisDriverInspectionAndManagement:
         assert removed is True
         mock_client.lrem.assert_called_once()
 
-    @patch("async_task.drivers.redis_driver.Redis")
+    @patch("q_task.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_get_worker_stats_parses_hashes(self, mock_redis_class: MagicMock) -> None:
         # Arrange
