@@ -5,12 +5,12 @@ on:
     branches:
       - main
     paths-ignore:
-      - '.github/*.svg'
+      - ".github/*.svg"
   pull_request:
     branches:
       - main
     paths-ignore:
-      - '.github/*.svg'
+      - ".github/*.svg"
 
 # Prevent multiple workflows from running concurrently on the same PR
 concurrency:
@@ -146,7 +146,7 @@ jobs:
           if [ -f .venv/bin/activate ]; then
             . .venv/bin/activate
           fi
-          pytest tests/unit -v --cov=src/q_task --cov-report=xml --cov-report=term-missing
+          pytest tests/unit -v --cov=src/async_task_q --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage artifact
         if: ${{ always() }}
@@ -364,16 +364,16 @@ jobs:
 
       - name: Run integration tests (activate .venv)
         env:
-          q_task_REDIS_URL: redis://127.0.0.1:6379
-          q_task_POSTGRES_URL: postgresql://test:test@127.0.0.1:5432/test_db
-          q_task_MYSQL_URL: mysql://test:test@127.0.0.1:3306/test_db
-          q_task_RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672/
+          async_task_q_REDIS_URL: redis://127.0.0.1:6379
+          async_task_q_POSTGRES_URL: postgresql://test:test@127.0.0.1:5432/test_db
+          async_task_q_MYSQL_URL: mysql://test:test@127.0.0.1:3306/test_db
+          async_task_q_RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672/
         run: |
           set -euo pipefail
           if [ -f .venv/bin/activate ]; then
             . .venv/bin/activate
           fi
-          pytest tests/integration -v --cov=src/q_task --cov-report=xml --cov-report=term-missing
+          pytest tests/integration -v --cov=src/async_task_q --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage artifact
         if: ${{ always() }}

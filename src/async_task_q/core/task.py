@@ -12,7 +12,7 @@ T = TypeVar("T")
 
 
 class Task(ABC, Generic[T]):
-    """Base class for all Async Task Q tasks."""
+    """Base class for all Async Task Async Task Qs."""
 
     # Task configuration (can be overridden by subclasses)
     queue: str = "default"
