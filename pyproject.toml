@@ -91,14 +91,14 @@ select = [
 ]
 ignore = ["E501"] # line too long (handled by formatter)
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["q_task"]
 force-sort-within-sections = true
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 10
 
-[tool.ruff.pylint]
+[tool.ruff.lint.pylint]
 max-args = 8
 max-branches = 12
 max-returns = 6
