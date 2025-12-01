@@ -20,6 +20,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Use test project name for TestPyPI
+        run: |
+          sed -i 's/name = "async-task"/name = "async-task-test"/' pyproject.toml
+          echo 'pyproject.toml updated for TestPyPI build'
+
       - name: Install build deps
         run: |
           python -m pip install --upgrade pip build
