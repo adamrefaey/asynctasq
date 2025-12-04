@@ -1,6 +1,6 @@
 [project]
-name = "async-task-q"
-version = "0.9.4"
+name = "asynctasq"
+version = "0.9.5"
 description = "A modern, async-first, type-safe task queue Python package inspired by Laravel. Native FastAPI integration. Switch between multiple queue backends (Memory, Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic, smart ORM serialization using msgpack reduces payloads by 90%+."
 readme = "README.md"
 requires-python = ">=3.11"
