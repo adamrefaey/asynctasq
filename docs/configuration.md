@@ -1,6 +1,6 @@
 # Configuration
 
-Async Task Q supports three configuration methods with clear precedence rules.
+Async TasQ supports three configuration methods with clear precedence rules.
 
 ## Configuration Precedence (highest to lowest)
 
@@ -15,62 +15,62 @@ Async Task Q supports three configuration methods with clear precedence rules.
 **General Configuration:**
 
 ```bash
-export async_task_q_DRIVER=redis              # Driver: redis, postgres, mysql, rabbitmq, sqs
-export async_task_q_DEFAULT_QUEUE=default     # Default queue name
-export async_task_q_MAX_RETRIES=3             # Default max retry attempts
-export async_task_q_RETRY_DELAY=60            # Default retry delay (seconds)
-export async_task_q_TIMEOUT=300               # Default task timeout (seconds, None = no timeout)
+export asynctasq_DRIVER=redis              # Driver: redis, postgres, mysql, rabbitmq, sqs
+export asynctasq_DEFAULT_QUEUE=default     # Default queue name
+export asynctasq_MAX_RETRIES=3             # Default max retry attempts
+export asynctasq_RETRY_DELAY=60            # Default retry delay (seconds)
+export asynctasq_TIMEOUT=300               # Default task timeout (seconds, None = no timeout)
 ```
 
 **Redis Configuration:**
 
 ```bash
-export async_task_q_REDIS_URL=redis://localhost:6379
-export async_task_q_REDIS_PASSWORD=secret
-export async_task_q_REDIS_DB=0
-export async_task_q_REDIS_MAX_CONNECTIONS=10
+export asynctasq_REDIS_URL=redis://localhost:6379
+export asynctasq_REDIS_PASSWORD=secret
+export asynctasq_REDIS_DB=0
+export asynctasq_REDIS_MAX_CONNECTIONS=10
 ```
 
 **PostgreSQL Configuration:**
 
 ```bash
-export async_task_q_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
-export async_task_q_POSTGRES_QUEUE_TABLE=task_queue
-export async_task_q_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
-export async_task_q_POSTGRES_MAX_ATTEMPTS=3
-export async_task_q_POSTGRES_RETRY_DELAY_SECONDS=60
-export async_task_q_POSTGRES_VISIBILITY_TIMEOUT_SECONDS=300
-export async_task_q_POSTGRES_MIN_POOL_SIZE=10
-export async_task_q_POSTGRES_MAX_POOL_SIZE=10
+export asynctasq_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
+export asynctasq_POSTGRES_QUEUE_TABLE=task_queue
+export asynctasq_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
+export asynctasq_POSTGRES_MAX_ATTEMPTS=3
+export asynctasq_POSTGRES_RETRY_DELAY_SECONDS=60
+export asynctasq_POSTGRES_VISIBILITY_TIMEOUT_SECONDS=300
+export asynctasq_POSTGRES_MIN_POOL_SIZE=10
+export asynctasq_POSTGRES_MAX_POOL_SIZE=10
 ```
 
 **MySQL Configuration:**
 
 ```bash
-export async_task_q_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
-export async_task_q_MYSQL_QUEUE_TABLE=task_queue
-export async_task_q_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
-export async_task_q_MYSQL_MAX_ATTEMPTS=3
-export async_task_q_MYSQL_RETRY_DELAY_SECONDS=60
-export async_task_q_MYSQL_VISIBILITY_TIMEOUT_SECONDS=300
-export async_task_q_MYSQL_MIN_POOL_SIZE=10
-export async_task_q_MYSQL_MAX_POOL_SIZE=10
+export asynctasq_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
+export asynctasq_MYSQL_QUEUE_TABLE=task_queue
+export asynctasq_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
+export asynctasq_MYSQL_MAX_ATTEMPTS=3
+export asynctasq_MYSQL_RETRY_DELAY_SECONDS=60
+export asynctasq_MYSQL_VISIBILITY_TIMEOUT_SECONDS=300
+export asynctasq_MYSQL_MIN_POOL_SIZE=10
+export asynctasq_MYSQL_MAX_POOL_SIZE=10
 ```
 
 **RabbitMQ Configuration:**
 
 ```bash
-export async_task_q_DRIVER=rabbitmq
-export async_task_q_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-export async_task_q_RABBITMQ_EXCHANGE_NAME=async_task_q
-export async_task_q_RABBITMQ_PREFETCH_COUNT=1
+export asynctasq_DRIVER=rabbitmq
+export asynctasq_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+export asynctasq_RABBITMQ_EXCHANGE_NAME=asynctasq
+export asynctasq_RABBITMQ_PREFETCH_COUNT=1
 ```
 
 **AWS SQS Configuration:**
 
 ```bash
-export async_task_q_SQS_REGION=us-east-1
-export async_task_q_SQS_QUEUE_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
+export asynctasq_SQS_REGION=us-east-1
+export asynctasq_SQS_QUEUE_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
 ```
@@ -82,7 +82,7 @@ export AWS_SECRET_ACCESS_KEY=your_secret_key
 **Using `set_global_config()`:**
 
 ```python
-from async_task_q.config import set_global_config
+from asynctasq.config import set_global_config
 
 # Basic Redis configuration
 set_global_config(
@@ -116,7 +116,7 @@ set_global_config(
 set_global_config(
     driver='rabbitmq',
     rabbitmq_url='amqp://user:pass@localhost:5672/',
-    rabbitmq_exchange_name='async_task_q',
+    rabbitmq_exchange_name='asynctasq',
     rabbitmq_prefetch_count=1
 )
 
@@ -133,7 +133,7 @@ set_global_config(
 **Using `Config.from_env()` with Overrides:**
 
 ```python
-from async_task_q.config import Config
+from asynctasq.config import Config
 
 # Create config from environment variables with overrides
 config = Config.from_env(
@@ -150,7 +150,7 @@ config = Config.from_env(
 CLI arguments override both environment variables and programmatic configuration:
 
 ```bash
-python -m async_task_q worker \
+python -m asynctasq worker \
     --driver redis \
     --redis-url redis://localhost:6379 \
     --redis-password secret \
@@ -166,60 +166,60 @@ python -m async_task_q worker \
 
 | Option                | Env Var                    | Default   | Description                    |
 | --------------------- | -------------------------- | --------- | ------------------------------ |
-| `driver`              | `async_task_q_DRIVER`        | `redis`   | Queue driver                   |
-| `default_queue`       | `async_task_q_DEFAULT_QUEUE` | `default` | Default queue name             |
-| `default_max_retries` | `async_task_q_MAX_RETRIES`   | `3`       | Default max retry attempts     |
-| `default_retry_delay` | `async_task_q_RETRY_DELAY`   | `60`      | Default retry delay (seconds)  |
-| `default_timeout`     | `async_task_q_TIMEOUT`       | `None`    | Default task timeout (seconds) |
+| `driver`              | `asynctasq_DRIVER`        | `redis`   | Queue driver                   |
+| `default_queue`       | `asynctasq_DEFAULT_QUEUE` | `default` | Default queue name             |
+| `default_max_retries` | `asynctasq_MAX_RETRIES`   | `3`       | Default max retry attempts     |
+| `default_retry_delay` | `asynctasq_RETRY_DELAY`   | `60`      | Default retry delay (seconds)  |
+| `default_timeout`     | `asynctasq_TIMEOUT`       | `None`    | Default task timeout (seconds) |
 
 **Redis Options:**
 
 | Option                  | Env Var                            | Default                  | Description                  |
 | ----------------------- | ---------------------------------- | ------------------------ | ---------------------------- |
-| `redis_url`             | `async_task_q_REDIS_URL`             | `redis://localhost:6379` | Redis connection URL         |
-| `redis_password`        | `async_task_q_REDIS_PASSWORD`        | `None`                   | Redis password               |
-| `redis_db`              | `async_task_q_REDIS_DB`              | `0`                      | Redis database number (0-15) |
-| `redis_max_connections` | `async_task_q_REDIS_MAX_CONNECTIONS` | `10`                     | Redis connection pool size   |
+| `redis_url`             | `asynctasq_REDIS_URL`             | `redis://localhost:6379` | Redis connection URL         |
+| `redis_password`        | `asynctasq_REDIS_PASSWORD`        | `None`                   | Redis password               |
+| `redis_db`              | `asynctasq_REDIS_DB`              | `0`                      | Redis database number (0-15) |
+| `redis_max_connections` | `asynctasq_REDIS_MAX_CONNECTIONS` | `10`                     | Redis connection pool size   |
 
 **PostgreSQL Options:**
 
 | Option                                | Env Var                                          | Default                                         | Description                  |
 | ------------------------------------- | ------------------------------------------------ | ----------------------------------------------- | ---------------------------- |
-| `postgres_dsn`                        | `async_task_q_POSTGRES_DSN`                        | `postgresql://test:test@localhost:5432/test_db` | PostgreSQL connection string |
-| `postgres_queue_table`                | `async_task_q_POSTGRES_QUEUE_TABLE`                | `task_queue`                                    | Queue table name             |
-| `postgres_dead_letter_table`          | `async_task_q_POSTGRES_DEAD_LETTER_TABLE`          | `dead_letter_queue`                             | Dead letter table name       |
-| `postgres_max_attempts`               | `async_task_q_POSTGRES_MAX_ATTEMPTS`               | `3`                                             | Max attempts before DLQ      |
-| `postgres_retry_delay_seconds`        | `async_task_q_POSTGRES_RETRY_DELAY_SECONDS`        | `60`                                            | Retry delay (seconds)        |
-| `postgres_visibility_timeout_seconds` | `async_task_q_POSTGRES_VISIBILITY_TIMEOUT_SECONDS` | `300`                                           | Visibility timeout (seconds) |
-| `postgres_min_pool_size`              | `async_task_q_POSTGRES_MIN_POOL_SIZE`              | `10`                                            | Min connection pool size     |
-| `postgres_max_pool_size`              | `async_task_q_POSTGRES_MAX_POOL_SIZE`              | `10`                                            | Max connection pool size     |
+| `postgres_dsn`                        | `asynctasq_POSTGRES_DSN`                        | `postgresql://test:test@localhost:5432/test_db` | PostgreSQL connection string |
+| `postgres_queue_table`                | `asynctasq_POSTGRES_QUEUE_TABLE`                | `task_queue`                                    | Queue table name             |
+| `postgres_dead_letter_table`          | `asynctasq_POSTGRES_DEAD_LETTER_TABLE`          | `dead_letter_queue`                             | Dead letter table name       |
+| `postgres_max_attempts`               | `asynctasq_POSTGRES_MAX_ATTEMPTS`               | `3`                                             | Max attempts before DLQ      |
+| `postgres_retry_delay_seconds`        | `asynctasq_POSTGRES_RETRY_DELAY_SECONDS`        | `60`                                            | Retry delay (seconds)        |
+| `postgres_visibility_timeout_seconds` | `asynctasq_POSTGRES_VISIBILITY_TIMEOUT_SECONDS` | `300`                                           | Visibility timeout (seconds) |
+| `postgres_min_pool_size`              | `asynctasq_POSTGRES_MIN_POOL_SIZE`              | `10`                                            | Min connection pool size     |
+| `postgres_max_pool_size`              | `asynctasq_POSTGRES_MAX_POOL_SIZE`              | `10`                                            | Max connection pool size     |
 
 **MySQL Options:**
 
 | Option                             | Env Var                                       | Default                                    | Description                  |
 | ---------------------------------- | --------------------------------------------- | ------------------------------------------ | ---------------------------- |
-| `mysql_dsn`                        | `async_task_q_MYSQL_DSN`                        | `mysql://test:test@localhost:3306/test_db` | MySQL connection string      |
-| `mysql_queue_table`                | `async_task_q_MYSQL_QUEUE_TABLE`                | `task_queue`                               | Queue table name             |
-| `mysql_dead_letter_table`          | `async_task_q_MYSQL_DEAD_LETTER_TABLE`          | `dead_letter_queue`                        | Dead letter table name       |
-| `mysql_max_attempts`               | `async_task_q_MYSQL_MAX_ATTEMPTS`               | `3`                                        | Max attempts before DLQ      |
-| `mysql_retry_delay_seconds`        | `async_task_q_MYSQL_RETRY_DELAY_SECONDS`        | `60`                                       | Retry delay (seconds)        |
-| `mysql_visibility_timeout_seconds` | `async_task_q_MYSQL_VISIBILITY_TIMEOUT_SECONDS` | `300`                                      | Visibility timeout (seconds) |
-| `mysql_min_pool_size`              | `async_task_q_MYSQL_MIN_POOL_SIZE`              | `10`                                       | Min connection pool size     |
-| `mysql_max_pool_size`              | `async_task_q_MYSQL_MAX_POOL_SIZE`              | `10`                                       | Max connection pool size     |
+| `mysql_dsn`                        | `asynctasq_MYSQL_DSN`                        | `mysql://test:test@localhost:3306/test_db` | MySQL connection string      |
+| `mysql_queue_table`                | `asynctasq_MYSQL_QUEUE_TABLE`                | `task_queue`                               | Queue table name             |
+| `mysql_dead_letter_table`          | `asynctasq_MYSQL_DEAD_LETTER_TABLE`          | `dead_letter_queue`                        | Dead letter table name       |
+| `mysql_max_attempts`               | `asynctasq_MYSQL_MAX_ATTEMPTS`               | `3`                                        | Max attempts before DLQ      |
+| `mysql_retry_delay_seconds`        | `asynctasq_MYSQL_RETRY_DELAY_SECONDS`        | `60`                                       | Retry delay (seconds)        |
+| `mysql_visibility_timeout_seconds` | `asynctasq_MYSQL_VISIBILITY_TIMEOUT_SECONDS` | `300`                                      | Visibility timeout (seconds) |
+| `mysql_min_pool_size`              | `asynctasq_MYSQL_MIN_POOL_SIZE`              | `10`                                       | Min connection pool size     |
+| `mysql_max_pool_size`              | `asynctasq_MYSQL_MAX_POOL_SIZE`              | `10`                                       | Max connection pool size     |
 
 **RabbitMQ Options:**
 
 | Option                    | Env Var                              | Default                              | Description                      |
 | ------------------------- | ------------------------------------ | ------------------------------------ | -------------------------------- |
-| `rabbitmq_url`            | `async_task_q_RABBITMQ_URL`            | `amqp://guest:guest@localhost:5672/` | RabbitMQ connection URL          |
-| `rabbitmq_exchange_name`  | `async_task_q_RABBITMQ_EXCHANGE_NAME`  | `async_task_q`                         | RabbitMQ exchange name           |
-| `rabbitmq_prefetch_count` | `async_task_q_RABBITMQ_PREFETCH_COUNT` | `1`                                  | RabbitMQ consumer prefetch count |
+| `rabbitmq_url`            | `asynctasq_RABBITMQ_URL`            | `amqp://guest:guest@localhost:5672/` | RabbitMQ connection URL          |
+| `rabbitmq_exchange_name`  | `asynctasq_RABBITMQ_EXCHANGE_NAME`  | `asynctasq`                         | RabbitMQ exchange name           |
+| `rabbitmq_prefetch_count` | `asynctasq_RABBITMQ_PREFETCH_COUNT` | `1`                                  | RabbitMQ consumer prefetch count |
 
 **AWS SQS Options:**
 
 | Option                  | Env Var                       | Default     | Description                                          |
 | ----------------------- | ----------------------------- | ----------- | ---------------------------------------------------- |
-| `sqs_region`            | `async_task_q_SQS_REGION`       | `us-east-1` | AWS region                                           |
-| `sqs_queue_url_prefix`  | `async_task_q_SQS_QUEUE_PREFIX` | `None`      | SQS queue URL prefix                                 |
+| `sqs_region`            | `asynctasq_SQS_REGION`       | `us-east-1` | AWS region                                           |
+| `sqs_queue_url_prefix`  | `asynctasq_SQS_QUEUE_PREFIX` | `None`      | SQS queue URL prefix                                 |
 | `aws_access_key_id`     | `AWS_ACCESS_KEY_ID`           | `None`      | AWS access key (optional, uses AWS credential chain) |
 | `aws_secret_access_key` | `AWS_SECRET_ACCESS_KEY`       | `None`      | AWS secret key (optional, uses AWS credential chain) |

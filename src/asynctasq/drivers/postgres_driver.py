@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from asyncpg import Pool, create_pool
 
-from async_task_q.core.models import QueueStats, TaskInfo, WorkerInfo
+from asynctasq.core.models import QueueStats, TaskInfo, WorkerInfo
 
 from .base_driver import BaseDriver
 

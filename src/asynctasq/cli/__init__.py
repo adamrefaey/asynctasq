@@ -1,4 +1,4 @@
-"""CLI package for async-task-q."""
+"""CLI package for asynctasq."""
 
 from .main import main
 

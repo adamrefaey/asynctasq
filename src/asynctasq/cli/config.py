@@ -3,7 +3,7 @@
 import argparse
 from typing import Any
 
-from async_task_q.config import Config
+from asynctasq.config import Config
 
 
 def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:

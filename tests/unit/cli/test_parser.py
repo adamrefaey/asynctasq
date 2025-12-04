@@ -11,8 +11,8 @@ import argparse
 
 from pytest import main, mark, raises
 
-from async_task_q.cli.parser import add_driver_args, create_parser
-from async_task_q.drivers import DRIVERS
+from asynctasq.cli.parser import add_driver_args, create_parser
+from asynctasq.drivers import DRIVERS
 
 
 @mark.unit

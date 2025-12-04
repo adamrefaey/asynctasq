@@ -13,18 +13,18 @@ from unittest.mock import MagicMock, patch
 
 from pytest import main, mark, raises
 
-from async_task_q.cli.commands.migrate import MigrationError
-from async_task_q.cli.main import main as cli_main
-from async_task_q.cli.main import run_command
+from asynctasq.cli.commands.migrate import MigrationError
+from asynctasq.cli.main import main as cli_main
+from asynctasq.cli.main import run_command
 
 
 @mark.unit
 class TestRunCommand:
     """Test run_command() function."""
 
-    @patch("async_task_q.cli.main.build_config")
-    @patch("async_task_q.cli.main.asyncio.run")
-    @patch("async_task_q.cli.main.run_worker")
+    @patch("asynctasq.cli.main.build_config")
+    @patch("asynctasq.cli.main.asyncio.run")
+    @patch("asynctasq.cli.main.run_worker")
     def test_run_command_worker(self, mock_run_worker, mock_asyncio_run, mock_build_config) -> None:
         # Arrange
         args = argparse.Namespace(command="worker", driver="redis")
@@ -46,9 +46,9 @@ class TestRunCommand:
         assert len(call_args) == 1
         assert asyncio.iscoroutine(call_args[0])
 
-    @patch("async_task_q.cli.main.build_config")
-    @patch("async_task_q.cli.main.asyncio.run")
-    @patch("async_task_q.cli.main.run_migrate")
+    @patch("asynctasq.cli.main.build_config")
+    @patch("asynctasq.cli.main.asyncio.run")
+    @patch("asynctasq.cli.main.run_migrate")
     def test_run_command_migrate(
         self, mock_run_migrate, mock_asyncio_run, mock_build_config
     ) -> None:
@@ -64,8 +64,8 @@ class TestRunCommand:
         mock_build_config.assert_called_once_with(args)
         mock_asyncio_run.assert_called_once()
 
-    @patch("async_task_q.cli.main.build_config")
-    @patch("async_task_q.cli.main.asyncio.run")
+    @patch("asynctasq.cli.main.build_config")
+    @patch("asynctasq.cli.main.asyncio.run")
     def test_run_command_unknown_command_raises_error(
         self, mock_asyncio_run, mock_build_config
     ) -> None:
@@ -86,9 +86,9 @@ class TestRunCommand:
 class TestMain:
     """Test main() function."""
 
-    @patch("async_task_q.cli.main.setup_logging")
-    @patch("async_task_q.cli.main.create_parser")
-    @patch("async_task_q.cli.main.run_command")
+    @patch("asynctasq.cli.main.setup_logging")
+    @patch("asynctasq.cli.main.create_parser")
+    @patch("asynctasq.cli.main.run_command")
     def test_main_success(self, mock_run_command, mock_create_parser, mock_setup_logging) -> None:
         # Arrange
         mock_parser = MagicMock()
@@ -105,9 +105,9 @@ class TestMain:
         mock_parser.parse_args.assert_called_once()
         mock_run_command.assert_called_once_with(mock_args)
 
-    @patch("async_task_q.cli.main.setup_logging")
-    @patch("async_task_q.cli.main.create_parser")
-    @patch("async_task_q.cli.main.run_command")
+    @patch("asynctasq.cli.main.setup_logging")
+    @patch("asynctasq.cli.main.create_parser")
+    @patch("asynctasq.cli.main.run_command")
     @patch("sys.exit")
     def test_main_keyboard_interrupt(
         self, mock_exit, mock_run_command, mock_create_parser, mock_setup_logging
@@ -126,10 +126,10 @@ class TestMain:
         mock_setup_logging.assert_called_once()
         mock_exit.assert_called_once_with(0)
 
-    @patch("async_task_q.cli.main.setup_logging")
-    @patch("async_task_q.cli.main.create_parser")
-    @patch("async_task_q.cli.main.run_command")
-    @patch("async_task_q.cli.main.logger")
+    @patch("asynctasq.cli.main.setup_logging")
+    @patch("asynctasq.cli.main.create_parser")
+    @patch("asynctasq.cli.main.run_command")
+    @patch("asynctasq.cli.main.logger")
     @patch("sys.exit")
     def test_main_migration_error(
         self, mock_exit, mock_logger, mock_run_command, mock_create_parser, mock_setup_logging
@@ -149,10 +149,10 @@ class TestMain:
         mock_logger.error.assert_called_once_with("Migration failed")
         mock_exit.assert_called_once_with(1)
 
-    @patch("async_task_q.cli.main.setup_logging")
-    @patch("async_task_q.cli.main.create_parser")
-    @patch("async_task_q.cli.main.run_command")
-    @patch("async_task_q.cli.main.logger")
+    @patch("asynctasq.cli.main.setup_logging")
+    @patch("asynctasq.cli.main.create_parser")
+    @patch("asynctasq.cli.main.run_command")
+    @patch("asynctasq.cli.main.logger")
     @patch("sys.exit")
     def test_main_generic_exception(
         self, mock_exit, mock_logger, mock_run_command, mock_create_parser, mock_setup_logging
@@ -172,10 +172,10 @@ class TestMain:
         mock_logger.exception.assert_called_once()
         mock_exit.assert_called_once_with(1)
 
-    @patch("async_task_q.cli.main.setup_logging")
-    @patch("async_task_q.cli.main.create_parser")
-    @patch("async_task_q.cli.main.run_command")
-    @patch("async_task_q.cli.main.logger")
+    @patch("asynctasq.cli.main.setup_logging")
+    @patch("asynctasq.cli.main.create_parser")
+    @patch("asynctasq.cli.main.run_command")
+    @patch("asynctasq.cli.main.logger")
     @patch("sys.exit")
     def test_main_parser_error(
         self, mock_exit, mock_logger, mock_run_command, mock_create_parser, mock_setup_logging

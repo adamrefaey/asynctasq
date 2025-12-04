@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from async_task_q.core.models import QueueStats, TaskInfo, WorkerInfo
+from asynctasq.core.models import QueueStats, TaskInfo, WorkerInfo
 
 
 class BaseDriver(ABC):

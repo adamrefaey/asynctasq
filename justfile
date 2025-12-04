@@ -76,7 +76,7 @@ test-integration:
 
 # Run all tests with coverage report
 test-cov:
-	uv run pytest --cov=async_task_q --cov-branch --cov-report=term-missing --cov-report=html
+	uv run pytest --cov=asynctasq --cov-branch --cov-report=term-missing --cov-report=html
 
 # Show test coverage in browser
 coverage-html: test-cov
@@ -88,7 +88,7 @@ test-py VERSION:
 
 # Run security checks with bandit
 security:
-	uv run bandit -r src/async_task_q -ll
+	uv run bandit -r src/asynctasq -ll
 
 # Run dependency security audit
 audit:
@@ -157,7 +157,7 @@ pyright:
 
 # Show project info
 info:
-	@echo "Project: async-task-q"
+	@echo "Project: asynctasq"
 	@echo "Python: $(uv run python --version)"
 	@echo "UV: $(uv --version)"
 	@echo ""

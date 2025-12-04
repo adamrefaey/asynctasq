@@ -23,10 +23,10 @@ jobs:
 
       - name: Use test project name for TestPyPI
         run: |
-          sed -i 's/name = "async-task-q"/name = "async-task-q-test"/' pyproject.toml
+          sed -i 's/name = "asynctasq"/name = "asynctasq-test"/' pyproject.toml
           cat >> pyproject.toml <<'TOM'
           [tool.hatch.build.targets.wheel]
-          packages = ["src/async_task_q"]
+          packages = ["src/asynctasq"]
           TOM
           echo 'pyproject.toml updated for TestPyPI build (name + hatch wheel packages)'
 

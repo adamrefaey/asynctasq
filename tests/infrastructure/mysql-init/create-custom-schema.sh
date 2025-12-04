@@ -32,7 +32,7 @@ echo ""
 
 # Generate SQL
 SQL=$(cat <<EOF
--- Custom Schema Creation for async-task-q Queue System
+-- Custom Schema Creation for asynctasq Queue System
 -- Queue Table: ${QUEUE_TABLE}
 -- Dead Letter Table: ${DLQ_TABLE}
 

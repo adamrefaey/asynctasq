@@ -32,13 +32,13 @@
 
 ```bash
 # Worker 1: Critical tasks
-python -m async_task_q worker --queues critical --concurrency 20
+python -m asynctasq worker --queues critical --concurrency 20
 
 # Worker 2: Normal tasks
-python -m async_task_q worker --queues default --concurrency 10
+python -m asynctasq worker --queues default --concurrency 10
 
 # Worker 3: Background tasks
-python -m async_task_q worker --queues low-priority,batch --concurrency 5
+python -m asynctasq worker --queues low-priority,batch --concurrency 5
 ```
 
 ## Error Handling
@@ -99,17 +99,17 @@ class ProcessPayment(Task[bool]):
 
 ```bash
 # Environment variables in production
-export async_task_q_DRIVER=redis
-export async_task_q_REDIS_URL=redis://redis-master:6379
-export async_task_q_REDIS_PASSWORD=${REDIS_PASSWORD}
-export async_task_q_DEFAULT_MAX_RETRIES=5
-export async_task_q_DEFAULT_RETRY_DELAY=120
-export async_task_q_DEFAULT_TIMEOUT=300
+export asynctasq_DRIVER=redis
+export asynctasq_REDIS_URL=redis://redis-master:6379
+export asynctasq_REDIS_PASSWORD=${REDIS_PASSWORD}
+export asynctasq_DEFAULT_MAX_RETRIES=5
+export asynctasq_DEFAULT_RETRY_DELAY=120
+export asynctasq_DEFAULT_TIMEOUT=300
 
 # Multiple worker processes
-python -m async_task_q worker --queues critical --concurrency 20 &
-python -m async_task_q worker --queues default --concurrency 10 &
-python -m async_task_q worker --queues low-priority --concurrency 5 &
+python -m asynctasq worker --queues critical --concurrency 20 &
+python -m asynctasq worker --queues default --concurrency 10 &
+python -m asynctasq worker --queues low-priority --concurrency 5 &
 ```
 
 ## Monitoring
@@ -126,8 +126,8 @@ python -m async_task_q worker --queues low-priority --concurrency 5 &
 **Example Monitoring Script:**
 
 ```python
-from async_task_q.config import Config
-from async_task_q.core.driver_factory import DriverFactory
+from asynctasq.config import Config
+from asynctasq.core.driver_factory import DriverFactory
 
 async def check_queue_health():
     config = Config.from_env()

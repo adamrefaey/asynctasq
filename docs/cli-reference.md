@@ -5,7 +5,7 @@
 Start a worker to process tasks from queues.
 
 ```bash
-python -m async_task_q worker [OPTIONS]
+python -m asynctasq worker [OPTIONS]
 ```
 
 **Options:**
@@ -29,34 +29,34 @@ python -m async_task_q worker [OPTIONS]
 
 ```bash
 # Basic usage
-python -m async_task_q worker
+python -m asynctasq worker
 
 # Multiple queues with priority
-python -m async_task_q worker --queues high,default,low --concurrency 20
+python -m asynctasq worker --queues high,default,low --concurrency 20
 
 # Redis with auth
-python -m async_task_q worker \
+python -m asynctasq worker \
     --driver redis \
     --redis-url redis://localhost:6379 \
     --redis-password secret
 
 # PostgreSQL worker
-python -m async_task_q worker \
+python -m asynctasq worker \
     --driver postgres \
     --postgres-dsn postgresql://user:pass@localhost/db
 
 # MySQL worker
-python -m async_task_q worker \
+python -m asynctasq worker \
     --driver mysql \
     --mysql-dsn mysql://user:pass@localhost:3306/db
 
 # SQS worker
-python -m async_task_q worker \
+python -m asynctasq worker \
     --driver sqs \
     --sqs-region us-west-2
 
 # RabbitMQ worker
-python -m async_task_q worker \
+python -m asynctasq worker \
     --driver rabbitmq \
     --queues default,emails \
     --concurrency 5
@@ -69,7 +69,7 @@ python -m async_task_q worker \
 Initialize database schema for PostgreSQL or MySQL drivers.
 
 ```bash
-python -m async_task_q migrate [OPTIONS]
+python -m asynctasq migrate [OPTIONS]
 ```
 
 **Options:**
@@ -88,23 +88,23 @@ python -m async_task_q migrate [OPTIONS]
 
 ```bash
 # PostgreSQL migration (default)
-python -m async_task_q migrate \
+python -m asynctasq migrate \
     --postgres-dsn postgresql://user:pass@localhost/db
 
 # PostgreSQL with custom tables
-python -m async_task_q migrate \
+python -m asynctasq migrate \
     --postgres-dsn postgresql://user:pass@localhost/db \
     --postgres-queue-table my_queue \
     --postgres-dead-letter-table my_dlq
 
 # MySQL migration
-python -m async_task_q migrate \
+python -m asynctasq migrate \
     --driver mysql \
     --mysql-dsn mysql://user:pass@localhost:3306/db
 
 # Using environment variables
-export async_task_q_POSTGRES_DSN=postgresql://user:pass@localhost/db
-python -m async_task_q migrate
+export asynctasq_POSTGRES_DSN=postgresql://user:pass@localhost/db
+python -m asynctasq migrate
 ```
 
 **What it does:**

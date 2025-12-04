@@ -11,11 +11,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import fixture, mark, raises
 
-from async_task_q.config import Config
-from async_task_q.core.dispatcher import Dispatcher
-from async_task_q.drivers.base_driver import BaseDriver
-from async_task_q.drivers.redis_driver import RedisDriver
-from async_task_q.integrations.fastapi import AsyncTaskIntegration
+from asynctasq.config import Config
+from asynctasq.core.dispatcher import Dispatcher
+from asynctasq.drivers.base_driver import BaseDriver
+from asynctasq.drivers.redis_driver import RedisDriver
+from asynctasq.integrations.fastapi import AsyncTaskIntegration
 
 
 @fixture
@@ -93,7 +93,7 @@ class TestAsyncTaskIntegration:
         integration = AsyncTaskIntegration(config=config)
 
         with patch(
-            "async_task_q.integrations.fastapi.DriverFactory.create_from_config"
+            "asynctasq.integrations.fastapi.DriverFactory.create_from_config"
         ) as mock_factory:
             mock_driver = RedisDriver()
             mock_factory.return_value = mock_driver
@@ -109,9 +109,9 @@ class TestAsyncTaskIntegration:
         integration = AsyncTaskIntegration()
 
         with (
-            patch("async_task_q.integrations.fastapi.get_global_config") as mock_get_config,
+            patch("asynctasq.integrations.fastapi.get_global_config") as mock_get_config,
             patch(
-                "async_task_q.integrations.fastapi.DriverFactory.create_from_config"
+                "asynctasq.integrations.fastapi.DriverFactory.create_from_config"
             ) as mock_factory,
         ):
             config = Config(driver="redis")

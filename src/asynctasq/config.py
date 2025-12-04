@@ -3,82 +3,82 @@ from dataclasses import dataclass
 import os
 from typing import Any
 
-from async_task_q.drivers import DriverType
+from asynctasq.drivers import DriverType
 
 # Environment variable mapping: field_name -> (env_var, default_value, type_converter)
 ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {
     # Driver selection
-    "driver": ("async_task_q_DRIVER", "redis", str),
+    "driver": ("asynctasq_DRIVER", "redis", str),
     # Redis configuration
-    "redis_url": ("async_task_q_REDIS_URL", "redis://localhost:6379", str),
-    "redis_password": ("async_task_q_REDIS_PASSWORD", None, str),
-    "redis_db": ("async_task_q_REDIS_DB", "0", int),
-    "redis_max_connections": ("async_task_q_REDIS_MAX_CONNECTIONS", "10", int),
+    "redis_url": ("asynctasq_REDIS_URL", "redis://localhost:6379", str),
+    "redis_password": ("asynctasq_REDIS_PASSWORD", None, str),
+    "redis_db": ("asynctasq_REDIS_DB", "0", int),
+    "redis_max_connections": ("asynctasq_REDIS_MAX_CONNECTIONS", "10", int),
     # SQS configuration
-    "sqs_region": ("async_task_q_SQS_REGION", "us-east-1", str),
-    "sqs_queue_url_prefix": ("async_task_q_SQS_QUEUE_PREFIX", None, str),
+    "sqs_region": ("asynctasq_SQS_REGION", "us-east-1", str),
+    "sqs_queue_url_prefix": ("asynctasq_SQS_QUEUE_PREFIX", None, str),
     "aws_access_key_id": ("AWS_ACCESS_KEY_ID", None, str),
     "aws_secret_access_key": ("AWS_SECRET_ACCESS_KEY", None, str),
     # PostgreSQL configuration
     "postgres_dsn": (
-        "async_task_q_POSTGRES_DSN",
+        "asynctasq_POSTGRES_DSN",
         "postgresql://test:test@localhost:5432/test_db",
         str,
     ),
-    "postgres_queue_table": ("async_task_q_POSTGRES_QUEUE_TABLE", "task_queue", str),
+    "postgres_queue_table": ("asynctasq_POSTGRES_QUEUE_TABLE", "task_queue", str),
     "postgres_dead_letter_table": (
-        "async_task_q_POSTGRES_DEAD_LETTER_TABLE",
+        "asynctasq_POSTGRES_DEAD_LETTER_TABLE",
         "dead_letter_queue",
         str,
     ),
-    "postgres_max_attempts": ("async_task_q_POSTGRES_MAX_ATTEMPTS", "3", int),
-    "postgres_retry_delay_seconds": ("async_task_q_POSTGRES_RETRY_DELAY_SECONDS", "60", int),
+    "postgres_max_attempts": ("asynctasq_POSTGRES_MAX_ATTEMPTS", "3", int),
+    "postgres_retry_delay_seconds": ("asynctasq_POSTGRES_RETRY_DELAY_SECONDS", "60", int),
     "postgres_visibility_timeout_seconds": (
-        "async_task_q_POSTGRES_VISIBILITY_TIMEOUT_SECONDS",
+        "asynctasq_POSTGRES_VISIBILITY_TIMEOUT_SECONDS",
         "300",
         int,
     ),
-    "postgres_min_pool_size": ("async_task_q_POSTGRES_MIN_POOL_SIZE", "10", int),
-    "postgres_max_pool_size": ("async_task_q_POSTGRES_MAX_POOL_SIZE", "10", int),
+    "postgres_min_pool_size": ("asynctasq_POSTGRES_MIN_POOL_SIZE", "10", int),
+    "postgres_max_pool_size": ("asynctasq_POSTGRES_MAX_POOL_SIZE", "10", int),
     # MySQL configuration
     "mysql_dsn": (
-        "async_task_q_MYSQL_DSN",
+        "asynctasq_MYSQL_DSN",
         "mysql://test:test@localhost:3306/test_db",
         str,
     ),
-    "mysql_queue_table": ("async_task_q_MYSQL_QUEUE_TABLE", "task_queue", str),
+    "mysql_queue_table": ("asynctasq_MYSQL_QUEUE_TABLE", "task_queue", str),
     "mysql_dead_letter_table": (
-        "async_task_q_MYSQL_DEAD_LETTER_TABLE",
+        "asynctasq_MYSQL_DEAD_LETTER_TABLE",
         "dead_letter_queue",
         str,
     ),
-    "mysql_max_attempts": ("async_task_q_MYSQL_MAX_ATTEMPTS", "3", int),
-    "mysql_retry_delay_seconds": ("async_task_q_MYSQL_RETRY_DELAY_SECONDS", "60", int),
+    "mysql_max_attempts": ("asynctasq_MYSQL_MAX_ATTEMPTS", "3", int),
+    "mysql_retry_delay_seconds": ("asynctasq_MYSQL_RETRY_DELAY_SECONDS", "60", int),
     "mysql_visibility_timeout_seconds": (
-        "async_task_q_MYSQL_VISIBILITY_TIMEOUT_SECONDS",
+        "asynctasq_MYSQL_VISIBILITY_TIMEOUT_SECONDS",
         "300",
         int,
     ),
-    "mysql_min_pool_size": ("async_task_q_MYSQL_MIN_POOL_SIZE", "10", int),
-    "mysql_max_pool_size": ("async_task_q_MYSQL_MAX_POOL_SIZE", "10", int),
+    "mysql_min_pool_size": ("asynctasq_MYSQL_MIN_POOL_SIZE", "10", int),
+    "mysql_max_pool_size": ("asynctasq_MYSQL_MAX_POOL_SIZE", "10", int),
     # RabbitMQ configuration
-    "rabbitmq_url": ("async_task_q_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/", str),
-    "rabbitmq_exchange_name": ("async_task_q_RABBITMQ_EXCHANGE_NAME", "async_task_q", str),
-    "rabbitmq_prefetch_count": ("async_task_q_RABBITMQ_PREFETCH_COUNT", "1", int),
+    "rabbitmq_url": ("asynctasq_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/", str),
+    "rabbitmq_exchange_name": ("asynctasq_RABBITMQ_EXCHANGE_NAME", "asynctasq", str),
+    "rabbitmq_prefetch_count": ("asynctasq_RABBITMQ_PREFETCH_COUNT", "1", int),
     # Events/Monitoring configuration
-    "events_redis_url": ("async_task_q_EVENTS_REDIS_URL", None, str),
-    "events_channel": ("async_task_q_EVENTS_CHANNEL", "async_task_q:events", str),
+    "events_redis_url": ("asynctasq_EVENTS_REDIS_URL", None, str),
+    "events_channel": ("asynctasq_EVENTS_CHANNEL", "asynctasq:events", str),
     # Task defaults
-    "default_queue": ("async_task_q_DEFAULT_QUEUE", "default", str),
-    "default_max_retries": ("async_task_q_MAX_RETRIES", "3", int),
-    "default_retry_delay": ("async_task_q_RETRY_DELAY", "60", int),
-    "default_timeout": ("async_task_q_TIMEOUT", None, int),
+    "default_queue": ("asynctasq_DEFAULT_QUEUE", "default", str),
+    "default_max_retries": ("asynctasq_MAX_RETRIES", "3", int),
+    "default_retry_delay": ("asynctasq_RETRY_DELAY", "60", int),
+    "default_timeout": ("asynctasq_TIMEOUT", None, int),
 }
 
 
 @dataclass
 class Config:
-    """Configuration for Async Task Q library"""
+    """Configuration for Async TasQ library"""
 
     # Driver selection
     driver: DriverType = "redis"
@@ -117,13 +117,13 @@ class Config:
 
     # RabbitMQ configuration
     rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
-    rabbitmq_exchange_name: str = "async_task_q"
+    rabbitmq_exchange_name: str = "asynctasq"
     rabbitmq_prefetch_count: int = 1
 
     # Events/Monitoring configuration
     # If None, falls back to redis_url for Pub/Sub events
     events_redis_url: str | None = None
-    events_channel: str = "async_task_q:events"
+    events_channel: str = "asynctasq:events"
 
     # Task defaults
     default_queue: str = "default"
@@ -197,7 +197,7 @@ _global_config: Config | None = None
 
 
 def set_global_config(**overrides) -> None:
-    """Set global configuration for the async_task_q library.
+    """Set global configuration for the asynctasq library.
 
     This function sets the global configuration that will be used by all tasks
     and workers. Configuration can be provided via keyword arguments, which
@@ -209,115 +209,115 @@ def set_global_config(**overrides) -> None:
 
     General Options:
         driver (str): Queue driver to use. Choices: "redis", "sqs", "postgres", "mysql", "rabbitmq"
-            Env var: async_task_q_DRIVER
+            Env var: asynctasq_DRIVER
             Default: "redis"
 
         default_queue (str): Default queue name for tasks
-            Env var: async_task_q_DEFAULT_QUEUE
+            Env var: asynctasq_DEFAULT_QUEUE
             Default: "default"
 
         default_max_retries (int): Default maximum retry attempts for tasks
-            Env var: async_task_q_MAX_RETRIES
+            Env var: asynctasq_MAX_RETRIES
             Default: 3
 
         default_retry_delay (int): Default retry delay in seconds
-            Env var: async_task_q_RETRY_DELAY
+            Env var: asynctasq_RETRY_DELAY
             Default: 60
 
         default_timeout (int | None): Default task timeout in seconds (None = no timeout)
-            Env var: async_task_q_TIMEOUT
+            Env var: asynctasq_TIMEOUT
             Default: None
 
     Redis Options:
         redis_url (str): Redis connection URL
-            Env var: async_task_q_REDIS_URL
+            Env var: asynctasq_REDIS_URL
             Default: "redis://localhost:6379"
 
         redis_password (str | None): Redis password
-            Env var: async_task_q_REDIS_PASSWORD
+            Env var: asynctasq_REDIS_PASSWORD
             Default: None
 
         redis_db (int): Redis database number (0-15)
-            Env var: async_task_q_REDIS_DB
+            Env var: asynctasq_REDIS_DB
             Default: 0
 
         redis_max_connections (int): Maximum number of connections in Redis pool
-            Env var: async_task_q_REDIS_MAX_CONNECTIONS
+            Env var: asynctasq_REDIS_MAX_CONNECTIONS
             Default: 10
 
     PostgreSQL Options:
         postgres_dsn (str): PostgreSQL connection DSN
-            Env var: async_task_q_POSTGRES_DSN
+            Env var: asynctasq_POSTGRES_DSN
             Default: "postgresql://test:test@localhost:5432/test_db"
 
         postgres_queue_table (str): PostgreSQL queue table name
-            Env var: async_task_q_POSTGRES_QUEUE_TABLE
+            Env var: asynctasq_POSTGRES_QUEUE_TABLE
             Default: "task_queue"
 
         postgres_dead_letter_table (str): PostgreSQL dead letter table name
-            Env var: async_task_q_POSTGRES_DEAD_LETTER_TABLE
+            Env var: asynctasq_POSTGRES_DEAD_LETTER_TABLE
             Default: "dead_letter_queue"
 
         postgres_max_attempts (int): Maximum attempts before moving to dead letter queue
-            Env var: async_task_q_POSTGRES_MAX_ATTEMPTS
+            Env var: asynctasq_POSTGRES_MAX_ATTEMPTS
             Default: 3
 
         postgres_retry_delay_seconds (int): Retry delay in seconds for PostgreSQL driver
-            Env var: async_task_q_POSTGRES_RETRY_DELAY_SECONDS
+            Env var: asynctasq_POSTGRES_RETRY_DELAY_SECONDS
             Default: 60
 
         postgres_visibility_timeout_seconds (int): Visibility timeout in seconds
-            Env var: async_task_q_POSTGRES_VISIBILITY_TIMEOUT_SECONDS
+            Env var: asynctasq_POSTGRES_VISIBILITY_TIMEOUT_SECONDS
             Default: 300
 
         postgres_min_pool_size (int): Minimum connection pool size
-            Env var: async_task_q_POSTGRES_MIN_POOL_SIZE
+            Env var: asynctasq_POSTGRES_MIN_POOL_SIZE
             Default: 10
 
         postgres_max_pool_size (int): Maximum connection pool size
-            Env var: async_task_q_POSTGRES_MAX_POOL_SIZE
+            Env var: asynctasq_POSTGRES_MAX_POOL_SIZE
             Default: 10
 
     MySQL Options:
         mysql_dsn (str): MySQL connection DSN
-            Env var: async_task_q_MYSQL_DSN
+            Env var: asynctasq_MYSQL_DSN
             Default: "mysql://test:test@localhost:3306/test_db"
 
         mysql_queue_table (str): MySQL queue table name
-            Env var: async_task_q_MYSQL_QUEUE_TABLE
+            Env var: asynctasq_MYSQL_QUEUE_TABLE
             Default: "task_queue"
 
         mysql_dead_letter_table (str): MySQL dead letter table name
-            Env var: async_task_q_MYSQL_DEAD_LETTER_TABLE
+            Env var: asynctasq_MYSQL_DEAD_LETTER_TABLE
             Default: "dead_letter_queue"
 
         mysql_max_attempts (int): Maximum attempts before moving to dead letter queue
-            Env var: async_task_q_MYSQL_MAX_ATTEMPTS
+            Env var: asynctasq_MYSQL_MAX_ATTEMPTS
             Default: 3
 
         mysql_retry_delay_seconds (int): Retry delay in seconds for MySQL driver
-            Env var: async_task_q_MYSQL_RETRY_DELAY_SECONDS
+            Env var: asynctasq_MYSQL_RETRY_DELAY_SECONDS
             Default: 60
 
         mysql_visibility_timeout_seconds (int): Visibility timeout in seconds
-            Env var: async_task_q_MYSQL_VISIBILITY_TIMEOUT_SECONDS
+            Env var: asynctasq_MYSQL_VISIBILITY_TIMEOUT_SECONDS
             Default: 300
 
         mysql_min_pool_size (int): Minimum connection pool size
-            Env var: async_task_q_MYSQL_MIN_POOL_SIZE
+            Env var: asynctasq_MYSQL_MIN_POOL_SIZE
             Default: 10
 
         mysql_max_pool_size (int): Maximum connection pool size
-            Env var: async_task_q_MYSQL_MAX_POOL_SIZE
+            Env var: asynctasq_MYSQL_MAX_POOL_SIZE
             Default: 10
 
     SQS Options:
         sqs_region (str): AWS SQS region
-            Env var: async_task_q_SQS_REGION
+            Env var: asynctasq_SQS_REGION
             Default: "us-east-1"
 
         sqs_queue_url_prefix (str | None): SQS queue URL prefix
-            Env var: async_task_q_SQS_QUEUE_PREFIX
+            Env var: asynctasq_SQS_QUEUE_PREFIX
             Default: None
 
         aws_access_key_id (str | None): AWS access key ID
@@ -330,25 +330,25 @@ def set_global_config(**overrides) -> None:
 
     RabbitMQ Options:
         rabbitmq_url (str): RabbitMQ connection URL
-            Env var: async_task_q_RABBITMQ_URL
+            Env var: asynctasq_RABBITMQ_URL
             Default: "amqp://guest:guest@localhost:5672/"
 
         rabbitmq_exchange_name (str): RabbitMQ exchange name
-            Env var: async_task_q_RABBITMQ_EXCHANGE_NAME
-            Default: "async_task_q"
+            Env var: asynctasq_RABBITMQ_EXCHANGE_NAME
+            Default: "asynctasq"
 
         rabbitmq_prefetch_count (int): RabbitMQ consumer prefetch count
-            Env var: async_task_q_RABBITMQ_PREFETCH_COUNT
+            Env var: asynctasq_RABBITMQ_PREFETCH_COUNT
             Default: 1
 
     Events/Monitoring Options:
         events_redis_url (str | None): Redis URL for event Pub/Sub (monitor integration)
-            Env var: async_task_q_EVENTS_REDIS_URL
+            Env var: asynctasq_EVENTS_REDIS_URL
             Default: None (falls back to redis_url)
 
         events_channel (str): Redis Pub/Sub channel for events
-            Env var: async_task_q_EVENTS_CHANNEL
-            Default: "async_task_q:events"
+            Env var: asynctasq_EVENTS_CHANNEL
+            Default: "asynctasq:events"
 
     Examples:
         # Basic configuration with Redis
@@ -413,7 +413,7 @@ def set_global_config(**overrides) -> None:
 
 
 def get_global_config() -> Config:
-    """Get global configuration for the async_task_q library, initializing from environment if not set"""
+    """Get global configuration for the asynctasq library, initializing from environment if not set"""
     global _global_config
     if _global_config is None:
         _global_config = Config.from_env()

@@ -1,4 +1,4 @@
-"""Queue driver implementations for async-task-q.
+"""Queue driver implementations for asynctasq.
 
 This module provides the driver abstraction and concrete implementations
 for various queue backends (Redis, PostgreSQL, MySQL, AWS SQS).

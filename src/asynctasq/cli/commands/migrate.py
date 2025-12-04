@@ -3,8 +3,8 @@
 import argparse
 import logging
 
-from async_task_q.config import Config
-from async_task_q.core.driver_factory import DriverFactory
+from asynctasq.config import Config
+from asynctasq.core.driver_factory import DriverFactory
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ async def run_migrate(args: argparse.Namespace, config: Config) -> None:
 
         driver = DriverFactory.create_from_config(config, driver_type="postgres")
 
-        from async_task_q.drivers.postgres_driver import PostgresDriver
+        from asynctasq.drivers.postgres_driver import PostgresDriver
 
         if not isinstance(driver, PostgresDriver):
             raise MigrationError("Driver factory did not return a PostgresDriver instance")
@@ -57,7 +57,7 @@ async def run_migrate(args: argparse.Namespace, config: Config) -> None:
 
         driver = DriverFactory.create_from_config(config, driver_type="mysql")
 
-        from async_task_q.drivers.mysql_driver import MySQLDriver
+        from asynctasq.drivers.mysql_driver import MySQLDriver
 
         if not isinstance(driver, MySQLDriver):
             raise MigrationError("Driver factory did not return a MySQLDriver instance")

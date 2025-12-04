@@ -46,13 +46,13 @@ fastapi = ["fastapi>=0.115.0"]
 monitor = ["redis[hiredis]>=7.1.0"]  # Required for real-time monitoring UI
 
 all = [
-    "async-task-q[redis,sqs,postgres,mysql,rabbitmq,sqlite,oracle,sqlalchemy,django,tortoise,fastapi,monitor]",
+    "asynctasq[redis,sqs,postgres,mysql,rabbitmq,sqlite,oracle,sqlalchemy,django,tortoise,fastapi,monitor]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/adamrefaey/async-task-q"
-Repository = "https://github.com/adamrefaey/async-task-q"
-Issues = "https://github.com/adamrefaey/async-task-q/issues"
+Homepage = "https://github.com/adamrefaey/asynctasq"
+Repository = "https://github.com/adamrefaey/asynctasq"
+Issues = "https://github.com/adamrefaey/asynctasq/issues"
 
 
 [build-system]
@@ -93,7 +93,7 @@ select = [
 ignore = ["E501"] # line too long (handled by formatter)
 
 [tool.ruff.lint.isort]
-known-first-party = ["async_task_q"]
+known-first-party = ["asynctasq"]
 force-sort-within-sections = true
 
 [tool.ruff.lint.mccabe]
@@ -121,7 +121,7 @@ python_functions = ["test_*"]
 addopts = [
     "-s",
     "-v",
-    # "--cov=async_task_q",
+    # "--cov=asynctasq",
     # "--cov-branch",
     # "--cov-report=term-missing",
     # "--cov-report=html",

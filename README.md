@@ -1,8 +1,8 @@
-# Async Task Q
+# Async TasQ
 
-[![Tests](https://raw.githubusercontent.com/adamrefaey/async-task-q/main/.github/tests.svg)](https://github.com/adamrefaey/async-task-q/actions/workflows/ci.yml)
-[![Coverage](https://raw.githubusercontent.com/adamrefaey/async-task-q/main/.github/coverage.svg)](https://raw.githubusercontent.com/adamrefaey/async-task-q/main/.github/coverage.svg)
-[![Python Version](https://raw.githubusercontent.com/adamrefaey/async-task-q/main/.github/python-version.svg)](https://www.python.org/downloads/)
+[![Tests](https://raw.githubusercontent.com/adamrefaey/asynctasq/main/.github/tests.svg)](https://github.com/adamrefaey/asynctasq/actions/workflows/ci.yml)
+[![Coverage](https://raw.githubusercontent.com/adamrefaey/asynctasq/main/.github/coverage.svg)](https://raw.githubusercontent.com/adamrefaey/asynctasq/main/.github/coverage.svg)
+[![Python Version](https://raw.githubusercontent.com/adamrefaey/asynctasq/main/.github/python-version.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A modern, async-first, type-safe task queue Python package inspired by Laravel. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+. Features ACID guarantees, dead-letter queues, crash recovery.
@@ -11,9 +11,9 @@ A modern, async-first, type-safe task queue Python package inspired by Laravel. 
 
 ## Table of Contents
 
-- [Async Task Q](#async-task-q)
+- [Async TasQ](#asynctasq)
   - [Table of Contents](#table-of-contents)
-  - [Why Async Task Q?](#why-async-task-q)
+  - [Why Async TasQ?](#why-asynctasq)
     - [Async-First Architecture](#async-first-architecture)
     - [High-Performance Serialization](#high-performance-serialization)
     - [Production-Ready Features](#production-ready-features)
@@ -28,10 +28,10 @@ A modern, async-first, type-safe task queue Python package inspired by Laravel. 
   - [Quick Reference](#quick-reference)
   - [CI \& Contributing (short)](#ci--contributing-short)
   - [Comparison with Alternatives](#comparison-with-alternatives)
-    - [Async Task Q vs. Celery](#async-task-q-vs-celery)
-    - [Async Task Q vs. Dramatiq](#async-task-q-vs-dramatiq)
-    - [Async Task Q vs. RQ (Redis Queue)](#async-task-q-vs-rq-redis-queue)
-    - [Async Task Q vs. Huey](#async-task-q-vs-huey)
+    - [Async TasQ vs. Celery](#asynctasq-vs-celery)
+    - [Async TasQ vs. Dramatiq](#asynctasq-vs-dramatiq)
+    - [Async TasQ vs. RQ (Redis Queue)](#asynctasq-vs-rq-redis-queue)
+    - [Async TasQ vs. Huey](#asynctasq-vs-huey)
     - [Key Differentiators](#key-differentiators)
   - [Documentation](#documentation)
   - [Examples](#examples)
@@ -43,7 +43,7 @@ A modern, async-first, type-safe task queue Python package inspired by Laravel. 
 
 ---
 
-## Why Async Task Q?
+## Why Async TasQ?
 
 ### Async-First Architecture
 
@@ -155,15 +155,15 @@ A modern, async-first, type-safe task queue Python package inspired by Laravel. 
 Get started in 60 seconds:
 
 ```bash
-# Install Async Task Q
-uv add async-task-q[redis]
+# Install Async TasQ
+uv add asynctasq[redis]
 ```
 
 ```python
 import asyncio
 
-from async_task_q.config import set_global_config
-from async_task_q.core.task import task
+from asynctasq.config import set_global_config
+from asynctasq.core.task import task
 
 # 1. Configure (or use environment variables)
 set_global_config(driver="redis", redis_url="redis://localhost:6379", redis_password=None)
@@ -193,10 +193,10 @@ if __name__ == "__main__":
 
 ```bash
 # Run the worker
-python -m async_task_q worker
+python -m asynctasq worker
 ```
 
-**That's it!** Your first async task queue is ready. Now let's explore the powerful features.
+**That's it!** Your first Async TasQueue is ready. Now let's explore the powerful features.
 
 ---
 
@@ -205,24 +205,24 @@ python -m async_task_q worker
 - **One-line setup:** `just init` — install deps and pre-commit hooks
 - **Start services:** `just services-up` — Redis, PostgreSQL, MySQL, RabbitMQ, LocalStack (SQS) for local integration tests
 - **Run tests:** `just test` (or `pytest`) — use `just test-unit` / `just test-integration` to scope
-- **Run with coverage:** `just test-cov` or `pytest --cov=src/async_task_q --cov-report=html`
-- **Run the worker locally:** `python -m async_task_q worker`
-- **Pre-commit hooks:** [`./setup-pre-commit.sh`](https://github.com/adamrefaey/async-task-q/blob/main/setup-pre-commit.sh) or `just setup-hooks`
+- **Run with coverage:** `just test-cov` or `pytest --cov=src/asynctasq --cov-report=html`
+- **Run the worker locally:** `python -m asynctasq worker`
+- **Pre-commit hooks:** [`./setup-pre-commit.sh`](https://github.com/adamrefaey/asynctasq/blob/main/setup-pre-commit.sh) or `just setup-hooks`
 - **Format / lint / typecheck:** `just format`, `just lint`, `just typecheck`
 
 ## CI & Contributing (short)
 
 - **CI runs on PRs and pushes to `main`** and includes lint, type checks and tests across Python 3.11–3.14.
-- **Pre-commit hooks** enforce formatting and static checks locally before commits (see [`./setup-pre-commit.sh`](https://github.com/adamrefaey/async-task-q/blob/main/setup-pre-commit.sh)).
+- **Pre-commit hooks** enforce formatting and static checks locally before commits (see [`./setup-pre-commit.sh`](https://github.com/adamrefaey/asynctasq/blob/main/setup-pre-commit.sh)).
 - **Branch protection:** enable required status checks (CI success, lint, unit/integration jobs) for `main`.
 - **Coverage badge:** the repository updates `.github/coverage.svg` automatically via `.github/workflows/coverage-badge.yml`.
 - **Run full CI locally:** `just ci` (runs format/lint/typecheck/tests like the workflow).
 
 ## Comparison with Alternatives
 
-### Async Task Q vs. Celery
+### Async TasQ vs. Celery
 
-| Feature                 | Async Task Q                                        | Celery                             |
+| Feature                 | Async TasQ                                        | Celery                             |
 | ----------------------- | ------------------------------------------------- | ---------------------------------- |
 | **Async Support**       | ✅ Async-first, built with asyncio                 | ❌ No native asyncio support        |
 | **Type Safety**         | ✅ Full type hints, Generic[T]                     | ⚠️ Third-party stubs (celery-types) |
@@ -235,7 +235,7 @@ python -m async_task_q worker
 | **Setup Complexity**    | ✅ Zero-config with env vars                       | ⚠️ Complex configuration            |
 | **Learning Curve**      | ✅ Simple, intuitive API                           | ⚠️ Steep learning curve             |
 
-**When to use Async Task Q:**
+**When to use Async TasQ:**
 
 - Modern async Python applications
 - Need for type safety and IDE support
@@ -252,9 +252,9 @@ python -m async_task_q worker
 
 ---
 
-### Async Task Q vs. Dramatiq
+### Async TasQ vs. Dramatiq
 
-| Feature                 | Async Task Q             | Dramatiq                   |
+| Feature                 | Async TasQ             | Dramatiq                   |
 | ----------------------- | ---------------------- | -------------------------- |
 | **Async Support**       | ✅ Async-first          | ⚠️ Limited (via middleware) |
 | **Type Safety**         | ✅ Full type hints      | ✅ Type hints (py.typed)    |
@@ -265,7 +265,7 @@ python -m async_task_q worker
 | **Database Drivers**    | ✅ PostgreSQL/MySQL     | ❌ Not available            |
 | **Simplicity**          | ✅ Clean, intuitive API | ✅ Simple, well-designed    |
 
-**When to use Async Task Q:**
+**When to use Async TasQ:**
 
 - Async applications (FastAPI, aiohttp)
 - Type-safe codebase
@@ -280,9 +280,9 @@ python -m async_task_q worker
 
 ---
 
-### Async Task Q vs. RQ (Redis Queue)
+### Async TasQ vs. RQ (Redis Queue)
 
-| Feature               | Async Task Q                       | RQ                     |
+| Feature               | Async TasQ                       | RQ                     |
 | --------------------- | -------------------------------- | ---------------------- |
 | **Async Support**     | ✅ Async-first                    | ❌ Sync only            |
 | **Multi-Driver**      | ✅ 5 drivers                      | ❌ Redis only           |
@@ -292,7 +292,7 @@ python -m async_task_q worker
 | **Database Drivers**  | ✅ PostgreSQL/MySQL               | ❌ Not available        |
 | **Simplicity**        | ✅ Intuitive, clean API           | ✅ Very simple          |
 
-**When to use Async Task Q:**
+**When to use Async TasQ:**
 
 - Async applications
 - Multiple driver options
@@ -307,9 +307,9 @@ python -m async_task_q worker
 
 ---
 
-### Async Task Q vs. Huey
+### Async TasQ vs. Huey
 
-| Feature                 | Async Task Q                      | Huey             |
+| Feature                 | Async TasQ                      | Huey             |
 | ----------------------- | ------------------------------- | ---------------- |
 | **Async Support**       | ✅ Async-first                   | ⚠️ Limited async  |
 | **Multi-Driver**        | ✅ 5 drivers                     | ⚠️ Redis/SQLite   |
@@ -318,7 +318,7 @@ python -m async_task_q worker
 | **Enterprise Features** | ✅ ACID, DLQ, visibility timeout | ⚠️ Basic features |
 | **Simplicity**          | ✅ Clean, modern API             | ✅ Simple         |
 
-**When to use Async Task Q:**
+**When to use Async TasQ:**
 
 - Async-first applications
 - Enterprise requirements
@@ -335,7 +335,7 @@ python -m async_task_q worker
 
 ### Key Differentiators
 
-**Async Task Q stands out with:**
+**Async TasQ stands out with:**
 
 1. **True async-first design** – Built with asyncio from the ground up
 2. **msgpack serialization** – Faster and more efficient than JSON
@@ -354,15 +354,15 @@ python -m async_task_q worker
 
 For detailed documentation, see the following guides:
 
-- **[Installation](https://github.com/adamrefaey/async-task-q/blob/main/docs/installation.md)** – Installation instructions for uv and pip
-- **[Queue Drivers](https://github.com/adamrefaey/async-task-q/blob/main/docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
-- **[ORM Integrations](https://github.com/adamrefaey/async-task-q/blob/main/docs/orm-integrations.md)** – SQLAlchemy, Django, Tortoise ORM
-- **[Framework Integrations](https://github.com/adamrefaey/async-task-q/blob/main/docs/framework-integrations.md)** – FastAPI integration
-- **[Task Definitions](https://github.com/adamrefaey/async-task-q/blob/main/docs/task-definitions.md)** – Function-based and class-based tasks
-- **[Running Workers](https://github.com/adamrefaey/async-task-q/blob/main/docs/running-workers.md)** – CLI and programmatic workers
-- **[Configuration](https://github.com/adamrefaey/async-task-q/blob/main/docs/configuration.md)** – Environment variables, programmatic, CLI
-- **[CLI Reference](https://github.com/adamrefaey/async-task-q/blob/main/docs/cli-reference.md)** – Complete command reference
-- **[Best Practices](https://github.com/adamrefaey/async-task-q/blob/main/docs/best-practices.md)** – Task design, queue organization, production deployment
+- **[Installation](https://github.com/adamrefaey/asynctasq/blob/main/docs/installation.md)** – Installation instructions for uv and pip
+- **[Queue Drivers](https://github.com/adamrefaey/asynctasq/blob/main/docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
+- **[ORM Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/orm-integrations.md)** – SQLAlchemy, Django, Tortoise ORM
+- **[Framework Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/framework-integrations.md)** – FastAPI integration
+- **[Task Definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md)** – Function-based and class-based tasks
+- **[Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md)** – CLI and programmatic workers
+- **[Configuration](https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md)** – Environment variables, programmatic, CLI
+- **[CLI Reference](https://github.com/adamrefaey/asynctasq/blob/main/docs/cli-reference.md)** – Complete command reference
+- **[Best Practices](https://github.com/adamrefaey/asynctasq/blob/main/docs/best-practices.md)** – Task design, queue organization, production deployment
 
 ---
 
@@ -370,28 +370,28 @@ For detailed documentation, see the following guides:
 
 For complete examples, see the following guides:
 
-- **[Function-Based Tasks Examples](https://github.com/adamrefaey/async-task-q/blob/main/docs/examples/function-based-tasks.md)** – Complete examples guide
-- **[Class-Based Tasks Examples](https://github.com/adamrefaey/async-task-q/blob/main/docs/examples/class-based-tasks.md)** – Complete examples guide
+- **[Function-Based Tasks Examples](https://github.com/adamrefaey/asynctasq/blob/main/docs/examples/function-based-tasks.md)** – Complete examples guide
+- **[Class-Based Tasks Examples](https://github.com/adamrefaey/asynctasq/blob/main/docs/examples/class-based-tasks.md)** – Complete examples guide
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](https://github.com/adamrefaey/async-task-q/blob/main/CONTRIBUTING.md) for guidelines.
+Contributions are welcome! Please see [CONTRIBUTING.md](https://github.com/adamrefaey/asynctasq/blob/main/CONTRIBUTING.md) for guidelines.
 
 ---
 
 ## License
 
-MIT License – see [LICENSE](https://github.com/adamrefaey/async-task-q/blob/main/LICENSE) file for details.
+MIT License – see [LICENSE](https://github.com/adamrefaey/asynctasq/blob/main/LICENSE) file for details.
 
 ---
 
 ## Support
 
-- **Repository:** [github.com/adamrefaey/async-task-q](https://github.com/adamrefaey/async-task-q)
-- **Issues:** [github.com/adamrefaey/async-task-q/issues](https://github.com/adamrefaey/async-task-q/issues)
-- **Discussions:** [github.com/adamrefaey/async-task-q/discussions](https://github.com/adamrefaey/async-task-q/discussions)
+- **Repository:** [github.com/adamrefaey/asynctasq](https://github.com/adamrefaey/asynctasq)
+- **Issues:** [github.com/adamrefaey/asynctasq/issues](https://github.com/adamrefaey/asynctasq/issues)
+- **Discussions:** [github.com/adamrefaey/asynctasq/discussions](https://github.com/adamrefaey/asynctasq/discussions)
 
 ---
 

@@ -6,7 +6,7 @@ from typing import Any
 
 from redis.asyncio import Redis
 
-from async_task_q.core.models import QueueStats, TaskInfo, WorkerInfo
+from asynctasq.core.models import QueueStats, TaskInfo, WorkerInfo
 
 from .base_driver import BaseDriver
 

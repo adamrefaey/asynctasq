@@ -217,7 +217,7 @@ class OrmHandler:
         # Try to get session from context or use default
         # Support both async and sync sessions
         session_var: contextvars.ContextVar[Any] | None = getattr(
-            model_class, "_async_task_q_session_var", None
+            model_class, "_asynctasq_session_var", None
         )
         if session_var is not None:
             session = session_var.get()
@@ -247,7 +247,7 @@ class OrmHandler:
         # No valid session found
         raise RuntimeError(
             "SQLAlchemy session not available. "
-            "Set _async_task_q_session_var on your model class or pass session explicitly."
+            "Set _asynctasq_session_var on your model class or pass session explicitly."
         )
 
     async def _fetch_django_model(self, model_class: type, pk: Any) -> Any:

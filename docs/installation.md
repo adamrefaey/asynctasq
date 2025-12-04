@@ -6,48 +6,48 @@
 
 ```bash
 # Basic installation
-uv add async-task-q
+uv add asynctasq
 
 # With specific drivers
-uv add "async-task-q[redis]"      # Redis support
-uv add "async-task-q[postgres]"   # PostgreSQL support
-uv add "async-task-q[mysql]"      # MySQL support
-uv add "async-task-q[rabbitmq]"   # RabbitMQ support
-uv add "async-task-q[sqs]"        # AWS SQS support
+uv add "asynctasq[redis]"      # Redis support
+uv add "asynctasq[postgres]"   # PostgreSQL support
+uv add "asynctasq[mysql]"      # MySQL support
+uv add "asynctasq[rabbitmq]"   # RabbitMQ support
+uv add "asynctasq[sqs]"        # AWS SQS support
 
 # With ORM support
-uv add "async-task-q[sqlalchemy]" # SQLAlchemy
-uv add "async-task-q[django]"     # Django
-uv add "async-task-q[tortoise]"   # Tortoise ORM
+uv add "asynctasq[sqlalchemy]" # SQLAlchemy
+uv add "asynctasq[django]"     # Django
+uv add "asynctasq[tortoise]"   # Tortoise ORM
 
 # With framework integrations
-uv add "async-task-q[fastapi]"    # FastAPI integration
+uv add "asynctasq[fastapi]"    # FastAPI integration
 
 # Complete installation with all features
-uv add "async-task-q[all]"
+uv add "asynctasq[all]"
 ```
 
 ## Using pip
 
 ```bash
 # Basic installation
-pip install async-task-q
+pip install asynctasq
 
 # With specific drivers
-pip install "async-task-q[redis]"
-pip install "async-task-q[postgres]"
-pip install "async-task-q[mysql]"
-pip install "async-task-q[rabbitmq]"
-pip install "async-task-q[sqs]"
+pip install "asynctasq[redis]"
+pip install "asynctasq[postgres]"
+pip install "asynctasq[mysql]"
+pip install "asynctasq[rabbitmq]"
+pip install "asynctasq[sqs]"
 
 # With ORM support
-pip install "async-task-q[sqlalchemy]"
-pip install "async-task-q[django]"
-pip install "async-task-q[tortoise]"
+pip install "asynctasq[sqlalchemy]"
+pip install "asynctasq[django]"
+pip install "asynctasq[tortoise]"
 
 # With framework integrations
-pip install "async-task-q[fastapi]"
+pip install "asynctasq[fastapi]"
 
 # Complete installation
-pip install "async-task-q[all]"
+pip install "asynctasq[all]"
 ```

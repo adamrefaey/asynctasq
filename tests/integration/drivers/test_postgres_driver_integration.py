@@ -30,7 +30,7 @@ import asyncpg
 from pytest import fixture, main, mark
 import pytest_asyncio
 
-from async_task_q.drivers.postgres_driver import PostgresDriver
+from asynctasq.drivers.postgres_driver import PostgresDriver
 
 # Test configuration
 POSTGRES_DSN = "postgresql://test:test@localhost:5432/test_db"

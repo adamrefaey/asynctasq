@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import main, mark
 
-from async_task_q.drivers.rabbitmq_driver import RabbitMQDriver
+from asynctasq.drivers.rabbitmq_driver import RabbitMQDriver
 
 
 @mark.unit
@@ -26,7 +26,7 @@ class TestRabbitMQDriverInitialization:
 
         # Assert
         assert driver.url == "amqp://guest:guest@localhost:5672/"
-        assert driver.exchange_name == "async_task_q"
+        assert driver.exchange_name == "asynctasq"
         assert driver.prefetch_count == 1
         assert driver.connection is None
         assert driver.channel is None
@@ -55,7 +55,7 @@ class TestRabbitMQDriverInitialization:
         mock_exchange = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -83,7 +83,7 @@ class TestRabbitMQDriverInitialization:
         mock_exchange = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -109,7 +109,7 @@ class TestRabbitMQDriverInitialization:
         mock_exchange = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -140,7 +140,7 @@ class TestRabbitMQDriverInitialization:
         mock_exchange = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -175,7 +175,7 @@ class TestRabbitMQDriverEnqueue:
         mock_exchange.publish = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -205,7 +205,7 @@ class TestRabbitMQDriverEnqueue:
         mock_delayed_queue.bind = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -235,7 +235,7 @@ class TestRabbitMQDriverEnqueue:
         mock_exchange.publish = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -267,7 +267,7 @@ class TestRabbitMQDriverDequeue:
         mock_message.body = b"task_data"
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -295,10 +295,10 @@ class TestRabbitMQDriverDequeue:
                 # Patch current_time to advance quickly so the polling loop exits immediately
                 with (
                     patch(
-                        "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+                        "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
                         return_value=mock_connection,
                     ),
-                    patch("async_task_q.drivers.rabbitmq_driver.current_time", side_effect=[0, 2]),
+                    patch("asynctasq.drivers.rabbitmq_driver.current_time", side_effect=[0, 2]),
                 ):
                     mock_connection.channel = AsyncMock(return_value=mock_channel)
                     mock_channel.set_qos = AsyncMock()
@@ -332,7 +332,7 @@ class TestRabbitMQDriverDequeue:
         mock_message.body = b"task_data"
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -369,7 +369,7 @@ class TestRabbitMQDriverDequeue:
         mock_queue = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -469,7 +469,7 @@ class TestRabbitMQDriverGetQueueSize:
         mock_queue.declare = AsyncMock(return_value=mock_queue_state)
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -506,7 +506,7 @@ class TestRabbitMQDriverGetQueueSize:
         mock_delayed_queue.declare = AsyncMock(return_value=mock_delayed_state)
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -540,7 +540,7 @@ class TestRabbitMQDriverGetQueueSize:
         mock_queue.declare = AsyncMock(return_value=mock_queue_state)
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -573,7 +573,7 @@ class TestRabbitMQDriverGetQueueSize:
         mock_queue.declare = AsyncMock(return_value=mock_queue_state)
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -608,7 +608,7 @@ class TestRabbitMQDriverEnsureQueue:
         mock_queue.bind = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -640,7 +640,7 @@ class TestRabbitMQDriverEnsureQueue:
         mock_queue.bind = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -677,7 +677,7 @@ class TestRabbitMQDriverEnsureDelayedQueue:
         mock_delayed_queue.bind = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -712,7 +712,7 @@ class TestRabbitMQDriverEnsureDelayedQueue:
         mock_delayed_queue.bind = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -760,7 +760,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_exchange.publish = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -791,7 +791,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_exchange = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -820,7 +820,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_queue2 = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -854,7 +854,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_queue_state.message_count = 0
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -894,7 +894,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_queue_state.message_count = 0
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -958,7 +958,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_message.body = b"task"
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1006,7 +1006,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_message.ack = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1052,7 +1052,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_message.nack = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1090,7 +1090,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_message.ack = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1125,7 +1125,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_delayed_queue = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1157,7 +1157,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_delayed_queue = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1190,7 +1190,7 @@ class TestRabbitMQDriverEdgeCases:
         mock_queue = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1233,7 +1233,7 @@ class TestRabbitMQDriverGetQueueStats:
         mock_delayed_queue.declare = AsyncMock(return_value=mock_delayed_state)
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1273,7 +1273,7 @@ class TestRabbitMQDriverGetQueueStats:
         mock_delayed_queue.declare = AsyncMock(return_value=mock_delayed_state)
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1310,7 +1310,7 @@ class TestRabbitMQDriverGetAllQueueNames:
         mock_queue2 = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1344,7 +1344,7 @@ class TestRabbitMQDriverGetAllQueueNames:
         mock_delayed_queue = AsyncMock()
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)
@@ -1408,7 +1408,7 @@ class TestRabbitMQDriverGetGlobalStats:
         mock_delayed_queue2.declare = AsyncMock(return_value=mock_delayed2_state)
 
         with patch(
-            "async_task_q.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
             return_value=mock_connection,
         ):
             mock_connection.channel = AsyncMock(return_value=mock_channel)

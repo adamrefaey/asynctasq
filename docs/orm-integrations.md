@@ -1,6 +1,6 @@
 # ORM Integrations
 
-Async Task Q automatically handles ORM model serialization and deserialization, reducing queue payload size and ensuring fresh data.
+Async TasQ automatically handles ORM model serialization and deserialization, reducing queue payload size and ensuring fresh data.
 
 ## How It Works
 
@@ -27,10 +27,10 @@ Async Task Q automatically handles ORM model serialization and deserialization, 
 
 ```bash
 # With uv
-uv add "async-task-q[sqlalchemy]"
+uv add "asynctasq[sqlalchemy]"
 
 # With pip
-pip install "async-task-q[sqlalchemy]"
+pip install "asynctasq[sqlalchemy]"
 ```
 
 **Requirements:**
@@ -43,8 +43,8 @@ pip install "async-task-q[sqlalchemy]"
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from async_task_q.core.task import task
-from async_task_q.serializers.orm_handler import set_sqlalchemy_session_factory
+from asynctasq.core.task import task
+from asynctasq.serializers.orm_handler import set_sqlalchemy_session_factory
 
 # Define your models
 class Base(DeclarativeBase):
@@ -98,10 +98,10 @@ async def main():
 
 ```bash
 # With uv
-uv add "async-task-q[django]"
+uv add "asynctasq[django]"
 
 # With pip
-pip install "async-task-q[django]"
+pip install "asynctasq[django]"
 ```
 
 **Requirements:**
@@ -113,7 +113,7 @@ pip install "async-task-q[django]"
 
 ```python
 from django.db import models
-from async_task_q.core.task import task
+from asynctasq.core.task import task
 
 # Define your Django model
 class User(models.Model):
@@ -148,10 +148,10 @@ async def main():
 
 ```bash
 # With uv
-uv add "async-task-q[tortoise]"
+uv add "asynctasq[tortoise]"
 
 # With pip
-pip install "async-task-q[tortoise]"
+pip install "asynctasq[tortoise]"
 ```
 
 **Requirements:**
@@ -163,7 +163,7 @@ pip install "async-task-q[tortoise]"
 ```python
 from tortoise import fields
 from tortoise.models import Model
-from async_task_q.core.task import task
+from asynctasq.core.task import task
 
 # Define your Tortoise model
 class User(Model):

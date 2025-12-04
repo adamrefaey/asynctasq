@@ -9,9 +9,9 @@ import socket
 import traceback
 import uuid
 
-from async_task_q.drivers.base_driver import BaseDriver
-from async_task_q.serializers.base_serializer import BaseSerializer
-from async_task_q.serializers.msgpack_serializer import MsgpackSerializer
+from asynctasq.drivers.base_driver import BaseDriver
+from asynctasq.serializers.base_serializer import BaseSerializer
+from asynctasq.serializers.msgpack_serializer import MsgpackSerializer
 
 from .events import EventEmitter, EventType, TaskEvent, WorkerEvent
 from .task import Task

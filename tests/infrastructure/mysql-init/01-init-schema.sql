@@ -1,4 +1,4 @@
--- MySQL 8.0+ Schema Initialization for async-task-q Queue System
+-- MySQL 8.0+ Schema Initialization for asynctasq Queue System
 -- This script is automatically executed when the MySQL container starts for the first time
 -- Creates the default task_queue and dead_letter_queue tables
 --

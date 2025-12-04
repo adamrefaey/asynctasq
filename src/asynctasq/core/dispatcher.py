@@ -4,10 +4,10 @@ import logging
 from typing import TYPE_CHECKING, cast
 import uuid
 
-from async_task_q.config import Config, get_global_config
-from async_task_q.drivers import DriverType
-from async_task_q.drivers.base_driver import BaseDriver
-from async_task_q.serializers import BaseSerializer, MsgpackSerializer
+from asynctasq.config import Config, get_global_config
+from asynctasq.drivers import DriverType
+from asynctasq.drivers.base_driver import BaseDriver
+from asynctasq.serializers import BaseSerializer, MsgpackSerializer
 
 from .driver_factory import DriverFactory
 from .events import EventEmitter, EventType, TaskEvent

@@ -2,7 +2,7 @@
 
 This module provides a comprehensive event system for real-time monitoring
 of task and worker lifecycle events. Events are published to Redis Pub/Sub
-for consumption by the async-task-q-monitor package.
+for consumption by the asynctasq-monitor package.
 
 Task Events:
     - task_enqueued: Task added to queue, awaiting execution
@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import msgpack
 
-from async_task_q.config import get_global_config
+from asynctasq.config import get_global_config
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
@@ -117,7 +117,7 @@ class WorkerEvent:
         active: Number of currently executing tasks
         processed: Total tasks processed by this worker
         queues: Queue names the worker consumes from
-        sw_ident: Software identifier ("async-task-q")
+        sw_ident: Software identifier ("asynctasq")
         sw_ver: Software version string
         uptime_seconds: How long the worker has been running
     """
@@ -130,7 +130,7 @@ class WorkerEvent:
     active: int = 0  # Currently executing tasks
     processed: int = 0  # Total tasks processed
     queues: tuple[str, ...] = ()  # Use tuple for immutability
-    sw_ident: str = "async-task-q"
+    sw_ident: str = "asynctasq"
     sw_ver: str = "1.0.0"
     uptime_seconds: int | None = None
 
@@ -199,18 +199,18 @@ class RedisEventEmitter:
 
     Configuration:
         The Redis URL for events is read from global config in this order:
-        1. events_redis_url if explicitly set (async_task_q_EVENTS_REDIS_URL env var)
-        2. Falls back to redis_url (async_task_q_REDIS_URL env var)
+        1. events_redis_url if explicitly set (asynctasq_EVENTS_REDIS_URL env var)
+        2. Falls back to redis_url (asynctasq_REDIS_URL env var)
 
         The Pub/Sub channel is configured via events_channel in global config
-        (async_task_q_EVENTS_CHANNEL env var, default: async_task_q:events).
+        (asynctasq_EVENTS_CHANNEL env var, default: asynctasq:events).
 
         This allows using a different Redis instance for events/monitoring
         than the one used for the queue driver.
 
     Requirements:
         - Redis server running and accessible
-        - redis[hiredis] package installed (included with async-task-q[monitor])
+        - redis[hiredis] package installed (included with asynctasq[monitor])
 
     The monitor package subscribes to the events channel and broadcasts
     received events to WebSocket clients for real-time updates.
@@ -354,12 +354,12 @@ def create_event_emitter(
 
     Note:
         To enable Redis event emission for monitor integration:
-        1. Install with monitor extra: pip install async-task-q[monitor]
+        1. Install with monitor extra: pip install asynctasq[monitor]
         2. Ensure a Redis server is running and accessible
         3. Configure via set_global_config() or environment variables:
-           - events_redis_url / async_task_q_EVENTS_REDIS_URL (dedicated events Redis)
-           - redis_url / async_task_q_REDIS_URL (fallback if events_redis_url not set)
-           - events_channel / async_task_q_EVENTS_CHANNEL (Pub/Sub channel name)
+           - events_redis_url / asynctasq_EVENTS_REDIS_URL (dedicated events Redis)
+           - redis_url / asynctasq_REDIS_URL (fallback if events_redis_url not set)
+           - events_channel / asynctasq_EVENTS_CHANNEL (Pub/Sub channel name)
     """
     emitters: list[EventEmitter] = []
 
@@ -376,7 +376,7 @@ def create_event_emitter(
         logger.debug("Redis event emitter configured for channel: %s", redis_emitter.channel)
     except ImportError:
         logger.debug(
-            "Redis package not available. Install async-task-q[monitor] for Redis event emission."
+            "Redis package not available. Install asynctasq[monitor] for Redis event emission."
         )
 
     if len(emitters) == 0:

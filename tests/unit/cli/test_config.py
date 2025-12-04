@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 from pytest import main, mark
 
-from async_task_q.cli.config import build_config, build_config_overrides
+from asynctasq.cli.config import build_config, build_config_overrides
 
 
 @mark.unit
@@ -190,7 +190,7 @@ class TestBuildConfigOverrides:
 class TestBuildConfig:
     """Test build_config() function."""
 
-    @patch("async_task_q.cli.config.Config.from_env")
+    @patch("asynctasq.cli.config.Config.from_env")
     def test_build_config_calls_from_env_with_overrides(self, mock_from_env) -> None:
         # Arrange
         args = argparse.Namespace(driver="redis", redis_url="redis://test:6379")
@@ -207,7 +207,7 @@ class TestBuildConfig:
         )
         assert result == mock_config
 
-    @patch("async_task_q.cli.config.Config.from_env")
+    @patch("asynctasq.cli.config.Config.from_env")
     def test_build_config_with_empty_args(self, mock_from_env) -> None:
         # Arrange
         args = argparse.Namespace()
@@ -221,7 +221,7 @@ class TestBuildConfig:
         mock_from_env.assert_called_once_with()
         assert result == mock_config
 
-    @patch("async_task_q.cli.config.Config.from_env")
+    @patch("asynctasq.cli.config.Config.from_env")
     def test_build_config_passes_all_overrides(self, mock_from_env) -> None:
         # Arrange
         args = argparse.Namespace(

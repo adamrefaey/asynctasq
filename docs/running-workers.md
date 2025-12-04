@@ -8,38 +8,38 @@ Workers continuously poll queues and execute tasks. Run workers via CLI (recomme
 
 ```bash
 # Start worker with default settings
-python -m async_task_q worker
+python -m asynctasq worker
 
 # Or with uv
-uv run python -m async_task_q worker
+uv run python -m asynctasq worker
 ```
 
 **With Driver Configuration:**
 
 ```bash
 # Redis worker
-python -m async_task_q worker \
+python -m asynctasq worker \
     --driver redis \
     --redis-url redis://localhost:6379 \
     --redis-password secret \
     --redis-db 1
 
 # PostgreSQL worker
-python -m async_task_q worker \
+python -m asynctasq worker \
     --driver postgres \
     --postgres-dsn postgresql://user:pass@localhost/dbname \
     --queues default,emails \
     --concurrency 10
 
 # MySQL worker
-python -m async_task_q worker \
+python -m asynctasq worker \
     --driver mysql \
     --mysql-dsn mysql://user:pass@localhost:3306/dbname \
     --queues default,emails \
     --concurrency 10
 
 # AWS SQS worker
-python -m async_task_q worker \
+python -m asynctasq worker \
     --driver sqs \
     --sqs-region us-west-2 \
     --sqs-queue-url-prefix https://sqs.us-west-2.amazonaws.com/123456789/ \
@@ -50,18 +50,18 @@ python -m async_task_q worker \
 
 ```bash
 # Process queues in priority order: high → default → low
-python -m async_task_q worker --queues high,default,low --concurrency 20
+python -m asynctasq worker --queues high,default,low --concurrency 20
 ```
 
 **Environment Variables:**
 
 ```bash
 # Set environment variables
-export async_task_q_DRIVER=redis
-export async_task_q_REDIS_URL=redis://localhost:6379
+export asynctasq_DRIVER=redis
+export asynctasq_REDIS_URL=redis://localhost:6379
 
 # Start worker (reads from env vars)
-python -m async_task_q worker
+python -m asynctasq worker
 ```
 
 **Worker Options:**
@@ -84,9 +84,9 @@ For custom worker implementations or embedding workers in applications:
 
 ```python
 import asyncio
-from async_task_q.config import Config
-from async_task_q.core.driver_factory import DriverFactory
-from async_task_q.core.worker import Worker
+from asynctasq.config import Config
+from asynctasq.core.driver_factory import DriverFactory
+from asynctasq.core.worker import Worker
 
 async def main():
     # Create configuration
@@ -154,13 +154,13 @@ Run multiple worker processes for different queue priorities:
 
 ```bash
 # Terminal 1: High-priority queue with high concurrency
-python -m async_task_q worker --queues high-priority --concurrency 20
+python -m asynctasq worker --queues high-priority --concurrency 20
 
 # Terminal 2: Default queue with moderate concurrency
-python -m async_task_q worker --queues default --concurrency 10
+python -m asynctasq worker --queues default --concurrency 10
 
 # Terminal 3: Low-priority and batch jobs with low concurrency
-python -m async_task_q worker --queues low-priority,batch --concurrency 5
+python -m asynctasq worker --queues low-priority,batch --concurrency 5
 ```
 
 **Benefits:**
@@ -205,14 +205,14 @@ Use process managers that send SIGTERM for clean shutdowns:
 
 ```ini
 [Unit]
-Description=Async Task Q Worker
+Description=Async TasQ Worker
 After=network.target
 
 [Service]
 Type=simple
 User=www-data
 WorkingDirectory=/app
-ExecStart=/usr/bin/python -m async_task_q worker --driver redis --queues default
+ExecStart=/usr/bin/python -m asynctasq worker --driver redis --queues default
 Restart=always
 KillSignal=SIGTERM
 TimeoutStopSec=30

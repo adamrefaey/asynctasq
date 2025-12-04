@@ -27,7 +27,7 @@ from pytest import fixture, main, mark
 import pytest_asyncio
 from redis.asyncio import Redis
 
-from async_task_q.drivers.redis_driver import RedisDriver, maybe_await
+from asynctasq.drivers.redis_driver import RedisDriver, maybe_await
 
 # Test configuration
 REDIS_URL = "redis://localhost:6379"
