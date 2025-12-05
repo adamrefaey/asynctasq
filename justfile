@@ -23,6 +23,10 @@ lint-fix:
 typecheck:
 	uv run pyright
 
+# Run all checks (format, lint, typecheck)
+check: format lint-fix typecheck
+    @echo "✅ All checks passed"
+
 # Run all CI checks locally (format, lint, typecheck, test)
 ci: format lint-fix typecheck test
 	@echo "✅ All CI checks passed!"

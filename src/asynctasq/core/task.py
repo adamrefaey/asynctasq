@@ -4,14 +4,12 @@ from collections.abc import Callable
 from datetime import datetime
 import functools
 import inspect
-from typing import Any, Generic, Protocol, Self, TypeVar, overload
+from typing import Any, Protocol, Self, overload
 
 from asynctasq.drivers.base_driver import BaseDriver
 
-T = TypeVar("T")
 
-
-class Task(ABC, Generic[T]):
+class Task[T](ABC):
     """Base class for all Async Task Async TasQs."""
 
     # Task configuration (can be overridden by subclasses)
@@ -46,7 +44,7 @@ class Task(ABC, Generic[T]):
         """
         pass
 
-    async def failed(self, exception: Exception) -> None:
+    async def failed(self, exception: Exception) -> None:  # noqa: B027
         """Called when task fails after all retries.
 
         Override this to handle failures (logging, alerting, etc.)
@@ -138,7 +136,7 @@ class Task(ABC, Generic[T]):
 
 
 # Sync task support
-class SyncTask(Task[T]):
+class SyncTask[T](Task[T]):
     """Synchronous task that will be run in thread pool."""
 
     @abstractmethod
@@ -153,7 +151,7 @@ class SyncTask(Task[T]):
 
 
 # Function-based task support
-class FunctionTask(Task[T]):
+class FunctionTask[T](Task[T]):
     """Wrapper for function-based tasks."""
 
     def __init__(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> None:
@@ -184,7 +182,7 @@ class FunctionTask(Task[T]):
 
 
 # Type for decorated function with dispatch method
-class TaskFunction(Protocol[T]):
+class TaskFunction[T](Protocol):
     """Protocol for a function decorated with @task."""
 
     __name__: str
@@ -207,13 +205,13 @@ class TaskFunction(Protocol[T]):
 
 # Decorator for function-based tasks
 @overload
-def task(_func: Callable[..., T], /) -> TaskFunction[T]:
+def task[T](_func: Callable[..., T], /) -> TaskFunction[T]:
     """Overload for @task (without parentheses)."""
     ...
 
 
 @overload
-def task(
+def task[T](
     _func: None = None,
     /,
     *,
@@ -227,7 +225,7 @@ def task(
     ...
 
 
-def task(
+def task[T](
     _func: Callable[..., T] | None = None,
     /,  # Positional-only: prevents _func from being passed as keyword argument
     *,
