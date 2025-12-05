@@ -1,20 +1,20 @@
-<svg width="212.5" height="20" viewBox="0 0 2125 200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-label="Python: 3.11 | 3.12 | 3.13 | 3.14">
-  <title>Python: 3.11 | 3.12 | 3.13 | 3.14</title>
+<svg width="174.7" height="20" viewBox="0 0 1747 200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-label="Python: 3.12 | 3.13 | 3.14">
+  <title>Python: 3.12 | 3.13 | 3.14</title>
   <linearGradient id="a" x2="0" y2="100%">
     <stop offset="0" stop-opacity=".1" stop-color="#EEE"/>
     <stop offset="1" stop-opacity=".1"/>
   </linearGradient>
-  <mask id="m"><rect width="2125" height="200" rx="30" fill="#FFF"/></mask>
+  <mask id="m"><rect width="1747" height="200" rx="30" fill="#FFF"/></mask>
   <g mask="url(#m)">
     <rect width="641" height="200" fill="#555"/>
-    <rect width="1484" height="200" fill="#3776ab" x="641"/>
-    <rect width="2125" height="200" fill="url(#a)"/>
+    <rect width="1106" height="200" fill="#3776ab" x="641"/>
+    <rect width="1747" height="200" fill="url(#a)"/>
   </g>
   <g aria-hidden="true" fill="#fff" text-anchor="start" font-family="Verdana,DejaVu Sans,sans-serif" font-size="110">
     <text x="220" y="148" textLength="381" fill="#000" opacity="0.25">Python</text>
     <text x="210" y="138" textLength="381">Python</text>
-    <text x="696" y="148" textLength="1384" fill="#000" opacity="0.25">3.11 | 3.12 | 3.13 | 3.14</text>
-    <text x="686" y="138" textLength="1384">3.11 | 3.12 | 3.13 | 3.14</text>
+    <text x="696" y="148" textLength="1006" fill="#000" opacity="0.25">3.12 | 3.13 | 3.14</text>
+    <text x="686" y="138" textLength="1006">3.12 | 3.13 | 3.14</text>
   </g>
   <image x="40" y="35" width="130" height="130" xlink:href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IlB5dGhvbiI+CiAgPHRpdGxlPlB5dGhvbiAoY29tYmluZWQpPC90aXRsZT4KICA8IS0tIENvbWJpbmVkIGljb246IGJsdWUveWVsbG93IGZvciBsaWdodCBiYWNrZ3JvdW5kcywgd2l0aCBhIHRoaW4gYnJhbmQgc3Ryb2tlIGZvciBjb250cmFzdCB3aGVuIHJlbmRlcmVkIG9uIGRhcmsgYmFja2dyb3VuZHMuIC0tPgogIDxkZWZzPgogICAgPHN0eWxlPjwhW0NEQVRBWwogICAgICAvKiBLZWVwIGljb24gc2ltcGxlIGFuZCBzZWxmLWNvbnRhaW5lZCAqLwogICAgXV0+PC9zdHlsZT4KICA8L2RlZnM+CiAgPGc+CiAgICA8cGF0aCBmaWxsPSIjMzc3NkFCIiBkPSJNMTIgMGMtMSAwLTIgLjUtMiAxLjVWNmg0VjEuNUMxNCAwLjUgMTMgMCAxMiAweiIvPgogICAgPHBhdGggZmlsbD0iI0ZGRDQzQiIgZD0iTTEyIDI0YzEgMCAyLS41IDItMS41VjE4aC00djQuNUMxMCAyMy41IDExIDI0IDEyIDI0eiIvPgogICAgPHBhdGggZD0iTTEyIDBjLTEgMC0yIC41LTIgMS41VjZoNFYxLjVDMTQgMC41IDEzIDAgMTIgMHoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzM3NzZBQiIgc3Ryb2tlLXdpZHRoPSIwLjUiIG9wYWNpdHk9IjAuOSIvPgogICAgPHBhdGggZD0iTTEyIDI0YzEgMCAyLS41IDItMS41VjE4aC00djQuNUMxMCAyMy41IDExIDI0IDEyIDI0eiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzc3NkFCIiBzdHJva2Utd2lkdGg9IjAuNSIgb3BhY2l0eT0iMC45Ii8+CiAgPC9nPgo8L3N2Zz4K"/>
 </svg>
