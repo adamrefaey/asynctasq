@@ -47,14 +47,14 @@ class TestDriverType:
         expected_drivers = DRIVERS
 
         # Act
-        actual_drivers = get_args(DriverType)
+        actual_drivers = get_args(DriverType.__value__)
 
         # Assert
         assert actual_drivers == expected_drivers
 
     def test_driver_type_is_literal(self) -> None:
         # Assert
-        assert hasattr(DriverType, "__origin__")
+        assert hasattr(DriverType.__value__, "__origin__")
 
 
 @mark.unit
