@@ -28,7 +28,7 @@ check: format lint-fix typecheck
     @echo "✅ All checks passed"
 
 # Run all CI checks locally (format, lint, typecheck, test)
-ci: format lint-fix typecheck test
+ci: check test
 	@echo "✅ All CI checks passed!"
 
 # Run pre-commit on all files
