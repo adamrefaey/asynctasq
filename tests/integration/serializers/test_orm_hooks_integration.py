@@ -35,9 +35,10 @@ from tortoise.fields import CharField, IntField
 from tortoise.fields import DatetimeField as DateTimeField
 from tortoise.models import Model
 
-from asynctasq.serializers.hooks import HookRegistry, SerializationPipeline
-from asynctasq.serializers.orm_hooks import (
+from asynctasq.serializers.hooks import (
     DjangoOrmHook,
+    HookRegistry,
+    SerializationPipeline,
     SqlalchemyOrmHook,
     TortoiseOrmHook,
     register_orm_hooks,

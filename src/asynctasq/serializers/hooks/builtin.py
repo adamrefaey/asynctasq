@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from .hooks import TypeHook
+from .base import TypeHook
 
 
 class DatetimeHook(TypeHook[datetime]):

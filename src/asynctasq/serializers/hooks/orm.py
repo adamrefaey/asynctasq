@@ -8,7 +8,7 @@ import asyncio
 import contextvars
 from typing import TYPE_CHECKING, Any
 
-from .hooks import AsyncTypeHook
+from .base import AsyncTypeHook
 
 if TYPE_CHECKING:
     pass

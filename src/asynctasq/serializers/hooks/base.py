@@ -281,7 +281,7 @@ def create_default_registry() -> HookRegistry:
     Returns:
         HookRegistry with datetime, date, Decimal, UUID, and set hooks
     """
-    from .type_hooks import DateHook, DatetimeHook, DecimalHook, SetHook, UUIDHook
+    from .builtin import DateHook, DatetimeHook, DecimalHook, SetHook, UUIDHook
 
     registry = HookRegistry()
 

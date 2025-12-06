@@ -9,8 +9,7 @@ from typing import Any, cast
 from msgpack import packb, unpackb
 
 from .base_serializer import BaseSerializer
-from .hooks import HookRegistry, SerializationPipeline, create_default_registry
-from .orm_hooks import register_orm_hooks
+from .hooks import HookRegistry, SerializationPipeline, create_default_registry, register_orm_hooks
 
 
 def create_full_registry() -> HookRegistry:

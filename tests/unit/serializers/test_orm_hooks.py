@@ -15,13 +15,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import fixture, mark, raises
 
-from asynctasq.serializers.hooks import HookRegistry
-from asynctasq.serializers.orm_hooks import (
+from asynctasq.serializers.hooks import (
     DJANGO_AVAILABLE,
     SQLALCHEMY_AVAILABLE,
     TORTOISE_AVAILABLE,
     BaseOrmHook,
     DjangoOrmHook,
+    HookRegistry,
     SqlalchemyOrmHook,
     TortoiseOrmHook,
     register_orm_hooks,
@@ -215,21 +215,21 @@ class TestSqlalchemyOrmHook:
         """Test priority is high (100)."""
         assert hook.priority == 100
 
-    @patch("asynctasq.serializers.orm_hooks.SQLALCHEMY_AVAILABLE", False)
+    @patch("asynctasq.serializers.hooks.orm.SQLALCHEMY_AVAILABLE", False)
     def test_can_encode_when_sqlalchemy_not_available(self) -> None:
         """Test can_encode returns False when SQLAlchemy not installed."""
         hook = SqlalchemyOrmHook()
         obj = MockSQLAlchemyModel()
         assert hook.can_encode(obj) is False
 
-    @patch("asynctasq.serializers.orm_hooks.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.SQLALCHEMY_AVAILABLE", True)
     def test_can_encode_with_mapper(self, hook: SqlalchemyOrmHook) -> None:
         """Test can_encode detects model via __mapper__."""
         obj = MagicMock()
         obj.__mapper__ = MagicMock()
         assert hook.can_encode(obj) is True
 
-    @patch("asynctasq.serializers.orm_hooks.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.SQLALCHEMY_AVAILABLE", True)
     def test_can_encode_with_non_model(self, hook: SqlalchemyOrmHook) -> None:
         """Test can_encode returns False for non-model objects."""
         with patch("sqlalchemy.inspect", side_effect=Exception("Not a model")):
@@ -237,14 +237,14 @@ class TestSqlalchemyOrmHook:
             assert hook.can_encode(123) is False
             assert hook.can_encode({}) is False
 
-    @patch("asynctasq.serializers.orm_hooks.SQLALCHEMY_AVAILABLE", False)
+    @patch("asynctasq.serializers.hooks.orm.SQLALCHEMY_AVAILABLE", False)
     def test_get_model_pk_raises_when_not_available(self) -> None:
         """Test _get_model_pk raises ImportError when SQLAlchemy not installed."""
         hook = SqlalchemyOrmHook()
         with raises(ImportError, match="SQLAlchemy is not installed"):
             hook._get_model_pk(MockSQLAlchemyModel())
 
-    @patch("asynctasq.serializers.orm_hooks.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.SQLALCHEMY_AVAILABLE", True)
     def test_get_model_pk_single_column(self) -> None:
         """Test _get_model_pk extracts single primary key."""
         hook = SqlalchemyOrmHook()
@@ -262,7 +262,7 @@ class TestSqlalchemyOrmHook:
             result = hook._get_model_pk(obj)
             assert result == 42
 
-    @patch("asynctasq.serializers.orm_hooks.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.SQLALCHEMY_AVAILABLE", True)
     def test_get_model_pk_composite(self) -> None:
         """Test _get_model_pk extracts composite primary key."""
         hook = SqlalchemyOrmHook()
@@ -283,7 +283,7 @@ class TestSqlalchemyOrmHook:
             assert result == (1, "abc123")
 
     @mark.asyncio
-    @patch("asynctasq.serializers.orm_hooks.SQLALCHEMY_AVAILABLE", False)
+    @patch("asynctasq.serializers.hooks.orm.SQLALCHEMY_AVAILABLE", False)
     async def test_fetch_model_raises_when_not_available(self) -> None:
         """Test _fetch_model raises ImportError when SQLAlchemy not installed."""
         hook = SqlalchemyOrmHook()
@@ -291,7 +291,7 @@ class TestSqlalchemyOrmHook:
             await hook._fetch_model(MagicMock, 1)
 
     @mark.asyncio
-    @patch("asynctasq.serializers.orm_hooks.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.SQLALCHEMY_AVAILABLE", True)
     async def test_fetch_model_with_async_session(self) -> None:
         """Test _fetch_model uses async session."""
         hook = SqlalchemyOrmHook()
@@ -316,7 +316,7 @@ class TestSqlalchemyOrmHook:
             mock_session.get.assert_called_once_with(model_class, 1)
 
     @mark.asyncio
-    @patch("asynctasq.serializers.orm_hooks.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.SQLALCHEMY_AVAILABLE", True)
     async def test_fetch_model_without_session_raises(self) -> None:
         """Test _fetch_model raises RuntimeError when session not available."""
         hook = SqlalchemyOrmHook()
@@ -353,7 +353,7 @@ class TestDjangoOrmHook:
         """Test priority is high (100)."""
         assert hook.priority == 100
 
-    @patch("asynctasq.serializers.orm_hooks.DJANGO_AVAILABLE", False)
+    @patch("asynctasq.serializers.hooks.orm.DJANGO_AVAILABLE", False)
     def test_can_encode_when_django_not_available(self) -> None:
         """Test can_encode returns False when Django not installed."""
         hook = DjangoOrmHook()
@@ -367,7 +367,7 @@ class TestDjangoOrmHook:
         assert result == 42
 
     @mark.asyncio
-    @patch("asynctasq.serializers.orm_hooks.DJANGO_AVAILABLE", False)
+    @patch("asynctasq.serializers.hooks.orm.DJANGO_AVAILABLE", False)
     async def test_fetch_model_raises_when_not_available(self) -> None:
         """Test _fetch_model raises ImportError when Django not installed."""
         hook = DjangoOrmHook()
@@ -375,7 +375,7 @@ class TestDjangoOrmHook:
             await hook._fetch_model(MagicMock, 1)
 
     @mark.asyncio
-    @patch("asynctasq.serializers.orm_hooks.DJANGO_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.DJANGO_AVAILABLE", True)
     async def test_fetch_model_with_async_aget(self) -> None:
         """Test _fetch_model uses async aget when available."""
         hook = DjangoOrmHook()
@@ -389,7 +389,7 @@ class TestDjangoOrmHook:
         model_class.objects.aget.assert_called_once_with(pk=42)
 
     @mark.asyncio
-    @patch("asynctasq.serializers.orm_hooks.DJANGO_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.DJANGO_AVAILABLE", True)
     async def test_fetch_model_fallback_to_sync(self) -> None:
         """Test _fetch_model falls back to sync get when aget not available."""
         hook = DjangoOrmHook()
@@ -429,7 +429,7 @@ class TestTortoiseOrmHook:
         """Test priority is high (100)."""
         assert hook.priority == 100
 
-    @patch("asynctasq.serializers.orm_hooks.TORTOISE_AVAILABLE", False)
+    @patch("asynctasq.serializers.hooks.orm.TORTOISE_AVAILABLE", False)
     def test_can_encode_when_tortoise_not_available(self) -> None:
         """Test can_encode returns False when Tortoise not installed."""
         hook = TortoiseOrmHook()
@@ -443,7 +443,7 @@ class TestTortoiseOrmHook:
         assert result == 42
 
     @mark.asyncio
-    @patch("asynctasq.serializers.orm_hooks.TORTOISE_AVAILABLE", False)
+    @patch("asynctasq.serializers.hooks.orm.TORTOISE_AVAILABLE", False)
     async def test_fetch_model_raises_when_not_available(self) -> None:
         """Test _fetch_model raises ImportError when Tortoise not installed."""
         hook = TortoiseOrmHook()
@@ -451,7 +451,7 @@ class TestTortoiseOrmHook:
             await hook._fetch_model(MagicMock, 1)
 
     @mark.asyncio
-    @patch("asynctasq.serializers.orm_hooks.TORTOISE_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.TORTOISE_AVAILABLE", True)
     async def test_fetch_model(self) -> None:
         """Test _fetch_model fetches Tortoise model."""
         hook = TortoiseOrmHook()
@@ -489,9 +489,9 @@ class TestRegisterOrmHooks:
 
     def test_does_not_register_unavailable_hooks(self) -> None:
         """Test that unavailable ORM hooks are not registered."""
-        with patch("asynctasq.serializers.orm_hooks.SQLALCHEMY_AVAILABLE", False):
-            with patch("asynctasq.serializers.orm_hooks.DJANGO_AVAILABLE", False):
-                with patch("asynctasq.serializers.orm_hooks.TORTOISE_AVAILABLE", False):
+        with patch("asynctasq.serializers.hooks.orm.SQLALCHEMY_AVAILABLE", False):
+            with patch("asynctasq.serializers.hooks.orm.DJANGO_AVAILABLE", False):
+                with patch("asynctasq.serializers.hooks.orm.TORTOISE_AVAILABLE", False):
                     # Need to reimport or recreate to pick up patched values
                     # Since the function checks the module-level vars at call time,
                     # this test validates the conditional registration logic

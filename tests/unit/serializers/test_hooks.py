@@ -10,17 +10,15 @@ from pytest import mark
 
 from asynctasq.serializers.hooks import (
     AsyncTypeHook,
-    HookRegistry,
-    SerializationPipeline,
-    TypeHook,
-    create_default_registry,
-)
-from asynctasq.serializers.type_hooks import (
     DateHook,
     DatetimeHook,
     DecimalHook,
+    HookRegistry,
+    SerializationPipeline,
     SetHook,
+    TypeHook,
     UUIDHook,
+    create_default_registry,
 )
 
 # =============================================================================
