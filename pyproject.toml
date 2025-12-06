@@ -1,6 +1,6 @@
 [project]
 name = "asynctasq"
-version = "0.9.7"
+version = "0.9.8"
 description = "Async TasQ: A modern, async-first, type-safe task queue Python package inspired by Laravel. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic, smart ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -39,8 +39,6 @@ sqs = ["aioboto3>=15.5.0", "types-aioboto3[sqs]>=15.5.0"]
 postgres = ["asyncpg>=0.30.0", "asyncpg-stubs>=0.30.0"]
 mysql = ["asyncmy>=0.2.10"]
 rabbitmq = ["aio-pika>=9.5.8"]
-sqlite = ["aiosqlite>=0.21.0"]
-oracle = ["oracledb>=3.4.1"]
 sqlalchemy = ["sqlalchemy>=2.0.44", "greenlet>=3.2.4"]
 django = ["django>=5.2.8", "psycopg2-binary>=2.9.11"]
 tortoise = ["tortoise-orm>=0.25.1"]
@@ -48,7 +46,7 @@ fastapi = ["fastapi>=0.115.0"]
 monitor = ["redis[hiredis]>=7.1.0"]  # Required for real-time monitoring UI
 
 all = [
-    "asynctasq[redis,sqs,postgres,mysql,rabbitmq,sqlite,oracle,sqlalchemy,django,tortoise,fastapi,monitor]",
+    "asynctasq[redis,sqs,postgres,mysql,rabbitmq,sqlalchemy,django,tortoise,fastapi,monitor]",
 ]
 
 [project.urls]
