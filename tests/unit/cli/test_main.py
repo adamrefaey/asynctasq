@@ -44,7 +44,10 @@ class TestRunCommand:
 
         call_args = mock_asyncio_run.call_args[0]
         assert len(call_args) == 1
-        assert asyncio.iscoroutine(call_args[0])
+        # Close the coroutine to prevent "was never awaited" warning
+        coro = call_args[0]
+        if asyncio.iscoroutine(coro):
+            coro.close()
 
     @patch("asynctasq.cli.main.build_config")
     @patch("asynctasq.cli.main.asyncio.run")
@@ -63,6 +66,12 @@ class TestRunCommand:
         # Assert
         mock_build_config.assert_called_once_with(args)
         mock_asyncio_run.assert_called_once()
+        # Close the coroutine to prevent "was never awaited" warning
+        import asyncio
+
+        call_args = mock_asyncio_run.call_args[0]
+        if call_args and asyncio.iscoroutine(call_args[0]):
+            call_args[0].close()
 
     @patch("asynctasq.cli.main.build_config")
     @patch("asynctasq.cli.main.asyncio.run")

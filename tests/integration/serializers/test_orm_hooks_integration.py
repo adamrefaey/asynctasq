@@ -116,7 +116,7 @@ class DjangoUser(models.Model):
 
 
 class TortoiseUser(Model):
-    id = IntField(pk=True)
+    id = IntField(primary_key=True)
     username = CharField(max_length=100, unique=True)
     email = CharField(max_length=255)
     created_at = DateTimeField(auto_now_add=True)
