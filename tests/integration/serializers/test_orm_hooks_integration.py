@@ -146,7 +146,39 @@ async def postgres_conn() -> AsyncGenerator[asyncpg.Connection, None]:
         password="test",
         database="test_db",
     )
+
+    # Create test tables
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS sqlalchemy_test_users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(100) UNIQUE NOT NULL,
+            email VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS sqlalchemy_test_user_sessions (
+            user_id INTEGER NOT NULL,
+            session_id VARCHAR(100) NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW(),
+            PRIMARY KEY (user_id, session_id)
+        )
+    """)
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS tortoise_test_users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(100) UNIQUE NOT NULL,
+            email VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+
     yield conn
+
+    # Cleanup test data (but keep tables for other tests)
+    await conn.execute("DELETE FROM sqlalchemy_test_users WHERE id >= 9000")
+    await conn.execute("DELETE FROM sqlalchemy_test_user_sessions WHERE user_id >= 1")
+    await conn.execute("DELETE FROM tortoise_test_users WHERE id >= 9000")
     await conn.close()
 
 

@@ -9,7 +9,7 @@ from typing import Any, cast
 from msgpack import packb, unpackb
 
 from .base_serializer import BaseSerializer
-from .hooks import HookRegistry, SerializationPipeline, TypeHook, create_default_registry
+from .hooks import HookRegistry, SerializationPipeline, create_default_registry
 from .orm_hooks import register_orm_hooks
 
 
@@ -63,40 +63,6 @@ class MsgpackSerializer(BaseSerializer):
         """
         self._registry = registry or create_full_registry()
         self._pipeline = SerializationPipeline(self._registry)
-
-    @property
-    def registry(self) -> HookRegistry:
-        """Access the hook registry for registration/inspection."""
-        return self._registry
-
-    @property
-    def pipeline(self) -> SerializationPipeline:
-        """Access the serialization pipeline."""
-        return self._pipeline
-
-    def register_hook(self, hook: TypeHook[Any]) -> None:
-        """Register a custom type hook.
-
-        Convenience method for self.registry.register(hook).
-
-        Args:
-            hook: TypeHook instance to register
-
-        Raises:
-            ValueError: If hook with same type_key already exists
-        """
-        self._registry.register(hook)
-
-    def unregister_hook(self, type_key: str) -> TypeHook[Any] | None:
-        """Unregister a hook by its type_key.
-
-        Args:
-            type_key: The type_key of the hook to remove
-
-        Returns:
-            The removed hook, or None if not found
-        """
-        return self._registry.unregister(type_key)
 
     def serialize(self, obj: dict[str, Any]) -> bytes:
         """Serialize task data dict to msgpack bytes.
