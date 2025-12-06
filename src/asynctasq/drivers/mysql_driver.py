@@ -1,6 +1,5 @@
 import asyncio
 from dataclasses import dataclass, field
-from uuid import uuid4
 
 from asyncmy import Pool, create_pool
 
@@ -202,13 +201,14 @@ class MySQLDriver(BaseDriver):
             poll_seconds: Seconds to poll for task (0 = non-blocking)
 
         Returns:
-            Unique receipt handle (UUID as bytes) or None if no tasks available
+            Serialized task data (bytes) or None if no tasks available
 
         Implementation:
             - Uses SELECT FOR UPDATE SKIP LOCKED for concurrent workers
             - Sets visibility timeout (locked_until) to prevent duplicate processing
             - Implements polling with 200ms interval if poll_seconds > 0
             - Auto-recovers stuck tasks (locked_until expired)
+            - Stores task_data -> task_id mapping for ack/nack operations
         """
         if self.pool is None:
             await self.connect()
@@ -241,6 +241,7 @@ class MySQLDriver(BaseDriver):
 
                         if row:
                             task_id = row[0]
+                            task_data = bytes(row[1])
 
                             # Update status and set visibility timeout
                             await cursor.execute(
@@ -254,12 +255,12 @@ class MySQLDriver(BaseDriver):
                                 (self.visibility_timeout_seconds, task_id),
                             )
 
-                            # Generate unique receipt handle
-                            receipt_handle = uuid4().bytes
-                            self._receipt_handles[receipt_handle] = task_id
+                            # Store mapping from task_data to task_id for ack/nack
+                            # Note: Uses task_data as key (matching SQS/RabbitMQ pattern)
+                            self._receipt_handles[task_data] = task_id
 
                             await conn.commit()
-                            return receipt_handle
+                            return task_data
                         else:
                             await conn.rollback()
                 except Exception:

@@ -1,6 +1,5 @@
 import asyncio
 from dataclasses import dataclass, field
-from uuid import uuid4
 
 from asyncpg import Pool, create_pool
 
@@ -138,13 +137,14 @@ class PostgresDriver(BaseDriver):
             poll_seconds: Seconds to poll for task (0 = non-blocking)
 
         Returns:
-            Unique receipt handle (UUID as bytes) or None if no tasks available
+            Serialized task data (bytes) or None if no tasks available
 
         Implementation:
             - Uses SELECT FOR UPDATE SKIP LOCKED for concurrent workers
             - Sets visibility timeout (locked_until) to prevent duplicate processing
             - Implements polling with 200ms interval if poll_seconds > 0
             - Auto-recovers stuck tasks (locked_until expired)
+            - Stores task_data -> task_id mapping for ack/nack operations
         """
         if self.pool is None:
             await self.connect()
@@ -174,6 +174,7 @@ class PostgresDriver(BaseDriver):
 
                     if row:
                         task_id = row["id"]
+                        task_data = bytes(row["payload"])
 
                         # Update status and set visibility timeout
                         await conn.execute(
@@ -188,11 +189,11 @@ class PostgresDriver(BaseDriver):
                             task_id,
                         )
 
-                        # Generate unique receipt handle
-                        receipt_handle = uuid4().bytes
-                        self._receipt_handles[receipt_handle] = task_id
+                        # Store mapping from task_data to task_id for ack/nack
+                        # Note: Uses task_data as key (matching SQS/RabbitMQ pattern)
+                        self._receipt_handles[task_data] = task_id
 
-                        return receipt_handle
+                        return task_data
 
             # No task found - check if we should poll
             if poll_seconds == 0:
