@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from asyncmy import Pool, create_pool
@@ -528,7 +528,7 @@ class MySQLDriver(BaseDriver):
             if isinstance(created_at, datetime):
                 enqueued_at = created_at
             elif created_at is None:
-                enqueued_at = datetime.utcnow()
+                enqueued_at = datetime.now(UTC)
             else:
                 enqueued_at = datetime.fromtimestamp(created_at)
 
@@ -596,7 +596,7 @@ class MySQLDriver(BaseDriver):
             if isinstance(created_at, datetime):
                 enqueued_at = created_at
             elif created_at is None:
-                enqueued_at = datetime.utcnow()
+                enqueued_at = datetime.now(UTC)
             else:
                 enqueued_at = datetime.fromtimestamp(created_at)
 
@@ -637,7 +637,7 @@ class MySQLDriver(BaseDriver):
         if isinstance(created_at, datetime):
             enqueued_at = created_at
         elif created_at is None:
-            enqueued_at = datetime.utcnow()
+            enqueued_at = datetime.now(UTC)
         else:
             enqueued_at = datetime.fromtimestamp(created_at)
 

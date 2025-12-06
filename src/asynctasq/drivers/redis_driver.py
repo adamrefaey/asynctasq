@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from inspect import isawaitable
 from time import time
 from typing import Any
@@ -384,8 +384,8 @@ class RedisDriver(BaseDriver):
                     name="",
                     queue=q,
                     status="running",
-                    enqueued_at=datetime.utcnow(),
-                    started_at=datetime.utcnow(),
+                    enqueued_at=datetime.now(UTC),
+                    started_at=datetime.now(UTC),
                     worker_id=None,
                 )
                 running.append(ti)
@@ -434,7 +434,7 @@ class RedisDriver(BaseDriver):
                             name="",
                             queue=q,
                             status="pending",
-                            enqueued_at=datetime.utcnow(),
+                            enqueued_at=datetime.now(UTC),
                         )
                     )
 
@@ -454,7 +454,7 @@ class RedisDriver(BaseDriver):
                             name="",
                             queue=q,
                             status="running",
-                            enqueued_at=datetime.utcnow(),
+                            enqueued_at=datetime.now(UTC),
                         )
                     )
 
@@ -491,7 +491,7 @@ class RedisDriver(BaseDriver):
                                 name="",
                                 queue=q,
                                 status=status,
-                                enqueued_at=datetime.utcnow(),
+                                enqueued_at=datetime.now(UTC),
                             )
 
         return None
@@ -574,7 +574,7 @@ class RedisDriver(BaseDriver):
                 if data:
                     ts = data.get(b"last_heartbeat") or data.get("last_heartbeat")
                     try:
-                        last_hb = datetime.utcfromtimestamp(float(ts)) if ts else None
+                        last_hb = datetime.fromtimestamp(float(ts), UTC) if ts else None
                     except Exception:
                         last_hb = None
 
