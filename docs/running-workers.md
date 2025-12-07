@@ -267,7 +267,7 @@ Use process managers that send SIGTERM for clean shutdowns:
 
 ```ini
 [Unit]
-Description=Async TasQ Worker
+Description=AsyncTasQ Worker
 After=network.target
 
 [Service]

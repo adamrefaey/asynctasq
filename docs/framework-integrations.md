@@ -2,7 +2,7 @@
 
 ## FastAPI Integration
 
-Async TasQ provides seamless FastAPI integration with automatic lifecycle management and dependency injection.
+AsyncTasQ provides seamless FastAPI integration with automatic lifecycle management and dependency injection.
 
 **Installation:**
 

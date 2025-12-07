@@ -1,6 +1,6 @@
 # Function-Based Tasks: Complete Examples Guide
 
-This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of function-based tasks in Async TasQ.
+This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of function-based tasks in AsyncTasQ.
 
 Function-based tasks allow you to convert any Python function (async or sync) into a background task by simply adding the `@task` decorator. Tasks are automatically serialized, queued, and executed by workers.
 
@@ -34,7 +34,7 @@ Function-based tasks allow you to convert any Python function (async or sync) in
 
 ## Basic Usage
 
-### Simple Async TasQ
+### Simple AsyncTasQ
 
 The simplest way to create a task is to add the `@task` decorator to an async function:
 
@@ -340,7 +340,7 @@ async def main():
 
 ## Async vs Sync Functions
 
-Async TasQ supports both async and synchronous functions. The framework automatically handles the execution differences:
+AsyncTasQ supports both async and synchronous functions. The framework automatically handles the execution differences:
 
 - **Async functions**: Run directly in the event loop (recommended for I/O-bound tasks)
 - **Sync functions**: Automatically run in a thread pool (useful for CPU-bound or blocking operations)
@@ -1169,7 +1169,7 @@ if __name__ == "__main__":
 
 ## Summary
 
-Function-based tasks in Async TasQ provide a simple, powerful way to convert any Python function into a background task.
+Function-based tasks in AsyncTasQ provide a simple, powerful way to convert any Python function into a background task.
 
 ### Key Features
 

@@ -1,6 +1,6 @@
 # Class-Based Tasks: Complete Examples Guide
 
-This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of class-based tasks in Async TasQ.
+This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of class-based tasks in AsyncTasQ.
 
 Class-based tasks use the `Task` base class to create reusable, testable tasks with lifecycle hooks, custom retry logic, and advanced configuration options.
 
@@ -37,7 +37,7 @@ Class-based tasks use the `Task` base class to create reusable, testable tasks w
 
 ## Basic Usage
 
-### Simple Async TasQ
+### Simple AsyncTasQ
 
 The simplest class-based task extends `Task` and implements the `handle()` method. All parameters passed to the constructor are automatically available as instance attributes:
 
@@ -672,7 +672,7 @@ async def main():
 
 ## Async vs Sync Tasks
 
-Async TasQ supports both async and synchronous class-based tasks. The framework automatically handles the execution differences:
+AsyncTasQ supports both async and synchronous class-based tasks. The framework automatically handles the execution differences:
 
 - **Async tasks** (`Task`): Run directly in the event loop (recommended for I/O-bound tasks)
 - **Sync tasks** (`SyncTask`): Automatically run in a thread pool (useful for CPU-bound or blocking operations)
@@ -1843,7 +1843,7 @@ if __name__ == "__main__":
 
 ## Summary
 
-Class-based tasks in Async TasQ provide a powerful, flexible way to create reusable, testable background tasks with complete control over execution lifecycle.
+Class-based tasks in AsyncTasQ provide a powerful, flexible way to create reusable, testable background tasks with complete control over execution lifecycle.
 
 ### Key Features
 

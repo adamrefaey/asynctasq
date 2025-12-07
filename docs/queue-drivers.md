@@ -1,6 +1,6 @@
 # Queue Drivers
 
-Async TasQ supports five production-ready queue drivers with identical APIs.
+AsyncTasQ supports five production-ready queue drivers with identical APIs.
 
 ## Redis Driver
 

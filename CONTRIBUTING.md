@@ -1,6 +1,6 @@
-# Contributing to Async TasQ
+# Contributing to AsyncTasQ
 
-Thank you for your interest in contributing to Async TasQ! We welcome contributions from the community.
+Thank you for your interest in contributing to AsyncTasQ! We welcome contributions from the community.
 
 ## Getting Started
 

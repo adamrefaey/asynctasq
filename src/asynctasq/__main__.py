@@ -1,6 +1,6 @@
 """CLI entry point for asynctasq.
 
-Async TasQ provides a command-line interface for managing task queues and workers.
+AsyncTasQ provides a command-line interface for managing task queues and workers.
 
 Commands:
     worker       Start a worker to process tasks from queues

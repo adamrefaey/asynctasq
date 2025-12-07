@@ -1,6 +1,6 @@
 # Task Definitions
 
-Async TasQ supports two task definition styles: **function-based** (simple, inline) and **class-based** (reusable, testable).
+AsyncTasQ supports two task definition styles: **function-based** (simple, inline) and **class-based** (reusable, testable).
 
 ## Function-Based Tasks
 

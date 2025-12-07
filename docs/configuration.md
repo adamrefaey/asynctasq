@@ -1,6 +1,6 @@
 # Configuration
 
-Async TasQ supports three configuration methods with clear precedence rules.
+AsyncTasQ supports three configuration methods with clear precedence rules.
 
 ## Configuration Precedence (highest to lowest)
 

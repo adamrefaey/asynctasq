@@ -10,7 +10,7 @@ from asynctasq.drivers.base_driver import BaseDriver
 
 
 class Task[T](ABC):
-    """Base class for all Async Task Async TasQs."""
+    """Base class for all Async Task AsyncTasQs."""
 
     # Task configuration (can be overridden by subclasses)
     queue: str = "default"

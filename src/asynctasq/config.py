@@ -78,7 +78,7 @@ ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {
 
 @dataclass
 class Config:
-    """Configuration for Async TasQ library"""
+    """Configuration for AsyncTasQ library"""
 
     # Driver selection
     driver: DriverType = "redis"

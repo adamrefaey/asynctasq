@@ -1,6 +1,6 @@
 # ORM Integrations
 
-Async TasQ automatically handles ORM model serialization and deserialization, reducing queue payload size and ensuring fresh data.
+AsyncTasQ automatically handles ORM model serialization and deserialization, reducing queue payload size and ensuring fresh data.
 
 ## How It Works
 

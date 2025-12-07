@@ -113,7 +113,7 @@ def create_parser() -> argparse.ArgumentParser:
         Configured argument parser with all subcommands
     """
     parser = argparse.ArgumentParser(
-        description="Async TasQ - Task queue system for Python",
+        description="AsyncTasQ - Task queue system for Python",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 

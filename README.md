@@ -1,4 +1,4 @@
-# Async TasQ
+# AsyncTasQ
 
 [![Tests](https://raw.githubusercontent.com/adamrefaey/asynctasq/main/.github/tests.svg)](https://github.com/adamrefaey/asynctasq/actions/workflows/ci.yml)
 [![Coverage](https://raw.githubusercontent.com/adamrefaey/asynctasq/main/.github/coverage.svg)](https://raw.githubusercontent.com/adamrefaey/asynctasq/main/.github/coverage.svg)
@@ -14,9 +14,9 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 
 ## Table of Contents
 
-- [Async TasQ](#async-tasq)
+- [AsyncTasQ](#async-tasq)
   - [Table of Contents](#table-of-contents)
-  - [Why Async TasQ?](#why-async-tasq)
+  - [Why AsyncTasQ?](#why-async-tasq)
     - [Async-First Architecture](#async-first-architecture)
     - [High-Performance Serialization](#high-performance-serialization)
     - [Production-Ready Features](#production-ready-features)
@@ -31,10 +31,10 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
   - [Quick Reference](#quick-reference)
   - [CI \& Contributing (short)](#ci--contributing-short)
   - [Comparison with Alternatives](#comparison-with-alternatives)
-    - [Async TasQ vs. Celery](#async-tasq-vs-celery)
-    - [Async TasQ vs. Dramatiq](#async-tasq-vs-dramatiq)
-    - [Async TasQ vs. RQ (Redis Queue)](#async-tasq-vs-rq-redis-queue)
-    - [Async TasQ vs. Huey](#async-tasq-vs-huey)
+    - [AsyncTasQ vs. Celery](#async-tasq-vs-celery)
+    - [AsyncTasQ vs. Dramatiq](#async-tasq-vs-dramatiq)
+    - [AsyncTasQ vs. RQ (Redis Queue)](#async-tasq-vs-rq-redis-queue)
+    - [AsyncTasQ vs. Huey](#async-tasq-vs-huey)
     - [Key Differentiators](#key-differentiators)
   - [📊 Monitoring Dashboard](#-monitoring-dashboard)
     - [asynctasq-monitor](#asynctasq-monitor)
@@ -48,7 +48,7 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 
 ---
 
-## Why Async TasQ?
+## Why AsyncTasQ?
 
 ### Async-First Architecture
 
@@ -165,7 +165,7 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 Get started in 60 seconds:
 
 ```bash
-# Install Async TasQ (Python 3.12+ required)
+# Install AsyncTasQ (Python 3.12+ required)
 uv add asynctasq[redis]
 ```
 
@@ -206,7 +206,7 @@ if __name__ == "__main__":
 python -m asynctasq worker
 ```
 
-**That's it!** Your first Async TasQ is ready. Now let's explore the powerful features.
+**That's it!** Your first AsyncTasQ is ready. Now let's explore the powerful features.
 
 ---
 
@@ -230,9 +230,9 @@ python -m asynctasq worker
 
 ## Comparison with Alternatives
 
-### Async TasQ vs. Celery
+### AsyncTasQ vs. Celery
 
-| Feature                 | Async TasQ                                        | Celery                             |
+| Feature                 | AsyncTasQ                                        | Celery                             |
 | ----------------------- | ------------------------------------------------- | ---------------------------------- |
 | **Async Support**       | ✅ Async-first, built with asyncio                 | ❌ No native asyncio support        |
 | **Type Safety**         | ✅ Full type hints, Generic[T]                     | ⚠️ Third-party stubs (celery-types) |
@@ -245,7 +245,7 @@ python -m asynctasq worker
 | **Setup Complexity**    | ✅ Zero-config with env vars                       | ⚠️ Complex configuration            |
 | **Learning Curve**      | ✅ Simple, intuitive API                           | ⚠️ Steep learning curve             |
 
-**When to use Async TasQ:**
+**When to use AsyncTasQ:**
 
 - Modern async Python applications
 - Need for type safety and IDE support
@@ -262,9 +262,9 @@ python -m asynctasq worker
 
 ---
 
-### Async TasQ vs. Dramatiq
+### AsyncTasQ vs. Dramatiq
 
-| Feature                 | Async TasQ             | Dramatiq                   |
+| Feature                 | AsyncTasQ             | Dramatiq                   |
 | ----------------------- | ---------------------- | -------------------------- |
 | **Async Support**       | ✅ Async-first          | ⚠️ Limited (via middleware) |
 | **Type Safety**         | ✅ Full type hints      | ✅ Type hints (py.typed)    |
@@ -275,7 +275,7 @@ python -m asynctasq worker
 | **Database Drivers**    | ✅ PostgreSQL/MySQL     | ❌ Not available            |
 | **Simplicity**          | ✅ Clean, intuitive API | ✅ Simple, well-designed    |
 
-**When to use Async TasQ:**
+**When to use AsyncTasQ:**
 
 - Async applications (FastAPI, aiohttp)
 - Type-safe codebase
@@ -290,9 +290,9 @@ python -m asynctasq worker
 
 ---
 
-### Async TasQ vs. RQ (Redis Queue)
+### AsyncTasQ vs. RQ (Redis Queue)
 
-| Feature               | Async TasQ                       | RQ                     |
+| Feature               | AsyncTasQ                       | RQ                     |
 | --------------------- | -------------------------------- | ---------------------- |
 | **Async Support**     | ✅ Async-first                    | ❌ Sync only            |
 | **Multi-Driver**      | ✅ 5 drivers                      | ❌ Redis only           |
@@ -302,7 +302,7 @@ python -m asynctasq worker
 | **Database Drivers**  | ✅ PostgreSQL/MySQL               | ❌ Not available        |
 | **Simplicity**        | ✅ Intuitive, clean API           | ✅ Very simple          |
 
-**When to use Async TasQ:**
+**When to use AsyncTasQ:**
 
 - Async applications
 - Multiple driver options
@@ -317,9 +317,9 @@ python -m asynctasq worker
 
 ---
 
-### Async TasQ vs. Huey
+### AsyncTasQ vs. Huey
 
-| Feature                 | Async TasQ                      | Huey             |
+| Feature                 | AsyncTasQ                      | Huey             |
 | ----------------------- | ------------------------------- | ---------------- |
 | **Async Support**       | ✅ Async-first                   | ⚠️ Limited async  |
 | **Multi-Driver**        | ✅ 5 drivers                     | ⚠️ Redis/SQLite   |
@@ -328,7 +328,7 @@ python -m asynctasq worker
 | **Enterprise Features** | ✅ ACID, DLQ, visibility timeout | ⚠️ Basic features |
 | **Simplicity**          | ✅ Clean, modern API             | ✅ Simple         |
 
-**When to use Async TasQ:**
+**When to use AsyncTasQ:**
 
 - Async-first applications
 - Enterprise requirements
@@ -345,7 +345,7 @@ python -m asynctasq worker
 
 ### Key Differentiators
 
-**Async TasQ stands out with:**
+**AsyncTasQ stands out with:**
 
 1. **True async-first design** – Built with asyncio from the ground up
 2. **msgpack serialization** – Faster and more efficient than JSON
@@ -366,7 +366,7 @@ python -m asynctasq worker
 
 ### [asynctasq-monitor](https://github.com/adamrefaey/asynctasq-monitor)
 
-A beautiful **real-time monitoring dashboard** for Async TasQ:
+A beautiful **real-time monitoring dashboard** for AsyncTasQ:
 
 - 📈 **Live Dashboard** – Real-time task metrics, queue depths, and worker status
 - 📊 **Task Analytics** – Execution times, success/failure rates, retry patterns
