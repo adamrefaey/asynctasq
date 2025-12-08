@@ -46,17 +46,21 @@ def main(argv):
                 if not filename:
                     continue
 
+                # Lines can be in direct class element or nested under methods/method/lines
                 for line in cls.iter("line"):
                     line_num = line.attrib.get("number")
                     hits = line.attrib.get("hits", "0")
                     try:
                         if line_num:
                             line_num_int = int(line_num)
-                            # Track all valid lines
-                            all_file_lines[filename].add(line_num_int)
-                            # Track covered lines
-                            if int(hits) > 0:
-                                all_file_coverage[filename].add(line_num_int)
+                            hits_int = int(hits)
+                            # Only count executable lines (hits >= 0, excluding -1 for branches)
+                            if hits_int >= 0:
+                                # Track all valid lines
+                                all_file_lines[filename].add(line_num_int)
+                                # Track covered lines
+                                if hits_int > 0:
+                                    all_file_coverage[filename].add(line_num_int)
                     except (ValueError, TypeError):
                         continue
 
