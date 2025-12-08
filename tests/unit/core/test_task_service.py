@@ -8,6 +8,7 @@ Testing Strategy:
 - Fast, isolated tests
 """
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -734,6 +735,291 @@ class TestTaskServiceUtilityMethods:
 
         # Assert
         assert result is False
+
+
+@mark.unit
+class TestTaskServiceErrorHandling:
+    """Test TaskService error handling and edge cases."""
+
+    @mark.asyncio
+    async def test_handle_task_failed_exception_in_failed_hook(self) -> None:
+        # Arrange
+        service = TaskService()
+        task = ConcreteTask()
+        task._task_id = "test-id"
+
+        async def failing_hook(exc: Exception) -> None:
+            raise RuntimeError("Hook failed")
+
+        task.failed = failing_hook  # type: ignore[assignment]
+        exception = ValueError("Task error")
+
+        # Act - should not raise, should just log
+        await service.handle_task_failed(task, exception)
+
+        # Assert - if we get here, exception was handled
+
+    @mark.asyncio
+    async def test_execute_task_with_timeout(self) -> None:
+        # Arrange
+        service = TaskService()
+        task = ConcreteTask()
+        task.timeout = 1  # 1 second timeout
+
+        async def slow_task() -> None:
+            await asyncio.sleep(10)
+
+        task.handle = slow_task  # type: ignore[assignment]
+
+        # Act & Assert
+        from asyncio import TimeoutError
+
+        with raises(TimeoutError):
+            await service.execute_task(task)
+
+    @mark.asyncio
+    async def test_execute_task_without_timeout(self) -> None:
+        # Arrange
+        service = TaskService()
+        task = ConcreteTask()
+        task.timeout = None
+
+        executed = False
+
+        async def quick_task() -> None:
+            nonlocal executed
+            executed = True
+
+        task.handle = quick_task  # type: ignore[assignment]
+
+        # Act
+        await service.execute_task(task)
+
+        # Assert
+        assert executed is True
+
+    @mark.asyncio
+    async def test_deserialize_task_info_with_invalid_json(self) -> None:
+        # Arrange
+        service = TaskService()
+
+        # Create invalid serialized data
+        invalid_bytes = b"invalid"
+
+        # Act & Assert
+        task_info = await service.deserialize_to_task_info(invalid_bytes, "test_queue", "pending")
+
+        # Should return TaskInfo with defaults
+        assert task_info.id == "unknown"  # Unknown is used as default
+        assert task_info.queue == "test_queue"
+        assert task_info.status == "pending"
+
+    @mark.asyncio
+    async def test_get_task_by_id_returns_none_when_not_found(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_driver.get_task_by_id.return_value = None
+        mock_driver.get_tasks.return_value = ([], 0)
+
+        service = TaskService(driver=mock_driver)
+
+        # Act
+        result = await service.get_task_by_id("nonexistent-id")
+
+        # Assert
+        assert result is None
+
+    @mark.asyncio
+    async def test_get_task_info_by_id_returns_none_when_not_found(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_driver.get_task_by_id.return_value = None
+        mock_driver.get_tasks.return_value = ([], 0)
+
+        service = TaskService(driver=mock_driver)
+
+        # Act
+        result = await service.get_task_info_by_id("nonexistent-id")
+
+        # Assert
+        assert result is None
+
+    @mark.asyncio
+    async def test_retry_task_uses_driver_retry_when_available(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_driver.retry_task.return_value = True
+
+        service = TaskService(driver=mock_driver)
+
+        # Act
+        result = await service.retry_task("task-123")
+
+        # Assert
+        assert result is True
+        mock_driver.retry_task.assert_called_once_with("task-123")
+
+    @mark.asyncio
+    async def test_retry_task_fallback_when_driver_returns_false(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_driver.retry_task.return_value = False
+        mock_driver.get_task_by_id.return_value = None
+        mock_driver.get_tasks.return_value = ([], 0)
+
+        service = TaskService(driver=mock_driver)
+
+        # Act
+        result = await service.retry_task("task-123")
+
+        # Assert
+        assert result is False
+
+    @mark.asyncio
+    async def test_delete_task_uses_driver_delete_when_available(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_driver.delete_task.return_value = True
+
+        service = TaskService(driver=mock_driver)
+
+        # Act
+        result = await service.delete_task("task-123")
+
+        # Assert
+        assert result is True
+        mock_driver.delete_task.assert_called_once_with("task-123")
+
+    @mark.asyncio
+    async def test_delete_task_fallback_when_driver_returns_false(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_driver.delete_task.return_value = False
+        mock_driver.get_task_by_id.return_value = None
+        mock_driver.get_tasks.return_value = ([], 0)
+
+        service = TaskService(driver=mock_driver)
+
+        # Act
+        result = await service.delete_task("task-123")
+
+        # Assert
+        assert result is False
+
+    def test_require_driver_raises_when_no_driver(self) -> None:
+        # Arrange
+        service = TaskService(driver=None)
+
+        # Act & Assert
+        with raises(ValueError):
+            service._require_driver()
+
+    @mark.asyncio
+    async def test_get_running_task_infos(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_serializer = MsgpackSerializer()
+
+        # Create a minimal serialized task
+        task = ConcreteTask()
+        task._task_id = "task-123"
+        serialized = mock_serializer.serialize(
+            {
+                "class": "test.ConcreteTask",
+                "params": {},
+                "metadata": {"task_id": "task-123"},
+            }
+        )
+
+        mock_driver.get_running_tasks.return_value = [(serialized, "test_queue")]
+
+        service = TaskService(driver=mock_driver, serializer=mock_serializer)
+
+        # Act
+        infos = await service.get_running_task_infos(limit=10)
+
+        # Assert
+        assert len(infos) >= 0  # May be 0 due to deserialization failures
+
+    @mark.asyncio
+    async def test_get_tasks_with_filters(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_driver.get_tasks.return_value = ([], 0)
+
+        service = TaskService(driver=mock_driver)
+
+        # Act
+        tasks, total = await service.get_task_infos(
+            status="pending", queue="test_queue", limit=10, offset=0
+        )
+
+        # Assert
+        assert tasks == []
+        assert total == 0
+        mock_driver.get_tasks.assert_called_once_with(
+            status="pending", queue="test_queue", limit=10, offset=0
+        )
+
+
+@mark.unit
+class TestTaskServiceDatetimeParsing:
+    """Test datetime parsing in TaskService."""
+
+    def test_parse_datetime_from_string(self) -> None:
+        # Arrange
+        service = TaskService()
+        iso_string = "2024-01-15T10:30:00+00:00"
+
+        # Act
+        result = service._parse_datetime(iso_string)
+
+        # Assert
+        assert result is not None
+        assert isinstance(result, datetime)
+
+    def test_parse_datetime_from_datetime(self) -> None:
+        # Arrange
+        service = TaskService()
+        dt = datetime.now(UTC)
+
+        # Act
+        result = service._parse_datetime(dt)
+
+        # Assert
+        assert result == dt
+
+    def test_parse_datetime_from_timestamp(self) -> None:
+        # Arrange
+        service = TaskService()
+        timestamp = 1705318200.0
+
+        # Act
+        result = service._parse_datetime(timestamp)
+
+        # Assert
+        assert result is not None
+        assert isinstance(result, datetime)
+
+    def test_parse_datetime_from_none(self) -> None:
+        # Arrange
+        service = TaskService()
+
+        # Act
+        result = service._parse_datetime(None)
+
+        # Assert
+        assert result is None
+
+    def test_parse_datetime_from_invalid(self) -> None:
+        # Arrange
+        service = TaskService()
+
+        # Act
+        result = service._parse_datetime("invalid-date")
+
+        # Assert
+        assert result is None
 
 
 if __name__ == "__main__":

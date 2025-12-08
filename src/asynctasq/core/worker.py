@@ -25,30 +25,41 @@ class Worker:
     asynchronously with respect to the concurrency limit. Supports graceful shutdown
     via SIGTERM/SIGINT signals.
 
-    Architecture:
-    - Continuous polling loop with sleep to prevent CPU spinning
-    - Round-robin queue checking for fair task distribution
-    - Respects concurrency limit using asyncio task management
-    - Automatic retry handling with exponential backoff
-    - Graceful shutdown that waits for in-flight tasks
+    ## Architecture
 
-    Modes:
-    - Production: max_tasks=None (runs indefinitely until signaled)
-    - Testing: max_tasks=N (processes exactly N tasks then exits)
-    - Batch: max_tasks=N (processes N tasks from queue then exits)
+    - **Continuous polling loop**: Prevents CPU spinning with 0.1s sleep when idle
+    - **Round-robin queue checking**: Ensures fair task distribution across queues
+    - **Concurrency control**: Uses asyncio.wait() to respect concurrency limits
+    - **Automatic retry handling**: Supports exponential backoff and configurable retry logic
+    - **Graceful shutdown**: Waits for in-flight tasks before exiting on SIGTERM/SIGINT
 
-    Attributes:
-        queue_driver: An instance of a driver that extends BaseDriver for queue operations
+    ## Best Practices Implemented
+
+    - **Timeout handling**: Task execution respects configured timeouts (via TaskService)
+    - **Structured logging**: All errors logged with context (task_id, worker_id, queue)
+    - **Event emission**: Integration points for observability and monitoring
+    - **Error resilience**: Distinguishes deserialization failures from execution failures
+    - **Resource cleanup**: Ensures proper driver disconnection and task service cleanup
+
+    ## Modes
+
+    - **Production**: max_tasks=None (runs indefinitely until signaled)
+    - **Testing**: max_tasks=N (processes exactly N tasks then exits)
+    - **Batch**: max_tasks=N (processes N tasks from queue then exits)
+
+    ## Attributes
+
+        queue_driver: An instance of a driver that extends BaseDriver
         queues: List of queue names to poll (in priority order)
         concurrency: Maximum number of concurrent task executions
-        max_tasks: Optional limit on total tasks to process
+        max_tasks: Optional limit on total tasks to process (None = unlimited)
+        event_emitter: Optional EventEmitter for observability
+        heartbeat_interval: Seconds between heartbeat events (default: 60)
 
-    Key behaviors:
-    - Polls queues in round-robin order for fairness
-    - Sleeps 0.1s when no tasks available (prevents CPU spinning)
-    - Respects concurrency limit with asyncio.wait()
-    - Handles task failures with retry logic
-    - Graceful shutdown on SIGTERM/SIGINT
+    ## Signal Handling
+
+    - SIGTERM: Graceful shutdown with task draining
+    - SIGINT: Same as SIGTERM (Ctrl+C)
     """
 
     def __init__(

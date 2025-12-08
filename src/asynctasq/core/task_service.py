@@ -31,13 +31,37 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class TaskService:
-    """
-    Service for task serialization, deserialization, and query operations.
+    """Service for task serialization, deserialization, and query operations.
 
-    This service centralizes task-handling logic including:
-    - Serialization/deserialization
-    - Task info parsing for monitoring
-    - Task query and mutation operations (when driver is provided)
+    Centralizes all task-handling logic with best practices for async operations:
+
+    ## Core Operations
+
+    - **Serialization**: Task instance → bytes (for queueing)
+    - **Deserialization**: bytes → Task instance (for execution)
+    - **Execution**: Run task.handle() with timeout support
+    - **Monitoring**: Parse bytes → TaskInfo models
+    - **Persistence**: Query/mutate tasks in driver
+
+    ## Best Practices Implemented
+
+    - **Type safety**: Full type hints for all operations
+    - **Timeout handling**: Configurable task execution timeouts
+    - **Error context**: Proper exception context preservation
+    - **Datetime handling**: Robust parsing from multiple formats
+    - **ORM integration**: Automatic serialization of SQLAlchemy/Django models
+
+    ## Retry Logic
+
+    Determines if a task should retry based on:
+    - Attempt count < max_retries
+    - Custom task.should_retry(exception) logic
+    - Configurable exponential backoff
+
+    ## Attributes
+
+        serializer: BaseSerializer instance (defaults to MsgpackSerializer)
+        driver: Optional BaseDriver for query operations
     """
 
     serializer: BaseSerializer | None = None

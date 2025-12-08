@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import main, mark, raises
 
+from asynctasq.core.events import EventType
 from asynctasq.core.task import FunctionTask, Task
 from asynctasq.core.worker import Worker
 from asynctasq.drivers.base_driver import BaseDriver
@@ -1900,6 +1901,316 @@ class TestWorkerIntegration:
         mock_driver.enqueue.assert_called_once_with("test_queue", serialized, delay_seconds=60)
         # Task counter should not increment on failure (only on success)
         assert worker._tasks_processed == 0
+
+
+@mark.unit
+class TestWorkerHeartbeat:
+    """Test Worker heartbeat functionality with event emitter."""
+
+    @mark.asyncio
+    async def test_heartbeat_loop_emits_events_with_event_emitter(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_emitter = AsyncMock()
+        worker = Worker(
+            queue_driver=mock_driver,
+            event_emitter=mock_emitter,
+            heartbeat_interval=0.1,
+        )
+        worker._running = True
+        worker._start_time = datetime.now(UTC)
+
+        async def stop_worker():
+            await asyncio.sleep(0.3)
+            worker._running = False
+
+        # Act
+        heartbeat_task = asyncio.create_task(worker._heartbeat_loop())
+        stop_task = asyncio.create_task(stop_worker())
+
+        try:
+            await asyncio.gather(heartbeat_task, stop_task)
+        except asyncio.CancelledError:
+            pass
+
+        # Assert
+        assert mock_emitter.emit_worker_event.called
+        # Should have at least one heartbeat event
+        calls = mock_emitter.emit_worker_event.call_args_list
+        assert len(calls) >= 1
+
+    @mark.asyncio
+    async def test_heartbeat_loop_stops_on_cancellation(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_emitter = AsyncMock()
+        worker = Worker(
+            queue_driver=mock_driver,
+            event_emitter=mock_emitter,
+            heartbeat_interval=0.1,
+        )
+        worker._running = True
+        worker._start_time = datetime.now(UTC)
+
+        # Act
+        heartbeat_task = asyncio.create_task(worker._heartbeat_loop())
+        await asyncio.sleep(0.05)
+        heartbeat_task.cancel()
+
+        # Wait for task to complete (should not raise since it catches CancelledError)
+        try:
+            await heartbeat_task
+        except asyncio.CancelledError:
+            # This is acceptable behavior
+            pass
+
+        # Assert - task should be done
+        assert heartbeat_task.done()
+
+    @mark.asyncio
+    async def test_heartbeat_loop_handles_exception_during_emit(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_emitter = AsyncMock()
+        mock_emitter.emit_worker_event.side_effect = RuntimeError("Emit failed")
+
+        worker = Worker(
+            queue_driver=mock_driver,
+            event_emitter=mock_emitter,
+            heartbeat_interval=0.05,
+        )
+        worker._running = True
+        worker._start_time = datetime.now(UTC)
+
+        async def stop_worker():
+            await asyncio.sleep(0.15)
+            worker._running = False
+
+        # Act
+        heartbeat_task = asyncio.create_task(worker._heartbeat_loop())
+        stop_task = asyncio.create_task(stop_worker())
+
+        try:
+            await asyncio.gather(heartbeat_task, stop_task)
+        except asyncio.CancelledError:
+            pass
+
+        # Assert - should not raise, just log warning
+        assert True  # If we get here, exception was handled
+
+
+@mark.unit
+class TestWorkerEventEmission:
+    """Test Worker event emission for task lifecycle events."""
+
+    @mark.asyncio
+    async def test_start_emits_worker_online_event(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_emitter = AsyncMock()
+        worker = Worker(
+            queue_driver=mock_driver,
+            event_emitter=mock_emitter,
+            queues=["queue1", "queue2"],
+        )
+
+        async def stop_immediately():
+            await asyncio.sleep(0.01)
+            worker._running = False
+
+        # Act
+        with patch.object(worker, "_run", new_callable=AsyncMock):
+            start_task = asyncio.create_task(worker.start())
+            stop_task = asyncio.create_task(stop_immediately())
+            await asyncio.gather(start_task, stop_task, return_exceptions=True)
+
+        # Assert
+        emit_calls = mock_emitter.emit_worker_event.call_args_list
+        assert len(emit_calls) >= 1
+        first_call = emit_calls[0]
+        event = first_call[0][0]
+        assert event.event_type == EventType.WORKER_ONLINE
+
+    @mark.asyncio
+    async def test_process_task_emits_task_started_event(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_emitter = AsyncMock()
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        worker = Worker(
+            queue_driver=mock_driver,
+            serializer=mock_serializer,
+            event_emitter=mock_emitter,
+        )
+
+        task = ConcreteTask(public_param="test")
+        task._task_id = "task-123"
+
+        with patch.object(worker, "_deserialize_task", return_value=task):
+            with patch.object(worker._task_service, "execute_task", new_callable=AsyncMock):
+                # Act
+                await worker._process_task(b"task_data", "test_queue")
+
+        # Assert
+        emit_calls = mock_emitter.emit_task_event.call_args_list
+        assert len(emit_calls) >= 1
+        # First call should be task_started
+        first_event = emit_calls[0][0][0]
+        assert first_event.event_type == EventType.TASK_STARTED
+
+    @mark.asyncio
+    async def test_process_task_emits_task_completed_event(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_emitter = AsyncMock()
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        worker = Worker(
+            queue_driver=mock_driver,
+            serializer=mock_serializer,
+            event_emitter=mock_emitter,
+        )
+
+        task = ConcreteTask(public_param="test")
+        task._task_id = "task-123"
+
+        with patch.object(worker, "_deserialize_task", return_value=task):
+            with patch.object(worker._task_service, "execute_task", new_callable=AsyncMock):
+                # Act
+                await worker._process_task(b"task_data", "test_queue")
+
+        # Assert
+        emit_calls = mock_emitter.emit_task_event.call_args_list
+        assert len(emit_calls) >= 2
+        # Second call should be task_completed
+        completed_event = emit_calls[1][0][0]
+        assert completed_event.event_type == EventType.TASK_COMPLETED
+
+    @mark.asyncio
+    async def test_handle_task_failure_emits_task_retrying_event(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_emitter = AsyncMock()
+        worker = Worker(
+            queue_driver=mock_driver,
+            event_emitter=mock_emitter,
+        )
+
+        task = ConcreteTask(public_param="test")
+        task._task_id = "task-123"
+        task._attempts = 0
+        task.max_retries = 3
+        task.queue = "test_queue"
+        exception = ValueError("Test error")
+        start_time = datetime.now(UTC)
+
+        with patch.object(worker._task_service, "serialize_task", return_value=b"serialized"):
+            # Act
+            await worker._handle_task_failure(task, exception, "test_queue", start_time)
+
+        # Assert
+        emit_calls = mock_emitter.emit_task_event.call_args_list
+        assert any(call[0][0].event_type == EventType.TASK_RETRYING for call in emit_calls)
+
+    @mark.asyncio
+    async def test_handle_task_failure_emits_task_failed_event(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_emitter = AsyncMock()
+        worker = Worker(
+            queue_driver=mock_driver,
+            event_emitter=mock_emitter,
+        )
+
+        task = ConcreteTask(public_param="test")
+        task._task_id = "task-123"
+        task._attempts = 2
+        task.max_retries = 2
+        exception = ValueError("Test error")
+        start_time = datetime.now(UTC)
+        task.failed = AsyncMock()  # type: ignore[assignment]
+
+        # Act
+        await worker._handle_task_failure(task, exception, "test_queue", start_time)
+
+        # Assert
+        emit_calls = mock_emitter.emit_task_event.call_args_list
+        assert any(call[0][0].event_type == EventType.TASK_FAILED for call in emit_calls)
+
+    @mark.asyncio
+    async def test_cleanup_emits_worker_offline_event(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_emitter = AsyncMock()
+        worker = Worker(
+            queue_driver=mock_driver,
+            event_emitter=mock_emitter,
+        )
+        worker._start_time = datetime.now(UTC)
+
+        # Act
+        await worker._cleanup()
+
+        # Assert
+        emit_calls = mock_emitter.emit_worker_event.call_args_list
+        assert any(call[0][0].event_type == EventType.WORKER_OFFLINE for call in emit_calls)
+
+
+@mark.unit
+class TestWorkerAckTimeout:
+    """Test Worker ack timeout handling."""
+
+    @mark.asyncio
+    async def test_process_task_handles_ack_timeout(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
+
+        task = ConcreteTask(public_param="test")
+        task._task_id = "test-id"
+
+        async def ack_timeout(*args, **kwargs):
+            raise TimeoutError()
+
+        mock_driver.ack.side_effect = ack_timeout
+
+        with (
+            patch.object(worker, "_deserialize_task", return_value=task),
+            patch.object(worker._task_service, "execute_task", new_callable=AsyncMock),
+            patch("asynctasq.core.worker.logger") as mock_logger,
+        ):
+            # Act
+            await worker._process_task(b"task_data", "test_queue")
+
+        # Assert
+        mock_logger.error.assert_called()
+        # Task should still be marked as processed even though ack timed out
+        assert worker._tasks_processed == 1
+
+    @mark.asyncio
+    async def test_process_task_handles_ack_error(self) -> None:
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
+
+        task = ConcreteTask(public_param="test")
+        task._task_id = "test-id"
+
+        mock_driver.ack.side_effect = RuntimeError("ACK failed")
+
+        with (
+            patch.object(worker, "_deserialize_task", return_value=task),
+            patch.object(worker._task_service, "execute_task", new_callable=AsyncMock),
+            patch("asynctasq.core.worker.logger") as mock_logger,
+        ):
+            # Act
+            await worker._process_task(b"task_data", "test_queue")
+
+        # Assert
+        mock_logger.error.assert_called()
+        # Task should still be marked as processed
+        assert worker._tasks_processed == 1
 
 
 if __name__ == "__main__":
