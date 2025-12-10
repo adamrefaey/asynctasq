@@ -9,7 +9,7 @@ Use the `@task` decorator for simple, inline task definitions.
 **Basic Function Task:**
 
 ```python
-from asynctasq.core.task import task
+from asynctasq.tasks import task
 
 @task
 async def send_email(to: str, subject: str, body: str):
@@ -70,9 +70,9 @@ Use the `Task` base class for complex tasks with lifecycle hooks and custom retr
 **Basic Class Task:**
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class ProcessPayment(Task[bool]):
+class ProcessPayment(BaseTask[bool]):
     queue = "payments"
     max_retries = 3
     retry_delay = 60
@@ -93,7 +93,7 @@ class ProcessPayment(Task[bool]):
 **With Lifecycle Hooks:**
 
 ```python
-class ProcessPayment(Task[bool]):
+class ProcessPayment(BaseTask[bool]):
     queue = "payments"
     max_retries = 3
     retry_delay = 60
@@ -160,7 +160,7 @@ task_id = await ProcessPayment(user_id=123, amount=99.99) \
 **Synchronous Class Tasks:**
 
 ```python
-from asynctasq.core.task import SyncTask
+from asynctasq.tasks import SyncTask
 
 class GenerateReport(SyncTask[str]):
     queue = "reports"
@@ -176,6 +176,85 @@ class GenerateReport(SyncTask[str]):
         time.sleep(5)  # Blocking operation OK
         return f"Report {self.report_id} generated"
 ```
+
+**CPU-Intensive Class Tasks (Multiprocessing):**
+
+```python
+from asynctasq.tasks import ProcessTask
+
+class VideoEncoding(ProcessTask[str]):
+    """CPU-intensive task - runs in separate process with independent GIL."""
+    queue = "heavy-cpu"
+    timeout = 600  # 10 minutes
+
+    def __init__(self, video_path: str, output_format: str, **kwargs):
+        super().__init__(**kwargs)
+        self.video_path = video_path
+        self.output_format = output_format
+
+    def handle_process(self) -> str:
+        # Runs in subprocess - true parallelism, bypasses GIL
+        import ffmpeg  # Heavy CPU work
+        output_path = f"{self.video_path}.{self.output_format}"
+        ffmpeg.input(self.video_path).output(output_path).run()
+        return output_path
+```
+
+---
+
+## Choosing the Right Task Type
+
+AsyncTasQ provides three task execution modes optimized for different workloads:
+
+| Task Type       | Execution Context  | Best For                          | CPU Usage   | Example Use Cases                        |
+| --------------- | ------------------ | --------------------------------- | ----------- | ---------------------------------------- |
+| `Task`          | Event loop (async) | I/O-bound operations              | < 10%       | API calls, DB queries, file I/O, network |
+| `SyncTask`      | Thread pool (sync) | Moderate CPU work, blocking libs  | 10-80%      | Image resize, data parsing, sync libs    |
+| `ProcessTask`   | Process pool       | Heavy CPU-intensive computation   | > 80%       | Video encoding, ML inference, encryption |
+
+**Decision Matrix:**
+
+```python
+# ✅ Use Task (async) for I/O-bound work
+class FetchData(BaseTask[dict]):
+    async def handle(self) -> dict:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            return response.json()
+
+# ⚠️ Use SyncTask for moderate CPU work or blocking libraries
+class ResizeImage(SyncTask[bytes]):
+    def handle_sync(self) -> bytes:
+        from PIL import Image
+        img = Image.open(self.path)
+        img.thumbnail((800, 600))
+        return img.tobytes()
+
+# 🚀 Use ProcessTask for heavy CPU work (>80% CPU utilization)
+class TrainModel(ProcessTask[dict]):
+    def handle_process(self) -> dict:
+        import numpy as np
+        # Heavy computation with independent GIL
+        result = np.linalg.inv(large_matrix)
+        return {"accuracy": 0.95}
+```
+
+**Performance Guidelines:**
+
+- **Task**: 1000s of concurrent tasks, minimal memory overhead
+- **SyncTask**: Limited by thread pool size, some overhead
+- **ProcessTask**: Limited by CPU cores, high memory per process (~50MB+)
+
+**When to Use ProcessTask:**
+
+✅ CPU utilization > 80% (verified with profiling)  
+✅ Task duration > 100ms (amortizes process overhead)  
+✅ All arguments and return values are picklable  
+✅ No shared memory needed (processes are isolated)  
+
+❌ Don't use for I/O-bound tasks (use `Task` instead)  
+❌ Don't use for short tasks < 100ms (overhead not worth it)  
+❌ Don't use with unpicklable objects (will fail at runtime)
 
 ---
 
@@ -199,7 +278,7 @@ async def send_email(to: str, subject: str):
     pass
 
 # 2. Class attributes (class tasks)
-class ProcessPayment(Task[bool]):
+class ProcessPayment(BaseTask[bool]):
     queue = "payments"
     max_retries = 3
     retry_delay = 60
@@ -223,7 +302,7 @@ Tasks automatically track metadata:
 Access metadata in task methods:
 
 ```python
-class MyTask(Task[None]):
+class MyTask(BaseTask[None]):
     async def handle(self) -> None:
         print(f"Task ID: {self._task_id}")
         print(f"Attempt: {self._attempts}")

@@ -23,7 +23,7 @@ pip install "asynctasq[fastapi]"
 ```python
 from fastapi import FastAPI, Depends
 from asynctasq.integrations.fastapi import AsyncTaskIntegration
-from asynctasq.core.task import task
+from asynctasq.tasks import task
 from asynctasq.core.dispatcher import Dispatcher
 from asynctasq.drivers.base_driver import BaseDriver
 

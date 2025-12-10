@@ -43,7 +43,7 @@ The simplest class-based task extends `Task` and implements the `handle()` metho
 
 ```python
 import asyncio
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from asynctasq.config import set_global_config
 
 # Configure the queue driver
@@ -51,7 +51,7 @@ from asynctasq.config import set_global_config
 set_global_config(driver='redis')
 
 # Define a simple task class
-class SendNotification(Task[str]):
+class SendNotification(BaseTask[str]):
     """Send a notification message."""
 
     def __init__(self, message: str, **kwargs):
@@ -80,12 +80,12 @@ if __name__ == "__main__":
 Tasks accept parameters via `__init__`, which are automatically stored as instance attributes. All parameters passed to `__init__` (except `**kwargs`) should be explicitly assigned to instance attributes:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from asynctasq.config import set_global_config
 
 set_global_config(driver='redis')
 
-class ProcessData(Task[int]):
+class ProcessData(BaseTask[int]):
     """Process data and return sum."""
 
     def __init__(self, data: list[int], **kwargs):
@@ -115,9 +115,9 @@ if __name__ == "__main__":
 ### Minimal Task (Uses Defaults)
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class SimpleTask(Task[None]):
+class SimpleTask(BaseTask[None]):
     """Task with default configuration."""
 
     async def handle(self) -> None:
@@ -127,9 +127,9 @@ class SimpleTask(Task[None]):
 ### Task with Class-Level Configuration
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class SendEmail(Task[bool]):
+class SendEmail(BaseTask[bool]):
     """Send email with custom configuration."""
 
     # Class-level configuration
@@ -153,10 +153,10 @@ class SendEmail(Task[bool]):
 ### Task with Type Hints
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from typing import Dict, Any
 
-class ProcessOrder(Task[Dict[str, Any]]):
+class ProcessOrder(BaseTask[Dict[str, Any]]):
     """Process an order and return status."""
 
     queue = "orders"
@@ -197,22 +197,22 @@ All configuration options can be set as class attributes. These settings apply t
 Use different queues to organize tasks by priority, type, or processing requirements:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
 # Different queues for different task types
-class SendEmail(Task[None]):
+class SendEmail(BaseTask[None]):
     queue = "emails"
 
     async def handle(self) -> None:
         pass
 
-class ProcessPayment(Task[None]):
+class ProcessPayment(BaseTask[None]):
     queue = "payments"
 
     async def handle(self) -> None:
         pass
 
-class SendPushNotification(Task[None]):
+class SendPushNotification(BaseTask[None]):
     queue = "notifications"
 
     async def handle(self) -> None:
@@ -228,10 +228,10 @@ class SendPushNotification(Task[None]):
 ### Retry Configuration
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
 # High retry count for critical operations
-class ChargeCreditCard(Task[bool]):
+class ChargeCreditCard(BaseTask[bool]):
     queue = "payments"
     max_retries = 10
     retry_delay = 30
@@ -241,7 +241,7 @@ class ChargeCreditCard(Task[bool]):
         return True
 
 # No retries for validation tasks
-class ValidateData(Task[bool]):
+class ValidateData(BaseTask[bool]):
     queue = "validation"
     max_retries = 0
 
@@ -250,7 +250,7 @@ class ValidateData(Task[bool]):
         return True
 
 # Custom retry delay
-class CallExternalAPI(Task[dict]):
+class CallExternalAPI(BaseTask[dict]):
     queue = "api-calls"
     max_retries = 5
     retry_delay = 300  # 5 minutes (for rate-limited APIs)
@@ -263,10 +263,10 @@ class CallExternalAPI(Task[dict]):
 ### Timeout Configuration
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
 # Short timeout for quick operations
-class QuickOperation(Task[None]):
+class QuickOperation(BaseTask[None]):
     queue = "quick"
     timeout = 5
 
@@ -275,7 +275,7 @@ class QuickOperation(Task[None]):
         pass
 
 # Long timeout for heavy operations
-class GenerateReport(Task[str]):
+class GenerateReport(BaseTask[str]):
     queue = "reports"
     timeout = 3600  # 1 hour
 
@@ -284,7 +284,7 @@ class GenerateReport(Task[str]):
         return "report.pdf"
 
 # No timeout (default)
-class BackgroundCleanup(Task[None]):
+class BackgroundCleanup(BaseTask[None]):
     queue = "background"
     timeout = None
 
@@ -296,9 +296,9 @@ class BackgroundCleanup(Task[None]):
 ### Combined Configuration
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class CriticalOperation(Task[dict]):
+class CriticalOperation(BaseTask[dict]):
     """Fully configured critical task."""
 
     queue = "critical"
@@ -330,9 +330,9 @@ Class-based tasks provide three lifecycle hooks for complete control over task e
 The `handle()` method is where your main task logic goes. It's the only required method:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class ProcessOrder(Task[bool]):
+class ProcessOrder(BaseTask[bool]):
     queue = "orders"
 
     def __init__(self, order_id: int, **kwargs):
@@ -366,12 +366,12 @@ class ProcessOrder(Task[bool]):
 The `failed()` method is called when a task fails after exhausting all retry attempts. Use it for cleanup, logging, alerting, or compensation:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 import logging
 
 logger = logging.getLogger(__name__)
 
-class ProcessPayment(Task[bool]):
+class ProcessPayment(BaseTask[bool]):
     queue = "payments"
     max_retries = 3
 
@@ -429,10 +429,10 @@ class ProcessPayment(Task[bool]):
 The `should_retry()` method allows you to implement custom retry logic based on the exception type. Return `True` to retry, `False` to fail immediately:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 import httpx
 
-class CallExternalAPI(Task[dict]):
+class CallExternalAPI(BaseTask[dict]):
     queue = "api"
     max_retries = 5
 
@@ -470,9 +470,9 @@ class CallExternalAPI(Task[dict]):
 **Common Retry Patterns:**
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class SmartRetryTask(Task[None]):
+class SmartRetryTask(BaseTask[None]):
     """Example of various retry patterns."""
 
     def should_retry(self, exception: Exception) -> bool:
@@ -504,12 +504,12 @@ class SmartRetryTask(Task[None]):
 ### Complete Lifecycle Example
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 import logging
 
 logger = logging.getLogger(__name__)
 
-class ProcessOrder(Task[dict]):
+class ProcessOrder(BaseTask[dict]):
     """Complete example with all lifecycle hooks."""
 
     queue = "orders"
@@ -614,9 +614,9 @@ Tasks are dispatched by creating an instance and calling `.dispatch()`. The meth
 The simplest way to dispatch a task:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class SendEmail(Task[bool]):
+class SendEmail(BaseTask[bool]):
     queue = "emails"
 
     def __init__(self, to: str, subject: str, body: str, **kwargs):
@@ -644,9 +644,9 @@ async def main():
 You can delay task execution using method chaining:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class SendReminder(Task[None]):
+class SendReminder(BaseTask[None]):
     queue = "reminders"
 
     def __init__(self, user_id: int, message: str, **kwargs):
@@ -670,34 +670,38 @@ async def main():
 
 ---
 
-## Async vs Sync Tasks
+## Async vs Sync vs Process Tasks
 
-AsyncTasQ supports both async and synchronous class-based tasks. The framework automatically handles the execution differences:
+AsyncTasQ supports three task execution modes optimized for different workloads:
 
-- **Async tasks** (`Task`): Run directly in the event loop (recommended for I/O-bound tasks)
-- **Sync tasks** (`SyncTask`): Automatically run in a thread pool (useful for CPU-bound or blocking operations)
+- **Async tasks** (`Task`): Run directly in the event loop (best for I/O-bound operations)
+- **Sync tasks** (`SyncTask`): Automatically run in a thread pool (good for moderate CPU work or blocking libraries)
+- **Process tasks** (`ProcessTask`): Run in separate processes with independent GIL (best for heavy CPU-intensive work)
 
 **When to use each:**
 
-| Use Case                              | Task Type    | Reason                                |
-| ------------------------------------- | ------------ | ------------------------------------- |
-| API calls, database queries, file I/O | **Task**     | Better performance, non-blocking      |
-| CPU-intensive computation             | **SyncTask** | Simpler code, automatic thread pool   |
-| Using blocking libraries              | **SyncTask** | No need to convert to async           |
-| Network requests, web scraping        | **Task**     | Can handle many concurrent operations |
-| Image processing, data analysis       | **SyncTask** | Thread pool handles CPU work          |
-| Async libraries available             | **Task**     | Native async support                  |
-| Only sync libraries available         | **SyncTask** | Works with any blocking library       |
+| Use Case                              | Task Type        | Reason                                    |
+| ------------------------------------- | ---------------- | ----------------------------------------- |
+| API calls, database queries, file I/O | **Task**         | Better performance, non-blocking          |
+| Light CPU work (<50% util)            | **Task**         | Event loop handles it efficiently         |
+| Moderate CPU (50-80% util)            | **SyncTask**     | Thread pool prevents event loop blocking  |
+| Heavy CPU (>80% util)                 | **ProcessTask**  | True parallelism, bypasses GIL            |
+| Using blocking libraries              | **SyncTask**     | No need to convert to async               |
+| Network requests, web scraping        | **Task**         | Can handle many concurrent operations     |
+| Image resize, data parsing            | **SyncTask**     | Thread pool handles moderate CPU work     |
+| Video encoding, ML inference          | **ProcessTask**  | Process pool provides true parallelism    |
+| Async libraries available             | **Task**         | Native async support                      |
+| Only sync libraries available         | **SyncTask**     | Works with any blocking library           |
 
-### Task (Recommended)
+### Task (Recommended for I/O)
 
 Use `Task` for I/O-bound operations (API calls, database queries, file operations):
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 import asyncio
 
-class FetchUserData(Task[dict]):
+class FetchUserData(BaseTask[dict]):
     """Async task - runs directly in event loop."""
     queue = "api"
 
@@ -718,12 +722,12 @@ class FetchUserData(Task[dict]):
 - More efficient resource usage (no thread overhead)
 - Better scalability for concurrent operations
 
-### Sync Task (Runs in Thread Pool)
+### SyncTask (Moderate CPU or Blocking Libraries)
 
 Use `SyncTask` for CPU-bound operations or when using blocking libraries:
 
 ```python
-from asynctasq.core.task import SyncTask
+from asynctasq.tasks import SyncTask
 import time
 
 class HeavyComputation(SyncTask[int]):
@@ -749,16 +753,193 @@ class HeavyComputation(SyncTask[int]):
 - Works with any synchronous library (requests, PIL, pandas, etc.)
 - Simpler code for CPU-bound operations
 
-### Mixed Async/Sync in Same Application
+### ProcessTask (Heavy CPU Work - True Parallelism)
+
+Use `ProcessTask` for CPU-intensive operations that need true multiprocessing to bypass Python's GIL:
 
 ```python
-from asynctasq.core.task import Task, SyncTask
+from asynctasq.tasks import ProcessTask
+
+class EncodeVideo(ProcessTask[str]):
+    """Process task - runs in separate process with independent GIL."""
+    queue = "heavy-cpu"
+    timeout = 600  # 10 minutes
+
+    def __init__(self, video_path: str, output_format: str, **kwargs):
+        super().__init__(**kwargs)
+        self.video_path = video_path
+        self.output_format = output_format
+
+    def handle_process(self) -> str:
+        """Runs in subprocess - true parallelism."""
+        import ffmpeg
+        output = f"{self.video_path}.{self.output_format}"
+        ffmpeg.input(self.video_path).output(output).run()
+        return output
+```
+
+**Important:** Process tasks implement `handle_process()` instead of `handle()`. The framework automatically:
+- Spawns a subprocess with independent GIL
+- Serializes arguments via pickle (must be picklable!)
+- Returns the result to the main process
+- Recycles processes after `max_tasks_per_child` tasks (if configured)
+
+**Benefits:**
+
+- True multi-core parallelism (bypasses Python's GIL)
+- Each process has independent interpreter and memory
+- Best performance for CPU-intensive workloads (>80% CPU utilization)
+- Automatic process recycling prevents memory leaks
+
+**Limitations:**
+
+- All arguments and return values must be picklable (no file handles, sockets, etc.)
+- Higher memory footprint (~50MB+ per process)
+- Higher startup overhead (~50ms per task)
+- No shared memory between processes (use multiprocessing.Manager if needed)
+
+**Configuration:**
+
+```python
+# Configure process pool size (default: CPU count)
+from asynctasq.core.worker import Worker
+
+worker = Worker(
+    queue_driver=driver,
+    process_pool_size=8,  # Number of worker processes
+    process_pool_max_tasks_per_child=1000  # Recycle after 1000 tasks
+)
+await worker.start()
+```
+
+**Real-World Examples:**
+
+```python
+# Example 1: ML Model Inference
+class RunInference(ProcessTask[dict]):
+    """Run ML model inference in isolated process."""
+    queue = "ml-inference"
+    timeout = 300
+
+    def __init__(self, model_path: str, input_data: list[float], **kwargs):
+        super().__init__(**kwargs)
+        self.model_path = model_path
+        self.input_data = input_data
+
+    def handle_process(self) -> dict:
+        import numpy as np
+        import joblib
+        
+        # Load model (expensive - use pool initializer for better performance)
+        model = joblib.load(self.model_path)
+        
+        # Heavy CPU computation
+        predictions = model.predict(np.array(self.input_data))
+        
+        return {
+            "predictions": predictions.tolist(),
+            "confidence": float(np.mean(predictions))
+        }
+
+# Example 2: Image Processing with PIL
+class ProcessImageBatch(ProcessTask[list[str]]):
+    """Process batch of images in separate process."""
+    queue = "image-processing"
+
+    def __init__(self, image_paths: list[str], **kwargs):
+        super().__init__(**kwargs)
+        self.image_paths = image_paths
+
+    def handle_process(self) -> list[str]:
+        from PIL import Image, ImageFilter
+        
+        output_paths = []
+        for path in self.image_paths:
+            img = Image.open(path)
+            # CPU-intensive filters
+            img = img.filter(ImageFilter.SHARPEN)
+            img = img.filter(ImageFilter.EDGE_ENHANCE)
+            output = path.replace('.jpg', '_processed.jpg')
+            img.save(output, quality=95)
+            output_paths.append(output)
+        
+        return output_paths
+
+# Example 3: Data Encryption
+class EncryptData(ProcessTask[bytes]):
+    """Encrypt large data in separate process."""
+    queue = "encryption"
+
+    def __init__(self, data: bytes, key: bytes, **kwargs):
+        super().__init__(**kwargs)
+        self.data = data
+        self.key = key
+
+    def handle_process(self) -> bytes:
+        from cryptography.fernet import Fernet
+        
+        # CPU-intensive encryption
+        cipher = Fernet(self.key)
+        encrypted = cipher.encrypt(self.data)
+        
+        return encrypted
+```
+
+**Performance Tuning:**
+
+```python
+# Pool sizing for different workloads
+import os
+
+# CPU-only workload: match core count
+process_pool_size = os.cpu_count()
+
+# Mixed CPU+I/O: add extra workers
+process_pool_size = os.cpu_count() + 1
+
+# Shared machine: reduce to avoid contention
+process_pool_size = os.cpu_count() // 2
+
+# Process recycling (Python 3.11+)
+process_pool_max_tasks_per_child = 100  # Lower = more overhead, better memory
+process_pool_max_tasks_per_child = 1000  # Higher = better performance, potential leaks
+```
+
+**When to Use Each Task Type:**
+
+```python
+# ✅ Use Task for I/O-bound work (API calls, DB, files)
+class FetchAPI(BaseTask[dict]):
+    async def handle(self) -> dict:
+        async with httpx.AsyncClient() as client:
+            return (await client.get(url)).json()
+
+# ⚠️ Use SyncTask for moderate CPU or blocking libs
+class ParseCSV(SyncTask[list]):
+    def handle_sync(self) -> list:
+        import pandas as pd
+        df = pd.read_csv(self.path)
+        return df.to_dict('records')
+
+# 🚀 Use ProcessTask for heavy CPU work (>80% utilization)
+class TrainModel(ProcessTask[float]):
+    def handle_process(self) -> float:
+        import numpy as np
+        # Heavy matrix operations bypass GIL
+        result = np.linalg.inv(large_matrix @ large_matrix.T)
+        return float(np.trace(result))
+```
+
+### Mixed Async/Sync/Process in Same Application
+
+```python
+from asynctasq.tasks import BaseTask, SyncTask, ProcessTask
 import asyncio
 import time
 
-# Async task
-class AsyncOperation(Task[str]):
-    queue = "asynctasqs"
+# Async task for I/O
+class AsyncOperation(BaseTask[str]):
+    queue = "io-tasks"
 
     def __init__(self, data: str, **kwargs):
         super().__init__(**kwargs)
@@ -766,9 +947,9 @@ class AsyncOperation(Task[str]):
 
     async def handle(self) -> str:
         await asyncio.sleep(0.1)
-        return f"Processed: {self.data}"
+        return f"Fetched: {self.data}"
 
-# Sync task
+# Sync task for moderate CPU
 class SyncOperation(SyncTask[str]):
     queue = "sync-tasks"
 
@@ -780,10 +961,25 @@ class SyncOperation(SyncTask[str]):
         time.sleep(1)
         return f"Computed: {self.data}"
 
-# Both can be dispatched the same way
+# Process task for heavy CPU
+class ProcessOperation(ProcessTask[str]):
+    queue = "cpu-tasks"
+
+    def __init__(self, data: str, **kwargs):
+        super().__init__(**kwargs)
+        self.data = data
+
+    def handle_process(self) -> str:
+        import hashlib
+        # Simulate CPU-intensive work
+        result = hashlib.pbkdf2_hmac('sha256', self.data.encode(), b'salt', 100000)
+        return result.hex()
+
+# All can be dispatched the same way
 async def main():
     task1_id = await AsyncOperation(data="async").dispatch()
     task2_id = await SyncOperation(data="sync").dispatch()
+    task3_id = await ProcessOperation(data="process").dispatch()
 ```
 
 ---
@@ -793,14 +989,14 @@ async def main():
 ### Per-Task Driver Override (String)
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from asynctasq.config import set_global_config
 
 # Global config uses redis driver
 set_global_config(driver='redis')
 
 # This task uses Redis regardless of global config
-class CriticalTask(Task[None]):
+class CriticalTask(BaseTask[None]):
     queue = "critical"
     _driver_override = "redis"
 
@@ -808,7 +1004,7 @@ class CriticalTask(Task[None]):
         print("Processing critical task")
 
 # This task uses SQS
-class AWSTask(Task[None]):
+class AWSTask(BaseTask[None]):
     queue = "aws-tasks"
     _driver_override = "sqs"
 
@@ -816,7 +1012,7 @@ class AWSTask(Task[None]):
         print("Processing AWS task")
 
 # This task uses global config (redis)
-class NormalTask(Task[None]):
+class NormalTask(BaseTask[None]):
     queue = "normal"
     # No _driver_override - uses global config
 
@@ -829,7 +1025,7 @@ class NormalTask(Task[None]):
 You can also pass a driver instance directly for complete control over driver configuration:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from asynctasq.drivers.redis_driver import RedisDriver
 
 # Create a custom driver instance with specific configuration
@@ -841,7 +1037,7 @@ custom_redis = RedisDriver(
 )
 
 # Use the custom driver instance
-class CustomDriverTask(Task[dict]):
+class CustomDriverTask(BaseTask[dict]):
     queue = "custom"
     _driver_override = custom_redis
 
@@ -870,35 +1066,35 @@ async def main():
 ### Multiple Drivers in Same Application
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from asynctasq.config import set_global_config
 
 # Default driver
 set_global_config(driver='redis')
 
 # Tasks using different drivers
-class RedisTask(Task[None]):
+class RedisTask(BaseTask[None]):
     queue = "redis-queue"
     _driver_override = "redis"
 
     async def handle(self) -> None:
         pass
 
-class PostgresTask(Task[None]):
+class PostgresTask(BaseTask[None]):
     queue = "postgres-queue"
     _driver_override = "postgres"
 
     async def handle(self) -> None:
         pass
 
-class SQSTask(Task[None]):
+class SQSTask(BaseTask[None]):
     queue = "sqs-queue"
     _driver_override = "sqs"
 
     async def handle(self) -> None:
         pass
 
-class RedisTask(Task[None]):
+class RedisTask(BaseTask[None]):
     queue = "default-queue"
     # No _driver_override - uses global config (redis)
 
@@ -920,7 +1116,7 @@ class RedisTask(Task[None]):
 import contextvars
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
 # Define models
 class Base(DeclarativeBase):
@@ -951,7 +1147,7 @@ User._asynctasq_session_var = session_var
 Order._asynctasq_session_var = session_var
 
 # Task with ORM model parameter
-class SendWelcomeEmail(Task[None]):
+class SendWelcomeEmail(BaseTask[None]):
     queue = "emails"
 
     def __init__(self, user: User, **kwargs):
@@ -963,7 +1159,7 @@ class SendWelcomeEmail(Task[None]):
         print(f"Sending welcome email to {self.user.email} (ID: {self.user.id})")
         # User data is fresh from database when task executes
 
-class ProcessOrder(Task[None]):
+class ProcessOrder(BaseTask[None]):
     queue = "orders"
 
     def __init__(self, order: Order, user: User, **kwargs):
@@ -1006,7 +1202,7 @@ async def main():
 
 ```python
 from django.db import models
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
 # Define Django model
 class User(models.Model):
@@ -1018,7 +1214,7 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
 # Task with Django model
-class SendWelcomeEmail(Task[None]):
+class SendWelcomeEmail(BaseTask[None]):
     queue = "emails"
 
     def __init__(self, user: User, **kwargs):
@@ -1029,7 +1225,7 @@ class SendWelcomeEmail(Task[None]):
         """Django model automatically serialized as reference."""
         print(f"Sending welcome email to {self.user.email}")
 
-class UpdateProductPrice(Task[None]):
+class UpdateProductPrice(BaseTask[None]):
     queue = "products"
 
     def __init__(self, product: Product, new_price: float, **kwargs):
@@ -1056,7 +1252,7 @@ async def main():
 ```python
 from tortoise import fields
 from tortoise.models import Model
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
 # Define Tortoise model
 class User(Model):
@@ -1070,7 +1266,7 @@ class Post(Model):
     author = fields.ForeignKeyField('models.User', related_name='posts')
 
 # Task with Tortoise model
-class NotifyNewPost(Task[None]):
+class NotifyNewPost(BaseTask[None]):
     queue = "notifications"
 
     def __init__(self, post: Post, author: User, **kwargs):
@@ -1117,9 +1313,9 @@ await TaskClass(param=value).on_queue("queue").delay(60).dispatch()
 ### Basic Method Chaining
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class ProcessData(Task[None]):
+class ProcessData(BaseTask[None]):
     queue = "default"
 
     def __init__(self, data: str, **kwargs):
@@ -1139,9 +1335,9 @@ async def main():
 ### Queue Override with Chaining
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class SendNotification(Task[None]):
+class SendNotification(BaseTask[None]):
     queue = "default"
 
     def __init__(self, message: str, **kwargs):
@@ -1165,9 +1361,9 @@ async def main():
 Override the retry delay for specific dispatches:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class CallAPI(Task[dict]):
+class CallAPI(BaseTask[dict]):
     queue = "api"
     max_retries = 3
     retry_delay = 60
@@ -1196,9 +1392,9 @@ async def main():
 ### Complex Chaining
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class ComplexTask(Task[None]):
+class ComplexTask(BaseTask[None]):
     queue = "default"
 
     def __init__(self, data: dict, **kwargs):
@@ -1233,10 +1429,10 @@ Tasks automatically track metadata that you can access in your task methods:
 ### Accessing Metadata
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from datetime import datetime
 
-class MyTask(Task[None]):
+class MyTask(BaseTask[None]):
     async def handle(self) -> None:
         print(f"Task ID: {self._task_id}")
         print(f"Attempt: {self._attempts}")  # 0-indexed (0 = first attempt)
@@ -1249,12 +1445,12 @@ class MyTask(Task[None]):
 ### Using Metadata for Logging
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 import logging
 
 logger = logging.getLogger(__name__)
 
-class LoggedTask(Task[dict]):
+class LoggedTask(BaseTask[dict]):
     queue = "default"
 
     async def handle(self) -> dict:
@@ -1272,9 +1468,9 @@ class LoggedTask(Task[dict]):
 ### Using Metadata for Conditional Logic
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class SmartRetryTask(Task[None]):
+class SmartRetryTask(BaseTask[None]):
     max_retries = 5
 
     async def handle(self) -> None:
@@ -1307,10 +1503,10 @@ class SmartRetryTask(Task[None]):
 
 ```python
 import asyncio
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from typing import Optional
 
-class SendEmail(Task[dict]):
+class SendEmail(BaseTask[dict]):
     queue = "emails"
     max_retries = 5
     retry_delay = 60
@@ -1366,10 +1562,10 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from decimal import Decimal
 
-class ProcessPayment(Task[dict]):
+class ProcessPayment(BaseTask[dict]):
     queue = "payments"
     max_retries = 10
     retry_delay = 30
@@ -1428,7 +1624,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.core.task import SyncTask
+from asynctasq.tasks import SyncTask
 from datetime import datetime, timedelta
 
 class GenerateReport(SyncTask[dict]):
@@ -1483,10 +1679,10 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from pathlib import Path
 
-class ProcessImage(Task[dict]):
+class ProcessImage(BaseTask[dict]):
     queue = "images"
     max_retries = 3
     timeout = 300
@@ -1531,10 +1727,10 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 import httpx
 
-class DeliverWebhook(Task[dict]):
+class DeliverWebhook(BaseTask[dict]):
     queue = "webhooks"
     max_retries = 5
     retry_delay = 120
@@ -1589,9 +1785,9 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class SyncUserData(Task[dict]):
+class SyncUserData(BaseTask[dict]):
     queue = "sync"
     max_retries = 3
     retry_delay = 300
@@ -1637,10 +1833,10 @@ Process multiple items in a single task:
 
 ```python
 import asyncio
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 from typing import List
 
-class ProcessBatch(Task[dict]):
+class ProcessBatch(BaseTask[dict]):
     queue = "batch"
     timeout = 1800  # 30 minutes timeout
 
@@ -1711,14 +1907,14 @@ Here's a complete, runnable example demonstrating multiple class-based task patt
 
 ```python
 import asyncio
-from asynctasq.core.task import Task, SyncTask
+from asynctasq.tasks import BaseTask, SyncTask
 from asynctasq.config import set_global_config
 
 # Configure (use 'redis' or 'postgres' for production)
 set_global_config(driver='redis')
 
 # Define tasks with different configurations
-class SendEmail(Task[str]):
+class SendEmail(BaseTask[str]):
     queue = "emails"
     max_retries = 3
     retry_delay = 60
@@ -1735,7 +1931,7 @@ class SendEmail(Task[str]):
         await asyncio.sleep(0.1)
         return f"Email sent to {self.to}"
 
-class ProcessPayment(Task[dict]):
+class ProcessPayment(BaseTask[dict]):
     queue = "payments"
     max_retries = 10
     retry_delay = 30
@@ -1771,7 +1967,7 @@ class GenerateReport(SyncTask[str]):
         time.sleep(1)
         return f"Report {self.report_id} generated"
 
-class CriticalTask(Task[None]):
+class CriticalTask(BaseTask[None]):
     queue = "critical"
     _driver_override = "redis"  # Override driver (requires Redis configured)
 
@@ -1871,9 +2067,9 @@ Class-based tasks in AsyncTasQ provide a powerful, flexible way to create reusab
 2. **Define a task class:**
 
    ```python
-   from asynctasq.core.task import Task
+   from asynctasq.tasks import BaseTask
 
-   class SendEmail(Task[bool]):
+   class SendEmail(BaseTask[bool]):
        queue = "emails"
 
        def __init__(self, to: str, subject: str, **kwargs):
@@ -1915,10 +2111,10 @@ All examples above are ready to use - just configure your driver and start dispa
 Tasks should handle their own errors gracefully. The framework will retry failed tasks according to the `max_retries` configuration and `should_retry()` logic:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 import httpx
 
-class CallExternalAPI(Task[dict]):
+class CallExternalAPI(BaseTask[dict]):
     queue = "api"
     max_retries = 3
     retry_delay = 60
@@ -1953,9 +2149,9 @@ class CallExternalAPI(Task[dict]):
 Store task IDs for monitoring and debugging. Task IDs are UUID strings that uniquely identify each dispatched task:
 
 ```python
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class SendWelcomeEmail(Task[None]):
+class SendWelcomeEmail(BaseTask[None]):
     queue = "emails"
 
     def __init__(self, user_id: int, **kwargs):
@@ -2012,9 +2208,9 @@ Class-based tasks are easier to test than function-based tasks because you can i
 
 ```python
 import pytest
-from asynctasq.core.task import Task
+from asynctasq.tasks import BaseTask
 
-class SendEmail(Task[bool]):
+class SendEmail(BaseTask[bool]):
     queue = "emails"
 
     def __init__(self, to: str, subject: str, **kwargs):

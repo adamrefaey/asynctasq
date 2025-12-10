@@ -43,7 +43,7 @@ pip install "asynctasq[sqlalchemy]"
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from asynctasq.core.task import task
+from asynctasq.tasks import task
 from asynctasq.serializers.orm_handler import set_sqlalchemy_session_factory
 
 # Define your models
@@ -113,7 +113,7 @@ pip install "asynctasq[django]"
 
 ```python
 from django.db import models
-from asynctasq.core.task import task
+from asynctasq.tasks import task
 
 # Define your Django model
 class User(models.Model):
@@ -163,7 +163,7 @@ pip install "asynctasq[tortoise]"
 ```python
 from tortoise import fields
 from tortoise.models import Model
-from asynctasq.core.task import task
+from asynctasq.tasks import task
 
 # Define your Tortoise model
 class User(Model):

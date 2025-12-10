@@ -106,6 +106,8 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 
   - ✅ **Type-safe** with full type hints and Generic support
 
+  - ✅ **Three execution modes**: Async (I/O), Thread pool (moderate CPU), Process pool (heavy CPU)
+
   - ✅ **Configurable retries** with custom retry logic hooks
 
   - ✅ **Task timeouts** to prevent runaway tasks
@@ -154,6 +156,10 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 
   - ✅ **Class-based tasks** with lifecycle hooks (`handle`, `failed`, `should_retry`)
 
+  - ✅ **Sync tasks (SyncTask)** – Automatic thread pool execution for blocking operations
+
+  - ✅ **Process tasks (ProcessTask)** – True multiprocessing for CPU-intensive work, bypasses GIL
+
   - ✅ **Method chaining** for fluent task configuration
 
   - ✅ **Environment variable configuration** for 12-factor apps
@@ -173,7 +179,7 @@ uv add asynctasq[redis]
 import asyncio
 
 from asynctasq.config import set_global_config
-from asynctasq.core.task import task
+from asynctasq.tasks import task
 
 # 1. Configure (or use environment variables)
 set_global_config(driver="redis", redis_url="redis://localhost:6379")
