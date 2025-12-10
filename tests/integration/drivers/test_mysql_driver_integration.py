@@ -1050,6 +1050,91 @@ class TestMySQLDriverWithRealMySQL:
         deleted = await mysql_driver.delete_task(str(qid))
         assert deleted is True
 
+    @mark.asyncio
+    async def test_mark_failed_moves_to_dlq(
+        self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
+    ) -> None:
+        """Test mark_failed moves task to dead letter queue."""
+        # Enqueue and dequeue a task
+        task_data = b"test_task_mark_failed"
+        await mysql_driver.enqueue("failqueue", task_data)
+        receipt = await mysql_driver.dequeue("failqueue")
+        assert receipt is not None
+
+        # Mark as failed
+        await mysql_driver.mark_failed("failqueue", receipt)
+
+        # Verify task moved to DLQ
+        async with mysql_conn.cursor() as cursor:
+            await cursor.execute(
+                f"SELECT COUNT(*) FROM {TEST_DLQ_TABLE} WHERE queue_name = %s", ("failqueue",)
+            )
+            row = await cursor.fetchone()
+            assert row[0] == 1
+
+            # Verify task removed from main queue
+            await cursor.execute(
+                f"SELECT COUNT(*) FROM {TEST_QUEUE_TABLE} WHERE queue_name = %s AND status != 'completed'",
+                ("failqueue",),
+            )
+            row = await cursor.fetchone()
+            assert row[0] == 0
+
+    @mark.asyncio
+    async def test_mark_failed_with_invalid_receipt(self, mysql_driver: MySQLDriver) -> None:
+        """Test mark_failed with invalid receipt handle is safe."""
+        # Should not raise error
+        invalid_receipt = b"invalid_receipt_data"
+        await mysql_driver.mark_failed("testqueue", invalid_receipt)
+
+    @mark.asyncio
+    async def test_nack_edge_case_task_not_in_processing(self, mysql_driver: MySQLDriver) -> None:
+        """Test nack when task is not in processing state."""
+        invalid_receipt = b"nonexistent_task"
+        # Should be safe (noop)
+        await mysql_driver.nack("testqueue", invalid_receipt)
+
+    @mark.asyncio
+    async def test_get_tasks_with_status_filter(self, mysql_driver: MySQLDriver) -> None:
+        """Test get_tasks with status filtering."""
+        # Enqueue some tasks
+        await mysql_driver.enqueue("statusqueue", b"task1")
+        await mysql_driver.enqueue("statusqueue", b"task2")
+        await mysql_driver.enqueue("statusqueue", b"task3")
+
+        # Get pending tasks
+        tasks, total = await mysql_driver.get_tasks(status="pending", queue="statusqueue", limit=10)
+        assert total >= 3
+
+    @mark.asyncio
+    async def test_get_tasks_without_filters(self, mysql_driver: MySQLDriver) -> None:
+        """Test get_tasks without any filters."""
+        # Enqueue some tasks
+        await mysql_driver.enqueue("allqueue", b"task1")
+        await mysql_driver.enqueue("allqueue", b"task2")
+
+        # Get all tasks
+        tasks, total = await mysql_driver.get_tasks(limit=100)
+        assert total >= 2
+
+    @mark.asyncio
+    async def test_get_task_by_id_not_found(self, mysql_driver: MySQLDriver) -> None:
+        """Test get_task_by_id returns None when not found."""
+        result = await mysql_driver.get_task_by_id("99999")
+        assert result is None
+
+    @mark.asyncio
+    async def test_retry_task_not_found(self, mysql_driver: MySQLDriver) -> None:
+        """Test retry_task returns False when task not found."""
+        result = await mysql_driver.retry_task("99999")
+        assert result is False
+
+    @mark.asyncio
+    async def test_delete_task_not_found(self, mysql_driver: MySQLDriver) -> None:
+        """Test delete_task returns False when task not found."""
+        result = await mysql_driver.delete_task("99999")
+        assert result is False
+
 
 if __name__ == "__main__":
     main([__file__, "-s", "-m", "integration"])

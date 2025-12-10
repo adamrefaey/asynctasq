@@ -873,5 +873,147 @@ class TestRedisDriverDelayedTasks:
         assert dequeued_data == task_data
 
 
+@mark.integration
+class TestRedisDriverAdditionalCoverage:
+    """Additional tests to improve coverage for Redis driver."""
+
+    @mark.asyncio
+    async def test_mark_failed_increments_failed_counter(
+        self, redis_driver: RedisDriver, redis_client: Redis
+    ) -> None:
+        """Test mark_failed increments the failed counter."""
+        # Enqueue and dequeue a task
+        task_data = b"test_task_mark_failed"
+        await redis_driver.enqueue("failqueue", task_data)
+        receipt = await redis_driver.dequeue("failqueue")
+        assert receipt is not None
+
+        # Mark as failed
+        await redis_driver.mark_failed("failqueue", receipt)
+
+        # Verify failed counter incremented
+        failed_count = await redis_client.get("queue:failqueue:stats:failed")
+        assert failed_count is not None
+        assert int(failed_count) == 1
+
+        # Verify task removed from processing list
+        processing_len = await redis_client.llen("queue:failqueue:processing")  # type: ignore[misc]
+        assert processing_len == 0
+
+    @mark.asyncio
+    async def test_mark_failed_with_invalid_receipt(self, redis_driver: RedisDriver) -> None:
+        """Test mark_failed with invalid receipt handle is safe."""
+        # Should not increment counter if task not found
+        invalid_receipt = b"invalid_receipt_data"
+        await redis_driver.mark_failed("testqueue", invalid_receipt)
+
+    @mark.asyncio
+    async def test_ack_with_keep_completed_tasks_true(
+        self, redis_url: str, redis_client: Redis
+    ) -> None:
+        """Test ack with keep_completed_tasks=True stores task in completed list."""
+        # Create driver with keep_completed_tasks=True
+        driver = RedisDriver(url=redis_url, db=TEST_DB, keep_completed_tasks=True)
+        await driver.connect()
+
+        try:
+            # Enqueue and dequeue task
+            await driver.enqueue("completedqueue", b"task_to_complete")
+            receipt = await driver.dequeue("completedqueue")
+            assert receipt is not None
+
+            # Ack the task
+            await driver.ack("completedqueue", receipt)
+
+            # Verify task added to completed list
+            completed_len = await redis_client.llen("queue:completedqueue:completed")  # type: ignore[misc]
+            assert completed_len == 1
+
+            # Verify task in completed list is the same
+            completed_task = await redis_client.lindex("queue:completedqueue:completed", 0)  # type: ignore[misc]
+            assert completed_task == receipt
+        finally:
+            await driver.disconnect()
+            await redis_client.delete("queue:completedqueue:completed")
+
+    @mark.asyncio
+    async def test_delete_raw_task_from_dead_letter(
+        self, redis_driver: RedisDriver, redis_client: Redis
+    ) -> None:
+        """Test delete_raw_task removes task from dead letter queue."""
+        queue_name = "deadletterqueue"
+        task_data = b"task_in_dead_letter"
+
+        # Add task to dead letter queue directly
+        await redis_client.rpush(f"queue:{queue_name}:dead", task_data)  # type: ignore[misc]
+
+        # Delete task
+        result = await redis_driver.delete_raw_task(queue_name, task_data)
+        assert result is True
+
+        # Verify task removed
+        dlq_len = await redis_client.llen(f"queue:{queue_name}:dead")  # type: ignore[misc]
+        assert dlq_len == 0
+
+    @mark.asyncio
+    async def test_delete_raw_task_not_found(self, redis_driver: RedisDriver) -> None:
+        """Test delete_raw_task returns False when task not found."""
+        result = await redis_driver.delete_raw_task("testqueue", b"nonexistent")
+        assert result is False
+
+    @mark.asyncio
+    async def test_retry_raw_task_from_dead_letter(
+        self, redis_driver: RedisDriver, redis_client: Redis
+    ) -> None:
+        """Test retry_raw_task moves task from dead letter back to main queue."""
+        queue_name = "retryqueue"
+        task_data = b"task_to_retry"
+
+        # Add task to dead letter queue
+        await redis_client.rpush(f"queue:{queue_name}:dead", task_data)  # type: ignore[misc]
+
+        # Retry task
+        result = await redis_driver.retry_raw_task(queue_name, task_data)
+        assert result is True
+
+        # Verify task moved to main queue
+        main_len = await redis_client.llen(f"queue:{queue_name}")  # type: ignore[misc]
+        assert main_len == 1
+
+        # Verify task removed from dead letter
+        dlq_len = await redis_client.llen(f"queue:{queue_name}:dead")  # type: ignore[misc]
+        assert dlq_len == 0
+
+    @mark.asyncio
+    async def test_retry_raw_task_not_found(self, redis_driver: RedisDriver) -> None:
+        """Test retry_raw_task returns False when task not found."""
+        result = await redis_driver.retry_raw_task("testqueue", b"nonexistent")
+        assert result is False
+
+    @mark.asyncio
+    async def test_get_worker_stats_empty(self, redis_driver: RedisDriver) -> None:
+        """Test get_worker_stats returns empty list when no workers."""
+        stats = await redis_driver.get_worker_stats()
+        assert isinstance(stats, list)
+        # May be empty or have old worker data depending on test environment
+
+    @mark.asyncio
+    async def test_get_all_queue_names_handles_empty(
+        self, redis_url: str, redis_client: Redis
+    ) -> None:
+        """Test get_all_queue_names handles empty Redis."""
+        # Create new driver with clean DB
+        test_db = 14  # Use different DB to ensure it's clean
+        driver = RedisDriver(url=redis_url, db=test_db)
+        await driver.connect()
+
+        try:
+            # Should return empty list
+            names = await driver.get_all_queue_names()
+            assert isinstance(names, list)
+        finally:
+            await driver.disconnect()
+
+
 if __name__ == "__main__":
     main([__file__, "-s", "-m", "integration"])

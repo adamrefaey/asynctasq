@@ -1829,5 +1829,136 @@ class TestPostgresDriverDelayedTasks:
         assert receipt is not None
 
 
+@mark.integration
+class TestPostgresDriverAdditionalCoverage:
+    """Additional tests to improve coverage for PostgreSQL driver."""
+
+    @mark.asyncio
+    async def test_mark_failed_moves_to_dlq(
+        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Test mark_failed moves task to dead letter queue."""
+        # Enqueue and dequeue a task
+        task_data = b"test_task_mark_failed"
+        await postgres_driver.enqueue("failqueue", task_data)
+        receipt = await postgres_driver.dequeue("failqueue")
+        assert receipt is not None
+
+        # Mark as failed
+        await postgres_driver.mark_failed("failqueue", receipt)
+
+        # Verify task moved to DLQ
+        dlq_count = await postgres_conn.fetchval(
+            f"SELECT COUNT(*) FROM {TEST_DLQ_TABLE} WHERE queue_name = $1", "failqueue"
+        )
+        assert dlq_count == 1
+
+        # Verify task removed from main queue
+        queue_count = await postgres_conn.fetchval(
+            f"SELECT COUNT(*) FROM {TEST_QUEUE_TABLE} WHERE queue_name = $1 AND status != 'completed'",
+            "failqueue",
+        )
+        assert queue_count == 0
+
+    @mark.asyncio
+    async def test_mark_failed_with_invalid_receipt(self, postgres_driver: PostgresDriver) -> None:
+        """Test mark_failed with invalid receipt handle is safe."""
+        # Should not raise error
+        invalid_receipt = b"invalid_receipt_data"
+        await postgres_driver.mark_failed("testqueue", invalid_receipt)
+
+    @mark.asyncio
+    async def test_nack_edge_case_task_not_in_processing(
+        self, postgres_driver: PostgresDriver
+    ) -> None:
+        """Test nack when task is not in processing state."""
+        invalid_receipt = b"nonexistent_task"
+        # Should be safe (noop)
+        await postgres_driver.nack("testqueue", invalid_receipt)
+
+    @mark.asyncio
+    async def test_get_tasks_with_status_filter(self, postgres_driver: PostgresDriver) -> None:
+        """Test get_tasks with status filtering."""
+        # Enqueue some tasks
+        await postgres_driver.enqueue("statusqueue", b"task1")
+        await postgres_driver.enqueue("statusqueue", b"task2")
+        await postgres_driver.enqueue("statusqueue", b"task3")
+
+        # Get pending tasks
+        tasks, total = await postgres_driver.get_tasks(
+            status="pending", queue="statusqueue", limit=10
+        )
+        assert total >= 3
+
+    @mark.asyncio
+    async def test_get_tasks_without_filters(self, postgres_driver: PostgresDriver) -> None:
+        """Test get_tasks without any filters."""
+        # Enqueue some tasks
+        await postgres_driver.enqueue("allqueue", b"task1")
+        await postgres_driver.enqueue("allqueue", b"task2")
+
+        # Get all tasks
+        tasks, total = await postgres_driver.get_tasks(limit=100)
+        assert total >= 2
+
+    @mark.asyncio
+    async def test_get_task_by_id_not_found(self, postgres_driver: PostgresDriver) -> None:
+        """Test get_task_by_id returns None when not found."""
+        result = await postgres_driver.get_task_by_id("99999")
+        assert result is None
+
+    @mark.asyncio
+    async def test_retry_task_not_found(self, postgres_driver: PostgresDriver) -> None:
+        """Test retry_task returns False when task not found."""
+        result = await postgres_driver.retry_task(999999999)  # type: ignore[arg-type]
+        assert result is False
+
+    @mark.asyncio
+    async def test_delete_task_not_found(self, postgres_driver: PostgresDriver) -> None:
+        """Test delete_task returns False when task not found."""
+        result = await postgres_driver.delete_task(999999999)  # type: ignore[arg-type]
+        assert result is False
+
+    @mark.asyncio
+    async def test_dequeue_with_poll_timeout_no_task(self, postgres_driver: PostgresDriver) -> None:
+        """Test dequeue with poll timeout when no task arrives."""
+        # Should return None after timeout
+        result = await postgres_driver.dequeue("emptyqueue", poll_seconds=1)
+        assert result is None
+
+    @mark.asyncio
+    async def test_ack_with_keep_completed_tasks_true(
+        self, postgres_dsn: str, postgres_conn: asyncpg.Connection
+    ) -> None:
+        """Test ack keeps task when keep_completed_tasks is True."""
+        # Create driver with keep_completed_tasks=True
+        driver = PostgresDriver(
+            dsn=postgres_dsn,
+            queue_table=TEST_QUEUE_TABLE,
+            dead_letter_table=TEST_DLQ_TABLE,
+            keep_completed_tasks=True,
+        )
+        await driver.connect()
+        await driver.init_schema()
+
+        try:
+            # Enqueue and dequeue task
+            await driver.enqueue("completedqueue", b"task_to_complete")
+            receipt = await driver.dequeue("completedqueue")
+            assert receipt is not None
+
+            # Ack the task
+            await driver.ack("completedqueue", receipt)
+
+            # Verify task marked as completed (not deleted)
+            completed_count = await postgres_conn.fetchval(
+                f"SELECT COUNT(*) FROM {TEST_QUEUE_TABLE} WHERE queue_name = $1 AND status = 'completed'",
+                "completedqueue",
+            )
+            assert completed_count == 1
+        finally:
+            await driver.disconnect()
+
+
 if __name__ == "__main__":
     main([__file__, "-s", "-m", "integration"])

@@ -25,6 +25,7 @@ Note:
 import asyncio
 from collections.abc import AsyncGenerator
 import json
+import time
 from typing import Any, cast
 
 import aioboto3
@@ -783,6 +784,170 @@ class TestSQSDriverDelayedMessages:
         # Assert - Should now be available
         dequeued_data = await sqs_driver.dequeue(TEST_QUEUE_NAME)
         assert dequeued_data is not None
+
+
+@mark.integration
+class TestSQSDriverAdditionalCoverage:
+    """Additional tests to improve coverage for SQS driver."""
+
+    @mark.asyncio
+    async def test_mark_failed_removes_message(self, sqs_driver: SQSDriver) -> None:
+        """Test mark_failed removes message from queue."""
+        # Enqueue and dequeue a task
+        task_data = json.dumps({"task": "test_task_mark_failed"}).encode("utf-8")
+        await sqs_driver.enqueue(TEST_QUEUE_NAME, task_data)
+        receipt = await sqs_driver.dequeue(TEST_QUEUE_NAME)
+        assert receipt is not None
+
+        # Mark as failed (should delete message)
+        await sqs_driver.mark_failed(TEST_QUEUE_NAME, receipt)
+
+        # Verify message is gone (not visible)
+        result = await sqs_driver.dequeue(TEST_QUEUE_NAME, poll_seconds=1)
+        assert result is None
+
+    @mark.asyncio
+    async def test_mark_failed_with_invalid_receipt(self, sqs_driver: SQSDriver) -> None:
+        """Test mark_failed with invalid receipt handle is safe."""
+        # Should not raise error
+        invalid_receipt = b"invalid_receipt_data"
+        await sqs_driver.mark_failed("testqueue", invalid_receipt)
+
+    @mark.asyncio
+    async def test_ack_with_invalid_receipt_logs_warning(self, sqs_driver: SQSDriver) -> None:
+        """Test ack with invalid receipt handle logs warning and returns gracefully."""
+        invalid_receipt = b"invalid_receipt_data"
+        # Should log warning but not raise
+        await sqs_driver.ack(TEST_QUEUE_NAME, invalid_receipt)
+
+    @mark.asyncio
+    async def test_nack_with_invalid_receipt_logs_warning(self, sqs_driver: SQSDriver) -> None:
+        """Test nack with invalid receipt handle logs warning and returns gracefully."""
+        invalid_receipt = b"invalid_receipt_data"
+        # Should log warning but not raise
+        await sqs_driver.nack(TEST_QUEUE_NAME, invalid_receipt)
+
+    @mark.asyncio
+    async def test_get_queue_url_creates_queue_if_not_exists(self, sqs_driver: SQSDriver) -> None:
+        """Test _get_queue_url creates queue if it doesn't exist."""
+        # Use a unique queue name
+        new_queue_name = f"test-new-queue-{int(time.time())}"
+
+        # Get URL (should create queue)
+        queue_url = await sqs_driver._get_queue_url(new_queue_name)
+        assert queue_url is not None
+        assert new_queue_name in queue_url
+
+        # Verify queue is cached
+        cached_url = await sqs_driver._get_queue_url(new_queue_name)
+        assert cached_url == queue_url
+
+    @mark.asyncio
+    async def test_get_queue_stats_includes_all_metrics(self, sqs_driver: SQSDriver) -> None:
+        """Test get_queue_stats returns all expected metrics."""
+        # Enqueue some tasks
+        await sqs_driver.enqueue(TEST_QUEUE_NAME, b"task1")
+        await sqs_driver.enqueue(TEST_QUEUE_NAME, b"task2")
+
+        # Get stats
+        stats = await sqs_driver.get_queue_stats(TEST_QUEUE_NAME)
+
+        # Verify structure
+        assert "name" in stats
+        assert "depth" in stats
+        assert "processing" in stats
+        assert stats["name"] == TEST_QUEUE_NAME
+        assert isinstance(stats["depth"], int)
+
+    @mark.asyncio
+    async def test_get_all_queue_names_returns_list(self, sqs_driver: SQSDriver) -> None:
+        """Test get_all_queue_names returns list of queue names."""
+        # Get queue names
+        names = await sqs_driver.get_all_queue_names()
+
+        # Verify structure
+        assert isinstance(names, list)
+        # Should at least include our test queue
+        assert TEST_QUEUE_NAME in names or any(TEST_QUEUE_NAME in name for name in names)
+
+    @mark.asyncio
+    async def test_get_global_stats_returns_aggregated_counts(self, sqs_driver: SQSDriver) -> None:
+        """Test get_global_stats returns aggregated statistics."""
+        # Get global stats
+        stats = await sqs_driver.get_global_stats()
+
+        # Verify structure
+        assert "pending" in stats
+        assert "running" in stats
+        assert isinstance(stats["pending"], int)
+        assert isinstance(stats["running"], int)
+
+    @mark.asyncio
+    async def test_unsupported_monitoring_methods_return_expected_defaults(
+        self, sqs_driver: SQSDriver
+    ) -> None:
+        """Test that unsupported monitoring methods return appropriate defaults."""
+        # get_running_tasks should return empty list
+        running = await sqs_driver.get_running_tasks()
+        assert running == []
+
+        # get_tasks should return empty list
+        tasks, total = await sqs_driver.get_tasks()
+        assert tasks == []
+        assert total == 0
+
+        # get_task_by_id should return None
+        task = await sqs_driver.get_task_by_id("test-id")
+        assert task is None
+
+        # retry_task should return False
+        result = await sqs_driver.retry_task("test-id")
+        assert result is False
+
+        # delete_task should return False
+        result = await sqs_driver.delete_task("test-id")
+        assert result is False
+
+        # get_worker_stats should return empty list
+        workers = await sqs_driver.get_worker_stats()
+        assert workers == []
+
+    @mark.asyncio
+    async def test_dequeue_with_long_poll(self, sqs_driver: SQSDriver) -> None:
+        """Test dequeue with long polling."""
+        # Dequeue with long poll (should timeout and return None)
+        result = await sqs_driver.dequeue(TEST_QUEUE_NAME, poll_seconds=2)
+        assert result is None
+
+    @mark.asyncio
+    async def test_disconnect_clears_all_caches(self, aws_region: str) -> None:
+        """Test disconnect clears all internal caches."""
+        driver = SQSDriver(
+            region_name=aws_region,
+            aws_access_key_id="test",
+            aws_secret_access_key="test",
+            endpoint_url=LOCALSTACK_ENDPOINT,
+            queue_url_prefix=f"{LOCALSTACK_ENDPOINT}/000000000000",
+        )
+        await driver.connect()
+
+        # Populate caches
+        await driver._get_queue_url(TEST_QUEUE_NAME)
+        await driver.enqueue(TEST_QUEUE_NAME, b"test")
+        receipt = await driver.dequeue(TEST_QUEUE_NAME)
+
+        # Verify caches are populated
+        assert len(driver._queue_urls) > 0
+        if receipt:
+            assert len(driver._receipt_handles) > 0
+
+        # Disconnect
+        await driver.disconnect()
+
+        # Verify caches cleared
+        assert len(driver._queue_urls) == 0
+        assert len(driver._receipt_handles) == 0
+        assert driver.client is None
 
 
 if __name__ == "__main__":
