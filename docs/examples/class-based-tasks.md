@@ -2,17 +2,29 @@
 
 This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of class-based tasks in AsyncTasQ.
 
-Class-based tasks use the `Task` base class to create reusable, testable tasks with lifecycle hooks, custom retry logic, and advanced configuration options.
+## Three Execution Modes
 
-**Key Features:**
+AsyncTasQ provides **three task execution modes** optimized for different workloads:
 
+1. **BaseTask** (Async) - Default choice for I/O-bound operations (90% of use cases)
+2. **SyncTask** (Thread Pool) - For blocking libraries or moderate CPU work  
+3. **ProcessTask** (Process Pool) - For heavy CPU-intensive workloads (video encoding, ML)
+
+See [Async vs Sync vs Process Tasks](#async-vs-sync-vs-process-tasks) for detailed comparison and examples.
+
+## Key Features
+
+Class-based tasks use the `BaseTask`, `SyncTask`, or `ProcessTask` base classes to create reusable, testable tasks with lifecycle hooks, custom retry logic, and advanced configuration options.
+
+**Core Capabilities:**
+
+- **Three execution modes** - Choose async, thread pool, or process pool based on workload
 - **Lifecycle hooks** - `handle()`, `failed()`, `should_retry()` for complete control
 - **Reusable and testable** - Class-based design for better organization
 - **Flexible configuration** - Queue, retries, timeout, driver via class attributes or method chaining
 - **Method chaining** - Override configuration at dispatch time with fluent API
 - **ORM model serialization** - Automatic lightweight references for SQLAlchemy, Django, Tortoise
 - **Type-safe** - Full type hints and Generic support
-- **Sync task support** - `SyncTask` base class for blocking operations
 - **Task metadata** - Access task ID, attempts, dispatched time
 
 ---
@@ -24,7 +36,7 @@ Class-based tasks use the `Task` base class to create reusable, testable tasks w
 - [Configuration Options](#configuration-options)
 - [Lifecycle Hooks](#lifecycle-hooks)
 - [Dispatching Tasks](#dispatching-tasks)
-- [Async vs Sync Tasks](#async-vs-sync-tasks)
+- [Async vs Sync vs Process Tasks](#async-vs-sync-vs-process-tasks)
 - [Driver Overrides](#driver-overrides)
 - [ORM Integration](#orm-integration)
 - [Method Chaining](#method-chaining)
@@ -672,13 +684,29 @@ async def main():
 
 ## Async vs Sync vs Process Tasks
 
-AsyncTasQ supports three task execution modes optimized for different workloads:
+AsyncTasQ supports **three task execution modes** optimized for different workloads. **Choosing the correct mode is critical for optimal performance.**
 
-- **Async tasks** (`Task`): Run directly in the event loop (best for I/O-bound operations)
-- **Sync tasks** (`SyncTask`): Automatically run in a thread pool (good for moderate CPU work or blocking libraries)
-- **Process tasks** (`ProcessTask`): Run in separate processes with independent GIL (best for heavy CPU-intensive work)
+### The Three Modes
 
-**When to use each:**
+1. **BaseTask (Async)** - Runs directly in the event loop
+   - Best for: I/O-bound operations (API calls, database queries, file I/O)
+   - CPU usage: < 10%
+   - Concurrency: 1000s of concurrent tasks
+   - Use when: Async libraries available, waiting for I/O
+
+2. **SyncTask (Thread Pool)** - Automatically runs in thread pool
+   - Best for: Moderate CPU work or blocking libraries
+   - CPU usage: 10-80%
+   - Concurrency: Limited by thread pool size
+   - Use when: Using sync-only libraries (requests, PIL), moderate CPU work
+
+3. **ProcessTask (Process Pool)** - Runs in separate process with independent GIL
+   - Best for: Heavy CPU-intensive computation
+   - CPU usage: > 80%
+   - Concurrency: Limited by CPU cores
+   - Use when: Video encoding, ML inference, heavy math operations
+
+### Decision Table
 
 | Use Case                              | Task Type        | Reason                                    |
 | ------------------------------------- | ---------------- | ----------------------------------------- |
@@ -908,7 +936,7 @@ process_pool_max_tasks_per_child = 1000  # Higher = better performance, potentia
 **When to Use Each Task Type:**
 
 ```python
-# ✅ Use Task for I/O-bound work (API calls, DB, files)
+# ✅ Use BaseTask for I/O-bound work (API calls, DB, files)
 class FetchAPI(BaseTask[dict]):
     async def handle(self) -> dict:
         async with httpx.AsyncClient() as client:
@@ -929,6 +957,26 @@ class TrainModel(ProcessTask[float]):
         result = np.linalg.inv(large_matrix @ large_matrix.T)
         return float(np.trace(result))
 ```
+
+### Summary: Choosing the Right Mode
+
+**Quick Reference:**
+
+| Your Task Does... | Use This | Method Name | Example |
+|-------------------|----------|-------------|---------|
+| API calls, database queries, file I/O | `BaseTask` | `async def handle()` | Fetch user data from API |
+| Image resize, data parsing, sync libraries | `SyncTask` | `def handle_sync()` | Resize image with PIL |
+| Video encoding, ML training, heavy math | `ProcessTask` | `def handle_process()` | Train neural network |
+
+**Rule of Thumb:**
+- **Default to BaseTask** - Use for 90% of tasks (I/O-bound)
+- **Switch to SyncTask** - Only when using blocking libraries or moderate CPU work
+- **Switch to ProcessTask** - Only when profiling shows >80% CPU usage
+
+**Performance Tips:**
+- ⚡ **BaseTask**: Can handle 1000s concurrently, minimal memory
+- 🔄 **SyncTask**: Limited by thread pool, ~1MB per thread
+- 💪 **ProcessTask**: Limited by CPU cores, ~50MB+ per process
 
 ### Mixed Async/Sync/Process in Same Application
 

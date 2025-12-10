@@ -65,7 +65,7 @@ task_id = await send_email(to="user@example.com", subject="Hello", body="Hi!").d
 
 ## Class-Based Tasks
 
-Use the `Task` base class for complex tasks with lifecycle hooks and custom retry logic.
+Use the `BaseTask` base class for complex tasks with lifecycle hooks and custom retry logic.
 
 **Basic Class Task:**
 
@@ -204,18 +204,28 @@ class VideoEncoding(ProcessTask[str]):
 
 ## Choosing the Right Task Type
 
-AsyncTasQ provides three task execution modes optimized for different workloads:
+AsyncTasQ provides **three task execution modes** optimized for different workloads. Choosing the right mode is critical for optimal performance:
+
+### The Three Execution Modes
+
+1. **BaseTask** (Async) - Event loop execution for I/O-bound operations
+2. **SyncTask** (Thread Pool) - Thread pool execution for moderate CPU work or blocking libraries  
+3. **ProcessTask** (Process Pool) - Multiprocessing execution for heavy CPU-intensive workloads
+
+### Comparison Table
 
 | Task Type       | Execution Context  | Best For                          | CPU Usage   | Example Use Cases                        |
 | --------------- | ------------------ | --------------------------------- | ----------- | ---------------------------------------- |
-| `Task`          | Event loop (async) | I/O-bound operations              | < 10%       | API calls, DB queries, file I/O, network |
+| `BaseTask`      | Event loop (async) | I/O-bound operations              | < 10%       | API calls, DB queries, file I/O, network |
 | `SyncTask`      | Thread pool (sync) | Moderate CPU work, blocking libs  | 10-80%      | Image resize, data parsing, sync libs    |
 | `ProcessTask`   | Process pool       | Heavy CPU-intensive computation   | > 80%       | Video encoding, ML inference, encryption |
 
-**Decision Matrix:**
+### Quick Decision Matrix
+
+**Choose based on your workload characteristics:**
 
 ```python
-# ✅ Use Task (async) for I/O-bound work
+# ✅ Use BaseTask (async) for I/O-bound work
 class FetchData(BaseTask[dict]):
     async def handle(self) -> dict:
         async with httpx.AsyncClient() as client:
@@ -239,13 +249,32 @@ class TrainModel(ProcessTask[dict]):
         return {"accuracy": 0.95}
 ```
 
-**Performance Guidelines:**
+### Performance Characteristics
 
-- **Task**: 1000s of concurrent tasks, minimal memory overhead
-- **SyncTask**: Limited by thread pool size, some overhead
-- **ProcessTask**: Limited by CPU cores, high memory per process (~50MB+)
+| Mode | Concurrency | Memory Overhead | Best Throughput |
+|------|------------|-----------------|------------------|
+| **BaseTask** | 1000s concurrent | Minimal (~KB per task) | I/O-bound workloads |
+| **SyncTask** | Thread pool limited | Moderate (~MB per thread) | Mixed I/O + CPU |
+| **ProcessTask** | CPU core limited | High (~50MB+ per process) | CPU-bound workloads |
 
-**When to Use ProcessTask:**
+### When to Use Each Type
+
+**BaseTask (Default - Use for 90% of tasks):**
+
+✅ I/O-bound operations (API calls, database queries, file operations)  
+✅ Tasks that spend time waiting (network, disk, external services)  
+✅ Async libraries available (httpx, aiohttp, asyncpg, etc.)  
+✅ Need high concurrency (1000s of tasks)  
+✅ CPU usage < 10%
+
+**SyncTask (Use for blocking code):**
+
+✅ Using blocking/sync-only libraries (requests, PIL, pandas)  
+✅ Moderate CPU work (10-80% utilization)  
+✅ Don't want to convert sync code to async  
+✅ Thread pool size sufficient for your concurrency needs
+
+**ProcessTask (Use sparingly for heavy CPU work):**
 
 ✅ CPU utilization > 80% (verified with profiling)  
 ✅ Task duration > 100ms (amortizes process overhead)  
