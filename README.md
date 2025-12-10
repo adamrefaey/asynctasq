@@ -14,9 +14,9 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 
 ## Table of Contents
 
-- [AsyncTasQ](#async-tasq)
+- [AsyncTasQ](#asynctasq)
   - [Table of Contents](#table-of-contents)
-  - [Why AsyncTasQ?](#why-async-tasq)
+  - [Why AsyncTasQ?](#why-asynctasq)
     - [Async-First Architecture](#async-first-architecture)
     - [High-Performance Serialization](#high-performance-serialization)
     - [Production-Ready Features](#production-ready-features)
@@ -31,10 +31,10 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
   - [Quick Reference](#quick-reference)
   - [CI \& Contributing (short)](#ci--contributing-short)
   - [Comparison with Alternatives](#comparison-with-alternatives)
-    - [AsyncTasQ vs. Celery](#async-tasq-vs-celery)
-    - [AsyncTasQ vs. Dramatiq](#async-tasq-vs-dramatiq)
-    - [AsyncTasQ vs. RQ (Redis Queue)](#async-tasq-vs-rq-redis-queue)
-    - [AsyncTasQ vs. Huey](#async-tasq-vs-huey)
+    - [AsyncTasQ vs. Celery](#asynctasq-vs-celery)
+    - [AsyncTasQ vs. Dramatiq](#asynctasq-vs-dramatiq)
+    - [AsyncTasQ vs. RQ (Redis Queue)](#asynctasq-vs-rq-redis-queue)
+    - [AsyncTasQ vs. Huey](#asynctasq-vs-huey)
     - [Key Differentiators](#key-differentiators)
   - [📊 Monitoring Dashboard](#-monitoring-dashboard)
     - [asynctasq-monitor](#asynctasq-monitor)
