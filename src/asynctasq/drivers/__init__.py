@@ -12,4 +12,4 @@ DRIVERS = ("redis", "sqs", "postgres", "mysql", "rabbitmq")
 
 type DriverType = Literal["redis", "sqs", "postgres", "mysql", "rabbitmq"]
 
-__all__ = ["BaseDriver", "DRIVERS"]
+__all__ = ["BaseDriver", "DRIVERS", "DriverType"]
