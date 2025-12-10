@@ -199,11 +199,11 @@ class RedisEventEmitter:
 
     Configuration:
         The Redis URL for events is read from global config in this order:
-        1. events_redis_url if explicitly set (asynctasq_EVENTS_REDIS_URL env var)
-        2. Falls back to redis_url (asynctasq_REDIS_URL env var)
+        1. events_redis_url if explicitly set (ASYNCTASQ_EVENTS_REDIS_URL env var)
+        2. Falls back to redis_url (ASYNCTASQ_REDIS_URL env var)
 
         The Pub/Sub channel is configured via events_channel in global config
-        (asynctasq_EVENTS_CHANNEL env var, default: asynctasq:events).
+        (ASYNCTASQ_EVENTS_CHANNEL env var, default: asynctasq:events).
 
         This allows using a different Redis instance for events/monitoring
         than the one used for the queue driver.
@@ -357,9 +357,9 @@ def create_event_emitter(
         1. Install with monitor extra: pip install asynctasq[monitor]
         2. Ensure a Redis server is running and accessible
         3. Configure via set_global_config() or environment variables:
-           - events_redis_url / asynctasq_EVENTS_REDIS_URL (dedicated events Redis)
-           - redis_url / asynctasq_REDIS_URL (fallback if events_redis_url not set)
-           - events_channel / asynctasq_EVENTS_CHANNEL (Pub/Sub channel name)
+           - events_redis_url / ASYNCTASQ_EVENTS_REDIS_URL (dedicated events Redis)
+           - redis_url / ASYNCTASQ_REDIS_URL (fallback if events_redis_url not set)
+           - events_channel / ASYNCTASQ_EVENTS_CHANNEL (Pub/Sub channel name)
     """
     emitters: list[EventEmitter] = []
 

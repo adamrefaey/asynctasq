@@ -99,12 +99,12 @@ class ProcessPayment(BaseTask[bool]):
 
 ```bash
 # Environment variables in production
-export asynctasq_DRIVER=redis
-export asynctasq_REDIS_URL=redis://redis-master:6379
-export asynctasq_REDIS_PASSWORD=${REDIS_PASSWORD}
-export asynctasq_DEFAULT_MAX_RETRIES=5
-export asynctasq_DEFAULT_RETRY_DELAY=120
-export asynctasq_DEFAULT_TIMEOUT=300
+export ASYNCTASQ_DRIVER=redis
+export ASYNCTASQ_REDIS_URL=redis://redis-master:6379
+export ASYNCTASQ_REDIS_PASSWORD=${REDIS_PASSWORD}
+export ASYNCTASQ_DEFAULT_MAX_RETRIES=5
+export ASYNCTASQ_DEFAULT_RETRY_DELAY=120
+export ASYNCTASQ_DEFAULT_TIMEOUT=300
 
 # Multiple worker processes
 python -m asynctasq worker --queues critical --concurrency 20 &

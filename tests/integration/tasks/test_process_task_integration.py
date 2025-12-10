@@ -13,7 +13,7 @@ from asynctasq.serializers.msgpack_serializer import MsgpackSerializer
 from asynctasq.tasks import ProcessTask
 
 # Test Redis connection
-REDIS_URL = os.getenv("asynctasq_REDIS_URL", "redis://localhost:6379")
+REDIS_URL = os.getenv("ASYNCTASQ_REDIS_URL", "redis://localhost:6379")
 
 
 class FactorialTask(ProcessTask[int]):

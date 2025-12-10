@@ -364,10 +364,10 @@ jobs:
 
       - name: Run integration tests (activate .venv)
         env:
-          asynctasq_REDIS_URL: redis://127.0.0.1:6379
-          asynctasq_POSTGRES_URL: postgresql://test:test@127.0.0.1:5432/test_db
-          asynctasq_MYSQL_URL: mysql://test:test@127.0.0.1:3306/test_db
-          asynctasq_RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672/
+          ASYNCTASQ_REDIS_URL: redis://127.0.0.1:6379
+          ASYNCTASQ_POSTGRES_URL: postgresql://test:test@127.0.0.1:5432/test_db
+          ASYNCTASQ_MYSQL_URL: mysql://test:test@127.0.0.1:3306/test_db
+          ASYNCTASQ_RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672/
         run: |
           set -euo pipefail
           if [ -f .venv/bin/activate ]; then

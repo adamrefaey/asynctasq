@@ -137,7 +137,7 @@ just init              # Initial setup (run once)
 
 ## Configuration
 
-All env vars use `asynctasq_` prefix. See `src/asynctasq/config.py` for complete list.
+All env vars use `ASYNCTASQ_` prefix. See `src/asynctasq/config.py` for complete list.
 
 **Key settings**: `DRIVER` (redis|postgres|mysql|rabbitmq|sqs), `REDIS_URL`, `POSTGRES_DSN`, driver-specific config
 

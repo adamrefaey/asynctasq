@@ -57,8 +57,8 @@ python -m asynctasq worker --queues high,default,low --concurrency 20
 
 ```bash
 # Set environment variables
-export asynctasq_DRIVER=redis
-export asynctasq_REDIS_URL=redis://localhost:6379
+export ASYNCTASQ_DRIVER=redis
+export ASYNCTASQ_REDIS_URL=redis://localhost:6379
 
 # Start worker (reads from env vars)
 python -m asynctasq worker
@@ -215,8 +215,8 @@ await worker.start()
 **Configure via Environment:**
 
 ```bash
-export asynctasq_EVENTS_REDIS_URL=redis://localhost:6379
-export asynctasq_EVENTS_CHANNEL=asynctasq:events
+export ASYNCTASQ_EVENTS_REDIS_URL=redis://localhost:6379
+export ASYNCTASQ_EVENTS_CHANNEL=asynctasq:events
 ```
 
 **Consume Events:**

@@ -108,7 +108,7 @@ python -m asynctasq migrate \
     --mysql-dsn mysql://user:pass@localhost:3306/db
 
 # Using environment variables
-export asynctasq_POSTGRES_DSN=postgresql://user:pass@localhost/db
+export ASYNCTASQ_POSTGRES_DSN=postgresql://user:pass@localhost/db
 python -m asynctasq migrate
 ```
 

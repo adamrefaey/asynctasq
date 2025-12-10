@@ -30,11 +30,11 @@ pip install "asynctasq[redis]"
 
 ```bash
 # Environment variables
-export asynctasq_DRIVER=redis
-export asynctasq_REDIS_URL=redis://localhost:6379
-export asynctasq_REDIS_PASSWORD=secret  # Optional
-export asynctasq_REDIS_DB=0
-export asynctasq_REDIS_MAX_CONNECTIONS=10
+export ASYNCTASQ_DRIVER=redis
+export ASYNCTASQ_REDIS_URL=redis://localhost:6379
+export ASYNCTASQ_REDIS_PASSWORD=secret  # Optional
+export ASYNCTASQ_REDIS_DB=0
+export ASYNCTASQ_REDIS_MAX_CONNECTIONS=10
 ```
 
 ```python
@@ -89,15 +89,15 @@ pip install "asynctasq[postgres]"
 
 ```bash
 # Environment variables
-export asynctasq_DRIVER=postgres
-export asynctasq_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
-export asynctasq_POSTGRES_QUEUE_TABLE=task_queue
-export asynctasq_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
-export asynctasq_POSTGRES_MAX_ATTEMPTS=3
-export asynctasq_POSTGRES_RETRY_DELAY_SECONDS=60
-export asynctasq_POSTGRES_VISIBILITY_TIMEOUT_SECONDS=300
-export asynctasq_POSTGRES_MIN_POOL_SIZE=10
-export asynctasq_POSTGRES_MAX_POOL_SIZE=10
+export ASYNCTASQ_DRIVER=postgres
+export ASYNCTASQ_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
+export ASYNCTASQ_POSTGRES_QUEUE_TABLE=task_queue
+export ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
+export ASYNCTASQ_POSTGRES_MAX_ATTEMPTS=3
+export ASYNCTASQ_POSTGRES_RETRY_DELAY_SECONDS=60
+export ASYNCTASQ_POSTGRES_VISIBILITY_TIMEOUT_SECONDS=300
+export ASYNCTASQ_POSTGRES_MIN_POOL_SIZE=10
+export ASYNCTASQ_POSTGRES_MAX_POOL_SIZE=10
 ```
 
 ```python
@@ -160,15 +160,15 @@ pip install "asynctasq[mysql]"
 
 ```bash
 # Environment variables
-export asynctasq_DRIVER=mysql
-export asynctasq_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
-export asynctasq_MYSQL_QUEUE_TABLE=task_queue
-export asynctasq_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
-export asynctasq_MYSQL_MAX_ATTEMPTS=3
-export asynctasq_MYSQL_RETRY_DELAY_SECONDS=60
-export asynctasq_MYSQL_VISIBILITY_TIMEOUT_SECONDS=300
-export asynctasq_MYSQL_MIN_POOL_SIZE=10
-export asynctasq_MYSQL_MAX_POOL_SIZE=10
+export ASYNCTASQ_DRIVER=mysql
+export ASYNCTASQ_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
+export ASYNCTASQ_MYSQL_QUEUE_TABLE=task_queue
+export ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
+export ASYNCTASQ_MYSQL_MAX_ATTEMPTS=3
+export ASYNCTASQ_MYSQL_RETRY_DELAY_SECONDS=60
+export ASYNCTASQ_MYSQL_VISIBILITY_TIMEOUT_SECONDS=300
+export ASYNCTASQ_MYSQL_MIN_POOL_SIZE=10
+export ASYNCTASQ_MYSQL_MAX_POOL_SIZE=10
 ```
 
 ```python
@@ -231,9 +231,9 @@ pip install "asynctasq[sqs]"
 
 ```bash
 # Environment variables
-export asynctasq_DRIVER=sqs
-export asynctasq_SQS_REGION=us-east-1
-export asynctasq_SQS_QUEUE_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
+export ASYNCTASQ_DRIVER=sqs
+export ASYNCTASQ_SQS_REGION=us-east-1
+export ASYNCTASQ_SQS_QUEUE_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
 ```
@@ -294,10 +294,10 @@ pip install "asynctasq[rabbitmq]"
 
 ```bash
 # Environment variables
-export asynctasq_DRIVER=rabbitmq
-export asynctasq_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-export asynctasq_RABBITMQ_EXCHANGE_NAME=asynctasq
-export asynctasq_RABBITMQ_PREFETCH_COUNT=1
+export ASYNCTASQ_DRIVER=rabbitmq
+export ASYNCTASQ_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+export ASYNCTASQ_RABBITMQ_EXCHANGE_NAME=asynctasq
+export ASYNCTASQ_RABBITMQ_PREFETCH_COUNT=1
 ```
 
 ```python

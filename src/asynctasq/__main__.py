@@ -31,7 +31,7 @@ Worker Command:
     Options:
         --driver DRIVER
             Queue driver to use. Choices: redis, sqs, postgres, mysql
-            Default: from asynctasq_DRIVER env var or 'redis'
+            Default: from ASYNCTASQ_DRIVER env var or 'redis'
 
         --queues QUEUES
             Comma-separated list of queue names to process in priority order
@@ -45,58 +45,58 @@ Worker Command:
         Redis Options:
             --redis-url URL
                 Redis connection URL
-                Default: from asynctasq_REDIS_URL env var or 'redis://localhost:6379'
+                Default: from ASYNCTASQ_REDIS_URL env var or 'redis://localhost:6379'
 
             --redis-password PASSWORD
                 Redis password
-                Default: from asynctasq_REDIS_PASSWORD env var
+                Default: from ASYNCTASQ_REDIS_PASSWORD env var
 
             --redis-db N
                 Redis database number (0-15)
-                Default: from asynctasq_REDIS_DB env var or 0
+                Default: from ASYNCTASQ_REDIS_DB env var or 0
 
             --redis-max-connections N
                 Redis max connections in pool
-                Default: from asynctasq_REDIS_MAX_CONNECTIONS env var or 10
+                Default: from ASYNCTASQ_REDIS_MAX_CONNECTIONS env var or 10
 
         PostgreSQL Options:
             --postgres-dsn DSN
                 PostgreSQL connection DSN
-                Default: from asynctasq_POSTGRES_DSN env var or
+                Default: from ASYNCTASQ_POSTGRES_DSN env var or
                 'postgresql://test:test@localhost:5432/test_db'
 
             --postgres-queue-table TABLE
                 PostgreSQL queue table name
-                Default: from asynctasq_POSTGRES_QUEUE_TABLE env var or 'task_queue'
+                Default: from ASYNCTASQ_POSTGRES_QUEUE_TABLE env var or 'task_queue'
 
             --postgres-dead-letter-table TABLE
                 PostgreSQL dead letter table name
-                Default: from asynctasq_POSTGRES_DEAD_LETTER_TABLE env var or
+                Default: from ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE env var or
                 'dead_letter_queue'
 
         MySQL Options:
             --mysql-dsn DSN
                 MySQL connection DSN
-                Default: from asynctasq_MYSQL_DSN env var or
+                Default: from ASYNCTASQ_MYSQL_DSN env var or
                 'mysql://test:test@localhost:3306/test_db'
 
             --mysql-queue-table TABLE
                 MySQL queue table name
-                Default: from asynctasq_MYSQL_QUEUE_TABLE env var or 'task_queue'
+                Default: from ASYNCTASQ_MYSQL_QUEUE_TABLE env var or 'task_queue'
 
             --mysql-dead-letter-table TABLE
                 MySQL dead letter table name
-                Default: from asynctasq_MYSQL_DEAD_LETTER_TABLE env var or
+                Default: from ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE env var or
                 'dead_letter_queue'
 
         SQS Options:
             --sqs-region REGION
                 AWS SQS region
-                Default: from asynctasq_SQS_REGION env var or 'us-east-1'
+                Default: from ASYNCTASQ_SQS_REGION env var or 'us-east-1'
 
             --sqs-queue-url-prefix PREFIX
                 SQS queue URL prefix
-                Default: from asynctasq_SQS_QUEUE_PREFIX env var
+                Default: from ASYNCTASQ_SQS_QUEUE_PREFIX env var
 
             --aws-access-key-id KEY
                 AWS access key ID
@@ -160,30 +160,30 @@ Migrate Command:
 
         --postgres-dsn DSN
             PostgreSQL connection DSN
-            Default: from asynctasq_POSTGRES_DSN env var or
+            Default: from ASYNCTASQ_POSTGRES_DSN env var or
             'postgresql://test:test@localhost:5432/test_db'
 
         --postgres-queue-table TABLE
             PostgreSQL queue table name
-            Default: from asynctasq_POSTGRES_QUEUE_TABLE env var or 'task_queue'
+            Default: from ASYNCTASQ_POSTGRES_QUEUE_TABLE env var or 'task_queue'
 
         --postgres-dead-letter-table TABLE
             PostgreSQL dead letter table name
-            Default: from asynctasq_POSTGRES_DEAD_LETTER_TABLE env var or
+            Default: from ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE env var or
             'dead_letter_queue'
 
         --mysql-dsn DSN
             MySQL connection DSN
-            Default: from asynctasq_MYSQL_DSN env var or
+            Default: from ASYNCTASQ_MYSQL_DSN env var or
             'mysql://test:test@localhost:3306/test_db'
 
         --mysql-queue-table TABLE
             MySQL queue table name
-            Default: from asynctasq_MYSQL_QUEUE_TABLE env var or 'task_queue'
+            Default: from ASYNCTASQ_MYSQL_QUEUE_TABLE env var or 'task_queue'
 
         --mysql-dead-letter-table TABLE
             MySQL dead letter table name
-            Default: from asynctasq_MYSQL_DEAD_LETTER_TABLE env var or
+            Default: from ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE env var or
             'dead_letter_queue'
 
     Examples:
@@ -217,28 +217,28 @@ Environment Variables:
     take precedence over environment variables.
 
     General:
-        asynctasq_DRIVER              Queue driver (redis, postgres, mysql, sqs)
-        asynctasq_DEFAULT_QUEUE       Default queue name
+        ASYNCTASQ_DRIVER              Queue driver (redis, postgres, mysql, sqs)
+        ASYNCTASQ_DEFAULT_QUEUE       Default queue name
 
     Redis:
-        asynctasq_REDIS_URL           Redis connection URL
-        asynctasq_REDIS_PASSWORD      Redis password
-        asynctasq_REDIS_DB            Redis database number
-        asynctasq_REDIS_MAX_CONNECTIONS  Redis max connections
+        ASYNCTASQ_REDIS_URL           Redis connection URL
+        ASYNCTASQ_REDIS_PASSWORD      Redis password
+        ASYNCTASQ_REDIS_DB            Redis database number
+        ASYNCTASQ_REDIS_MAX_CONNECTIONS  Redis max connections
 
     PostgreSQL:
-        asynctasq_POSTGRES_DSN        PostgreSQL connection DSN
-        asynctasq_POSTGRES_QUEUE_TABLE  Queue table name
-        asynctasq_POSTGRES_DEAD_LETTER_TABLE  Dead letter table name
+        ASYNCTASQ_POSTGRES_DSN        PostgreSQL connection DSN
+        ASYNCTASQ_POSTGRES_QUEUE_TABLE  Queue table name
+        ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE  Dead letter table name
 
     MySQL:
-        asynctasq_MYSQL_DSN           MySQL connection DSN
-        asynctasq_MYSQL_QUEUE_TABLE   Queue table name
-        asynctasq_MYSQL_DEAD_LETTER_TABLE  Dead letter table name
+        ASYNCTASQ_MYSQL_DSN           MySQL connection DSN
+        ASYNCTASQ_MYSQL_QUEUE_TABLE   Queue table name
+        ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE  Dead letter table name
 
     SQS:
-        asynctasq_SQS_REGION          AWS region
-        asynctasq_SQS_QUEUE_PREFIX    SQS queue URL prefix
+        ASYNCTASQ_SQS_REGION          AWS region
+        ASYNCTASQ_SQS_QUEUE_PREFIX    SQS queue URL prefix
         AWS_ACCESS_KEY_ID              AWS access key ID
         AWS_SECRET_ACCESS_KEY          AWS secret access key
 
