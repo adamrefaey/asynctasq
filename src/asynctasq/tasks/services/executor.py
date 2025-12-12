@@ -18,6 +18,27 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Metrics: Track failed hook errors for observability
+_failed_hook_error_count = 0
+_failed_hook_error_lock = asyncio.Lock()
+
+
+async def get_failed_hook_error_count() -> int:
+    """Get count of errors in task.failed() hooks (for monitoring/alerting).
+
+    Returns:
+        Total number of failed hook errors since process start
+    """
+    async with _failed_hook_error_lock:
+        return _failed_hook_error_count
+
+
+async def reset_failed_hook_error_count() -> None:
+    """Reset failed hook error counter (for testing)."""
+    global _failed_hook_error_count
+    async with _failed_hook_error_lock:
+        _failed_hook_error_count = 0
+
 
 class TaskExecutor:
     """Handles task execution, retry logic, and lifecycle hooks."""
@@ -81,6 +102,8 @@ class TaskExecutor:
     async def handle_failed(self, task: BaseTask, exception: Exception) -> None:
         """Call task.failed() hook when retries exhausted (best-effort).
 
+        Tracks failures in the hook itself for observability (use get_failed_hook_error_count()).
+
         Args:
             task: Task that permanently failed
             exception: Exception that caused failure
@@ -90,8 +113,17 @@ class TaskExecutor:
         except Exception as e:
             from asynctasq.tasks.utils.logger import log_task_error
 
+            # Increment failed hook error counter for monitoring/alerting
+            global _failed_hook_error_count
+            async with _failed_hook_error_lock:
+                _failed_hook_error_count += 1
+
             log_task_error(
-                task, "Error in task.failed() handler", error=str(e), original_error=str(exception)
+                task,
+                "Error in task.failed() handler",
+                error=str(e),
+                original_error=str(exception),
+                failed_hook_errors=_failed_hook_error_count,
             )
 
     async def retry_task(self, task_id: str) -> bool:
