@@ -8,6 +8,7 @@ Testing Strategy:
 - Fast, isolated tests
 """
 
+from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -294,7 +295,7 @@ class TestSyncTaskDispatch:
     async def test_sync_task_dispatch_with_driver_override(self) -> None:
         # Arrange
         task = SimpleSyncTask()
-        task.config.driver_override = "postgres"
+        task.config = replace(task.config, driver_override="postgres")
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch.return_value = "task-sync-456"
 

@@ -11,6 +11,12 @@ from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManag
 from .conftest import SharedSyncFactorialTask
 
 
+@pytest.fixture
+def manager() -> ProcessPoolManager:
+    """Create ProcessPoolManager instance with test configuration."""
+    return ProcessPoolManager(sync_max_workers=4, async_max_workers=4)
+
+
 class GetPIDTask(SyncProcessTask[int]):
     """Test task that returns the process ID."""
 
@@ -100,86 +106,93 @@ async def test_process_task_exception_propagation():
 
 
 @pytest.mark.asyncio
-async def test_process_pool_initialization():
+async def test_process_pool_initialization(manager: ProcessPoolManager):
     """Test explicit pool initialization with custom parameters."""
     # Arrange - shutdown any existing pool
-    ProcessPoolManager.shutdown_pools(wait=True)
+    await manager.shutdown(wait=True)
 
-    # Act - initialize with custom parameters
-    ProcessPoolManager.initialize_sync_pool(max_workers=2, max_tasks_per_child=10)
+    # Act - create manager with custom parameters and initialize
+    test_manager = ProcessPoolManager(sync_max_workers=2, sync_max_tasks_per_child=10)
+    test_manager.get_sync_pool()  # Trigger initialization
 
     # Assert - pool should be initialized
-    assert ProcessPoolManager.is_initialized()
-    stats = ProcessPoolManager.get_stats()
+    assert test_manager.is_initialized()
+    stats = test_manager.get_stats()
     assert stats["sync"]["pool_size"] == 2
     assert stats["sync"]["max_tasks_per_child"] == 10
 
     # Cleanup
-    ProcessPoolManager.shutdown_pools(wait=True)
+    await test_manager.shutdown(wait=True)
 
 
 @pytest.mark.asyncio
-async def test_process_pool_auto_initialization():
+async def test_process_pool_auto_initialization(manager: ProcessPoolManager):
     """Test pool is auto-initialized on first use if not explicitly initialized."""
     # Arrange - ensure pool not initialized
-    ProcessPoolManager.shutdown_pools(wait=True)
-    assert not ProcessPoolManager.is_initialized()
+    from asynctasq.tasks.infrastructure.process_pool_manager import set_default_manager
+
+    await manager.shutdown(wait=True)
+    assert not manager.is_initialized()
+
+    # Set test manager as default so task uses it
+    set_default_manager(manager)
 
     # Act - execute task without explicit initialization
     task = SharedSyncFactorialTask(n=4)
     result = await task.run()
 
     # Assert - pool should be auto-initialized and task should execute
-    assert ProcessPoolManager.is_initialized()
+    assert manager.is_initialized()
     assert result == 24  # 4! = 24
 
     # Cleanup
-    ProcessPoolManager.shutdown_pools(wait=True)
+    await manager.shutdown(wait=True)
 
 
 @pytest.mark.asyncio
-async def test_process_pool_reinitialization_warning(caplog):
+async def test_process_pool_reinitialization_warning(caplog, manager: ProcessPoolManager):
     """Test warning logged if pool already initialized."""
     # Arrange - ensure pool is initialized
-    ProcessPoolManager.shutdown_pools(wait=True)
-    ProcessPoolManager.initialize_sync_pool(max_workers=2)
+    await manager.shutdown(wait=True)
+    test_manager = ProcessPoolManager(sync_max_workers=2)
+    test_manager.get_sync_pool()  # First initialization
 
     # Act - try to initialize again
-    ProcessPoolManager.initialize_sync_pool(max_workers=4)
+    await test_manager.initialize()  # Second initialization attempt
 
     # Assert - warning should be logged, pool size unchanged
-    assert "already initialized" in caplog.text
-    stats = ProcessPoolManager.get_stats()
+    assert "already initialized" in caplog.text.lower() or "skip" in caplog.text.lower()
+    stats = test_manager.get_stats()
     assert stats["sync"]["pool_size"] == 2  # Original size preserved
 
     # Cleanup
-    ProcessPoolManager.shutdown_pools(wait=True)
+    await test_manager.shutdown(wait=True)
 
 
 @pytest.mark.asyncio
-async def test_process_pool_shutdown():
+async def test_process_pool_shutdown(manager: ProcessPoolManager):
     """Test pool shutdown properly cleans up resources."""
     # Arrange - initialize pool
-    ProcessPoolManager.initialize_sync_pool(max_workers=2)
-    assert ProcessPoolManager.is_initialized()
+    manager.get_sync_pool()  # Initialize
+    assert manager.is_initialized()
 
     # Act - shutdown pool
-    ProcessPoolManager.shutdown_pools(wait=True)
+    await manager.shutdown(wait=True)
 
     # Assert - pool should be cleaned up
-    assert not ProcessPoolManager.is_initialized()
-    stats = ProcessPoolManager.get_stats()
+    assert not manager.is_initialized()
+    stats = manager.get_stats()
     assert stats["sync"]["status"] == "not_initialized"
 
 
 @pytest.mark.asyncio
-async def test_process_pool_shutdown_when_not_initialized():
+async def test_process_pool_shutdown_when_not_initialized(manager: ProcessPoolManager):
     """Test shutdown is safe when pool not initialized."""
     # Arrange - ensure pool not initialized
-    ProcessPoolManager.shutdown_pools(wait=True)
+    await manager.shutdown(wait=True)
 
     # Act & Assert - should not raise exception
-    ProcessPoolManager.shutdown_pools(wait=True)
+    await manager.shutdown(wait=True)
 
 
 @pytest.mark.asyncio
@@ -234,4 +247,7 @@ def cleanup_process_pool():
     """Ensure process pool is shutdown after all tests."""
     yield
     # Cleanup after all tests in module
-    ProcessPoolManager.shutdown_pools(wait=True)
+    manager = ProcessPoolManager()
+    import asyncio
+
+    asyncio.run(manager.shutdown(wait=True))

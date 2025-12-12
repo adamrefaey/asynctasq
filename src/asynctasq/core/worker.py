@@ -119,22 +119,25 @@ class Worker:
 
         # Initialize ProcessPoolManager if configured
         if self.process_pool_size is not None or self.process_pool_max_tasks_per_child is not None:
-            from asynctasq.tasks import ProcessPoolManager
+            from asynctasq.tasks.infrastructure.process_pool_manager import (
+                ProcessPoolManager,
+                set_default_manager,
+            )
 
             logger.info(
                 "Initializing ProcessPoolManager: size=%s, max_tasks_per_child=%s",
                 self.process_pool_size,
                 self.process_pool_max_tasks_per_child,
             )
-            # Initialize both sync and async pools with same config
-            ProcessPoolManager.initialize_sync_pool(
-                max_workers=self.process_pool_size,
-                max_tasks_per_child=self.process_pool_max_tasks_per_child,
+            # Create and initialize manager instance
+            manager = ProcessPoolManager(
+                sync_max_workers=self.process_pool_size,
+                async_max_workers=self.process_pool_size,
+                sync_max_tasks_per_child=self.process_pool_max_tasks_per_child,
+                async_max_tasks_per_child=self.process_pool_max_tasks_per_child,
             )
-            ProcessPoolManager.initialize_async_pool(
-                max_workers=self.process_pool_size,
-                max_tasks_per_child=self.process_pool_max_tasks_per_child,
-            )
+            await manager.initialize()
+            set_default_manager(manager)
 
         # Setup signal handlers
         loop = asyncio.get_running_loop()
@@ -577,7 +580,7 @@ class Worker:
                 }
             }
         """
-        from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
+        from asynctasq.tasks.infrastructure.process_pool_manager import get_default_manager
 
         uptime = (
             int((datetime.now(UTC) - self._start_time).total_seconds()) if self._start_time else 0
@@ -590,7 +593,7 @@ class Worker:
             "tasks_processed": self._tasks_processed,
             "active_tasks": len(self._tasks),
             "queues": self.queues,
-            "process_pool": ProcessPoolManager.get_stats(),
+            "process_pool": get_default_manager().get_stats(),
         }
 
     def _handle_shutdown(self) -> None:
@@ -619,11 +622,12 @@ class Worker:
             await asyncio.wait(self._tasks)
 
         # Shutdown process pool if initialized (graceful - wait for in-flight tasks)
-        from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
+        from asynctasq.tasks.infrastructure.process_pool_manager import get_default_manager
 
-        if ProcessPoolManager.is_initialized():
+        manager = get_default_manager()
+        if manager.is_initialized():
             logger.info("Shutting down process pool...")
-            ProcessPoolManager.shutdown_pools(wait=True, cancel_futures=False)
+            await manager.shutdown(wait=True, cancel_futures=False)
 
         # Emit worker_offline event
         if self.event_emitter:

@@ -69,11 +69,16 @@ class FunctionTask[T](BaseTask[T]):
 
         # Override config with decorator values
         # FunctionTask config always comes from @task decorator, not class attributes
-        self.config.queue = getattr(func, "_task_queue", self.config.queue)
-        self.config.max_retries = getattr(func, "_task_max_retries", self.config.max_retries)
-        self.config.retry_delay = getattr(func, "_task_retry_delay", self.config.retry_delay)
-        self.config.timeout = getattr(func, "_task_timeout", self.config.timeout)
-        self.config.driver_override = getattr(func, "_task_driver", self.config.driver_override)
+        from dataclasses import replace
+
+        self.config = replace(
+            self.config,
+            queue=getattr(func, "_task_queue", self.config.queue),
+            max_retries=getattr(func, "_task_max_retries", self.config.max_retries),
+            retry_delay=getattr(func, "_task_retry_delay", self.config.retry_delay),
+            timeout=getattr(func, "_task_timeout", self.config.timeout),
+            driver_override=getattr(func, "_task_driver", self.config.driver_override),
+        )
 
     async def run(self) -> T:
         """Execute via appropriate executor (async/sync × thread/process)."""
@@ -100,9 +105,9 @@ class FunctionTask[T](BaseTask[T]):
         if not _is_async_callable(self.func):
             raise TypeError(f"Expected async function, got {type(self.func).__name__}")
 
-        from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
+        from asynctasq.tasks.infrastructure.process_pool_manager import get_default_manager
 
-        pool = ProcessPoolManager.get_async_pool()
+        pool = get_default_manager().get_async_pool()
         loop = asyncio.get_running_loop()
 
         # Capture func for closure (type checker already narrowed it)
@@ -138,9 +143,9 @@ class FunctionTask[T](BaseTask[T]):
         self, func: Callable[[], T], loop: asyncio.AbstractEventLoop
     ) -> T:
         """Execute sync function via ProcessPoolExecutor (CPU-bound path)."""
-        from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
+        from asynctasq.tasks.infrastructure.process_pool_manager import get_default_manager
 
-        pool = ProcessPoolManager.get_sync_pool()
+        pool = get_default_manager().get_sync_pool()
         return await loop.run_in_executor(pool, func)
 
 

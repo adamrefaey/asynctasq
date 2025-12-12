@@ -8,6 +8,7 @@ Testing Strategy:
 - Fast, isolated tests
 """
 
+from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -274,7 +275,7 @@ class TestAsyncTaskDispatch:
     async def test_async_task_dispatch_with_driver_override(self) -> None:
         # Arrange
         task = SimpleAsyncTask()
-        task.config.driver_override = "redis"
+        task.config = replace(task.config, driver_override="redis")
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch.return_value = "task-456"
 

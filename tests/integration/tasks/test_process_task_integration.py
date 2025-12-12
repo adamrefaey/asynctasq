@@ -85,8 +85,14 @@ class FailingTask(SyncProcessTask[None]):
         raise ValueError(self.error_msg)
 
 
+@pytest.fixture
+def manager() -> ProcessPoolManager:
+    """Create ProcessPoolManager instance."""
+    return ProcessPoolManager()
+
+
 @pytest_asyncio.fixture
-async def redis_driver():
+async def redis_driver(manager):
     """Create and connect Redis driver."""
     driver = RedisDriver(url=REDIS_URL)
     await driver.connect()
@@ -115,10 +121,10 @@ async def dispatcher(redis_driver):
 
 
 @pytest_asyncio.fixture
-async def worker(redis_driver):
+async def worker(redis_driver, manager):
     """Create worker with process pool configured."""
     # Ensure process pool is initialized
-    ProcessPoolManager.shutdown_pools(wait=True)
+    await manager.shutdown(wait=True)
 
     worker = Worker(
         queue_driver=redis_driver,
@@ -133,7 +139,7 @@ async def worker(redis_driver):
 
     # Cleanup
     await worker._cleanup()
-    ProcessPoolManager.shutdown_pools(wait=True)
+    await manager.shutdown(wait=True)
 
 
 @pytest.mark.asyncio
@@ -351,13 +357,13 @@ async def test_process_task_with_delayed_execution(dispatcher, worker):
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_process_pool_lifecycle_with_worker(redis_driver):
+async def test_process_pool_lifecycle_with_worker(redis_driver, manager):
     """Test process pool initialization and shutdown with worker lifecycle."""
     # Ensure clean state
-    ProcessPoolManager.shutdown_pools(wait=True)
-    assert not ProcessPoolManager.is_initialized()
+    await manager.shutdown(wait=True)
+    assert not manager.is_initialized()
 
-    # Create worker with process pool config
+    # Create worker with process pool config - it creates its own manager
     worker = Worker(
         queue_driver=redis_driver,
         queues=["test-process"],
@@ -369,24 +375,33 @@ async def test_process_pool_lifecycle_with_worker(redis_driver):
     await redis_driver.connect()
     await worker.queue_driver.connect()
 
-    # Initialize pool (normally done in worker.start())
-    ProcessPoolManager.initialize_sync_pool(
-        max_workers=worker.process_pool_size,
-        max_tasks_per_child=worker.process_pool_max_tasks_per_child,
+    # Manually initialize the process pool manager as Worker.start() would
+    from asynctasq.tasks.infrastructure.process_pool_manager import (
+        ProcessPoolManager,
+        set_default_manager,
     )
 
-    # Verify pool initialized
-    assert ProcessPoolManager.is_initialized()
-    stats = ProcessPoolManager.get_stats()
+    worker_manager = ProcessPoolManager(
+        sync_max_workers=worker.process_pool_size,
+        async_max_workers=worker.process_pool_size,
+        sync_max_tasks_per_child=worker.process_pool_max_tasks_per_child,
+        async_max_tasks_per_child=worker.process_pool_max_tasks_per_child,
+    )
+    await worker_manager.initialize()
+    set_default_manager(worker_manager)
+
+    # Verify pool initialized with worker's configuration
+    assert worker_manager.is_initialized()
+    stats = worker_manager.get_stats()
     assert stats["sync"]["pool_size"] == 2
     assert stats["sync"]["max_tasks_per_child"] == 5
 
     # Cleanup (normally done in worker.cleanup())
-    ProcessPoolManager.shutdown_pools(wait=True)
+    await worker_manager.shutdown(wait=True)
 
     # Verify pool shutdown
-    assert not ProcessPoolManager.is_initialized()
-    stats = ProcessPoolManager.get_stats()
+    assert not worker_manager.is_initialized()
+    stats = worker_manager.get_stats()
     assert stats["sync"]["status"] == "not_initialized"
 
 
@@ -508,4 +523,8 @@ async def test_process_task_batch_processing(dispatcher, worker):
 def cleanup_process_pool():
     """Ensure process pool is shutdown after all tests."""
     yield
-    ProcessPoolManager.shutdown_pools(wait=True)
+    # Create manager instance for cleanup
+    manager = ProcessPoolManager()
+    import asyncio
+
+    asyncio.run(manager.shutdown(wait=True))

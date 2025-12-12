@@ -11,7 +11,8 @@ Testing Strategy:
 
 from __future__ import annotations
 
-import multiprocessing as mp
+from collections.abc import Generator
+from dataclasses import replace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -67,7 +68,7 @@ class TestTaskConfigEdgeCases:
         assert task.config.driver_override is None  # Class attribute doesn't affect config
 
         # Explicitly set at instance level
-        task.config.driver_override = "postgres"  # type: ignore[assignment]
+        task.config = replace(task.config, driver_override="postgres")  # type: ignore[call-overload]
         assert task.config.driver_override == "postgres"
 
     def test_driver_override_with_none(self) -> None:
@@ -212,19 +213,24 @@ class TestParameterValidation:
 class TestProcessPoolEdgeCases:
     """Test ProcessPoolManager edge cases."""
 
-    def teardown_method(self) -> None:
-        """Cleanup after each test."""
-        if ProcessPoolManager.is_initialized():
-            ProcessPoolManager.shutdown_pools()
+    @pytest.fixture
+    def manager(self) -> Generator[ProcessPoolManager, None, None]:
+        """Create ProcessPoolManager instance."""
+        manager_instance = ProcessPoolManager()
+        yield manager_instance
+        # Cleanup after test
+        import asyncio
 
-    def test_pool_initialization_with_custom_mp_context(self) -> None:
+        if manager_instance.is_initialized():
+            asyncio.run(manager_instance.shutdown(wait=True))
+
+    def test_pool_initialization_with_custom_mp_context(self, manager: ProcessPoolManager) -> None:
         """Test pool initialization with custom multiprocessing context."""
-        # Use 'spawn' context explicitly
-        ctx = mp.get_context("spawn")
-        ProcessPoolManager.initialize_sync_pool(max_workers=2, mp_context=ctx)
+        # Trigger auto-initialization
+        manager.get_sync_pool()
 
-        assert ProcessPoolManager.is_initialized()
-        stats = ProcessPoolManager.get_stats()
+        assert manager.is_initialized()
+        stats = manager.get_stats()
         assert stats["sync"]["status"] == "initialized"
 
     def test_pool_shutdown_with_active_tasks_not_tested_here(self) -> None:
@@ -237,40 +243,50 @@ class TestProcessPoolEdgeCases:
         # Documented limitation - requires integration test
         pass
 
-    def test_re_initialization_after_shutdown(self) -> None:
+    def test_re_initialization_after_shutdown(self, manager: ProcessPoolManager) -> None:
         """Test that pool can be re-initialized after shutdown."""
+        import asyncio
+
         # Initialize
-        ProcessPoolManager.initialize_sync_pool(max_workers=2)
-        assert ProcessPoolManager.is_initialized()
+        manager.get_sync_pool()
+        assert manager.is_initialized()
 
         # Shutdown
-        ProcessPoolManager.shutdown_pools()
-        assert not ProcessPoolManager.is_initialized()
+        asyncio.run(manager.shutdown(wait=True))
+        assert not manager.is_initialized()
 
-        # Re-initialize with different settings
-        ProcessPoolManager.initialize_sync_pool(max_workers=4)
-        assert ProcessPoolManager.is_initialized()
+        # Re-initialize - create new manager with different settings
+        new_manager = ProcessPoolManager(sync_max_workers=4)
+        new_manager.get_sync_pool()
+        assert new_manager.is_initialized()
 
-        stats = ProcessPoolManager.get_stats()
+        stats = new_manager.get_stats()
         assert stats["sync"]["pool_size"] == 4
 
-    def test_multiple_shutdown_calls_safe(self) -> None:
+        # Cleanup
+        asyncio.run(new_manager.shutdown(wait=True))
+
+    def test_multiple_shutdown_calls_safe(self, manager: ProcessPoolManager) -> None:
         """Test that multiple shutdown calls don't raise errors."""
-        ProcessPoolManager.initialize_sync_pool(max_workers=2)
+        import asyncio
+
+        # Initialize first
+        manager.get_sync_pool()
+        assert manager.is_initialized()
 
         # First shutdown
-        ProcessPoolManager.shutdown_pools()
-        assert not ProcessPoolManager.is_initialized()
+        asyncio.run(manager.shutdown(wait=True))
+        assert not manager.is_initialized()
 
         # Second shutdown should be safe (no-op)
-        ProcessPoolManager.shutdown_pools()
-        assert not ProcessPoolManager.is_initialized()
+        asyncio.run(manager.shutdown(wait=True))
+        assert not manager.is_initialized()
 
         # Third shutdown
-        ProcessPoolManager.shutdown_pools()
-        assert not ProcessPoolManager.is_initialized()
+        asyncio.run(manager.shutdown(wait=True))
+        assert not manager.is_initialized()
 
-    def test_concurrent_initialize_pool_calls(self) -> None:
+    def test_concurrent_initialize_pool_calls(self, manager: ProcessPoolManager) -> None:
         """Test that concurrent initialize_pool() calls are thread-safe."""
         import concurrent.futures
         import threading
@@ -280,7 +296,8 @@ class TestProcessPoolEdgeCases:
 
         def initialize_pool() -> None:
             try:
-                ProcessPoolManager.initialize_sync_pool(max_workers=2)
+                # Trigger auto-initialization - multiple threads calling is safe
+                manager.get_sync_pool()
                 with lock:
                     results.append("success")
             except Exception as e:
@@ -294,14 +311,22 @@ class TestProcessPoolEdgeCases:
 
         # All should succeed (first one initializes, others are no-ops or succeed)
         assert all(r == "success" for r in results)
-        assert ProcessPoolManager.is_initialized()
+        assert manager.is_initialized()
 
-    def test_get_stats_after_shutdown_shows_not_initialized(self) -> None:
+    def test_get_stats_after_shutdown_shows_not_initialized(
+        self, manager: ProcessPoolManager
+    ) -> None:
         """Test that get_stats shows correct state after shutdown."""
-        ProcessPoolManager.initialize_sync_pool(max_workers=2)
-        ProcessPoolManager.shutdown_pools()
+        import asyncio
 
-        stats = ProcessPoolManager.get_stats()
+        # Initialize first
+        manager.get_sync_pool()
+        assert manager.is_initialized()
+
+        # Shutdown
+        asyncio.run(manager.shutdown(wait=True))
+
+        stats = manager.get_stats()
         assert stats["sync"]["status"] == "not_initialized"
         assert stats["async"]["status"] == "not_initialized"
 
@@ -495,7 +520,7 @@ class TestRetryLogicEdgeCases:
                 raise ValueError("Transient error")
 
         task = RetryableTask()
-        task.config.max_retries = 3
+        task.config = replace(task.config, max_retries=3)
 
         with patch("asynctasq.core.dispatcher.get_dispatcher") as mock_get_dispatcher:
             mock_dispatcher = MagicMock()
@@ -527,7 +552,7 @@ class TestRetryLogicEdgeCases:
                 return False
 
         task = NoRetryTask()
-        task.config.max_retries = 0
+        task.config = replace(task.config, max_retries=0)
 
         # should_retry should still be callable
         result = task.should_retry(ValueError("test"))

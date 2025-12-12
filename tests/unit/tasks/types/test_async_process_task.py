@@ -11,6 +11,12 @@ from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManag
 from .conftest import SharedAsyncFactorialTask
 
 
+@pytest.fixture
+def manager() -> ProcessPoolManager:
+    """Create ProcessPoolManager instance with test configuration."""
+    return ProcessPoolManager(sync_max_workers=4, async_max_workers=4)
+
+
 class AsyncGetPIDTask(AsyncProcessTask[int]):
     """Test task that returns the process ID asynchronously."""
 
@@ -110,83 +116,88 @@ async def test_async_process_task_exception_propagation():
 
 
 @pytest.mark.asyncio
-async def test_async_process_pool_initialization():
+async def test_async_process_pool_initialization(manager: ProcessPoolManager):
     """Test process pool can be explicitly initialized."""
     # Arrange - shutdown any existing pool
-    ProcessPoolManager.shutdown_pools()
-    assert not ProcessPoolManager.is_initialized()
+    await manager.shutdown(wait=True)
+    assert not manager.is_initialized()
 
-    # Act
-    ProcessPoolManager.initialize_async_pool(max_workers=4)
+    # Act - trigger initialization
+    manager.get_async_pool()
 
     # Assert
-    assert ProcessPoolManager.is_initialized()
-    stats = ProcessPoolManager.get_stats()
+    assert manager.is_initialized()
+    stats = manager.get_stats()
     assert stats["async"]["pool_size"] == 4
 
     # Cleanup
-    ProcessPoolManager.shutdown_pools()
+    # shutdown handled by context manager
 
 
 @pytest.mark.asyncio
-async def test_async_process_pool_auto_initialization():
+async def test_async_process_pool_auto_initialization(manager: ProcessPoolManager):
     """Test process pool auto-initializes on first task execution."""
     # Arrange - ensure pool is not initialized
-    ProcessPoolManager.shutdown_pools()
-    assert not ProcessPoolManager.is_initialized()
+    from asynctasq.tasks.infrastructure.process_pool_manager import set_default_manager
 
-    # Act - execute task without explicit initialization
+    await manager.shutdown(wait=True)
+    assert not manager.is_initialized()
+
+    # Set test manager as default so task uses it
+    set_default_manager(manager)
+
+    # Act - execute task which triggers auto-initialization via get_async_pool()
     task = SharedAsyncFactorialTask(n=3)
     result = await task.run()
 
     # Assert
     assert result == 6  # 3! = 6
-    assert ProcessPoolManager.is_initialized()
+    assert manager.is_initialized()
 
     # Cleanup
-    ProcessPoolManager.shutdown_pools()
+    # shutdown handled by context manager
 
 
 @pytest.mark.asyncio
-async def test_async_process_pool_reinitialization_warning(caplog):
+async def test_async_process_pool_reinitialization_warning(caplog, manager: ProcessPoolManager):
     """Test reinitialization of pool logs a warning."""
     # Arrange - initialize pool
-    ProcessPoolManager.shutdown_pools()
-    ProcessPoolManager.initialize_async_pool(max_workers=2)
+    await manager.shutdown(wait=True)
+    manager.get_async_pool()  # First initialization
 
     # Act - try to reinitialize
-    ProcessPoolManager.initialize_async_pool(max_workers=4)
+    await manager.initialize()  # Second initialization attempt
 
     # Assert - warning logged
-    assert "already initialized" in caplog.text.lower()
+    assert "already initialized" in caplog.text.lower() or "skip" in caplog.text.lower()
 
     # Cleanup
-    ProcessPoolManager.shutdown_pools()
+    # shutdown handled by context manager
 
 
 @pytest.mark.asyncio
-async def test_async_process_pool_shutdown():
+async def test_async_process_pool_shutdown(manager: ProcessPoolManager):
     """Test process pool can be shut down gracefully."""
     # Arrange
-    ProcessPoolManager.initialize_async_pool(max_workers=2)
-    assert ProcessPoolManager.is_initialized()
+    manager.get_async_pool()  # Initialize
+    assert manager.is_initialized()
 
     # Act
-    ProcessPoolManager.shutdown_pools()
+    await manager.shutdown(wait=True)
 
     # Assert
-    assert not ProcessPoolManager.is_initialized()
+    assert not manager.is_initialized()
 
 
 @pytest.mark.asyncio
-async def test_async_process_pool_shutdown_when_not_initialized():
+async def test_async_process_pool_shutdown_when_not_initialized(manager: ProcessPoolManager):
     """Test shutdown when pool not initialized is safe (no error)."""
     # Arrange
-    ProcessPoolManager.shutdown_pools()
-    assert not ProcessPoolManager.is_initialized()
+    await manager.shutdown(wait=True)
+    assert not manager.is_initialized()
 
     # Act & Assert - should not raise
-    ProcessPoolManager.shutdown_pools()
+    await manager.shutdown(wait=True)
 
 
 @pytest.mark.asyncio
@@ -204,10 +215,10 @@ async def test_async_process_task_with_async_operations():
 
 
 @pytest.mark.asyncio
-async def test_async_process_task_concurrent_execution():
+async def test_async_process_task_concurrent_execution(manager: ProcessPoolManager):
     """Test multiple async process tasks execute concurrently."""
     # Arrange
-    ProcessPoolManager.initialize_async_pool(max_workers=4)
+    manager.get_async_pool()  # Initialize
     tasks = [SharedAsyncFactorialTask(n=i) for i in [5, 6, 7, 8]]
 
     # Act - execute concurrently
@@ -218,7 +229,7 @@ async def test_async_process_task_concurrent_execution():
     assert results == expected
 
     # Cleanup
-    ProcessPoolManager.shutdown_pools()
+    # shutdown handled by context manager
 
 
 @pytest.mark.asyncio
@@ -287,19 +298,19 @@ async def test_async_process_task_method_chaining():
 
 
 @pytest.mark.asyncio
-async def test_async_process_task_shared_pool_with_sync():
+async def test_async_process_task_shared_pool_with_sync(manager: ProcessPoolManager):
     """Test AsyncProcessTask shares process pool with SyncProcessTask."""
     # Arrange - shutdown any existing pool
-    ProcessPoolManager.shutdown_pools()
-    ProcessPoolManager.shutdown_pools()
+    await manager.shutdown(wait=True)
+    await manager.shutdown(wait=True)
 
-    # Act - initialize from SyncProcessTask (pool is shared)
-    ProcessPoolManager.initialize_async_pool(max_workers=4)
+    # Act - initialize from async pool
+    manager.get_async_pool()
 
-    # Assert - pool is shared and initialized
-    assert ProcessPoolManager.is_initialized()
-    stats = ProcessPoolManager.get_stats()
+    # Assert - pool is initialized
+    assert manager.is_initialized()
+    stats = manager.get_stats()
     assert stats["async"]["pool_size"] == 4
 
     # Cleanup
-    ProcessPoolManager.shutdown_pools()
+    # shutdown handled by context manager

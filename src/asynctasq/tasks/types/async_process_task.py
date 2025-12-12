@@ -8,7 +8,7 @@ import logging
 
 from asynctasq.tasks.core.base_task import BaseTask
 from asynctasq.tasks.infrastructure.process_pool_manager import (
-    ProcessPoolManager,
+    get_default_manager,
     get_warm_event_loop,
     increment_fallback_count,
 )
@@ -26,7 +26,7 @@ class AsyncProcessTask[T](BaseTask[T]):
     async def run(self) -> T:
         """Execute task via ProcessPoolExecutor with warm event loop."""
         # Get process pool (auto-initializes if needed)
-        pool = ProcessPoolManager.get_async_pool()
+        pool = get_default_manager().get_async_pool()
 
         # Get current event loop
         loop = asyncio.get_running_loop()
@@ -52,7 +52,7 @@ class AsyncProcessTask[T](BaseTask[T]):
                     "task_class": self.__class__.__name__,
                     "fallback_count": current_count,
                     "performance_impact": "high",
-                    "recommendation": "Call ProcessPoolManager.warm_up() during worker startup",
+                    "recommendation": "Call manager.initialize() during worker startup",
                 },
             )
             return asyncio.run(self.execute())

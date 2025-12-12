@@ -28,8 +28,8 @@ async def execute_in_process_sync[T](sync_callable: Callable[[], T]) -> T:
     Returns:
         Result from sync_callable
     """
-    from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
+    from asynctasq.tasks.infrastructure.process_pool_manager import get_default_manager
 
-    pool = ProcessPoolManager.get_sync_pool()
+    pool = get_default_manager().get_sync_pool()
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(pool, sync_callable)
