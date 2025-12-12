@@ -1,187 +1,116 @@
-````instructions
 # GitHub Copilot Instructions for asynctasq
+
+## 🚨 MANDATORY WORKFLOW
+
+**YOU MUST follow these steps in order:**
+
+1. **BEFORE implementing:** Research the web for latest best practices for all tools/libraries/patterns
+2. **WHILE implementing:** Run `just check` frequently to catch issues early
+3. **AFTER implementing:** Run `just ci` - MUST pass with zero errors before committing
 
 ---
 
 ## Project Overview
 
-Modern, async-first, type-safe task queue for Python inspired by Laravel. Multi-driver support (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with automatic ORM serialization via msgpack (90%+ payload reduction).
+Async-first, type-safe task queue for Python 3.12+ inspired by Laravel. Multi-driver (Redis, PostgreSQL, MySQL, RabbitMQ, SQS), ORM-aware serialization (SQLAlchemy, Django, Tortoise), FastAPI integration.
 
-**Key Features:**
-- True async-first architecture (asyncio)
-- Native FastAPI integration
-- 5 production-ready drivers
-- ORM models serialized as PK references (SQLAlchemy, Django, Tortoise)
-- Full type safety (`Generic[T]`, pyright strict mode)
-- ACID guarantees, dead-letter queues, crash recovery, real-time events
+**Stack:** Python 3.12+, asyncio, msgpack, pytest, ruff, pyright
 
-## Essential Commands
+---
+
+## Commands
 
 ```bash
-just ci                # MANDATORY before commit: Format + Lint + Typecheck + Test
-just check             # Quick validation (format + lint + typecheck only)
-just test              # Run all tests
-just docker-up         # Start test services (Redis, Postgres, MySQL, RabbitMQ, LocalStack)
-just init              # Initial setup (run once)
+just check      # Format + Lint + Typecheck (fast validation)
+just ci         # check + Test (MANDATORY before commit)
+just test       # Run all tests
+just docker-up  # Start test services (Redis, Postgres, etc.)
 ```
 
 ---
 
-## Development Boundaries
+## Core Rules
 
-### ✅ ALWAYS DO (No Permission Needed)
-- Research the web for the latest best practices for all languages/tools/libraries/packages/patterns used before implementing
-- Run `just ci` before committing
-- Add type hints to all public APIs (`def func() -> ReturnType:`)
-- Write tests for new code (aim for >90% coverage)
-- Use `async def` / `await` for all I/O operations
-- Mock external I/O in unit tests (`AsyncMock`)
-- Follow async-first principles (no blocking calls)
-- Use environment variables for configuration
-- Add docstrings for public APIs (Google style)
-- Keep functions focused and under 50 lines
-- Use descriptive variable names
+### ✅ DO
+- Full type hints on public APIs (`-> ReturnType`)
+- Use `async def`/`await` for all I/O (NO blocking calls)
+- Write tests for new code (>90% coverage, AAA pattern)
+- Mock I/O in unit tests (`AsyncMock`)
+- Use env vars for config (`ASYNCTASQ_` prefix)
+- Google-style docstrings for public APIs
+- Keep functions <50 lines
 
-### ⚠️ ASK FIRST (Breaking Changes)
-- Modifying public API signatures
-- Changing driver interfaces (`BaseDriver` protocol)
-- Altering serialization format (breaks compatibility)
-- Adding new dependencies to `pyproject.toml`
-- Changing configuration structure (`Config` dataclass)
-- Modifying worker lifecycle behavior
-- Breaking backward compatibility
-- Adding new drivers (requires full integration tests)
-
-### 🚫 NEVER DO (Project Standards)
+### 🚫 DON'T
 - Commit without `just ci` passing
-- Use `Any` type without justification
-- Block event loop with sync I/O in async context
-- Skip writing tests ("I'll add them later")
-- Hardcode secrets or configuration
-- Mix async/sync code incorrectly
-- Use `from module import *` (wildcard imports)
-- Ignore security warnings (`just security`, `just audit`)
-- Copy-paste code (extract to shared functions)
-- Push directly to `main` branch (use PRs)
+- Use `Any` without justification
+- Block event loop (`time.sleep()`, sync DB calls, etc.)
+- Skip tests
+- Hardcode secrets
+- Use wildcard imports (`from x import *`)
 
 ---
 
-## Key Architecture Patterns
+## Architecture
 
-- **Tasks**: `@task` decorator or `Task[T]` base class with lifecycle hooks (`handle()`, `failed()`, `should_retry()`)
-- **Drivers**: 5 backends (Redis, Postgres, MySQL, RabbitMQ, SQS) implementing `BaseDriver` protocol
-- **Serialization**: msgpack with pluggable hooks for ORM models (90%+ payload reduction via PK references)
-- **Worker**: Async polling loop with retry, timeout, graceful shutdown
+- **Tasks:** `tasks/` - Task definitions (`@task` decorator, `BaseTask`, `AsyncTask`, `SyncTask`)
+- **Dispatcher:** `core/dispatcher.py` - Task dispatch API
+- **Worker:** `core/worker.py` - Async execution engine with retry/timeout
+- **Drivers:** `drivers/` - 5 backends implementing `BaseDriver` protocol
+- **Events:** `core/events.py` - Real-time event streaming (Redis Pub/Sub)
+- **Serialization:** `serializers/` - msgpack with ORM hooks (90%+ reduction)
+- **Integrations:** `integrations/` - FastAPI, etc.
 
----
-
-## Workflow
-
-1. Create feature branch
-2. Make changes following code standards below
-3. **Run `just ci`** (MUST pass)
-4. Commit and create PR
+**Key patterns:**
+- Tasks dispatch via `@task` decorator or `BaseTask` subclasses
+- Drivers use async context managers for connections
+- Events broadcast via Redis Pub/Sub
+- ORM models serialize as PK references, re-fetch on execution
 
 ---
 
 ## Testing
 
-- **Framework**: pytest 9.0.1 with `asyncio_mode="strict"`
-- **Markers**: `@pytest.mark.unit` or `@pytest.mark.integration`
-- **Pattern**: AAA (Arrange, Act, Assert)
-- **Async**: Use `@pytest.mark.asyncio` + `AsyncMock` for async code
-- **Unit tests**: Mock all I/O. Fast (<1s per test)
-- **Integration tests**: Real Docker services for driver testing
-- **Never**: Make real API calls in tests
+- **Unit tests:** `@pytest.mark.unit` - Mock all I/O, <1s each
+- **Integration tests:** `@pytest.mark.integration` - Real Docker services
+- **Coverage:** >90% required (`just test-cov`)
+- **Async:** Use `@pytest.mark.asyncio` + `AsyncMock`
 
 ---
 
-## Code Standards & Conventions
+## Type Safety
 
-### Type Safety
-- Full type hints on all public APIs (MUST pass `just typecheck`)
-- Use `Generic[T]`, `list[str]`, `X | Y` (modern Python 3.9+ syntax)
-- Avoid `Any` - use `object` or specific Union types
-- Use `from __future__ import annotations` for forward references
-
-### Code Style
-- **Formatter**: ruff (line-length: 100)
-- **Linter**: ruff with E, F, I, B, C4, UP rules
-- **Docstrings**: Google style for public APIs
-- **Complexity**: Max McCabe = 10
-
-### Async-First
-- Use `async def`/`await` for all I/O - NO blocking calls
-- Use `await asyncio.sleep()` NOT `time.sleep()`
-- Offload CPU-bound work to `ThreadPoolExecutor`
-- Use `asyncio.Semaphore` for concurrency control
-- Always await coroutines (Python warns if you forget)
-
-### Error Handling
-- Raise specific exceptions with context (task_id, queue, attempt)
-- Use structured logging with `extra={}`
-- Implement retry logic and dead-letter queues
+- Use `Generic[T]`, `list[str]`, `X | Y` (Python 3.12 syntax)
+- Avoid `Any` - use `object` or specific unions
+- Must pass `just typecheck` (pyright standard mode)
+- Use `from __future__ import annotations` for forward refs
 
 ---
 
-## Key Files
+## Code Style
 
-- `src/asynctasq/core/task.py` - Task API (`@task` decorator, `Task[T]` base class)
-- `src/asynctasq/core/worker.py` - Worker execution engine
-- `src/asynctasq/drivers/` - Driver implementations (Redis, Postgres, MySQL, RabbitMQ, SQS)
-- `src/asynctasq/integrations/fastapi.py` - FastAPI integration
-- `src/asynctasq/config.py` - Configuration and env vars
-- `docs/` - Full documentation with examples
+- **Formatter:** ruff (line-length: 100)
+- **Linter:** ruff (E, F, I, B, C4, UP rules)
+- **Complexity:** Max McCabe = 10
+- Run `just format` for auto-fix
 
 ---
 
-## Configuration
+## Breaking Changes (ASK FIRST)
 
-All env vars use `ASYNCTASQ_` prefix. See `src/asynctasq/config.py` for complete list.
-
-**Key settings**: `DRIVER` (redis|postgres|mysql|rabbitmq|sqs), `REDIS_URL`, `POSTGRES_DSN`, driver-specific config
-
----
-
-## Before Committing
-
-**MANDATORY: Run `just ci` - MUST pass with zero errors**
-
-Then verify:
-- ✅ Tests added (unit + integration if needed, >90% coverage)
-- ✅ Type hints on all public APIs (`just typecheck` passes)
-- ✅ Docstrings for public functions/classes
-- ✅ Works with all 5 drivers (or limitations documented)
-- ✅ No secrets in code (use env vars)
+- Public API signatures
+- Driver interfaces (`BaseDriver`)
+- Serialization format
+- New dependencies in `pyproject.toml`
+- Config structure
+- Worker lifecycle
 
 ---
 
 ## Troubleshooting
 
-- **Ruff issues**: Run `just format`
-- **Type errors**: Add type hints, use `from __future__ import annotations`
-- **Test failures**: Check `just docker-up` is running, run individual tests with `-v` flag
-- **Import errors**: Run `just init` or `uv sync --all-extras --group dev`
+- **Format errors:** `just format`
+- **Type errors:** Add hints, use `from __future__ import annotations`
+- **Test failures:** Ensure `just docker-up` running
+- **Import errors:** `uv sync --all-extras --group dev`
 
 ---
-
-## Best Practices
-
-### ✅ DO:
-- Run `just ci` before committing (non-negotiable)
-- Write tests for all new code (>90% coverage)
-- Use type hints on public APIs
-- Follow async-first principles
-- Keep tasks small and idempotent
-- Log with structured context
-
-### ❌ DON'T:
-- Block event loop with sync I/O
-- Use `Any` without justification
-- Skip tests
-- Hardcode secrets
-- Break backward compatibility without major version bump
-
----
-
-````
