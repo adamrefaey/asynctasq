@@ -188,7 +188,7 @@ class SqlalchemyOrmHook(BaseOrmHook):
                     from sqlalchemy.orm import Session
 
                     if isinstance(session, Session):
-                        loop = asyncio.get_event_loop()
+                        loop = asyncio.get_running_loop()
                         return await loop.run_in_executor(
                             None, lambda: session.get(model_class, pk)
                         )
@@ -238,7 +238,7 @@ class DjangoOrmHook(BaseOrmHook):
             return await model_class.objects.aget(pk=pk)
         except AttributeError:
             # Fallback to sync
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, lambda: model_class.objects.get(pk=pk))
 
 
