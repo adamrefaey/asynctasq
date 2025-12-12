@@ -43,7 +43,7 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
     redis_group.add_argument(
         "--redis-max-connections",
         type=int,
-        help="Redis max connections (default: from ASYNCTASQ_REDIS_MAX_CONNECTIONS env var or 10)",
+        help="Redis max connections (default: from ASYNCTASQ_REDIS_MAX_CONNECTIONS env var or 100)",
     )
 
     # SQS options

@@ -57,7 +57,7 @@ Worker Command:
 
             --redis-max-connections N
                 Redis max connections in pool
-                Default: from ASYNCTASQ_REDIS_MAX_CONNECTIONS env var or 10
+                Default: from ASYNCTASQ_REDIS_MAX_CONNECTIONS env var or 100
 
         PostgreSQL Options:
             --postgres-dsn DSN

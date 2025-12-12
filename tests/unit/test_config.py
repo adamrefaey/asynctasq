@@ -217,7 +217,7 @@ class TestConfigFromEnv:
         monkeypatch.setenv("ASYNCTASQ_REDIS_URL", "redis://custom:6380")
         monkeypatch.setenv("ASYNCTASQ_REDIS_PASSWORD", "secret123")
         monkeypatch.setenv("ASYNCTASQ_REDIS_DB", "5")
-        monkeypatch.setenv("ASYNCTASQ_REDIS_MAX_CONNECTIONS", "50")
+        monkeypatch.setenv("ASYNCTASQ_REDIS_MAX_CONNECTIONS", "100")
 
         # Act
         config = Config.from_env()
@@ -226,7 +226,7 @@ class TestConfigFromEnv:
         assert config.redis_url == "redis://custom:6380"
         assert config.redis_password == "secret123"
         assert config.redis_db == 5
-        assert config.redis_max_connections == 50
+        assert config.redis_max_connections == 100
 
     def test_from_env_loads_sqs_settings(self, monkeypatch) -> None:
         # Arrange

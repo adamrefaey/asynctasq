@@ -32,7 +32,7 @@ export ASYNCTASQ_PROCESS_POOL_MAX_TASKS_PER_CHILD=100  # Recycle workers after N
 export ASYNCTASQ_REDIS_URL=redis://localhost:6379
 export ASYNCTASQ_REDIS_PASSWORD=secret
 export ASYNCTASQ_REDIS_DB=0
-export ASYNCTASQ_REDIS_MAX_CONNECTIONS=10
+export ASYNCTASQ_REDIS_MAX_CONNECTIONS=100
 ```
 
 **PostgreSQL Configuration:**
@@ -219,7 +219,7 @@ python -m asynctasq worker \
 | `redis_url`             | `ASYNCTASQ_REDIS_URL`             | `redis://localhost:6379` | Redis connection URL         |
 | `redis_password`        | `ASYNCTASQ_REDIS_PASSWORD`        | `None`                   | Redis password               |
 | `redis_db`              | `ASYNCTASQ_REDIS_DB`              | `0`                      | Redis database number (0-15) |
-| `redis_max_connections` | `ASYNCTASQ_REDIS_MAX_CONNECTIONS` | `10`                     | Redis connection pool size   |
+| `redis_max_connections` | `ASYNCTASQ_REDIS_MAX_CONNECTIONS` | `100`                     | Redis connection pool size   |
 
 **PostgreSQL Options:**
 

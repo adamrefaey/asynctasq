@@ -13,7 +13,7 @@ ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {
     "redis_url": ("ASYNCTASQ_REDIS_URL", "redis://localhost:6379", str),
     "redis_password": ("ASYNCTASQ_REDIS_PASSWORD", None, str),
     "redis_db": ("ASYNCTASQ_REDIS_DB", "0", int),
-    "redis_max_connections": ("ASYNCTASQ_REDIS_MAX_CONNECTIONS", "10", int),
+    "redis_max_connections": ("ASYNCTASQ_REDIS_MAX_CONNECTIONS", "100", int),
     # SQS configuration
     "sqs_region": ("ASYNCTASQ_SQS_REGION", "us-east-1", str),
     "sqs_queue_url_prefix": ("ASYNCTASQ_SQS_QUEUE_PREFIX", None, str),

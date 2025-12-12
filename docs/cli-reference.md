@@ -25,7 +25,7 @@ uv run asynctasq worker [OPTIONS]
 | `--redis-url URL`               | Redis connection URL                         | `redis://localhost:6379` |
 | `--redis-password PASSWORD`     | Redis password                               | `None`                   |
 | `--redis-db N`                  | Redis database number (0-15)                 | `0`                      |
-| `--redis-max-connections N`     | Redis connection pool size                   | `10`                     |
+| `--redis-max-connections N`     | Redis connection pool size                   | `100`                     |
 | `--postgres-dsn DSN`            | PostgreSQL connection DSN                    | -                        |
 | `--postgres-queue-table TABLE`  | PostgreSQL queue table name                  | `task_queue`             |
 | `--postgres-dead-letter-table TABLE` | PostgreSQL dead letter table name       | `dead_letter_queue`      |
