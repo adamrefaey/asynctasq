@@ -17,11 +17,11 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 - [AsyncTasQ](#asynctasq)
   - [Table of Contents](#table-of-contents)
   - [Why AsyncTasQ?](#why-asynctasq)
-    - [Async-First Architecture](#async-first-architecture)
-    - [High-Performance Serialization](#high-performance-serialization)
-    - [Production-Ready Features](#production-ready-features)
-    - [Developer Experience](#developer-experience)
-    - [Multi-Driver Flexibility](#multi-driver-flexibility)
+    - [True Async-First Architecture](#true-async-first-architecture)
+    - [Intelligent Serialization \& ORM Integration](#intelligent-serialization--orm-integration)
+    - [Enterprise-Grade Reliability](#enterprise-grade-reliability)
+    - [Developer Experience That Just Works](#developer-experience-that-just-works)
+    - [Multi-Driver Flexibility Without Vendor Lock-In](#multi-driver-flexibility-without-vendor-lock-in)
   - [Key Features](#key-features)
     - [Core Capabilities](#core-capabilities)
     - [Enterprise Features](#enterprise-features)
@@ -33,6 +33,7 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
   - [Comparison with Alternatives](#comparison-with-alternatives)
     - [AsyncTasQ vs. Celery](#asynctasq-vs-celery)
     - [AsyncTasQ vs. Dramatiq](#asynctasq-vs-dramatiq)
+    - [AsyncTasQ vs. ARQ (Async Redis Queue)](#asynctasq-vs-arq-async-redis-queue)
     - [AsyncTasQ vs. RQ (Redis Queue)](#asynctasq-vs-rq-redis-queue)
     - [AsyncTasQ vs. Huey](#asynctasq-vs-huey)
     - [Key Differentiators](#key-differentiators)
@@ -50,45 +51,51 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 
 ## Why AsyncTasQ?
 
-### Async-First Architecture
+### True Async-First Architecture
 
-- **Built with asyncio from the ground up** – No threading, no blocking operations on critical paths
-- **Native async/await support** – Seamless integration with modern Python async code
-- **High concurrency** – Process thousands of tasks concurrently with minimal resource usage
-- **Efficient I/O** – Connection pooling for all database drivers
+Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **designed from the ground up for asyncio**:
 
-### High-Performance Serialization
+- **Native async/await everywhere** – All core operations use asyncio, no threading or blocking on critical paths
+- **Multiple execution modes** – Choose between async I/O (event loop), sync I/O (thread pool), or CPU-bound (process pool) for each task
+- **High-performance concurrency** – Process hundreds of tasks concurrently with minimal overhead using asyncio's efficient task scheduling
+- **Smart connection pooling** – All drivers use connection pools optimized for async operations
+- **Non-blocking by design** – Worker polling, task execution, and all I/O operations are truly non-blocking
 
-- **msgpack encoding** – Binary serialization that's faster and more compact than JSON
-- **Efficient binary handling** – Native `use_bin_type=True` for optimal bytes processing
-- **Automatic ORM model handling** – Pass SQLAlchemy, Django, or Tortoise models directly as task parameters. They're automatically serialized as lightweight references (PK only), reducing payload size by 90%+, then re-fetched with fresh data when the task executes
-- **Custom type support** – Native handling of datetime, Decimal, UUID, sets without manual conversion
+### Intelligent Serialization & ORM Integration
 
-### Production-Ready Features
+- **msgpack binary encoding** – 2-3x faster than JSON with smaller payloads
+- **Automatic ORM model handling** – Pass SQLAlchemy, Django ORM, or Tortoise ORM models directly as task arguments. AsyncTasQ automatically:
+  - Serializes them as lightweight references (primary key only)
+  - Reduces payload size by 90%+
+  - Re-fetches with fresh data when the task executes
+  - Supports all 3 major Python ORMs out of the box
+- **Smart type handling** – Native support for `datetime`, `Decimal`, `UUID`, `set`, and custom types without manual conversion
 
-- **Enterprise ACID guarantees** – PostgreSQL/MySQL drivers with transactional dequeue
-- **Dead-letter queues** – Automatic handling of permanently failed tasks
-- **Crash recovery** – Visibility timeouts ensure tasks are never lost
-- **Graceful shutdown** – SIGTERM/SIGINT handlers wait for in-flight tasks to complete
-- **Configurable retries** – Per-task retry logic with custom `should_retry()` hooks
-- **Task timeouts** – Prevent runaway tasks with per-task timeout configuration
-- **Real-time events** – Redis Pub/Sub event streaming for task lifecycle monitoring
+### Enterprise-Grade Reliability
 
-### Developer Experience
+- **ACID guarantees** – PostgreSQL and MySQL drivers provide transactional dequeue with exactly-once processing semantics
+- **Built-in dead-letter queues** – PostgreSQL/MySQL drivers automatically move permanently failed tasks to DLQ for inspection
+- **Crash recovery** – Visibility timeouts ensure no task is lost even if workers crash mid-execution
+- **Graceful shutdown** – SIGTERM/SIGINT handlers drain in-flight tasks before stopping (configurable timeout)
+- **Flexible retry strategies** – Per-task retry configuration with custom `should_retry()` hooks for intelligent retry logic
+- **Task timeout protection** – Prevent runaway tasks with configurable per-task timeouts
+- **Real-time observability** – Redis Pub/Sub event streaming broadcasts task lifecycle events for monitoring dashboards
 
-- **Elegant, intuitive API** – Clean, expressive syntax inspired by Laravel's queue system
-- **Type-safe** – Full type hints with mypy/pyright support, Generic Task[T] for return types
-- **Zero configuration** – Works with environment variables out of the box
-- **Multiple task styles** – Function-based decorators or class-based tasks with lifecycle hooks
-- **Method chaining** – Fluent API for task configuration: `.delay(60).on_queue("high").dispatch()`
-- **First-class FastAPI integration** – Automatic lifecycle management and dependency injection
+### Developer Experience That Just Works
 
-### Multi-Driver Flexibility
+- **Elegant, Laravel-inspired API** – Clean, intuitive syntax that feels natural
+- **Full type safety** – Complete type hints, mypy/pyright compatible, Generic `Task[T]` for return type checking
+- **Zero configuration** – Works with environment variables out of the box, sensible defaults everywhere
+- **Two task styles** – Choose function-based `@task` decorators or class-based tasks with lifecycle hooks
+- **Fluent method chaining** – Configure tasks expressively: `.delay(60).on_queue("high").retry_after(120).dispatch()`
+- **First-class FastAPI integration** – Lifespan management, automatic connection pooling, native async support
 
-- **Switch drivers instantly** – Change one config line to swap between Redis, PostgreSQL, MySQL, RabbitMQ, or AWS SQS
-- **Same API everywhere** – Write once, run on any driver without code changes
-- **Per-task driver override** – Different tasks can use different drivers in the same application
-- **Production-ready options** – From Redis to enterprise databases to managed cloud queues
+### Multi-Driver Flexibility Without Vendor Lock-In
+
+- **5 production-ready drivers** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS – all with the same API
+- **Switch with one line** – Change `driver="redis"` to `driver="postgres"` – no code changes needed
+- **Per-task driver override** – Use Redis for high-throughput tasks, PostgreSQL for ACID-critical tasks in the same application
+- **Same API, different guarantees** – Choose the driver that matches your SLA requirements without rewriting code
 
 ---
 
@@ -242,112 +249,160 @@ python -m asynctasq worker
 
 | Feature                 | AsyncTasQ                                        | Celery                                    |
 | ----------------------- | ------------------------------------------------- | ----------------------------------------- |
-| **Async Support**       | ✅ Async-first, built with asyncio                 | ❌ No native asyncio support               |
+| **Async Support**       | ✅ Async-first, built with asyncio                 | ❌ No asyncio support (promised for years, not delivered) |
 | **Type Safety**         | ✅ Full type hints, Generic[T]                     | ⚠️ Third-party stubs (celery-types)        |
 | **Multi-Driver**        | ✅ 5 drivers (Redis/PostgreSQL/MySQL/RabbitMQ/SQS) | ⚠️ 3 brokers (Redis/RabbitMQ/SQS)          |
-| **ORM Integration**     | ✅ Auto-serialization (SQLAlchemy/Django/Tortoise) | ❌ Manual serialization                    |
-| **Serialization**       | ✅ msgpack (fast, binary)                          | ⚠️ JSON/pickle (configurable)              |
-| **FastAPI Integration** | ✅ First-class, lifespan management                | ⚠️ Manual setup                            |
-| **Dead-Letter Queue**   | ✅ Built-in (PG/MySQL)                             | ⚠️ Manual setup (RabbitMQ DLX)             |
+| **ORM Integration**     | ✅ Auto-serialization (SQLAlchemy/Django/Tortoise) | ❌ Manual serialization required          |
+| **Serialization**       | ✅ msgpack (fast, binary, efficient)               | ⚠️ JSON/pickle (configurable)              |
+| **FastAPI Integration** | ✅ First-class, lifespan management                | ⚠️ Manual setup, workarounds needed       |
+| **Dead-Letter Queue**   | ✅ Built-in (PostgreSQL/MySQL)                     | ⚠️ Manual setup (RabbitMQ DLX)             |
 | **ACID Guarantees**     | ✅ PostgreSQL/MySQL drivers                        | ❌ Not available                           |
+| **Global Rate Limiting** | ⚠️ Not yet implemented                            | ❌ Not available (per-worker only)         |
 | **Setup Complexity**    | ✅ Zero-config with env vars                       | ⚠️ Complex configuration                   |
+| **Prefetch Multiplier** | ✅ Sensible default (1)                            | ⚠️ Dangerous default (4x), often causes performance issues |
 | **Learning Curve**      | ✅ Simple, intuitive API                           | ⚠️ Steep learning curve                    |
+| **Maturity**            | ⚠️ Young project (v0.9.x)                          | ✅ 13+ years, battle-tested               |
 
 **When to use AsyncTasQ:**
 
-- Modern async Python applications
-- Need for type safety and IDE support
-- Multiple driver options (dev → production)
-- Automatic ORM model handling
-- FastAPI applications
-- Enterprise ACID requirements
+- Modern async Python applications (FastAPI, aiohttp, async web frameworks)
+- Need true asyncio support for I/O-bound tasks (API calls, database queries)
+- Type-safe codebase with full IDE support
+- Multiple driver flexibility (dev → production migration)
+- Automatic ORM model handling (SQLAlchemy, Django, Tortoise)
+- Enterprise ACID requirements (financial transactions, critical workflows)
+- Simple, clean API without steep learning curve
 
 **When to use Celery:**
 
-- Mature ecosystem with many plugins
-- Need for complex workflows (chains, chords)
-- Large existing Celery codebase
+- Mature ecosystem with many plugins and extensions
+- Complex workflows (chains, chords, groups with callbacks)
+- Large existing Celery codebase that's not worth migrating
+- Synchronous applications where asyncio isn't needed
+- Need for battle-tested, widely-adopted solution
 
 ---
 
 ### AsyncTasQ vs. Dramatiq
 
-| Feature                 | AsyncTasQ             | Dramatiq                   |
-| ----------------------- | ---------------------- | -------------------------- |
-| **Async Support**       | ✅ Async-first          | ⚠️ Limited (via middleware) |
-| **Type Safety**         | ✅ Full type hints      | ✅ Type hints (py.typed)    |
-| **Multi-Driver**        | ✅ 5 drivers            | ⚠️ Redis/RabbitMQ           |
-| **ORM Integration**     | ✅ Auto-serialization   | ❌ Manual serialization     |
-| **Dead-Letter Queue**   | ✅ Built-in             | ✅ Built-in                 |
-| **FastAPI Integration** | ✅ First-class          | ⚠️ Manual setup             |
-| **Database Drivers**    | ✅ PostgreSQL/MySQL     | ❌ Not available            |
-| **Simplicity**          | ✅ Clean, intuitive API | ✅ Simple, well-designed    |
+| Feature                 | AsyncTasQ                                        | Dramatiq                   |
+| ----------------------- | ------------------------------------------------ | -------------------------- |
+| **Async Support**       | ✅ Async-first, native asyncio                    | ⚠️ Limited (via async-dramatiq extension, not first-class) |
+| **Type Safety**         | ✅ Full type hints, Generic[T]                    | ✅ Type hints (py.typed)    |
+| **Multi-Driver**        | ✅ 5 drivers (Redis/PostgreSQL/MySQL/RabbitMQ/SQS) | ⚠️ 2 brokers (Redis/RabbitMQ) |
+| **ORM Integration**     | ✅ Auto-serialization (SQLAlchemy/Django/Tortoise) | ❌ Manual serialization required |
+| **Dead-Letter Queue**   | ✅ Built-in (PostgreSQL/MySQL)                    | ✅ Built-in (all brokers)   |
+| **FastAPI Integration** | ✅ First-class, lifespan management               | ⚠️ Manual setup needed      |
+| **Database Drivers**    | ✅ PostgreSQL/MySQL with ACID                     | ❌ Not available            |
+| **Simplicity**          | ✅ Clean, intuitive API                           | ✅ Simple, well-designed    |
 
 **When to use AsyncTasQ:**
 
-- Async applications (FastAPI, aiohttp)
-- Type-safe codebase
-- Database-backed queues (ACID)
-- ORM model handling
+- Async-first applications (FastAPI, aiohttp, modern Python stack)
+- True asyncio support for I/O-bound tasks
+- Database-backed queues with ACID guarantees
+- Automatic ORM model serialization
+- Type-safe codebase with IDE support
 
 **When to use Dramatiq:**
 
 - Synchronous applications
-- Need for mature, battle-tested library
+- Mature, battle-tested solution needed
 - Complex middleware requirements
+- Don't need async support
+
+---
+
+### AsyncTasQ vs. ARQ (Async Redis Queue)
+
+| Feature                 | AsyncTasQ                                        | ARQ                        |
+| ----------------------- | ------------------------------------------------ | -------------------------- |
+| **Async Support**       | ✅ Async-first, native asyncio                    | ✅ Async-first, native asyncio |
+| **Multi-Driver**        | ✅ 5 drivers (Redis/PostgreSQL/MySQL/RabbitMQ/SQS) | ❌ Redis only              |
+| **Type Safety**         | ✅ Full type hints, Generic[T]                    | ✅ Type hints              |
+| **ORM Integration**     | ✅ Auto-serialization (SQLAlchemy/Django/Tortoise) | ❌ Manual serialization    |
+| **Serialization**       | ✅ msgpack (binary, efficient)                    | ⚠️ pickle (default, security concerns) |
+| **Dead-Letter Queue**   | ✅ Built-in (PostgreSQL/MySQL)                    | ❌ Not available           |
+| **ACID Guarantees**     | ✅ PostgreSQL/MySQL drivers                       | ❌ Not available           |
+| **FastAPI Integration** | ✅ First-class, lifespan management               | ⚠️ Manual setup            |
+| **Task Execution Model** | ✅ At-least-once with idempotency support        | ⚠️ At-least-once ("pessimistic") |
+| **Simplicity**          | ✅ Clean, Laravel-inspired API                    | ✅ Lightweight, minimal    |
+| **Custom Serializers**  | ✅ Configurable serializers                       | ✅ Configurable serializers |
+
+**When to use AsyncTasQ:**
+
+- Need multiple driver options (not locked into Redis)
+- Database-backed queues with ACID guarantees
+- Automatic ORM model handling
+- Dead-letter queue support for failed task inspection
+- FastAPI applications with first-class integration
+- Enterprise reliability requirements
+
+**When to use ARQ:**
+
+- Simple Redis-only infrastructure
+- Lightweight solution with minimal dependencies
+- Cron job scheduling is a primary requirement
+- Mature async task queue needed
+- Custom serializers (e.g., msgpack) are acceptable to configure manually
 
 ---
 
 ### AsyncTasQ vs. RQ (Redis Queue)
 
-| Feature               | AsyncTasQ                       | RQ                     |
-| --------------------- | -------------------------------- | ---------------------- |
-| **Async Support**     | ✅ Async-first                    | ❌ Sync only            |
-| **Multi-Driver**      | ✅ 5 drivers                      | ❌ Redis only           |
-| **Type Safety**       | ✅ Full type hints                | ✅ Type hints added     |
-| **Retries**           | ✅ Configurable with custom logic | ✅ Configurable retries |
-| **Dead-Letter Queue** | ✅ Built-in                       | ❌ Not available        |
-| **Database Drivers**  | ✅ PostgreSQL/MySQL               | ❌ Not available        |
-| **Simplicity**        | ✅ Intuitive, clean API           | ✅ Very simple          |
+| Feature               | AsyncTasQ                                        | RQ                     |
+| --------------------- | ------------------------------------------------ | ---------------------- |
+| **Async Support**     | ✅ Async-first, native asyncio                    | ❌ Sync only (no asyncio support) |
+| **Multi-Driver**      | ✅ 5 drivers (Redis/PostgreSQL/MySQL/RabbitMQ/SQS) | ❌ Redis only          |
+| **Type Safety**       | ✅ Full type hints, Generic[T]                    | ✅ Type hints added    |
+| **Retries**           | ✅ Configurable with custom `should_retry()`      | ✅ Configurable retries |
+| **Dead-Letter Queue** | ✅ Built-in (PostgreSQL/MySQL)                    | ❌ Not available       |
+| **Database Drivers**  | ✅ PostgreSQL/MySQL with ACID                     | ❌ Not available       |
+| **Simplicity**        | ✅ Intuitive, clean API                           | ✅ Very simple         |
 
 **When to use AsyncTasQ:**
 
-- Async applications
+- Async applications (FastAPI, aiohttp)
+- True asyncio support for efficient I/O
 - Multiple driver options
 - Enterprise features (DLQ, ACID)
-- Type safety
+- ORM integration
 
 **When to use RQ:**
 
-- Simple use cases
+- Simple, synchronous use cases
 - Synchronous applications
 - Redis-only infrastructure
+- Need mature, battle-tested solution
 
 ---
 
 ### AsyncTasQ vs. Huey
 
-| Feature                 | AsyncTasQ                      | Huey             |
-| ----------------------- | ------------------------------- | ---------------- |
-| **Async Support**       | ✅ Async-first                   | ⚠️ Limited async  |
-| **Multi-Driver**        | ✅ 5 drivers                     | ⚠️ Redis/SQLite   |
-| **Type Safety**         | ✅ Full type hints               | ❌ Limited        |
-| **ORM Integration**     | ✅ Auto-serialization            | ❌ Manual         |
-| **Enterprise Features** | ✅ ACID, DLQ, visibility timeout | ⚠️ Basic features |
-| **Simplicity**          | ✅ Clean, modern API             | ✅ Simple         |
+| Feature                 | AsyncTasQ                                        | Huey               |
+| ----------------------- | ------------------------------------------------ | ------------------ |
+| **Async Support**       | ✅ Async-first, native asyncio                    | ⚠️ Limited (async result awaiting only via helpers) |
+| **Multi-Driver**        | ✅ 5 drivers (Redis/PostgreSQL/MySQL/RabbitMQ/SQS) | ⚠️ Redis/SQLite/Filesystem/Memory |
+| **Type Safety**         | ✅ Full type hints, Generic[T]                    | ⚠️ Limited type hints |
+| **ORM Integration**     | ✅ Auto-serialization (SQLAlchemy/Django/Tortoise) | ❌ Manual serialization |
+| **Enterprise Features** | ✅ ACID, DLQ, visibility timeout                  | ⚠️ Basic features  |
+| **Simplicity**          | ✅ Clean, modern API                              | ✅ Simple, lightweight |
+| **Cron Jobs**           | ⚠️ Not yet implemented                            | ✅ Built-in periodic tasks |
 
 **When to use AsyncTasQ:**
 
-- Async-first applications
-- Enterprise requirements
-- Type-safe codebase
-- ORM integration
+- Async-first applications requiring true asyncio
+- Enterprise requirements (ACID, DLQ)
+- Type-safe codebase with IDE support
+- Automatic ORM integration
+- Need for multiple driver options
 
 **When to use Huey:**
 
 - Lightweight use cases
-- Simple task queues
-- SQLite-backed queues
+- Simple periodic/cron tasks
+- SQLite-backed queues for embedded apps
+- Mature, stable solution needed
 
 ---
 
@@ -355,18 +410,19 @@ python -m asynctasq worker
 
 **AsyncTasQ stands out with:**
 
-1. **True async-first design** – Built with asyncio from the ground up
-2. **msgpack serialization** – Faster and more efficient than JSON
-3. **Intelligent ORM handling** – Automatic model serialization for 3 major ORMs
-4. **Multi-driver flexibility** – Seamlessly switch between 5 production-ready drivers (Redis, PostgreSQL, MySQL, RabbitMQ, SQS)
-5. **Type safety** – Full type hints with Generic[T] support
-6. **Enterprise ACID guarantees** – PostgreSQL/MySQL drivers with transactional dequeue
-7. **Dead-letter queues** – Built-in support for failed task inspection
-8. **FastAPI integration** – First-class support with lifecycle management
-9. **Real-time event streaming** – Redis Pub/Sub for live monitoring dashboards
-10. **Optional monitoring UI** – Beautiful dashboard via [asynctasq-monitor](https://github.com/adamrefaey/asynctasq-monitor)
-11. **Elegant, expressive API** – Method chaining and intuitive task definitions
-12. **Zero configuration** – Works with environment variables out of the box
+1. **True async-first architecture** – Built with asyncio from the ground up (unlike Celery, RQ, Huey)
+2. **Multiple execution modes** – Choose async I/O, sync I/O (thread pool), or CPU-bound (process pool) per task
+3. **Intelligent ORM handling** – Automatic model serialization for SQLAlchemy, Django ORM, and Tortoise ORM (90%+ smaller payloads)
+4. **msgpack serialization** – Binary format that's 2-3x faster than JSON with smaller payloads
+5. **Multi-driver flexibility** – 5 production-ready drivers (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with identical API
+6. **Type safety everywhere** – Full type hints with Generic[T] support, mypy/pyright compatible
+7. **Enterprise ACID guarantees** – PostgreSQL/MySQL drivers with transactional dequeue for exactly-once processing
+8. **Built-in dead-letter queues** – PostgreSQL/MySQL drivers automatically handle permanently failed tasks
+9. **First-class FastAPI integration** – Lifespan management, automatic connection pooling, native async support
+10. **Real-time event streaming** – Redis Pub/Sub broadcasts task lifecycle events for monitoring
+11. **Optional monitoring UI** – Beautiful real-time dashboard via [asynctasq-monitor](https://github.com/adamrefaey/asynctasq-monitor)
+12. **Elegant, Laravel-inspired API** – Method chaining (`.delay(60).on_queue("high").dispatch()`) and intuitive task definitions
+13. **Zero configuration** – Works with environment variables out of the box, sensible defaults everywhere
 
 ---
 
