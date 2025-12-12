@@ -58,7 +58,7 @@ class RedisDriver(BaseDriver):
     url: str = "redis://localhost:6379"
     password: str | None = None
     db: int = 0
-    max_connections: int = 10
+    max_connections: int = 100
     keep_completed_tasks: bool = False
     client: Redis | None = field(default=None, init=False, repr=False)
 

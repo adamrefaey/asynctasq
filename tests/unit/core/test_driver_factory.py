@@ -245,7 +245,7 @@ class TestDriverFactoryCreate:
             url="redis://localhost:6379",
             password=None,
             db=0,
-            max_connections=10,
+            max_connections=100,
             keep_completed_tasks=False,
         )
         assert result == mock_instance
@@ -476,7 +476,7 @@ class TestDriverFactoryParameterPassing:
             url="redis://partial:6379",
             password=None,  # Default
             db=7,
-            max_connections=10,  # Default
+            max_connections=100,  # Default
             keep_completed_tasks=False,
         )
         assert result == mock_instance
@@ -715,7 +715,7 @@ class TestDriverFactoryEdgeCases:
             url="redis://localhost:6379",
             password=None,
             db=0,
-            max_connections=10,
+            max_connections=100,
             keep_completed_tasks=False,
         )
         assert result == mock_instance
@@ -800,7 +800,7 @@ class TestDriverFactoryEdgeCases:
             url="redis://localhost:6379",
             password=None,
             db=0,
-            max_connections=10,
+            max_connections=100,
             keep_completed_tasks=False,
         )
         assert result == mock_instance

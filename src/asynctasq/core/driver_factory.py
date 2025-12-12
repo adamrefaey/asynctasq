@@ -83,7 +83,7 @@ class DriverFactory:
                     url=kwargs.get("redis_url", "redis://localhost:6379"),
                     password=kwargs.get("redis_password"),
                     db=kwargs.get("redis_db", 0),
-                    max_connections=kwargs.get("redis_max_connections", 10),
+                    max_connections=kwargs.get("redis_max_connections", 100),
                     keep_completed_tasks=kwargs.get("keep_completed_tasks", False),
                 )
             case "sqs":

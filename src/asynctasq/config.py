@@ -98,7 +98,7 @@ class Config:
     redis_url: str = "redis://localhost:6379"
     redis_password: str | None = None
     redis_db: int = 0
-    redis_max_connections: int = 10
+    redis_max_connections: int = 100
 
     # SQS configuration
     sqs_region: str = "us-east-1"
@@ -272,7 +272,7 @@ def set_global_config(**overrides) -> None:
 
         redis_max_connections (int): Maximum number of connections in Redis pool
             Env var: ASYNCTASQ_REDIS_MAX_CONNECTIONS
-            Default: 10
+            Default: 100
 
     PostgreSQL Options:
         postgres_dsn (str): PostgreSQL connection DSN

@@ -88,7 +88,7 @@ class TestRedisDriverInitialization:
         assert driver.url == "redis://localhost:6379"
         assert driver.password is None
         assert driver.db == 0
-        assert driver.max_connections == 10
+        assert driver.max_connections == 100
         assert driver.client is None
 
     def test_driver_initializes_with_custom_values(self) -> None:

@@ -224,7 +224,7 @@ Environment Variables:
         ASYNCTASQ_REDIS_URL           Redis connection URL
         ASYNCTASQ_REDIS_PASSWORD      Redis password
         ASYNCTASQ_REDIS_DB            Redis database number
-        ASYNCTASQ_REDIS_MAX_CONNECTIONS  Redis max connections
+        ASYNCTASQ_REDIS_MAX_CONNECTIONS  Redis max connections (default: 100)
 
     PostgreSQL:
         ASYNCTASQ_POSTGRES_DSN        PostgreSQL connection DSN

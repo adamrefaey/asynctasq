@@ -46,7 +46,7 @@ set_global_config(
     redis_url='redis://localhost:6379',
     redis_password='secret',  # Optional
     redis_db=0,
-    redis_max_connections=10
+    redis_max_connections=100
 )
 ```
 
