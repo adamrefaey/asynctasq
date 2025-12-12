@@ -92,6 +92,11 @@ class TaskSerializer:
     async def deserialize(self, task_data: bytes) -> BaseTask:
         """Deserialize bytes to task instance.
 
+        NOTE: This method is async because it calls self.serializer.deserialize() which
+        handles async operations (e.g., ORM model fetching via async hooks). While the
+        task reconstruction itself is synchronous (class import, instantiation, metadata
+        restoration), the underlying serializer may perform async I/O operations.
+
         Returns:
             Task ready for execution
 
