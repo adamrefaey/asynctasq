@@ -41,7 +41,12 @@ from .orm import (
     DjangoOrmHook,
     SqlalchemyOrmHook,
     TortoiseOrmHook,
+    check_pool_health,
+    create_worker_session_factory,
+    detect_forked_process,
+    emit_fork_safety_warning,
     register_orm_hooks,
+    validate_session_factory,
 )
 
 __all__ = [
@@ -68,4 +73,10 @@ __all__ = [
     "SQLALCHEMY_AVAILABLE",
     "DJANGO_AVAILABLE",
     "TORTOISE_AVAILABLE",
+    # ORM utilities
+    "create_worker_session_factory",
+    "validate_session_factory",
+    "check_pool_health",
+    "detect_forked_process",
+    "emit_fork_safety_warning",
 ]
