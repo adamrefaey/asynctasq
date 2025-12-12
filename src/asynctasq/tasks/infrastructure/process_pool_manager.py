@@ -177,11 +177,10 @@ class ProcessPoolManager:
         with self._lock:
             if self._sync_pool is None:
                 logger.warning("Auto-initializing sync pool (prefer explicit initialize())")
-                self._sync_pool = self._create_pool(
+                self._sync_pool = self._create_pool_unlocked(
                     pool_type="sync",
                     max_workers=self._sync_max_workers,
                     max_tasks_per_child=self._sync_max_tasks_per_child,
-                    mp_context=self._mp_context,
                     initializer=None,
                     initargs=(),
                 )
@@ -200,16 +199,47 @@ class ProcessPoolManager:
         with self._lock:
             if self._async_pool is None:
                 logger.warning("Auto-initializing async pool (prefer explicit initialize())")
-                self._async_pool = self._create_pool(
+                self._async_pool = self._create_pool_unlocked(
                     pool_type="async",
                     max_workers=self._async_max_workers,
                     max_tasks_per_child=self._async_max_tasks_per_child,
-                    mp_context=self._mp_context,
                     initializer=init_warm_event_loop,
                     initargs=(),
                 )
                 self._initialized = True
             return self._async_pool
+
+    def _create_pool_unlocked(
+        self,
+        pool_type: str,
+        max_workers: int | None,
+        max_tasks_per_child: int,
+        initializer: Any | None,
+        initargs: tuple[Any, ...],
+    ) -> ProcessPoolExecutor:
+        """Create process pool without lock (helper for get_sync_pool and get_async_pool).
+
+        This method extracts common logic from get_sync_pool and get_async_pool.
+        Must be called within self._lock context.
+
+        Args:
+            pool_type: "sync" or "async"
+            max_workers: Max workers (None = CPU count)
+            max_tasks_per_child: Tasks per worker before restart
+            initializer: Callable to run on worker startup
+            initargs: Arguments for initializer
+
+        Returns:
+            Configured ProcessPoolExecutor
+        """
+        return self._create_pool(
+            pool_type=pool_type,
+            max_workers=max_workers,
+            max_tasks_per_child=max_tasks_per_child,
+            mp_context=self._mp_context,
+            initializer=initializer,
+            initargs=initargs,
+        )
 
     def _create_pool(
         self,

@@ -10,14 +10,18 @@ if TYPE_CHECKING:
 
 
 def get_task_context(task: BaseTask) -> dict[str, Any]:
-    """Extract logging context from task (task_id, class, queue, attempts, max_retries)."""
-    return {
+    """Extract logging context from task (task_id, class, queue, attempts, max_retries, correlation_id)."""
+    context = {
         "task_id": task._task_id,
         "task_class": task.__class__.__name__,
         "queue": task.config.queue,
         "attempts": task._attempts,
         "max_retries": task.config.max_retries,
     }
+    # Add correlation_id if present for distributed tracing
+    if task.config.correlation_id is not None:
+        context["correlation_id"] = task.config.correlation_id
+    return context
 
 
 def log_task_info(task: BaseTask, message: str, **extra: Any) -> None:

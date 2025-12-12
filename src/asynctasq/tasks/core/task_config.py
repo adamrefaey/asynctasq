@@ -21,3 +21,4 @@ class TaskConfig:
     retry_delay: int = 60
     timeout: int | None = None
     driver_override: DriverType | BaseDriver | None = field(default=None, repr=False)
+    correlation_id: str | None = field(default=None, repr=True)

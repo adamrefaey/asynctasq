@@ -24,14 +24,21 @@ def is_function_task_instance(task: BaseTask) -> TypeGuard[FunctionTask]:
 
 
 def is_function_task_class(task_class: type) -> bool:
-    """Check if class is FunctionTask (not an instance check).
+    """Check if class is FunctionTask or subclass thereof.
+
+    Uses issubclass for proper class hierarchy checking, which is the
+    standard approach for type guards that check class relationships.
 
     Args:
         task_class: Class to check
 
     Returns:
-        True if class is FunctionTask
+        True if class is FunctionTask or a subclass
     """
     from asynctasq.tasks.types.function_task import FunctionTask
 
-    return task_class is FunctionTask
+    try:
+        return issubclass(task_class, FunctionTask)
+    except TypeError:
+        # issubclass raises TypeError if task_class is not a class
+        return False
