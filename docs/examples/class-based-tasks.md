@@ -777,7 +777,7 @@ class FetchWebPage(SyncTask[str]):
         return response.text
 ```
 
-**Important:** Sync tasks implement `execute()` (not `handle_sync()`). The framework automatically wraps it in a thread pool executor. You cannot use `await` in `execute()` - it must be a synchronous method.
+**Important:** Sync tasks implement `execute()`. The framework automatically wraps it in a thread pool executor. You cannot use `await` in `execute()` - it must be a synchronous method.
 
 **Benefits:**
 
@@ -952,7 +952,7 @@ class EncryptData(SyncProcessTask[bytes]):
         self.data = data
         self.key = key
 
-    def execute_process(self) -> bytes:
+    def execute(self) -> bytes:
         from cryptography.fernet import Fernet
         
         # CPU-intensive encryption
@@ -991,16 +991,16 @@ class FetchAPI(AsyncTask[dict]):
         async with httpx.AsyncClient() as client:
             return (await client.get(url)).json()
 
-# ⚠️ Use  for moderate CPU or blocking libs
-class ParseCSV([list]):
-    def handle_sync(self) -> list:
+# ⚠️ Use SyncTask for moderate CPU or blocking libs
+class ParseCSV(SyncTask[list]):
+    def execute(self) -> list:
         import pandas as pd
         df = pd.read_csv(self.path)
         return df.to_dict('records')
 
-# 🚀 Use ProcessTask for heavy CPU work (>80% utilization)
-class TrainModel(ProcessTask[float]):
-    def execute_process(self) -> float:
+# 🚀 Use SyncProcessTask for heavy CPU work (>80% utilization)
+class TrainModel(SyncProcessTask[float]):
+    def execute(self) -> float:
         import numpy as np
         # Heavy matrix operations bypass GIL
         result = np.linalg.inv(large_matrix @ large_matrix.T)
@@ -1014,23 +1014,23 @@ class TrainModel(ProcessTask[float]):
 | Your Task Does... | Use This | Method Name | Example |
 |-------------------|----------|-------------|---------|
 | API calls, database queries, file I/O | `AsyncTask` | `async def execute()` | Fetch user data from API |
-| Image resize, data parsing, sync libraries | `` | `def handle_sync()` | Resize image with PIL |
-| Video encoding, ML training, heavy math | `ProcessTask` | `def execute_process()` | Train neural network |
+| Image resize, data parsing, sync libraries | `SyncTask` | `def execute()` | Resize image with PIL |
+| Video encoding, ML training, heavy math | `SyncProcessTask` | `def execute()` | Train neural network |
 
 **Rule of Thumb:**
 - **Default to AsyncTask** - Use for 90% of tasks (I/O-bound)
-- **Switch to ** - Only when using blocking libraries or moderate CPU work
-- **Switch to ProcessTask** - Only when profiling shows >80% CPU usage
+- **Switch to SyncTask** - Only when using blocking libraries or moderate CPU work
+- **Switch to SyncProcessTask** - Only when profiling shows >80% CPU usage
 
 **Performance Tips:**
 - ⚡ **AsyncTask**: Can handle 1000s concurrently, minimal memory
-- 🔄 ****: Limited by thread pool, ~1MB per thread
-- 💪 **ProcessTask**: Limited by CPU cores, ~50MB+ per process
+- 🔄 **SyncTask**: Limited by thread pool, ~1MB per thread
+- 💪 **SyncProcessTask**: Limited by CPU cores, ~50MB+ per process
 
 ### Mixed Async/Sync/Process in Same Application
 
 ```python
-from asynctasq.tasks import AsyncTask, , ProcessTask
+from asynctasq.tasks import AsyncTask, SyncTask, SyncProcessTask
 import asyncio
 import time
 
@@ -1047,26 +1047,26 @@ class AsyncOperation(AsyncTask[str]):
         return f"Fetched: {self.data}"
 
 # Sync task for moderate CPU
-class SyncOperation([str]):
+class SyncOperation(SyncTask[str]):
     queue = "sync-tasks"
 
     def __init__(self, data: str, **kwargs):
         super().__init__(**kwargs)
         self.data = data
 
-    def handle_sync(self) -> str:
+    def execute(self) -> str:
         time.sleep(1)
         return f"Computed: {self.data}"
 
 # Process task for heavy CPU
-class ProcessOperation(ProcessTask[str]):
+class ProcessOperation(SyncProcessTask[str]):
     queue = "cpu-tasks"
 
     def __init__(self, data: str, **kwargs):
         super().__init__(**kwargs)
         self.data = data
 
-    def execute_process(self) -> str:
+    def execute(self) -> str:
         import hashlib
         # Simulate CPU-intensive work
         result = hashlib.pbkdf2_hmac('sha256', self.data.encode(), b'salt', 100000)
@@ -1722,10 +1722,10 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.tasks import 
+from asynctasq.tasks import SyncTask
 from datetime import datetime, timedelta
 
-class GenerateReport([dict]):
+class GenerateReport(SyncTask[dict]):
     queue = "reports"
     timeout = 3600  # 1 hour timeout
 
@@ -1743,7 +1743,7 @@ class GenerateReport([dict]):
         self.end_date = end_date
         self.user_id = user_id
 
-    def handle_sync(self) -> dict:
+    def execute(self) -> dict:
         """Generate report synchronously (CPU-intensive)."""
         import time
         print(f"Generating {self.report_type} report for user {self.user_id}")
@@ -2050,7 +2050,7 @@ class ProcessPayment(AsyncTask[dict]):
         """Handle payment failure."""
         print(f"❌ Payment failed for user {self.user_id}: {exception}")
 
-class GenerateReport([str]):
+class GenerateReport(SyncTask[str]):
     queue = "reports"
     timeout = 300
 
@@ -2058,7 +2058,7 @@ class GenerateReport([str]):
         super().__init__(**kwargs)
         self.report_id = report_id
 
-    def handle_sync(self) -> str:
+    def execute(self) -> str:
         """Generate a report (sync function)."""
         import time
         print(f"📊 Generating report {self.report_id}")
@@ -2145,7 +2145,7 @@ Class-based tasks in AsyncTasQ provide a powerful, flexible way to create reusab
 ✅ **Reusable and testable** - Class-based design for better organization
 ✅ **Flexible configuration** - Queue, retries, timeout, driver via class attributes
 ✅ **Multiple dispatch methods** - Direct dispatch, delayed execution, method chaining
-✅ **Async and sync support** - `Task` for async, `` for blocking operations
+✅ **Async and sync support** - `AsyncTask` for async, `SyncTask` for blocking operations
 ✅ **ORM integration** - Automatic serialization for SQLAlchemy, Django, Tortoise
 ✅ **Driver overrides** - Per-task driver selection (string or instance)
 ✅ **Method chaining** - Fluent API for runtime configuration overrides
