@@ -99,10 +99,10 @@ The asynctasq error handling system is designed with clear separation of concern
 **File:** `src/asynctasq/tasks/core/base_task.py`
 
 **Responsibilities:**
-- Implement business logic in `handle()`
+- Implement business logic in `execute()` (for AsyncTask/SyncTask) or `run()` (for custom task types)
 - Optionally override `should_retry()` for custom retry decisions
 - Optionally override `failed()` for custom failure handling
-- Let exceptions propagate to framework (don't catch unless needed)
+- Let exceptions propagate to framework (don't catch unless recovering in-place)
 
 **Key Methods:**
 - `should_retry(exception)` - User hook for retry decision
@@ -112,7 +112,7 @@ The asynctasq error handling system is designed with clear separation of concern
 1. Users implement business logic; framework handles errors
 2. Override `should_retry()` ONLY if custom retry logic needed
 3. Override `failed()` ONLY if custom failure handling needed
-4. Don't catch exceptions in `handle()` unless recovering in-place
+4. Don't catch exceptions in `execute()` unless recovering in-place
 
 ## Error Flow Examples
 
@@ -160,7 +160,7 @@ Worker → TaskExecutor.execute()
 
 ```python
 class ValidateDataTask(AsyncTask[None]):
-    async def handle(self) -> None:
+    async def execute(self) -> None:
         if not self.data:
             raise ValueError("Invalid data")
         # Process data...
@@ -173,8 +173,7 @@ class ValidateDataTask(AsyncTask[None]):
 
 # Execution flow:
 Worker → TaskExecutor.execute()
-       → task.execute()
-       → task.handle() [User Code]
+       → task.execute() [User Code]
        ← Raises ValueError("Invalid data")
        → TaskExecutor.handle_failed()
        → Check task.should_retry(ValueError) → False (custom logic)
@@ -188,7 +187,7 @@ Worker → TaskExecutor.execute()
 class SendEmailTask(AsyncTask[None]):
     email: str
     
-    async def handle(self) -> None:
+    async def execute(self) -> None:
         # Send email logic...
         raise ConnectionError("SMTP server unavailable")
     
@@ -338,7 +337,7 @@ from asynctasq.tasks.types import AsyncTask
 class FailingTask(AsyncTask[None]):
     fail_count: int = 0
     
-    async def handle(self) -> None:
+    async def execute(self) -> None:
         self.fail_count += 1
         if self.fail_count < 3:
             raise ConnectionError("Transient error")

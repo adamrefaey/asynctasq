@@ -1207,10 +1207,9 @@ class RedisTask(AsyncTask[None]):
 
 **How it works:** SQLAlchemy models are automatically detected and serialized as lightweight references. Only the primary key is stored in the queue, and models are fetched fresh from the database when the task executes. This ensures data consistency and reduces queue payload size significantly.
 
-**Configuration:** You must set a context variable on your model class to provide the session for fetching models during task execution. This is required for SQLAlchemy integration to work properly.
+**Configuration:** Set the session factory once on your Base class - workers will automatically create sessions as needed.
 
 ```python
-import contextvars
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from asynctasq.tasks import AsyncTask
@@ -1232,16 +1231,21 @@ class Order(Base):
     total: Mapped[float]
 
 # Setup SQLAlchemy
-engine = create_async_engine('postgresql+asyncpg://user:pass@localhost/db')
+engine = create_async_engine(
+    'postgresql+asyncpg://user:pass@localhost/db',
+    pool_pre_ping=True,  # Verify connections are alive
+    pool_recycle=3600,   # Recycle connections after 1 hour
+)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-# Configure session context variable for ORM handler
-# This allows tasks to fetch models from the database
-session_var = contextvars.ContextVar('session')
+# Configure session factory - one line! Workers create sessions automatically
+Base._asynctasq_session_factory = async_session
 
-# Set the context variable on model classes
-User._asynctasq_session_var = session_var
-Order._asynctasq_session_var = session_var
+# For multiprocessing workers, use NullPool instead:
+# from sqlalchemy.pool import NullPool
+# engine = create_async_engine(dsn, poolclass=NullPool, pool_pre_ping=True)
+# async_session = async_sessionmaker(engine, expire_on_commit=False)
+# Base._asynctasq_session_factory = async_session
 
 # Task with ORM model parameter
 class SendWelcomeEmail(AsyncTask[None]):
@@ -1272,9 +1276,6 @@ class ProcessOrder(AsyncTask[None]):
 # Dispatch tasks
 async def main():
     async with async_session() as session:
-        # Set session in context for task execution
-        session_var.set(session)
-
         # Fetch user
         user = await session.get(User, 1)
 
@@ -1288,8 +1289,8 @@ async def main():
 
 **Important Notes:**
 
-- **Session context variable is required:** You must set `_asynctasq_session_var` on each model class for SQLAlchemy integration to work
--- **Worker configuration:** For production, ensure the session context variable is set in your worker process (see [ORM Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/orm-integrations.md))
+- **Simple setup:** One line on Base class - all models inherit automatically
+- **Worker-friendly:** Workers automatically create sessions from factory when fetching models
 - **Fresh data:** Models are fetched fresh from the database when the task executes, ensuring data consistency
 - **Payload optimization:** Only the primary key is serialized, reducing queue payload size by 90%+ for large models
 - **Parallel fetching:** Multiple models in the same task are fetched in parallel for efficiency

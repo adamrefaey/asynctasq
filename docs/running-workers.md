@@ -116,16 +116,18 @@ if __name__ == "__main__":
 
 **Worker Parameters:**
 
-| Parameter            | Type             | Default | Description                                    |
-| -------------------- | ---------------- | ------- | ---------------------------------------------- |
-| `queue_driver`       | `BaseDriver`     | -       | Queue driver instance                          |
-| `queues`             | `list[str]`      | `["default"]` | Queue names to process (priority order)  |
-| `concurrency`        | `int`            | `10`    | Maximum concurrent tasks                       |
-| `max_tasks`          | `int \| None`    | `None`  | Process N tasks then exit (None = run forever) |
-| `serializer`         | `BaseSerializer` | `MsgpackSerializer` | Custom serializer            |
-| `event_emitter`      | `EventEmitter`   | `None`  | Event emitter for real-time monitoring         |
-| `worker_id`          | `str \| None`    | auto    | Custom worker identifier (auto-generated if None) |
-| `heartbeat_interval` | `float`          | `60.0`  | Seconds between heartbeat events               |
+| Parameter                         | Type             | Default | Description                                    |
+| --------------------------------- | ---------------- | ------- | ---------------------------------------------- |
+| `queue_driver`                    | `BaseDriver`     | -       | Queue driver instance                          |
+| `queues`                          | `list[str]`      | `["default"]` | Queue names to process (priority order)  |
+| `concurrency`                     | `int`            | `10`    | Maximum concurrent tasks                       |
+| `max_tasks`                       | `int \| None`    | `None`  | Process N tasks then exit (None = run forever) |
+| `serializer`                      | `BaseSerializer` | `MsgpackSerializer` | Custom serializer            |
+| `event_emitter`                   | `EventEmitter`   | `None`  | Event emitter for real-time monitoring         |
+| `worker_id`                       | `str \| None`    | auto    | Custom worker identifier (auto-generated if None) |
+| `heartbeat_interval`              | `float`          | `60.0`  | Seconds between heartbeat events               |
+| `process_pool_size`               | `int \| None`    | `None`  | Process pool size for CPU-bound tasks          |
+| `process_pool_max_tasks_per_child`| `int \| None`    | `None`  | Recycle worker processes after N tasks         |
 
 **Worker Behavior:**
 
@@ -177,7 +179,7 @@ python -m asynctasq worker --queues low-priority,batch --concurrency 5
 
 ## Event Streaming
 
-Workers can emit real-time events for monitoring via Redis Pub/Sub. This enables live dashboards and metrics.
+Workers can emit real-time events for monitoring via Redis Pub/Sub. This enables live dashboards and metrics through `asynctasq-monitor`.
 
 **Event Types:**
 
@@ -188,6 +190,7 @@ Workers can emit real-time events for monitoring via Redis Pub/Sub. This enables
 | `task_completed`   | Task finished successfully                 |
 | `task_failed`      | Task failed after all retries              |
 | `task_retrying`    | Task failed, will retry                    |
+| `task_cancelled`   | Task was cancelled/revoked                 |
 | `worker_online`    | Worker started                             |
 | `worker_heartbeat` | Periodic worker status (every 60s default) |
 | `worker_offline`   | Worker shutting down                       |
@@ -197,19 +200,32 @@ Workers can emit real-time events for monitoring via Redis Pub/Sub. This enables
 ```python
 from asynctasq.core.events import create_event_emitter
 from asynctasq.core.worker import Worker
+from asynctasq.core.driver_factory import DriverFactory
+from asynctasq.config import get_global_config
 
 # Create event emitter (uses Redis Pub/Sub)
-emitter = create_event_emitter(redis_url="redis://localhost:6379")
+# Reads from ASYNCTASQ_EVENTS_REDIS_URL or falls back to ASYNCTASQ_REDIS_URL
+emitter = create_event_emitter()
 
-# Create worker with events
+# Create worker with events and process pool for CPU-bound tasks
+config = get_global_config()
+driver = DriverFactory.create_from_config(config)
+
 worker = Worker(
     queue_driver=driver,
     queues=['default'],
     event_emitter=emitter,
-    worker_id="worker-1",       # Custom ID for identification
-    heartbeat_interval=60.0     # Heartbeat every 60 seconds
+    worker_id="worker-1",              # Custom ID for identification
+    heartbeat_interval=60.0,           # Heartbeat every 60 seconds
+    process_pool_size=4,               # 4 worker processes for CPU-bound tasks
+    process_pool_max_tasks_per_child=100  # Recycle workers after 100 tasks
 )
-await worker.start()
+
+try:
+    await worker.start()
+finally:
+    await emitter.close()
+    await driver.disconnect()
 ```
 
 **Configure via Environment:**
@@ -229,7 +245,12 @@ async def monitor_events():
     await subscriber.connect()
     
     async for event in subscriber.listen():
-        print(f"Event: {event.event_type} - Task: {event.task_id}")
+        if event.event_type == "task_failed":
+            print(f"❌ Task {event.task_id} failed: {event.error}")
+        elif event.event_type == "task_completed":
+            print(f"✓ Task {event.task_id} completed in {event.duration_ms}ms")
+        elif event.event_type == "worker_heartbeat":
+            print(f"💓 Worker {event.worker_id}: {event.active} active, {event.processed} processed")
 ```
 
 ---

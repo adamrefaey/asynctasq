@@ -20,6 +20,10 @@ export ASYNCTASQ_DEFAULT_QUEUE=default     # Default queue name
 export ASYNCTASQ_MAX_RETRIES=3             # Default max retry attempts
 export ASYNCTASQ_RETRY_DELAY=60            # Default retry delay (seconds)
 export ASYNCTASQ_TIMEOUT=300               # Default task timeout (seconds, None = no timeout)
+
+# ProcessTask/ProcessPoolExecutor configuration (for CPU-bound tasks)
+export ASYNCTASQ_PROCESS_POOL_SIZE=4       # Number of worker processes (None = auto-detect CPU count)
+export ASYNCTASQ_PROCESS_POOL_MAX_TASKS_PER_CHILD=100  # Recycle workers after N tasks (None = no recycling, Python 3.11+)
 ```
 
 **Redis Configuration:**
@@ -86,6 +90,7 @@ export ASYNCTASQ_EVENTS_CHANNEL=asynctasq:events          # Pub/Sub channel name
 
 ```bash
 export ASYNCTASQ_KEEP_COMPLETED_TASKS=false  # Keep completed tasks for history (default: false)
+export ASYNCTASQ_TASK_SCAN_LIMIT=10000      # Max tasks to scan in repository queries
 ```
 
 **Note:** `keep_completed_tasks` is not applicable for SQS driver (SQS always deletes acknowledged messages).
@@ -148,6 +153,17 @@ set_global_config(
 set_global_config(
     keep_completed_tasks=True  # Default: False (tasks are deleted after completion)
 )
+
+# ProcessTask/ProcessPoolExecutor configuration (for CPU-bound tasks)
+set_global_config(
+    process_pool_size=4,                    # Number of worker processes
+    process_pool_max_tasks_per_child=100   # Recycle workers after 100 tasks (prevents memory leaks)
+)
+
+# Task repository configuration
+set_global_config(
+    task_scan_limit=10000  # Max tasks to scan in repository queries
+)
 ```
 
 **Using `Config.from_env()` with Overrides:**
@@ -184,13 +200,17 @@ python -m asynctasq worker \
 
 **General Options:**
 
-| Option                | Env Var                    | Default   | Description                    |
-| --------------------- | -------------------------- | --------- | ------------------------------ |
-| `driver`              | `ASYNCTASQ_DRIVER`        | `redis`   | Queue driver                   |
-| `default_queue`       | `ASYNCTASQ_DEFAULT_QUEUE` | `default` | Default queue name             |
-| `default_max_retries` | `ASYNCTASQ_MAX_RETRIES`   | `3`       | Default max retry attempts     |
-| `default_retry_delay` | `ASYNCTASQ_RETRY_DELAY`   | `60`      | Default retry delay (seconds)  |
-| `default_timeout`     | `ASYNCTASQ_TIMEOUT`       | `None`    | Default task timeout (seconds) |
+| Option                            | Env Var                                   | Default   | Description                    |
+| --------------------------------- | ----------------------------------------- | --------- | ------------------------------ |
+| `driver`                          | `ASYNCTASQ_DRIVER`                       | `redis`   | Queue driver                   |
+| `default_queue`                   | `ASYNCTASQ_DEFAULT_QUEUE`                | `default` | Default queue name             |
+| `default_max_retries`             | `ASYNCTASQ_MAX_RETRIES`                  | `3`       | Default max retry attempts     |
+| `default_retry_delay`             | `ASYNCTASQ_RETRY_DELAY`                  | `60`      | Default retry delay (seconds)  |
+| `default_timeout`                 | `ASYNCTASQ_TIMEOUT`                      | `None`    | Default task timeout (seconds) |
+| `process_pool_size`               | `ASYNCTASQ_PROCESS_POOL_SIZE`            | `None`    | Process pool size (CPU-bound)  |
+| `process_pool_max_tasks_per_child`| `ASYNCTASQ_PROCESS_POOL_MAX_TASKS_PER_CHILD` | `None` | Worker recycling threshold    |
+| `task_scan_limit`                 | `ASYNCTASQ_TASK_SCAN_LIMIT`              | `10000`   | Max tasks in repository scans  |
+| `keep_completed_tasks`            | `ASYNCTASQ_KEEP_COMPLETED_TASKS`         | `False`   | Keep completed tasks for audit |
 
 **Redis Options:**
 
