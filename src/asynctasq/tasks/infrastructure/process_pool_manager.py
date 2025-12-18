@@ -1,32 +1,72 @@
-"""Process pool management for CPU-bound task execution."""
+"""Process pool management for CPU-bound task execution.
+
+Provides thread-safe process pool managers with support for both synchronous
+and asynchronous workloads. Designed for multiprocessing environments where
+each worker process maintains isolated state and resources.
+
+Key features:
+- Separate pools for sync and async tasks with warm event loops
+- Automatic resource cleanup and lifecycle management
+- Thread-safe operations with proper locking
+- Context manager support for RAII pattern
+- Configurable worker limits and task recycling
+- Process-local state management for multiprocessing safety
+"""
 
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
+from dataclasses import dataclass, field
 import logging
+import multiprocessing.context
 import os
 import threading
-from typing import Any
+import types
+from typing import Any, Final, Literal, Self, TypedDict
 
 logger = logging.getLogger(__name__)
 
+
+class PoolStats(TypedDict):
+    """Type definition for pool statistics."""
+
+    status: Literal["initialized", "not_initialized"]
+    pool_size: int
+    max_tasks_per_child: int
+
+
+ProcessPoolStats = dict[Literal["sync", "async"], PoolStats]
+
+
 # Global variables for warm event loop (set by process initializer)
+# These are process-local by design - each subprocess gets its own event loop
 _process_loop: asyncio.AbstractEventLoop | None = None
 _loop_thread: threading.Thread | None = None
 
-# Metrics: Track fallback usage for observability
+# Metrics: Track fallback usage for observability (process-local)
 _fallback_count = 0
 _fallback_lock = threading.Lock()
 
 # Default max_tasks_per_child to prevent memory leaks (best practice from research)
-DEFAULT_MAX_TASKS_PER_CHILD = 100
+DEFAULT_MAX_TASKS_PER_CHILD: Final = 100
 
 
 def init_warm_event_loop() -> None:
-    """Initialize persistent event loop in subprocess (called by ProcessPoolExecutor initializer).
+    """Initialize persistent event loop in subprocess.
 
-    Creates dedicated event loop in background thread to avoid overhead of creating new loop per task.
+    Called by ProcessPoolExecutor as the worker initializer function.
+    Creates a dedicated event loop running in a background daemon thread
+    to avoid the overhead of creating new loops for each async task.
+
+    This function is automatically invoked once per worker process during
+    pool initialization. The event loop remains active for the lifetime
+    of the worker process.
+
+    Note:
+        This function sets global variables that are process-local.
+        Each worker process gets its own independent event loop.
     """
     global _process_loop, _loop_thread
 
@@ -48,24 +88,51 @@ def init_warm_event_loop() -> None:
 
 
 def get_warm_event_loop() -> asyncio.AbstractEventLoop | None:
-    """Get warm event loop for this process (None if not initialized or outside process pool)."""
+    """Get the warm event loop for the current process.
+
+    Returns:
+        The active event loop if running in a worker process with
+        warm event loop initialized, None otherwise.
+
+    Note:
+        Returns None if called outside a process pool worker or
+        if the warm event loop was not properly initialized.
+    """
     return _process_loop
 
 
 def get_fallback_count() -> int:
-    """Get asyncio.run() fallback count (high counts indicate missing warm_up() call)."""
+    """Get the asyncio.run() fallback counter for this process.
+
+    Returns:
+        Number of times async tasks fell back to asyncio.run() instead
+        of using the warm event loop. High counts may indicate missing
+        proper pool initialization.
+
+    Note:
+        This is a process-local counter. Each worker maintains its own count.
+    """
     with _fallback_lock:
         return _fallback_count
 
 
 def increment_fallback_count() -> int:
-    """Increment and return fallback counter (thread-safe)."""
+    """Thread-safely increment and return the fallback counter.
+
+    Returns:
+        The new counter value after incrementing.
+
+    Note:
+        Used internally to track async task execution patterns.
+        Higher values suggest suboptimal event loop usage.
+    """
     global _fallback_count
     with _fallback_lock:
         _fallback_count += 1
         return _fallback_count
 
 
+@dataclass(kw_only=True)
 class ProcessPoolManager:
     """Instance-based manager for sync and async process pools with context manager support.
 
@@ -90,40 +157,30 @@ class ProcessPoolManager:
         ```
     """
 
-    def __init__(
-        self,
-        sync_max_workers: int | None = None,
-        async_max_workers: int | None = None,
-        sync_max_tasks_per_child: int | None = None,
-        async_max_tasks_per_child: int | None = None,
-        mp_context: Any | None = None,
-    ) -> None:
-        """Initialize process pool manager (pools created lazily or via initialize()).
+    # Configuration parameters
+    sync_max_workers: int | None = None
+    async_max_workers: int | None = None
+    sync_max_tasks_per_child: int | None = None
+    async_max_tasks_per_child: int | None = None
+    mp_context: multiprocessing.context.BaseContext | None = None
 
-        Args:
-            sync_max_workers: Max workers for sync pool (default: CPU count)
-            async_max_workers: Max workers for async pool (default: CPU count)
-            sync_max_tasks_per_child: Tasks per worker before restart (default: 100)
-            async_max_tasks_per_child: Tasks per worker before restart (default: 100)
-            mp_context: Multiprocessing context (default: None, uses default context)
-        """
-        self._sync_max_workers = sync_max_workers
-        self._async_max_workers = async_max_workers
-        self._sync_max_tasks_per_child = sync_max_tasks_per_child or DEFAULT_MAX_TASKS_PER_CHILD
-        self._async_max_tasks_per_child = async_max_tasks_per_child or DEFAULT_MAX_TASKS_PER_CHILD
-        self._mp_context = mp_context
+    # Runtime state (not part of init, created automatically)
+    _sync_pool: ProcessPoolExecutor | None = field(default=None, init=False)
+    _async_pool: ProcessPoolExecutor | None = field(default=None, init=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+    _initialized: bool = field(default=False, init=False)
 
-        self._sync_pool: ProcessPoolExecutor | None = None
-        self._async_pool: ProcessPoolExecutor | None = None
-        self._lock = threading.Lock()
-        self._initialized = False
-
-    async def __aenter__(self) -> ProcessPoolManager:
+    async def __aenter__(self) -> Self:
         """Enter async context manager (initializes pools)."""
         await self.initialize()
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
+    ) -> None:
         """Exit async context manager (shuts down pools)."""
         await self.shutdown()
 
@@ -137,27 +194,27 @@ class ProcessPoolManager:
             logger.info(
                 "Initializing process pools",
                 extra={
-                    "sync_workers": self._sync_max_workers or self._get_cpu_count(),
-                    "async_workers": self._async_max_workers or self._get_cpu_count(),
-                    "sync_max_tasks_per_child": self._sync_max_tasks_per_child,
-                    "async_max_tasks_per_child": self._async_max_tasks_per_child,
+                    "sync_workers": self.sync_max_workers or self._get_cpu_count(),
+                    "async_workers": self.async_max_workers or self._get_cpu_count(),
+                    "sync_max_tasks_per_child": self.sync_max_tasks_per_child,
+                    "async_max_tasks_per_child": self.async_max_tasks_per_child,
                 },
             )
 
             self._sync_pool = self._create_pool(
                 pool_type="sync",
-                max_workers=self._sync_max_workers,
-                max_tasks_per_child=self._sync_max_tasks_per_child,
-                mp_context=self._mp_context,
+                max_workers=self.sync_max_workers,
+                max_tasks_per_child=self.sync_max_tasks_per_child or DEFAULT_MAX_TASKS_PER_CHILD,
+                mp_context=self.mp_context,
                 initializer=None,
                 initargs=(),
             )
 
             self._async_pool = self._create_pool(
                 pool_type="async",
-                max_workers=self._async_max_workers,
-                max_tasks_per_child=self._async_max_tasks_per_child,
-                mp_context=self._mp_context,
+                max_workers=self.async_max_workers,
+                max_tasks_per_child=self.async_max_tasks_per_child or DEFAULT_MAX_TASKS_PER_CHILD,
+                mp_context=self.mp_context,
                 initializer=init_warm_event_loop,
                 initargs=(),
             )
@@ -177,10 +234,12 @@ class ProcessPoolManager:
         with self._lock:
             if self._sync_pool is None:
                 logger.warning("Auto-initializing sync pool (prefer explicit initialize())")
-                self._sync_pool = self._create_pool_unlocked(
+                self._sync_pool = self._create_pool(
                     pool_type="sync",
-                    max_workers=self._sync_max_workers,
-                    max_tasks_per_child=self._sync_max_tasks_per_child,
+                    max_workers=self.sync_max_workers,
+                    max_tasks_per_child=self.sync_max_tasks_per_child
+                    or DEFAULT_MAX_TASKS_PER_CHILD,
+                    mp_context=self.mp_context,
                     initializer=None,
                     initargs=(),
                 )
@@ -199,55 +258,25 @@ class ProcessPoolManager:
         with self._lock:
             if self._async_pool is None:
                 logger.warning("Auto-initializing async pool (prefer explicit initialize())")
-                self._async_pool = self._create_pool_unlocked(
+                self._async_pool = self._create_pool(
                     pool_type="async",
-                    max_workers=self._async_max_workers,
-                    max_tasks_per_child=self._async_max_tasks_per_child,
+                    max_workers=self.async_max_workers,
+                    max_tasks_per_child=self.async_max_tasks_per_child
+                    or DEFAULT_MAX_TASKS_PER_CHILD,
+                    mp_context=self.mp_context,
                     initializer=init_warm_event_loop,
                     initargs=(),
                 )
                 self._initialized = True
             return self._async_pool
 
-    def _create_pool_unlocked(
-        self,
-        pool_type: str,
-        max_workers: int | None,
-        max_tasks_per_child: int,
-        initializer: Any | None,
-        initargs: tuple[Any, ...],
-    ) -> ProcessPoolExecutor:
-        """Create process pool without lock (helper for get_sync_pool and get_async_pool).
-
-        This method extracts common logic from get_sync_pool and get_async_pool.
-        Must be called within self._lock context.
-
-        Args:
-            pool_type: "sync" or "async"
-            max_workers: Max workers (None = CPU count)
-            max_tasks_per_child: Tasks per worker before restart
-            initializer: Callable to run on worker startup
-            initargs: Arguments for initializer
-
-        Returns:
-            Configured ProcessPoolExecutor
-        """
-        return self._create_pool(
-            pool_type=pool_type,
-            max_workers=max_workers,
-            max_tasks_per_child=max_tasks_per_child,
-            mp_context=self._mp_context,
-            initializer=initializer,
-            initargs=initargs,
-        )
-
     def _create_pool(
         self,
-        pool_type: str,
+        pool_type: Literal["sync", "async"],
         max_workers: int | None,
         max_tasks_per_child: int,
-        mp_context: Any | None,
-        initializer: Any | None,
+        mp_context: multiprocessing.context.BaseContext | None,
+        initializer: Callable[..., Any] | None,
         initargs: tuple[Any, ...],
     ) -> ProcessPoolExecutor:
         """Create process pool with given configuration.
@@ -301,6 +330,8 @@ class ProcessPoolManager:
             wait: Wait for pending tasks to complete
             cancel_futures: Cancel pending futures (Python 3.9+)
         """
+        errors: list[Exception] = []
+
         with self._lock:
             if self._sync_pool is not None:
                 logger.info(
@@ -309,9 +340,9 @@ class ProcessPoolManager:
                 )
                 try:
                     self._sync_pool.shutdown(wait=wait, cancel_futures=cancel_futures)
-                except Exception:
+                except Exception as e:
                     logger.exception("Error during sync process pool shutdown")
-                    raise
+                    errors.append(e)
                 else:
                     self._sync_pool = None
                     logger.info("Sync process pool shutdown complete")
@@ -323,14 +354,21 @@ class ProcessPoolManager:
                 )
                 try:
                     self._async_pool.shutdown(wait=wait, cancel_futures=cancel_futures)
-                except Exception:
+                except Exception as e:
                     logger.exception("Error during async process pool shutdown")
-                    raise
+                    errors.append(e)
                 else:
                     self._async_pool = None
                     logger.info("Async process pool shutdown complete")
 
             self._initialized = False
+
+            # Raise collected errors if any occurred
+            if errors:
+                if len(errors) == 1:
+                    raise errors[0]
+                # Python 3.11+ ExceptionGroup for multiple errors
+                raise ExceptionGroup("Multiple errors during pool shutdown", errors)
 
     def is_initialized(self) -> bool:
         """Check if pools are initialized.
@@ -341,7 +379,7 @@ class ProcessPoolManager:
         with self._lock:
             return self._sync_pool is not None or self._async_pool is not None
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> ProcessPoolStats:
         """Get pool statistics.
 
         Returns:
@@ -350,43 +388,57 @@ class ProcessPoolManager:
         with self._lock:
             # Get actual pool sizes (resolve None to CPU count)
             sync_pool_size = (
-                self._sync_max_workers
-                if self._sync_max_workers is not None
+                self.sync_max_workers
+                if self.sync_max_workers is not None
                 else self._get_cpu_count()
             )
             async_pool_size = (
-                self._async_max_workers
-                if self._async_max_workers is not None
+                self.async_max_workers
+                if self.async_max_workers is not None
                 else self._get_cpu_count()
             )
 
+            sync_status: Literal["initialized", "not_initialized"] = (
+                "initialized" if self._sync_pool is not None else "not_initialized"
+            )
+            async_status: Literal["initialized", "not_initialized"] = (
+                "initialized" if self._async_pool is not None else "not_initialized"
+            )
+
             return {
-                "sync": {
-                    "status": "initialized" if self._sync_pool is not None else "not_initialized",
-                    "pool_size": sync_pool_size,
-                    "max_tasks_per_child": self._sync_max_tasks_per_child,
-                },
-                "async": {
-                    "status": "initialized" if self._async_pool is not None else "not_initialized",
-                    "pool_size": async_pool_size,
-                    "max_tasks_per_child": self._async_max_tasks_per_child,
-                },
+                "sync": PoolStats(
+                    status=sync_status,
+                    pool_size=sync_pool_size,
+                    max_tasks_per_child=self.sync_max_tasks_per_child
+                    or DEFAULT_MAX_TASKS_PER_CHILD,
+                ),
+                "async": PoolStats(
+                    status=async_status,
+                    pool_size=async_pool_size,
+                    max_tasks_per_child=self.async_max_tasks_per_child
+                    or DEFAULT_MAX_TASKS_PER_CHILD,
+                ),
             }
 
 
-# Global default instance for convenience (can be replaced for dependency injection)
+# Process-local default instance for convenience
+# Note: In multiprocessing, each process gets its own copy of this global
 _default_manager: ProcessPoolManager | None = None
 _default_manager_lock = threading.Lock()
 
 
 def get_default_manager() -> ProcessPoolManager:
-    """Get or create default global ProcessPoolManager instance.
+    """Get or create default ProcessPoolManager instance for this process.
 
-    This provides a convenient global instance while still allowing
-    dependency injection by setting the default manager explicitly.
+    Important: In multiprocessing contexts, each process maintains its own
+    default manager instance. This is usually the desired behavior for
+    process pools, but be aware that managers are not shared between processes.
+
+    For shared state across processes, consider explicit manager passing
+    or process-safe alternatives like Manager() objects.
 
     Returns:
-        Default ProcessPoolManager instance
+        Default ProcessPoolManager instance for this process
     """
     global _default_manager
     with _default_manager_lock:
@@ -396,10 +448,13 @@ def get_default_manager() -> ProcessPoolManager:
 
 
 def set_default_manager(manager: ProcessPoolManager) -> None:
-    """Set custom default manager (for dependency injection).
+    """Set custom default manager for this process.
+
+    Warning: In multiprocessing contexts, this only affects the current process.
+    Other processes will maintain their own default managers.
 
     Args:
-        manager: ProcessPoolManager instance to use as default
+        manager: ProcessPoolManager instance to use as default in this process
     """
     global _default_manager
     with _default_manager_lock:
