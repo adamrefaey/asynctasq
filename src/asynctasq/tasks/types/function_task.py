@@ -12,16 +12,6 @@ from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.tasks.core.base_task import BaseTask
 
 
-class TaskFunctionProtocol(Protocol):
-    """Protocol for @task decorated functions with attached configuration."""
-
-    _task_queue: str
-    _task_max_retries: int
-    _task_retry_delay: int
-    _task_timeout: int | None
-    _task_driver: str | BaseDriver | None
-
-
 def _is_async_callable(func: Callable[..., Any]) -> TypeGuard[Callable[..., Awaitable[Any]]]:
     """Type guard for async callables."""
     return inspect.iscoroutinefunction(func)
