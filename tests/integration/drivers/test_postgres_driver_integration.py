@@ -640,7 +640,7 @@ class TestPostgresDriverWithRealPostgres:
         assert dlq_result is not None
         assert dlq_result["payload"] == task_data
         assert dlq_result["current_attempt"] == postgres_driver.max_attempts
-        assert dlq_result["error_message"] == "Max retries exceeded"
+        assert dlq_result["error_message"] == "Max attempts exceeded"
 
         # Task should not be in main queue
         queue_count = await postgres_conn.fetchval(

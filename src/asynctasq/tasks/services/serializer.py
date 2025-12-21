@@ -67,7 +67,7 @@ class TaskSerializer:
             "current_attempt": task._current_attempt,
             "dispatched_at": task._dispatched_at.isoformat() if task._dispatched_at else None,
             "queue": task.config.queue,
-            "max_retries": task.config.max_retries,
+            "max_attempts": task.config.max_attempts,
             "retry_delay": task.config.retry_delay,
             "timeout": task.config.timeout,
         }
@@ -166,7 +166,7 @@ class TaskSerializer:
         # Restore config (use TaskConfig factory to handle driver resolution)
         task.config = TaskConfig(
             queue=metadata["queue"],
-            max_retries=metadata["max_retries"],
+            max_attempts=metadata.get("max_attempts", metadata.get("max_attempts")),
             retry_delay=metadata["retry_delay"],
             timeout=metadata["timeout"],
         )

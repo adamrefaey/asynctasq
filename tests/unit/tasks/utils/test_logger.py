@@ -37,7 +37,7 @@ class TestGetTaskContext:
         # Arrange
         class ConfiguredTask(BaseTask[int]):
             queue = "test-queue"
-            max_retries = 5
+            max_attempts = 5
 
             async def run(self) -> int:
                 return 42
@@ -54,7 +54,7 @@ class TestGetTaskContext:
         assert context["task_class"] == "ConfiguredTask"
         assert context["queue"] == "test-queue"
         assert context["current_attempt"] == 2
-        assert context["max_retries"] == 5
+        assert context["max_attempts"] == 5
         assert "correlation_id" not in context  # Not set by default
 
     def test_includes_correlation_id_when_present(self) -> None:
@@ -164,7 +164,7 @@ class TestLogTaskWarning:
         mock_get_logger.return_value = mock_logger
 
         class WarnTask(BaseTask[int]):
-            max_retries = 3
+            max_attempts = 3
 
             async def run(self) -> int:
                 return 42
@@ -181,7 +181,7 @@ class TestLogTaskWarning:
         args, kwargs = mock_logger.warning.call_args
         assert args[0] == "Approaching retry limit"
         assert kwargs["extra"]["current_attempt"] == 2
-        assert kwargs["extra"]["max_retries"] == 3
+        assert kwargs["extra"]["max_attempts"] == 3
 
     @patch("asynctasq.tasks.utils.logger.logging.getLogger")
     def test_logs_warning_with_extra_fields(self, mock_get_logger: MagicMock) -> None:
@@ -212,7 +212,7 @@ class TestLogTaskError:
         mock_get_logger.return_value = mock_logger
 
         class ErrorTask(BaseTask[int]):
-            max_retries = 3
+            max_attempts = 3
 
             async def run(self) -> int:
                 return 42

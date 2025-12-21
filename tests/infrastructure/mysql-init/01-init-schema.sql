@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS task_queue (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
--- Dead Letter Queue Table: Stores tasks that exceeded max retry attempts
+-- Dead Letter Queue Table: Stores tasks that exceeded max attempts
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS dead_letter_queue (
     id INT AUTO_INCREMENT PRIMARY KEY,

@@ -184,7 +184,7 @@ class TestTaskExecutor:
         executor = TaskExecutor()
 
         class RetryableTask(AsyncTask[str]):
-            max_retries = 3
+            max_attempts = 3
 
             async def execute(self) -> str:
                 return "done"
@@ -200,12 +200,12 @@ class TestTaskExecutor:
         assert result is True
 
     @mark.asyncio
-    async def test_should_retry_returns_false_when_max_retries_reached(self) -> None:
+    async def test_should_retry_returns_false_when_max_attempts_reached(self) -> None:
         # Arrange
         executor = TaskExecutor()
 
         class FailedTask(AsyncTask[str]):
-            max_retries = 3
+            max_attempts = 3
 
             async def execute(self) -> str:
                 return "done"
@@ -226,7 +226,7 @@ class TestTaskExecutor:
         executor = TaskExecutor()
 
         class CustomRetryTask(AsyncTask[str]):
-            max_retries = 3
+            max_attempts = 3
 
             async def execute(self) -> str:
                 return "done"

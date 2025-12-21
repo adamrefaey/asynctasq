@@ -25,7 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_task_queue_lookup
 ON task_queue (queue_name, status, available_at, locked_until);
 
 -- =============================================================================
--- Dead Letter Queue Table: Stores tasks that exceeded max retry attempts
+-- Dead Letter Queue Table: Stores tasks that exceeded max attempts
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS dead_letter_queue (
     id SERIAL PRIMARY KEY,

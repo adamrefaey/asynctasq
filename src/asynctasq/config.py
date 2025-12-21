@@ -39,7 +39,7 @@ class ConfigOverrides(TypedDict, total=False):
     events_redis_url: str | None
     events_channel: str
     default_queue: str
-    default_max_retries: int
+    default_max_attempts: int
     default_retry_delay: int
     default_timeout: int | None
     process_pool_size: int | None
@@ -113,7 +113,7 @@ ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {
     "events_channel": ("ASYNCTASQ_EVENTS_CHANNEL", "asynctasq:events", str),
     # Task defaults
     "default_queue": ("ASYNCTASQ_DEFAULT_QUEUE", "default", str),
-    "default_max_retries": ("ASYNCTASQ_MAX_RETRIES", "3", int),
+    "default_max_attempts": ("ASYNCTASQ_MAX_ATTEMPTS", "3", int),
     "default_retry_delay": ("ASYNCTASQ_RETRY_DELAY", "60", int),
     "default_timeout": ("ASYNCTASQ_TIMEOUT", None, int),
     # ProcessTask/ProcessPoolExecutor configuration
@@ -181,7 +181,7 @@ class Config:
 
     # Task defaults
     default_queue: str = "default"
-    default_max_retries: int = 3
+    default_max_attempts: int = 3
     default_retry_delay: int = 60
     default_timeout: int | None = None
 
@@ -233,8 +233,8 @@ class Config:
             raise ValueError("redis_db must be between 0 and 15")
         if config["redis_max_connections"] < 1:
             raise ValueError("redis_max_connections must be positive")
-        if config["default_max_retries"] < 0:
-            raise ValueError("default_max_retries must be non-negative")
+        if config["default_max_attempts"] < 0:
+            raise ValueError("default_max_attempts must be non-negative")
         if config["default_retry_delay"] < 0:
             raise ValueError("default_retry_delay must be non-negative")
         if config["postgres_max_attempts"] < 1:
@@ -288,8 +288,8 @@ def set_global_config(**overrides: Unpack[ConfigOverrides]) -> None:
             Env var: ASYNCTASQ_DEFAULT_QUEUE
             Default: "default"
 
-        default_max_retries (int): Default maximum retry attempts for tasks
-            Env var: ASYNCTASQ_MAX_RETRIES
+        default_max_attempts (int): Default maximum attempts for tasks
+            Env var: ASYNCTASQ_MAX_ATTEMPTS
             Default: 3
 
         default_retry_delay (int): Default retry delay in seconds
@@ -468,8 +468,8 @@ def set_global_config(**overrides: Unpack[ConfigOverrides]) -> None:
         )
 
         # Task defaults
-        set_global_config(
-            default_max_retries=5,
+            set_global_config(
+                default_max_attempts=5,
             default_retry_delay=120,
             default_timeout=300
         )

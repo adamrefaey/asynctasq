@@ -378,7 +378,7 @@ class MySQLDriver(BaseDriver):
                                 f"""
                                 INSERT INTO {self.dead_letter_table}
                                     (queue_name, payload, current_attempt, error_message, failed_at)
-                                VALUES (%s, %s, %s, 'Max retries exceeded', NOW(6))
+                                VALUES (%s, %s, %s, 'Max attempts exceeded', NOW(6))
                                 """,
                                 (task_queue_name, payload, current_attempt),
                             )

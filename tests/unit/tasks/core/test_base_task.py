@@ -82,7 +82,7 @@ class TestTaskInitialization:
         # Arrange
         class CustomTask(AsyncTask[str]):
             queue = "custom_queue"
-            max_retries = 5
+            max_attempts = 5
 
             async def execute(self) -> str:
                 return "test"
@@ -92,7 +92,7 @@ class TestTaskInitialization:
 
         # Assert - class attributes should be preserved
         assert task_instance.config.queue == "custom_queue"
-        assert task_instance.config.max_retries == 5
+        assert task_instance.config.max_attempts == 5
 
 
 @mark.unit
@@ -106,12 +106,12 @@ class TestTaskConfiguration:
         # Assert
         assert task_instance.config.queue == "default"
 
-    def test_default_max_retries(self) -> None:
+    def test_default_max_attempts(self) -> None:
         # Act
         task_instance = ConcreteTask()
 
         # Assert
-        assert task_instance.config.max_retries == 3
+        assert task_instance.config.max_attempts == 3
 
     def test_default_retry_delay(self) -> None:
         # Act
@@ -145,7 +145,7 @@ class TestTaskConfiguration:
         # Arrange
         class CustomTask(AsyncTask[str]):
             queue = "high_priority"
-            max_retries = 10
+            max_attempts = 10
             retry_delay = 120
             timeout = 300
 
@@ -157,7 +157,7 @@ class TestTaskConfiguration:
 
         # Assert
         assert task_instance.config.queue == "high_priority"
-        assert task_instance.config.max_retries == 10
+        assert task_instance.config.max_attempts == 10
         assert task_instance.config.retry_delay == 120
         assert task_instance.config.timeout == 300
 

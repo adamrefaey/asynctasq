@@ -157,7 +157,7 @@ def heavy_computation(data: list[float]):
 ```python
 from asynctasq.tasks import task
 
-@task  # Uses all defaults: queue='default', max_retries=3, etc.
+@task  # Uses all defaults: queue='default', max_attempts=3, etc.
 async def simple_task():
     """Task with default configuration."""
     print("Executing simple task")
@@ -168,7 +168,7 @@ async def simple_task():
 ```python
 from asynctasq.tasks import task
 
-@task(queue='emails', max_retries=5, retry_delay=120, timeout=30)
+@task(queue='emails', max_attempts=5, retry_delay=120, timeout=30)
 async def send_email(to: str, subject: str, body: str):
     """Send an email with custom retry configuration."""
     print(f"Sending email to {to}: {subject}")
@@ -186,7 +186,7 @@ All configuration options can be set via the `@task` decorator. These settings a
 | Option        | Type                        | Default     | Description                                                      |
 | ------------- | --------------------------- | ----------- | ---------------------------------------------------------------- |
 | `queue`       | `str`                       | `"default"` | Queue name for task execution                                    |
-| `max_retries` | `int`                       | `3`         | Maximum retry attempts on failure                                |
+| `max_attempts` | `int`                       | `3`         | Maximum retry attempts on failure                                |
 | `retry_delay` | `int`                       | `60`        | Seconds to wait between retry attempts                           |
 | `timeout`     | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                    |
 | `driver`      | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config) |
@@ -228,21 +228,21 @@ async def send_push_notification(user_id: int, message: str):
 from asynctasq.tasks import task
 
 # High retry count for critical operations
-@task(queue='payments', max_retries=10, retry_delay=30)
+@task(queue='payments', max_attempts=10, retry_delay=30)
 async def charge_credit_card(card_id: str, amount: float):
     """Retry up to 10 times with 30 second delays."""
     # Payment processing logic
     pass
 
 # No retries for validation tasks
-@task(queue='validation', max_retries=0)
+@task(queue='validation', max_attempts=0)
 async def validate_data(data: dict):
     """Don't retry validation failures."""
     # Validation logic
     pass
 
 # Custom retry delay
-@task(queue='api-calls', max_retries=5, retry_delay=300)
+@task(queue='api-calls', max_attempts=5, retry_delay=300)
 async def call_external_api(endpoint: str):
     """Retry with 5 minute delays (for rate-limited APIs)."""
     # API call logic
@@ -283,7 +283,7 @@ from asynctasq.tasks import task
 
 @task(
     queue='critical',
-    max_retries=10,
+    max_attempts=10,
     retry_delay=60,
     timeout=300
 )
@@ -967,22 +967,22 @@ Override the retry delay for specific dispatches:
 ```python
 from asynctasq.tasks import task
 
-@task(queue='api', max_retries=3, retry_delay=60)
+@task(queue='api', max_attempts=3, retry_delay=60)
 async def call_api(endpoint: str):
     print(f"Calling {endpoint}")
 
 # Override retry delay at dispatch time
 async def main():
     # Use custom retry delay for this specific dispatch
-    # This only affects the delay between retries, not max_retries
+    # This only affects the delay between retries, not max_attempts
     task_id = await call_api("https://api.example.com/data") \
         .retry_after(120) \
         .dispatch()
     # Will retry with 120 second delays instead of default 60
-    # Note: max_retries (3) is still from the decorator
+    # Note: max_attempts (3) is still from the decorator
 ```
 
-**Note:** Method chaining can only override `queue`, `delay`, and `retry_delay`. The `max_retries` and `timeout` values are set at decoration time and cannot be overridden via chaining.
+**Note:** Method chaining can only override `queue`, `delay`, and `retry_delay`. The `max_attempts` and `timeout` values are set at decoration time and cannot be overridden via chaining.
 
 ### Complex Chaining
 
@@ -1014,7 +1014,7 @@ import asyncio
 from asynctasq.tasks import task
 from typing import Optional
 
-@task(queue='emails', max_retries=5, retry_delay=60, timeout=30)
+@task(queue='emails', max_attempts=5, retry_delay=60, timeout=30)
 async def send_email(
     to: str,
     subject: str,
@@ -1057,7 +1057,7 @@ from decimal import Decimal
 
 @task(
     queue='payments',
-    max_retries=10,
+    max_attempts=10,
     retry_delay=30,
     timeout=60
 )
@@ -1140,7 +1140,7 @@ import asyncio
 from asynctasq.tasks import task
 from pathlib import Path
 
-@task(queue='images', max_retries=3, timeout=300)
+@task(queue='images', max_attempts=3, timeout=300)
 async def process_image(
     image_path: str,
     operations: list[str],
@@ -1178,7 +1178,7 @@ import httpx
 
 @task(
     queue='webhooks',
-    max_retries=5,
+    max_attempts=5,
     retry_delay=120,
     timeout=10
 )
@@ -1217,7 +1217,7 @@ if __name__ == "__main__":
 import asyncio
 from asynctasq.tasks import task
 
-@task(queue='sync', max_retries=3, retry_delay=300)
+@task(queue='sync', max_attempts=3, retry_delay=300)
 async def sync_user_data(
     user_id: int,
     source_system: str,
@@ -1316,14 +1316,14 @@ from asynctasq.config import set_global_config
 set_global_config(driver='redis')
 
 # Define tasks with different configurations
-@task(queue='emails', max_retries=3, retry_delay=60)
+@task(queue='emails', max_attempts=3, retry_delay=60)
 async def send_email(to: str, subject: str, body: str):
     """Send an email."""
     print(f"📧 Sending email to {to}: {subject}")
     await asyncio.sleep(0.1)
     return f"Email sent to {to}"
 
-@task(queue='payments', max_retries=10, retry_delay=30, timeout=60)
+@task(queue='payments', max_attempts=10, retry_delay=30, timeout=60)
 async def process_payment(user_id: int, amount: float):
     """Process a payment."""
     print(f"💳 Processing payment: ${amount} for user {user_id}")
@@ -1459,10 +1459,10 @@ All examples above are ready to use - just configure your driver and start dispa
 
 ### Error Handling
 
-Tasks should handle their own errors gracefully. The framework will retry failed tasks according to the `max_retries` configuration:
+Tasks should handle their own errors gracefully. The framework will retry failed tasks according to the `max_attempts` configuration:
 
 ```python
-@task(queue='api', max_retries=3, retry_delay=60)
+@task(queue='api', max_attempts=3, retry_delay=60)
 async def call_external_api(url: str):
     """Call external API with automatic retry on failure."""
     try:

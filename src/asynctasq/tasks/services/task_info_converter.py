@@ -73,8 +73,8 @@ class TaskInfoConverter:
             attempt=task_dict.get(
                 "attempt", task_dict.get("metadata", {}).get("current_attempt", 1)
             ),
-            max_retries=task_dict.get(
-                "max_retries", task_dict.get("metadata", {}).get("max_retries", 3)
+            max_attempts=task_dict.get(
+                "max_attempts", task_dict.get("metadata", {}).get("max_attempts", 3)
             ),
             args=task_dict.get("args", task_dict.get("params")),
             kwargs=task_dict.get("kwargs"),

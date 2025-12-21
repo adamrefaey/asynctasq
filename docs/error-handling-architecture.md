@@ -38,7 +38,7 @@ The asynctasq error handling system is designed with clear separation of concern
 │  Framework Error Recovery Logic                                 │
 │                                                                 │
 │  1. Check if task.should_retry(exception) → User Hook           │
-│  2. Check if current_attempt < max_retries                      │
+│  2. Check if current_attempt < max_attempts                      │
 │  3. If retry: Re-queue task with incremented current_attempt    │
 │  4. If exhausted: Call task.failed(exception) → User Hook       │
 │  5. Return appropriate status (RETRY or FAILED)                 │
@@ -52,7 +52,7 @@ The asynctasq error handling system is designed with clear separation of concern
 │  │  BaseTask.should_retry(exception: Exception) -> bool     │   │
 │  │  ─────────────────────────────────────────────────────   │   │
 │  │  Purpose: Decide if task should retry after failure      │   │
-│  │  Default: Always return True (retry until max_retries)   │   │
+│  │  Default: Always return True (retry until max_attempts)   │   │
 │  │  Override: Custom retry logic (e.g., fail fast on        │   │
 │  │           validation errors, retry on network errors)    │   │
 │  └──────────────────────────────────────────────────────────┘   │
@@ -136,7 +136,7 @@ Worker → TaskExecutor.execute()
        ← Raises ConnectionError
        → TaskExecutor.handle_failed()
        → Check task.should_retry(ConnectionError) → True (default)
-       → Check current_attempt < max_retries → True
+    → Check current_attempt < max_attempts → True
        → Re-queue task with current_attempt++
        ← RETRY
 ```
@@ -150,7 +150,7 @@ Worker → TaskExecutor.execute()
        ← Raises ValueError
        → TaskExecutor.handle_failed()
        → Check task.should_retry(ValueError) → True (default)
-       → Check current_attempt < max_retries → False (exhausted)
+    → Check current_attempt < max_attempts → False (exhausted)
        → Call task.failed(ValueError) [User Hook]
        ← FAILED
        → Mark task failed
@@ -279,7 +279,7 @@ class ProcessOrderTask(AsyncTask[None]):
 2. **Don't raise exceptions in `failed()`** - They're logged but ignored
 3. **Don't depend on `failed()` for critical logic** - It's best-effort
 4. **Don't use `should_retry()` for side effects** - It's a decision function
-5. **Don't retry indefinitely** - Set reasonable `max_retries`
+5. **Don't retry indefinitely** - Set reasonable `max_attempts`
 
 ## Configuration
 
@@ -288,7 +288,7 @@ class ProcessOrderTask(AsyncTask[None]):
 ```python
 class MyTask(AsyncTask[None]):
     queue = "high-priority"
-    max_retries = 5          # Retry up to 5 times
+    max_attempts = 5          # Retry up to 5 times
     retry_delay = 120        # 2 minutes between retries
     timeout = 300            # 5-minute timeout per attempt
 ```
@@ -313,7 +313,7 @@ logger.error(
         "task_id": task._task_id,
         "task_class": task.__class__.__name__,
         "attempt": task._current_attempt,
-        "max_retries": task.config.max_retries,
+        "max_attempts": task.config.max_attempts,
         "exception_type": type(exception).__name__,
         "exception_message": str(exception),
     }
@@ -346,7 +346,7 @@ class FailingTask(AsyncTask[None]):
 @pytest.mark.asyncio
 async def test_task_retries():
     task = FailingTask()
-    task.config.max_retries = 3
+    task.config.max_attempts = 3
 
     # Simulate 3 execution attempts
     for attempt in range(1, 4):

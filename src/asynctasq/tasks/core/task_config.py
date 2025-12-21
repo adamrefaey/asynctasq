@@ -17,7 +17,7 @@ class TaskConfig:
     """
 
     queue: str = "default"
-    max_retries: int = 3
+    max_attempts: int = 3
     retry_delay: int = 60
     timeout: int | None = None
     driver_override: DriverType | BaseDriver | None = field(default=None, repr=False)
