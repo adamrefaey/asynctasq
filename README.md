@@ -205,9 +205,9 @@ async def send_email(to: str, subject: str, body: str):
 # 3. Dispatch the task
 async def main():
     for i in range(10):
-        task_id = await send_email.dispatch(
+        task_id = await send_email(
             to=f"user{i}@example.com", subject=f"Welcome {i}!", body="Welcome to our platform!"
-        )
+        ).dispatch()
         print(f"Task dispatched: {task_id}")
 
 
