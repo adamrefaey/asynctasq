@@ -86,6 +86,17 @@ class TaskSerializer:
             "metadata": metadata,
         }
 
+        # For class-based tasks from __main__, store the file path
+        if task.__class__.__module__ == "__main__":
+            import inspect
+
+            try:
+                class_file = inspect.getfile(task.__class__)
+                task_dict["class_file"] = class_file
+            except (TypeError, OSError):
+                # If we can't get the file, we'll fail at deserialization
+                pass
+
         # Serialize to bytes
         return self.serializer.serialize(task_dict)
 
@@ -111,10 +122,13 @@ class TaskSerializer:
         class_path = task_dict["class"]
         params = task_dict["params"]
         metadata = task_dict["metadata"]
+        class_file = task_dict.get("class_file")
 
         # Import and instantiate task class
         module_name, class_name = class_path.rsplit(".", 1)
-        module = __import__(module_name, fromlist=[class_name])
+
+        # Use FunctionResolver to load the module (handles __main__ consistently)
+        module = self._function_resolver.get_module(module_name, class_file)
         task_class = getattr(module, class_name)
 
         # Special handling for FunctionTask: need to restore func first, then create instance
