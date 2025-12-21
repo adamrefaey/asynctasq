@@ -42,6 +42,7 @@ repos:
           - sqlalchemy>=2.0.0
           - django>=4.2
           - tortoise-orm>=0.25.0
+          - uvloop>=0.22.1
 
   # Standard hooks for whitespace, JSON/TOML/YAML checks and basic safety
   - repo: https://github.com/pre-commit/pre-commit-hooks
