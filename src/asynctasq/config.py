@@ -21,16 +21,12 @@ class ConfigOverrides(TypedDict, total=False):
     postgres_queue_table: str
     postgres_dead_letter_table: str
     postgres_max_attempts: int
-    postgres_retry_delay_seconds: int
-    postgres_visibility_timeout_seconds: int
     postgres_min_pool_size: int
     postgres_max_pool_size: int
     mysql_dsn: str
     mysql_queue_table: str
     mysql_dead_letter_table: str
     mysql_max_attempts: int
-    mysql_retry_delay_seconds: int
-    mysql_visibility_timeout_seconds: int
     mysql_min_pool_size: int
     mysql_max_pool_size: int
     rabbitmq_url: str
@@ -40,8 +36,10 @@ class ConfigOverrides(TypedDict, total=False):
     events_channel: str
     default_queue: str
     default_max_attempts: int
+    default_retry_strategy: str
     default_retry_delay: int
     default_timeout: int | None
+    default_visibility_timeout: int
     process_pool_size: int | None
     process_pool_max_tasks_per_child: int | None
     task_scan_limit: int
@@ -75,12 +73,6 @@ ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {
         str,
     ),
     "postgres_max_attempts": ("ASYNCTASQ_POSTGRES_MAX_ATTEMPTS", "3", int),
-    "postgres_retry_delay_seconds": ("ASYNCTASQ_POSTGRES_RETRY_DELAY_SECONDS", "60", int),
-    "postgres_visibility_timeout_seconds": (
-        "ASYNCTASQ_POSTGRES_VISIBILITY_TIMEOUT_SECONDS",
-        "300",
-        int,
-    ),
     "postgres_min_pool_size": ("ASYNCTASQ_POSTGRES_MIN_POOL_SIZE", "10", int),
     "postgres_max_pool_size": ("ASYNCTASQ_POSTGRES_MAX_POOL_SIZE", "10", int),
     # MySQL configuration
@@ -96,12 +88,6 @@ ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {
         str,
     ),
     "mysql_max_attempts": ("ASYNCTASQ_MYSQL_MAX_ATTEMPTS", "3", int),
-    "mysql_retry_delay_seconds": ("ASYNCTASQ_MYSQL_RETRY_DELAY_SECONDS", "60", int),
-    "mysql_visibility_timeout_seconds": (
-        "ASYNCTASQ_MYSQL_VISIBILITY_TIMEOUT_SECONDS",
-        "300",
-        int,
-    ),
     "mysql_min_pool_size": ("ASYNCTASQ_MYSQL_MIN_POOL_SIZE", "10", int),
     "mysql_max_pool_size": ("ASYNCTASQ_MYSQL_MAX_POOL_SIZE", "10", int),
     # RabbitMQ configuration
@@ -114,8 +100,10 @@ ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {
     # Task defaults
     "default_queue": ("ASYNCTASQ_DEFAULT_QUEUE", "default", str),
     "default_max_attempts": ("ASYNCTASQ_MAX_ATTEMPTS", "3", int),
+    "default_retry_strategy": ("ASYNCTASQ_RETRY_STRATEGY", "exponential", str),
     "default_retry_delay": ("ASYNCTASQ_RETRY_DELAY", "60", int),
     "default_timeout": ("ASYNCTASQ_TIMEOUT", None, int),
+    "default_visibility_timeout": ("ASYNCTASQ_VISIBILITY_TIMEOUT", "300", int),
     # ProcessTask/ProcessPoolExecutor configuration
     "process_pool_size": ("ASYNCTASQ_PROCESS_POOL_SIZE", None, int),
     "process_pool_max_tasks_per_child": ("ASYNCTASQ_PROCESS_POOL_MAX_TASKS_PER_CHILD", None, int),
@@ -154,8 +142,6 @@ class Config:
     postgres_queue_table: str = "task_queue"
     postgres_dead_letter_table: str = "dead_letter_queue"
     postgres_max_attempts: int = 3
-    postgres_retry_delay_seconds: int = 60
-    postgres_visibility_timeout_seconds: int = 300
     postgres_min_pool_size: int = 10
     postgres_max_pool_size: int = 10
 
@@ -164,8 +150,6 @@ class Config:
     mysql_queue_table: str = "task_queue"
     mysql_dead_letter_table: str = "dead_letter_queue"
     mysql_max_attempts: int = 3
-    mysql_retry_delay_seconds: int = 60
-    mysql_visibility_timeout_seconds: int = 300
     mysql_min_pool_size: int = 10
     mysql_max_pool_size: int = 10
 
@@ -182,8 +166,10 @@ class Config:
     # Task defaults
     default_queue: str = "default"
     default_max_attempts: int = 3
+    default_retry_strategy: str = "exponential"
     default_retry_delay: int = 60
     default_timeout: int | None = None
+    default_visibility_timeout: int = 300
 
     # ProcessTask/ProcessPoolExecutor configuration
     # If None, ProcessTask will auto-initialize using os.process_cpu_count() or 4
@@ -239,10 +225,6 @@ class Config:
             raise ValueError("default_retry_delay must be non-negative")
         if config["postgres_max_attempts"] < 1:
             raise ValueError("postgres_max_attempts must be positive")
-        if config["postgres_retry_delay_seconds"] < 0:
-            raise ValueError("postgres_retry_delay_seconds must be non-negative")
-        if config["postgres_visibility_timeout_seconds"] < 1:
-            raise ValueError("postgres_visibility_timeout_seconds must be positive")
         if config["postgres_min_pool_size"] < 1:
             raise ValueError("postgres_min_pool_size must be positive")
         if config["postgres_max_pool_size"] < 1:
@@ -251,10 +233,10 @@ class Config:
             raise ValueError("postgres_min_pool_size cannot be greater than postgres_max_pool_size")
         if config.get("mysql_max_attempts", 3) < 1:
             raise ValueError("mysql_max_attempts must be positive")
-        if config.get("mysql_retry_delay_seconds", 60) < 0:
-            raise ValueError("mysql_retry_delay_seconds must be non-negative")
-        if config.get("mysql_visibility_timeout_seconds", 300) < 1:
-            raise ValueError("mysql_visibility_timeout_seconds must be positive")
+        if config.get("default_retry_strategy", "exponential") not in ("fixed", "exponential"):
+            raise ValueError("default_retry_strategy must be 'fixed' or 'exponential'")
+        if config.get("default_visibility_timeout", 300) < 1:
+            raise ValueError("default_visibility_timeout must be positive")
         if config.get("mysql_min_pool_size", 10) < 1:
             raise ValueError("mysql_min_pool_size must be positive")
         if config.get("mysql_max_pool_size", 10) < 1:

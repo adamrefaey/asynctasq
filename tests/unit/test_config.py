@@ -77,16 +77,12 @@ class TestEnvVarMapping:
             "postgres_queue_table",
             "postgres_dead_letter_table",
             "postgres_max_attempts",
-            "postgres_retry_delay_seconds",
-            "postgres_visibility_timeout_seconds",
             "postgres_min_pool_size",
             "postgres_max_pool_size",
             "mysql_dsn",
             "mysql_queue_table",
             "mysql_dead_letter_table",
             "mysql_max_attempts",
-            "mysql_retry_delay_seconds",
-            "mysql_visibility_timeout_seconds",
             "mysql_min_pool_size",
             "mysql_max_pool_size",
             "rabbitmq_url",
@@ -96,8 +92,10 @@ class TestEnvVarMapping:
             "events_channel",
             "default_queue",
             "default_max_attempts",
+            "default_retry_strategy",
             "default_retry_delay",
             "default_timeout",
+            "default_visibility_timeout",
             "process_pool_size",
             "process_pool_max_tasks_per_child",
             "task_scan_limit",
@@ -165,8 +163,8 @@ class TestConfigDefaults:
         assert config.postgres_queue_table == "task_queue"
         assert config.postgres_dead_letter_table == "dead_letter_queue"
         assert config.postgres_max_attempts == 3
-        assert config.postgres_retry_delay_seconds == 60
-        assert config.postgres_visibility_timeout_seconds == 300
+        assert config.default_retry_delay == 60
+        assert config.default_visibility_timeout == 300
         assert config.postgres_min_pool_size == 10
         assert config.postgres_max_pool_size == 10
 
@@ -250,8 +248,8 @@ class TestConfigFromEnv:
         monkeypatch.setenv("ASYNCTASQ_POSTGRES_QUEUE_TABLE", "custom_queue")
         monkeypatch.setenv("ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE", "custom_dlq")
         monkeypatch.setenv("ASYNCTASQ_POSTGRES_MAX_ATTEMPTS", "5")
-        monkeypatch.setenv("ASYNCTASQ_POSTGRES_RETRY_DELAY_SECONDS", "120")
-        monkeypatch.setenv("ASYNCTASQ_POSTGRES_VISIBILITY_TIMEOUT_SECONDS", "600")
+        monkeypatch.setenv("ASYNCTASQ_RETRY_DELAY", "120")
+        monkeypatch.setenv("ASYNCTASQ_VISIBILITY_TIMEOUT", "600")
         monkeypatch.setenv("ASYNCTASQ_POSTGRES_MIN_POOL_SIZE", "5")
         monkeypatch.setenv("ASYNCTASQ_POSTGRES_MAX_POOL_SIZE", "20")
 
@@ -263,8 +261,8 @@ class TestConfigFromEnv:
         assert config.postgres_queue_table == "custom_queue"
         assert config.postgres_dead_letter_table == "custom_dlq"
         assert config.postgres_max_attempts == 5
-        assert config.postgres_retry_delay_seconds == 120
-        assert config.postgres_visibility_timeout_seconds == 600
+        assert config.default_retry_delay == 120
+        assert config.default_visibility_timeout == 600
         assert config.postgres_min_pool_size == 5
         assert config.postgres_max_pool_size == 20
 
@@ -399,13 +397,13 @@ class TestConfigValidation:
 
     def test_validate_postgres_retry_delay_negative_raises_error(self, clean_env) -> None:
         # Act & Assert
-        with raises(ValueError, match="postgres_retry_delay_seconds must be non-negative"):
-            Config.from_env(postgres_retry_delay_seconds=-1)
+        with raises(ValueError, match="default_retry_delay must be non-negative"):
+            Config.from_env(default_retry_delay=-1)
 
-    def test_validate_postgres_visibility_timeout_zero_raises_error(self, clean_env) -> None:
+    def test_validate_default_visibility_timeout_zero_raises_error(self, clean_env) -> None:
         # Act & Assert
-        with raises(ValueError, match="postgres_visibility_timeout_seconds must be positive"):
-            Config.from_env(postgres_visibility_timeout_seconds=0)
+        with raises(ValueError, match="default_visibility_timeout must be positive"):
+            Config.from_env(default_visibility_timeout=0)
 
     def test_validate_postgres_min_pool_size_zero_raises_error(self, clean_env) -> None:
         # Act & Assert
@@ -441,8 +439,7 @@ class TestConfigValidation:
             default_max_attempts=5,
             default_retry_delay=120,
             postgres_max_attempts=10,
-            postgres_retry_delay_seconds=300,
-            postgres_visibility_timeout_seconds=600,
+            default_visibility_timeout=600,
             postgres_min_pool_size=5,
             postgres_max_pool_size=50,
         )
@@ -458,12 +455,14 @@ class TestConfigValidation:
             Config.from_env(mysql_max_attempts=-5)
 
     def test_validate_mysql_retry_delay_negative_raises_error(self, clean_env) -> None:
-        with raises(ValueError, match="mysql_retry_delay_seconds must be non-negative"):
-            Config.from_env(mysql_retry_delay_seconds=-1)
+        # This is tested with default_retry_delay validation
+        with raises(ValueError, match="default_retry_delay must be non-negative"):
+            Config.from_env(default_retry_delay=-1)
 
     def test_validate_mysql_visibility_timeout_zero_raises_error(self, clean_env) -> None:
-        with raises(ValueError, match="mysql_visibility_timeout_seconds must be positive"):
-            Config.from_env(mysql_visibility_timeout_seconds=0)
+        # This is tested with default_visibility_timeout validation
+        with raises(ValueError, match="default_visibility_timeout must be positive"):
+            Config.from_env(default_visibility_timeout=0)
 
     def test_validate_mysql_min_pool_size_zero_raises_error(self, clean_env) -> None:
         with raises(ValueError, match="mysql_min_pool_size must be positive"):
@@ -482,14 +481,14 @@ class TestConfigValidation:
     def test_validate_mysql_valid_extreme_values_passes(self, clean_env) -> None:
         config = Config.from_env(
             mysql_max_attempts=10,
-            mysql_retry_delay_seconds=0,
-            mysql_visibility_timeout_seconds=1,
+            default_retry_delay=0,
+            default_visibility_timeout=1,
             mysql_min_pool_size=1,
             mysql_max_pool_size=1000,
         )
         assert config.mysql_max_attempts == 10
-        assert config.mysql_retry_delay_seconds == 0
-        assert config.mysql_visibility_timeout_seconds == 1
+        assert config.default_retry_delay == 0
+        assert config.default_visibility_timeout == 1
         assert config.mysql_min_pool_size == 1
         assert config.mysql_max_pool_size == 1000
 
@@ -615,13 +614,12 @@ class TestConfigEdgeCases:
             redis_db=0,
             default_max_attempts=0,
             default_retry_delay=0,
-            postgres_retry_delay_seconds=0,
         )
 
         # Assert
         assert config.redis_db == 0
         assert config.default_max_attempts == 0
-        assert config.postgres_retry_delay_seconds == 0
+        assert config.default_retry_delay == 0
 
     def test_config_with_special_characters_in_strings(self, clean_env) -> None:
         # Act

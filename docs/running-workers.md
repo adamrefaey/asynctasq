@@ -111,7 +111,9 @@ async def main():
         await driver.disconnect()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    from asynctasq.utils.loop import run as uv_run
+
+    uv_run(main())
 ```
 
 **Worker Parameters:**
@@ -243,7 +245,7 @@ from asynctasq.core.events import EventSubscriber
 async def monitor_events():
     subscriber = EventSubscriber(redis_url="redis://localhost:6379")
     await subscriber.connect()
-    
+
     async for event in subscriber.listen():
         if event.event_type == "task_failed":
             print(f"❌ Task {event.task_id} failed: {event.error}")

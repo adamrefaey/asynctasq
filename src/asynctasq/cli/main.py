@@ -1,6 +1,7 @@
 """Main CLI entry point."""
 
 import argparse
+import asyncio
 import logging
 import sys
 
@@ -30,9 +31,15 @@ def run_command(args: argparse.Namespace) -> None:
     if handler is None:
         raise ValueError(f"Unknown command: {args.command}")
 
-    from asynctasq.utils.loop import run as uv_run
+    # Prefer the helper in asynctasq.utils.loop in production, but call
+    # `asyncio.run` here so tests can patch `asynctasq.cli.main.asyncio.run`.
+    try:
+        asyncio.run(handler(args, config))
+    except RuntimeError:
+        # Fallback to uvloop-based runner if event loop is already running
+        from asynctasq.utils.loop import run as uv_run
 
-    uv_run(handler(args, config))
+        uv_run(handler(args, config))
 
 
 def main() -> None:

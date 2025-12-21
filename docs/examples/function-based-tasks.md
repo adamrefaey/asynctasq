@@ -4,6 +4,12 @@ This guide provides concrete, ready-to-use code examples demonstrating all scena
 
 Function-based tasks allow you to convert any Python function (async or sync) into a background task by simply adding the `@task` decorator. Tasks are automatically serialized, queued, and executed by workers.
 
+Note: Example snippets in this guide use the project's uvloop-based runner helper. For runnable examples, import it as:
+
+```python
+from asynctasq.utils.loop import run as uv_run
+```
+
 ## Four Execution Modes
 
 The `@task` decorator provides **all 4 execution modes** through a combination of function type and the `process` parameter:
@@ -106,7 +112,9 @@ async def main():
     # Note: Task will be executed by a worker process
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    from asynctasq.utils.loop import run as uv_run
+
+    uv_run(main())
 ```
 
 **Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md) for details.
@@ -135,8 +143,9 @@ async def main():
     print(f"Task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    from asynctasq.utils.loop import run as uv_run
+
+    uv_run(main())
 ```
 
 **Note:** For CPU-intensive work (>80% CPU utilization), add `process=True` to run in process pool:
@@ -1045,7 +1054,7 @@ async def main():
     ).delay(3600).dispatch()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uv_run(main())
 ```
 
 ### Payment Processing
@@ -1087,7 +1096,7 @@ async def main():
     print(f"Payment task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uv_run(main())
 ```
 
 ### Report Generation
@@ -1130,7 +1139,7 @@ async def main():
     print(f"Report generation task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uv_run(main())
 ```
 
 ### Image Processing
@@ -1166,7 +1175,7 @@ async def main():
     print(f"Image processing task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uv_run(main())
 ```
 
 ### Webhook Delivery
@@ -1208,7 +1217,7 @@ async def main():
     print(f"Webhook task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uv_run(main())
 ```
 
 ### Data Synchronization
@@ -1242,7 +1251,7 @@ async def main():
     print(f"Sync task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uv_run(main())
 ```
 
 ### Batch Processing
@@ -1288,7 +1297,7 @@ async def main():
     print(f"Batch processing task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uv_run(main())
 ```
 
 **Tip:** For very large batches, consider splitting into smaller batches or processing items individually as separate tasks for better parallelism and error isolation.

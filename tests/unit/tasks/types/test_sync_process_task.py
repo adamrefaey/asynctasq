@@ -248,6 +248,7 @@ def cleanup_process_pool():
     yield
     # Cleanup after all tests in module
     manager = ProcessPoolManager()
-    import asyncio
 
-    asyncio.run(manager.shutdown(wait=True))
+    from asynctasq.utils.loop import run as uv_run
+
+    uv_run(manager.shutdown(wait=True))

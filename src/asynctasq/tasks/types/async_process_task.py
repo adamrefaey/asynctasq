@@ -1,4 +1,8 @@
-"""AsyncProcessTask for async CPU-bound tasks via ProcessPoolExecutor."""
+"""AsyncProcessTask for async CPU-bound tasks via ProcessPoolExecutor.
+
+Uses a module-level runner helper from `asynctasq.utils.loop` as a fallback
+when a warm event loop is not available in the subprocess.
+"""
 
 from __future__ import annotations
 
@@ -31,11 +35,11 @@ class AsyncProcessTask[T](BaseTask[T]):
         # Get current event loop
         loop = asyncio.get_running_loop()
 
-        # Run execute() in process pool with asyncio.run() wrapper
+        # Run execute() in process pool with a uvloop-based runner helper
         return await loop.run_in_executor(pool, self._run_async_in_process)
 
     def _run_async_in_process(self) -> T:
-        """Run async execute() using warm event loop (falls back to asyncio.run())."""
+        """Run async execute() using warm event loop (falls back to uvloop runner)."""
         process_loop = get_warm_event_loop()
 
         if process_loop is not None:
@@ -43,11 +47,11 @@ class AsyncProcessTask[T](BaseTask[T]):
             future = asyncio.run_coroutine_threadsafe(self.execute(), process_loop)
             return future.result()
         else:
-            # Fallback to asyncio.run() if warm loop not initialized
+            # Fallback to uvloop-based runner if warm loop not initialized
             current_count = increment_fallback_count()
 
             logger.warning(
-                "Warm event loop not available, falling back to asyncio.run()",
+                "Warm event loop not available, falling back to uvloop runner",
                 extra={
                     "task_class": self.__class__.__name__,
                     "fallback_count": current_count,
@@ -55,7 +59,9 @@ class AsyncProcessTask[T](BaseTask[T]):
                     "recommendation": "Call manager.initialize() during worker startup",
                 },
             )
-            return asyncio.run(self.execute())
+            from asynctasq.utils.loop import run as uv_run
+
+            return uv_run(self.execute())
 
     @abstractmethod
     async def execute(self) -> T:

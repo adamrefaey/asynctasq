@@ -583,7 +583,7 @@ class TestPostgresDriverWithRealPostgres:
         available_times = []
 
         # Act - nack multiple times
-        for current_attempt in range(1, 3):
+        for expected_attempt in range(2, 4):  # After nack, attempt goes from 1->2, 2->3
             receipt = await postgres_driver.dequeue("default", poll_seconds=0)
             assert receipt is not None
 
@@ -595,7 +595,7 @@ class TestPostgresDriverWithRealPostgres:
                 "default",
             )
             assert result is not None
-            assert result["current_attempt"] == current_attempt
+            assert result["current_attempt"] == expected_attempt
             available_times.append(result["available_at"].timestamp())
 
             # Make task available again for next iteration by setting available_at to past
