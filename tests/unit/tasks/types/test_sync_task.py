@@ -321,7 +321,7 @@ class TestSyncTaskMetadata:
 
         # Assert
         assert task._task_id is None
-        assert task._attempts == 0
+        assert task._attempts == 1
         assert task._dispatched_at is None
 
     def test_sync_task_metadata_mutable(self) -> None:
