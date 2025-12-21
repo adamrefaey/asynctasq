@@ -365,9 +365,7 @@ async def test_async_process_task_fallback_path():
             "asynctasq.tasks.types.async_process_task.increment_fallback_count",
             return_value=1,
         ),
-        patch(
-            "asynctasq.tasks.types.async_process_task.asyncio.run", return_value=6
-        ) as mock_asyncio_run,
+        patch("asynctasq.utils.loop.run", return_value=6) as mock_asyncio_run,
         patch("asynctasq.tasks.types.async_process_task.logger.warning") as mock_warning,
     ):
         # Act
@@ -397,7 +395,7 @@ async def test_async_process_task_fallback_counter_increments():
             "asynctasq.tasks.types.async_process_task.increment_fallback_count",
             return_value=5,  # Simulate 5th fallback
         ) as mock_increment,
-        patch("asynctasq.tasks.types.async_process_task.asyncio.run", return_value=2),
+        patch("asynctasq.utils.loop.run", return_value=2),
         patch("asynctasq.tasks.types.async_process_task.logger.warning"),
     ):
         # Act

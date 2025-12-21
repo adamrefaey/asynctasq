@@ -1,22 +1,31 @@
-"""Pytest configuration for project tests.
+"""Pytest configuration to run tests with uvloop.
 
-Sets uvloop as the global event loop policy so tests run with uvloop.
-This must be import-safe and not assume uvloop is available at runtime.
+This conftest provides an `event_loop` fixture that creates a fresh uvloop
+event loop for each test and performs proper cleanup. The project requires
+uvloop to be available in the test environment.
 """
 
 from __future__ import annotations
 
-try:
-    import asyncio
+import asyncio
 
-    import uvloop
+import pytest
+import uvloop
 
-    # Set uvloop as the default event loop policy for the test process.
-    # Note: asyncio.set_event_loop_policy is deprecated in Python 3.14+, but
-    # tests here target supported versions where this is acceptable.
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-except Exception:
-    # If uvloop is not installed or setting the policy fails, proceed with
-    # the default asyncio policy. Tests that rely on uvloop should ensure
-    # uvloop is available in the test environment.
-    pass
+
+@pytest.fixture
+def event_loop():
+    """Create and yield a uvloop-based event loop for each test.
+
+    This mirrors the behaviour of `src/asynctasq/utils/loop.run()` which also
+    creates fresh uvloop loops for subprocess runners.
+    """
+    loop = uvloop.new_event_loop()
+    try:
+        asyncio.set_event_loop(loop)
+        yield loop
+    finally:
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        finally:
+            loop.close()

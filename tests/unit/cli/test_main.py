@@ -23,7 +23,7 @@ class TestRunCommand:
     """Test run_command() function."""
 
     @patch("asynctasq.cli.main.build_config")
-    @patch("asynctasq.cli.main.asyncio.run")
+    @patch("asynctasq.utils.loop.run")
     @patch("asynctasq.cli.main.run_worker")
     def test_run_command_worker(self, mock_run_worker, mock_asyncio_run, mock_build_config) -> None:
         # Arrange
@@ -39,18 +39,17 @@ class TestRunCommand:
         mock_run_worker.assert_called_once_with(args, mock_config)
         # Verify asyncio.run was called once with a coroutine (run_worker is async)
         mock_asyncio_run.assert_called_once()
-        # Verify the argument passed to asyncio.run is a coroutine
+        # Verify the argument passed to uvloop runner is a coroutine
         import asyncio
 
         call_args = mock_asyncio_run.call_args[0]
         assert len(call_args) == 1
-        # Close the coroutine to prevent "was never awaited" warning
         coro = call_args[0]
         if asyncio.iscoroutine(coro):
             coro.close()
 
     @patch("asynctasq.cli.main.build_config")
-    @patch("asynctasq.cli.main.asyncio.run")
+    @patch("asynctasq.utils.loop.run")
     @patch("asynctasq.cli.main.run_migrate")
     def test_run_command_migrate(
         self, mock_run_migrate, mock_asyncio_run, mock_build_config
@@ -74,7 +73,7 @@ class TestRunCommand:
             call_args[0].close()
 
     @patch("asynctasq.cli.main.build_config")
-    @patch("asynctasq.cli.main.asyncio.run")
+    @patch("asynctasq.utils.loop.run")
     def test_run_command_unknown_command_raises_error(
         self, mock_asyncio_run, mock_build_config
     ) -> None:

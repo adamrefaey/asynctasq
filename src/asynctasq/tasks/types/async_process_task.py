@@ -59,6 +59,7 @@ class AsyncProcessTask[T](BaseTask[T]):
                     "recommendation": "Call manager.initialize() during worker startup",
                 },
             )
+            # Use the uvloop-based runner directly in subprocess fallback.
             from asynctasq.utils.loop import run as uv_run
 
             return uv_run(self.execute())
