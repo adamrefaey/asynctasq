@@ -1,9 +1,52 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import os
-from typing import Any
+from typing import Any, TypedDict, Unpack
 
 from asynctasq.drivers import DriverType
+
+
+# TypedDict for config overrides
+class ConfigOverrides(TypedDict, total=False):
+    driver: str
+    redis_url: str
+    redis_password: str | None
+    redis_db: int
+    redis_max_connections: int
+    sqs_region: str
+    sqs_queue_url_prefix: str | None
+    aws_access_key_id: str | None
+    aws_secret_access_key: str | None
+    postgres_dsn: str
+    postgres_queue_table: str
+    postgres_dead_letter_table: str
+    postgres_max_attempts: int
+    postgres_retry_delay_seconds: int
+    postgres_visibility_timeout_seconds: int
+    postgres_min_pool_size: int
+    postgres_max_pool_size: int
+    mysql_dsn: str
+    mysql_queue_table: str
+    mysql_dead_letter_table: str
+    mysql_max_attempts: int
+    mysql_retry_delay_seconds: int
+    mysql_visibility_timeout_seconds: int
+    mysql_min_pool_size: int
+    mysql_max_pool_size: int
+    rabbitmq_url: str
+    rabbitmq_exchange_name: str
+    rabbitmq_prefetch_count: int
+    events_redis_url: str | None
+    events_channel: str
+    default_queue: str
+    default_max_retries: int
+    default_retry_delay: int
+    default_timeout: int | None
+    process_pool_size: int | None
+    process_pool_max_tasks_per_child: int | None
+    task_scan_limit: int
+    keep_completed_tasks: bool
+
 
 # Environment variable mapping: field_name -> (env_var, default_value, type_converter)
 ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {
@@ -159,7 +202,7 @@ class Config:
     keep_completed_tasks: bool = False
 
     @staticmethod
-    def from_env(**overrides) -> "Config":
+    def from_env(**overrides: Unpack[ConfigOverrides]) -> "Config":
         """Load configuration from environment variables"""
         config_dict = {}
 
@@ -225,7 +268,7 @@ class Config:
 _global_config: Config | None = None
 
 
-def set_global_config(**overrides) -> None:
+def set_global_config(**overrides: Unpack[ConfigOverrides]) -> None:
     """Set global configuration for the asynctasq library.
 
     This function sets the global configuration that will be used by all tasks
