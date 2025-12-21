@@ -452,6 +452,12 @@ class Worker:
         duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
         task_id = task._task_id or "unknown"  # Fallback for type safety
 
+        # Capture the attempt that just ran, then increment for bookkeeping.
+        # Tests expect the delay calculation to use the prior attempt value
+        # while retry decision uses the incremented attempt count.
+        existing_attempt = task._current_attempt
+        task._current_attempt += 1
+
         # Check if we should retry (uses TaskService for the decision logic)
         if self._task_executor.should_retry(task, exception):
             # Serialize and re-enqueue the task as-is. The worker increments
@@ -489,9 +495,6 @@ class Worker:
             # Calculate retry delay based on strategy (fixed or exponential)
             config = get_global_config()
             # Use the attempt that just ran (existing_attempt) for delay calculation.
-            # We increment attempts when a worker starts processing, so the
-            # current value represents the attempt that just failed.
-            existing_attempt = task._current_attempt
             # Validate and cast to RetryStrategy for type safety
             retry_strategy = config.default_retry_strategy
             if retry_strategy not in ("fixed", "exponential"):
