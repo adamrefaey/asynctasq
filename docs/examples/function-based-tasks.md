@@ -14,12 +14,12 @@ from asynctasq.utils.loop import run as uv_run
 
 The `@task` decorator provides **all 4 execution modes** through a combination of function type and the `process` parameter:
 
-| Mode | Function Type | `process=` | Execution | Best For |
-|------|---------------|-----------|-----------|----------|
-| **AsyncTask** | `async def` | `False` (default) | Event loop | Async I/O-bound (API calls, async DB queries) |
-| **SyncTask** | `def` | `False` (default) | Thread pool | Sync/blocking I/O (`requests`, sync DB drivers) |
-| **AsyncProcessTask** | `async def` | `True` | Process pool (async) | Async CPU-intensive work |
-| **SyncProcessTask** | `def` | `True` | Process pool (sync) | Sync CPU-intensive work (>80% CPU) |
+| Mode                 | Function Type | `process=`        | Execution            | Best For                                        |
+| -------------------- | ------------- | ----------------- | -------------------- | ----------------------------------------------- |
+| **AsyncTask**        | `async def`   | `False` (default) | Event loop           | Async I/O-bound (API calls, async DB queries)   |
+| **SyncTask**         | `def`         | `False` (default) | Thread pool          | Sync/blocking I/O (`requests`, sync DB drivers) |
+| **AsyncProcessTask** | `async def`   | `True`            | Process pool (async) | Async CPU-intensive work                        |
+| **SyncProcessTask**  | `def`         | `True`            | Process pool (sync)  | Sync CPU-intensive work (>80% CPU)              |
 
 **Examples:**
 
@@ -192,14 +192,14 @@ All configuration options can be set via the `@task` decorator. These settings a
 
 **Available Options:**
 
-| Option        | Type                        | Default     | Description                                                      |
-| ------------- | --------------------------- | ----------- | ---------------------------------------------------------------- |
-| `queue`       | `str`                       | `"default"` | Queue name for task execution                                    |
-| `max_attempts` | `int`                       | `3`         | Maximum retry attempts on failure                                |
-| `retry_delay` | `int`                       | `60`        | Seconds to wait between retry attempts                           |
-| `timeout`     | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                    |
-| `driver`      | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config) |
-| `process`     | `bool`                      | `False`     | Use process pool for CPU-intensive work (`True` = process pool, `False` = event loop/thread pool) |
+| Option         | Type                        | Default     | Description                                                                                       |
+| -------------- | --------------------------- | ----------- | ------------------------------------------------------------------------------------------------- |
+| `queue`        | `str`                       | `"default"` | Queue name for task execution                                                                     |
+| `max_attempts` | `int`                       | `3`         | Maximum retry attempts on failure                                                                 |
+| `retry_delay`  | `int`                       | `60`        | Seconds to wait between retry attempts                                                            |
+| `timeout`      | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                                                     |
+| `driver`       | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config)                                  |
+| `process`      | `bool`                      | `False`     | Use process pool for CPU-intensive work (`True` = process pool, `False` = event loop/thread pool) |
 
 ### Queue Configuration
 
@@ -468,24 +468,24 @@ def cpu_sync(): ...
 
 ### Mode Comparison Table
 
-| Mode | Function Type | `process=` | Execution | Best For | Concurrency |
-|------|--------------|-----------|-----------|----------|-------------|
-| **AsyncTask** | `async def` | `False` (default) | Event loop | Async I/O-bound (API calls, async DB queries) | 1000s concurrent |
-| **SyncTask** | `def` | `False` (default) | Thread pool | Sync/blocking I/O (`requests`, sync DB drivers) | 100s concurrent |
-| **AsyncProcessTask** | `async def` | `True` | Process pool (async) | Async CPU-intensive work | CPU cores |
-| **SyncProcessTask** | `def` | `True` | Process pool (sync) | Sync CPU-intensive work (>80% CPU) | CPU cores |
+| Mode                 | Function Type | `process=`        | Execution            | Best For                                        | Concurrency      |
+| -------------------- | ------------- | ----------------- | -------------------- | ----------------------------------------------- | ---------------- |
+| **AsyncTask**        | `async def`   | `False` (default) | Event loop           | Async I/O-bound (API calls, async DB queries)   | 1000s concurrent |
+| **SyncTask**         | `def`         | `False` (default) | Thread pool          | Sync/blocking I/O (`requests`, sync DB drivers) | 100s concurrent  |
+| **AsyncProcessTask** | `async def`   | `True`            | Process pool (async) | Async CPU-intensive work                        | CPU cores        |
+| **SyncProcessTask**  | `def`         | `True`            | Process pool (sync)  | Sync CPU-intensive work (>80% CPU)              | CPU cores        |
 
 **When to use each:**
 
-| Use Case | Function Type | `process=` | Reason |
-|----------|--------------|-----------|--------|
-| API calls with httpx, aiohttp | `async def` | `False` | Native async support, non-blocking |
-| Database queries with asyncpg | `async def` | `False` | Better performance for I/O-bound |
-| Web scraping with `requests` | `def` | `False` | Blocking library, runs in thread pool |
-| File I/O with blocking libraries | `def` | `False` | No async conversion needed |
-| NumPy/Pandas computation | `def` | `True` | CPU-intensive, bypasses GIL |
-| ML inference, video encoding | `def` or `async def` | `True` | Heavy CPU work in subprocess |
-| ML inference with async I/O | `async def` | `True` | Async preprocessing + CPU work |
+| Use Case                         | Function Type        | `process=` | Reason                                |
+| -------------------------------- | -------------------- | ---------- | ------------------------------------- |
+| API calls with httpx, aiohttp    | `async def`          | `False`    | Native async support, non-blocking    |
+| Database queries with asyncpg    | `async def`          | `False`    | Better performance for I/O-bound      |
+| Web scraping with `requests`     | `def`                | `False`    | Blocking library, runs in thread pool |
+| File I/O with blocking libraries | `def`                | `False`    | No async conversion needed            |
+| NumPy/Pandas computation         | `def`                | `True`     | CPU-intensive, bypasses GIL           |
+| ML inference, video encoding     | `def` or `async def` | `True`     | Heavy CPU work in subprocess          |
+| ML inference with async I/O      | `async def`          | `True`     | Async preprocessing + CPU work        |
 
 ### Mode 1: AsyncTask (Default for async functions)
 
@@ -1318,6 +1318,7 @@ Here's a complete, runnable example demonstrating multiple function-based task p
 
 ```python
 import asyncio
+import uvloop
 from asynctasq.tasks import task
 from asynctasq.config import set_global_config
 
@@ -1402,7 +1403,7 @@ async def main():
     print("Note: Run workers to process these tasks. See running-workers.md for details.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uvloop.run(main())
 ```
 
 ---
