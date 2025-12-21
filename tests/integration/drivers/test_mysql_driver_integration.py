@@ -272,7 +272,7 @@ class TestMySQLDriverWithRealMySQL:
             assert result is not None
             assert result[2] == task_data  # payload is at index 2
             assert result[5] == "pending"  # status is at index 5
-            assert result[6] == 0  # attempts is at index 6
+            assert result[6] == 1  # current_attempt is at index 6
 
     @mark.asyncio
     async def test_enqueue_multiple_tasks_preserves_fifo_order(
@@ -457,7 +457,7 @@ class TestMySQLDriverWithRealMySQL:
     async def test_nack_requeues_task(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
-        """nack() should requeue task with incremented attempts."""
+        """nack() should requeue task with incremented current_attempt."""
         # Arrange
         task_data = b"failed_task"
         await mysql_driver.enqueue("default", task_data)
@@ -467,15 +467,15 @@ class TestMySQLDriverWithRealMySQL:
         # Act
         await mysql_driver.nack("default", receipt)
 
-        # Assert - task should be requeued with attempts=1
+        # Assert - task should be requeued with current_attempt=2
         async with mysql_conn.cursor() as cursor:
             await cursor.execute(
-                f"SELECT attempts, status FROM {TEST_QUEUE_TABLE} WHERE queue_name = %s",
+                f"SELECT current_attempt, status FROM {TEST_QUEUE_TABLE} WHERE queue_name = %s",
                 ("default",),
             )
             result = await cursor.fetchone()
             assert result is not None
-            assert result[0] == 1
+            assert result[0] == 2
             assert result[1] == "pending"
 
         # Receipt handle should be cleared
@@ -663,14 +663,14 @@ class TestMySQLDriverWithRealMySQL:
         async with mysql_conn.cursor() as cursor:
             await cursor.execute(
                 f"""
-                SELECT attempts, available_at FROM {TEST_QUEUE_TABLE}
+                SELECT current_attempt, available_at FROM {TEST_QUEUE_TABLE}
                 WHERE queue_name = %s
                 """,
                 ("default",),
             )
             result = await cursor.fetchone()
             assert result is not None
-            assert result[0] == 1  # attempts = 1
+            assert result[0] == 2  # current_attempt = 2
             # available_at should be in the future (retry_delay_seconds * 2^0 = 60 seconds)
             available_at = result[1]
             if available_at.tzinfo is None:
@@ -698,14 +698,14 @@ class TestMySQLDriverWithRealMySQL:
         async with mysql_conn.cursor() as cursor:
             await cursor.execute(
                 f"""
-                SELECT attempts, available_at FROM {TEST_QUEUE_TABLE}
+                SELECT current_attempt, available_at FROM {TEST_QUEUE_TABLE}
                 WHERE queue_name = %s
                 """,
                 ("default",),
             )
             result = await cursor.fetchone()
             assert result is not None
-            assert result[0] == 2  # attempts = 2
+            assert result[0] == 2  # current_attempt = 2
 
     @mark.asyncio
     async def test_nack_with_invalid_receipt_handle(self, mysql_driver: MySQLDriver) -> None:
@@ -1015,10 +1015,10 @@ class TestMySQLDriverWithRealMySQL:
         receipt = await mysql_driver.dequeue("mqueue", poll_seconds=0)
         assert receipt is not None
 
-        # Force max attempts exceeded by updating attempts to max in DB then nack
+        # Force max attempts exceeded by updating current_attempt to max in DB then nack
         async with mysql_conn.cursor() as cursor:
             await cursor.execute(
-                f"UPDATE {TEST_QUEUE_TABLE} SET attempts = %s WHERE id = %s",
+                f"UPDATE {TEST_QUEUE_TABLE} SET current_attempt = %s WHERE id = %s",
                 (mysql_driver.max_attempts, mysql_driver._receipt_handles[receipt]),
             )
 

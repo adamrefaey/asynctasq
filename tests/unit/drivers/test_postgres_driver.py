@@ -149,7 +149,7 @@ class TestPostgresDriverStatsAndManagement:
 
         # retry_task: fetchrow returns dead-letter row
         mock_conn.fetchrow.side_effect = [
-            {"queue_name": "default", "payload": b"p", "attempts": 0},
+            {"queue_name": "default", "payload": b"p", "current_attempt": 1},
             None,
         ]
 

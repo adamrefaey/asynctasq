@@ -462,7 +462,7 @@ class TestRetryLogicEdgeCases:
 
         task = RetryTask()
         task._task_id = "test-id"
-        task._attempts = 1
+        task._current_attempt = 1
 
         # Mock dispatcher to simulate enqueue failure
         with patch("asynctasq.core.dispatcher.get_dispatcher") as mock_get_dispatcher:
@@ -558,8 +558,8 @@ class TestRetryLogicEdgeCases:
         result = task.should_retry(ValueError("test"))
         assert result is False
 
-    def test_retry_with_custom_retry_logic_based_on_attempts(self) -> None:
-        """Test should_retry can use _attempts for custom logic."""
+    def test_retry_with_custom_retry_logic_based_on_current_attempt(self) -> None:
+        """Test should_retry can use _current_attempt for custom logic."""
 
         class AttemptBasedRetry(AsyncTask[str]):
             async def execute(self) -> str:
@@ -567,16 +567,16 @@ class TestRetryLogicEdgeCases:
 
             def should_retry(self, exception: Exception) -> bool:
                 # Only retry on first attempt
-                return self._attempts == 0
+                return self._current_attempt == 1
 
         task = AttemptBasedRetry()
 
-        # First attempt (0) - should retry
-        task._attempts = 0
+        # First attempt (1) - should retry
+        task._current_attempt = 1
         assert task.should_retry(ValueError("test")) is True
 
-        # Second attempt (1) - should not retry
-        task._attempts = 1
+        # Second attempt (2) - should not retry
+        task._current_attempt = 2
         assert task.should_retry(ValueError("test")) is False
 
 

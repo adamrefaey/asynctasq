@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS task_queue (
     available_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     locked_until DATETIME(6) NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    attempts INT NOT NULL DEFAULT 0,
+    current_attempt INT NOT NULL DEFAULT 0,
     max_attempts INT NOT NULL DEFAULT 3,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS dead_letter_queue (
     id INT AUTO_INCREMENT PRIMARY KEY,
     queue_name VARCHAR(255) NOT NULL,
     payload BLOB NOT NULL,
-    attempts INT NOT NULL,
+    current_attempt INT NOT NULL,
     error_message TEXT,
     failed_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

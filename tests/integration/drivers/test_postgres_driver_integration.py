@@ -228,7 +228,7 @@ class TestPostgresDriverWithRealPostgres:
         assert result is not None
         assert result["payload"] == task_data
         assert result["status"] == "pending"
-        assert result["attempts"] == 0
+        assert result["current_attempt"] == 1
 
     @mark.asyncio
     async def test_enqueue_multiple_tasks_preserves_fifo_order(
@@ -549,7 +549,7 @@ class TestPostgresDriverWithRealPostgres:
     async def test_nack_requeues_task(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
-        """nack() should requeue task with incremented attempts."""
+        """nack() should requeue task with incremented current_attempt."""
         # Arrange
         task_data = b"failed_task"
         await postgres_driver.enqueue("default", task_data)
@@ -559,12 +559,13 @@ class TestPostgresDriverWithRealPostgres:
         # Act
         await postgres_driver.nack("default", receipt)
 
-        # Assert - task should be requeued with attempts=1
+        # Assert - task should be requeued with current_attempt=2
         result = await postgres_conn.fetchrow(
-            f"SELECT attempts, status FROM {TEST_QUEUE_TABLE} WHERE queue_name = $1", "default"
+            f"SELECT current_attempt, status FROM {TEST_QUEUE_TABLE} WHERE queue_name = $1",
+            "default",
         )
         assert result is not None
-        assert result["attempts"] == 1
+        assert result["current_attempt"] == 2
         assert result["status"] == "pending"
 
         # Receipt handle should be cleared
@@ -582,7 +583,7 @@ class TestPostgresDriverWithRealPostgres:
         available_times = []
 
         # Act - nack multiple times
-        for expected_attempts in range(1, 3):
+        for current_attempt in range(1, 3):
             receipt = await postgres_driver.dequeue("default", poll_seconds=0)
             assert receipt is not None
 
@@ -590,11 +591,11 @@ class TestPostgresDriverWithRealPostgres:
 
             # Check available_at
             result = await postgres_conn.fetchrow(
-                f"SELECT available_at, attempts FROM {TEST_QUEUE_TABLE} WHERE queue_name = $1",
+                f"SELECT available_at, current_attempt FROM {TEST_QUEUE_TABLE} WHERE queue_name = $1",
                 "default",
             )
             assert result is not None
-            assert result["attempts"] == expected_attempts
+            assert result["current_attempt"] == current_attempt
             available_times.append(result["available_at"].timestamp())
 
             # Make task available again for next iteration by setting available_at to past
@@ -638,7 +639,7 @@ class TestPostgresDriverWithRealPostgres:
         )
         assert dlq_result is not None
         assert dlq_result["payload"] == task_data
-        assert dlq_result["attempts"] == postgres_driver.max_attempts
+        assert dlq_result["current_attempt"] == postgres_driver.max_attempts
         assert dlq_result["error_message"] == "Max retries exceeded"
 
         # Task should not be in main queue
@@ -915,10 +916,10 @@ class TestPostgresDriverWithRealPostgres:
 
         # Assert - task should be requeued with incremented attempts
         result = await postgres_conn.fetchrow(
-            f"SELECT attempts FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id
+            f"SELECT current_attempt FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id
         )
         assert result is not None
-        assert result["attempts"] == 1
+        assert result["current_attempt"] == 2
 
     @mark.asyncio
     async def test_nack_then_ack_is_safe(self, postgres_driver: PostgresDriver) -> None:
@@ -1194,8 +1195,8 @@ class TestPostgresDriverWithRealPostgres:
         await postgres_conn.execute(
             f"""
             INSERT INTO {TEST_QUEUE_TABLE}
-                (queue_name, payload, available_at, status, attempts, max_attempts, created_at)
-            VALUES ($1, $2, NOW(), 'pending', 0, $3, NOW())
+                (queue_name, payload, available_at, status, current_attempt, max_attempts, created_at)
+            VALUES ($1, $2, NOW(), 'pending', 1, $3, NOW())
             """,
             "default",
             b"custom_task",
@@ -1518,7 +1519,7 @@ class TestPostgresDriverWithRealPostgres:
         """retry_task() should move DLQ entry back to queue; delete_task() should remove task; get_worker_stats() returns []."""
         # Arrange - insert directly into DLQ
         row = await postgres_conn.fetchrow(
-            f"INSERT INTO {TEST_DLQ_TABLE} (queue_name, payload, attempts, error_message) VALUES ($1, $2, $3, $4) RETURNING id",
+            f"INSERT INTO {TEST_DLQ_TABLE} (queue_name, payload, current_attempt, error_message) VALUES ($1, $2, $3, $4) RETURNING id",
             "default",
             b"dlq_payload",
             2,
@@ -1555,7 +1556,7 @@ class TestPostgresDriverWithRealPostgres:
 
         # Insert into DLQ then delete DLQ entry via delete_task
         row2 = await postgres_conn.fetchrow(
-            f"INSERT INTO {TEST_DLQ_TABLE} (queue_name, payload, attempts, error_message) VALUES ($1, $2, $3, $4) RETURNING id",
+            f"INSERT INTO {TEST_DLQ_TABLE} (queue_name, payload, current_attempt, error_message) VALUES ($1, $2, $3, $4) RETURNING id",
             "default",
             b"dlq2",
             1,

@@ -63,7 +63,7 @@ class ProcessPayment(AsyncTask[bool]):
             f"Payment failed for user {self.user_id}",
             extra={
                 "task_id": self._task_id,
-                "attempts": self._attempts,
+                "current_attempt": self._current_attempt,
                 "user_id": self.user_id,
                 "amount": self.amount,
             },
@@ -98,7 +98,7 @@ class ProcessPayment(AsyncTask[bool]):
 - **Monitor dead-letter queues** to catch permanently failed tasks and trigger alerts
 - **Set appropriate timeouts** to prevent tasks from hanging indefinitely (use `timeout` in TaskConfig)
 - **Test thoroughly** before deploying to production (unit tests + integration tests)
-- **Use structured logging** with context (task_id, worker_id, queue_name, attempts)
+- **Use structured logging** with context (task_id, worker_id, queue_name, current_attempt)
 - **Enable event streaming** (Redis Pub/Sub) for real-time monitoring and observability
 - **Configure process pools** for CPU-bound tasks (`process_pool_size`, `process_pool_max_tasks_per_child`)
 - **Set task retention policy** (`keep_completed_tasks=False` by default to save memory)
@@ -155,10 +155,10 @@ from asynctasq.config import get_global_config
 async def start_worker_with_events():
     config = get_global_config()
     driver = DriverFactory.create_from_config(config)
-    
+
     # Event emitter publishes to Redis Pub/Sub (asynctasq:events channel)
     emitter = create_event_emitter()  # Reads from ASYNCTASQ_EVENTS_REDIS_URL
-    
+
     worker = Worker(
         queue_driver=driver,
         queues=['default'],
@@ -166,7 +166,7 @@ async def start_worker_with_events():
         worker_id="worker-1",
         heartbeat_interval=60.0  # Send heartbeat every 60s
     )
-    
+
     try:
         await worker.start()
     finally:
@@ -179,7 +179,7 @@ from asynctasq.core.events import EventSubscriber
 async def consume_events():
     subscriber = EventSubscriber(redis_url="redis://localhost:6379")
     await subscriber.connect()
-    
+
     async for event in subscriber.listen():
         if event.event_type == "task_failed":
             # Alert on critical failures
@@ -212,7 +212,7 @@ async def check_queue_health():
             # Alert if queue is too large
             if stats.depth > 1000:
                 await send_alert(f"Queue '{queue}' has {stats.depth} tasks")
-                
+
             # Alert if processing is stuck
             if stats.processing > 0 and stats.depth > 500:
                 await send_alert(f"Queue '{queue}' may have stuck workers")

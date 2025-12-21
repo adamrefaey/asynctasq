@@ -501,9 +501,8 @@ class SmartRetryTask(AsyncTask[None]):
         if "temporary" in str(exception).lower():
             return True
 
-        # Pattern 4: Retry based on attempt count (0-indexed)
-        # _attempts is 0 for first attempt, 1 for first retry, etc.
-        if self._attempts < 2:  # Only retry first 2 attempts (attempts 0 and 1)
+        # Pattern 4: Retry based on attempt count (1-indexed)
+        if self._current_attempt < 3:  # (first run + 2 retries)
             return True
 
         # Pattern 5: Retry based on custom attribute
@@ -808,12 +807,12 @@ class ProcessVideoAsync(AsyncProcessTask[dict]):
         # Async I/O
         async with aiofiles.open(self.video_path, 'rb') as f:
             data = await f.read()
-        
+
         # CPU-intensive work (bypasses GIL)
         frames_processed = await self._process_frames(data)
-        
+
         return {"frames": frames_processed}
-    
+
     async def _process_frames(self, data: bytes) -> int:
         # Heavy CPU work here
         return len(data) // 1024
@@ -854,7 +853,7 @@ class ProcessLargeDataset(SyncProcessTask[dict]):
         # Heavy CPU computation
         arr = np.array(self.data)
         result = np.fft.fft(arr)
-        
+
         return {
             "mean": float(result.mean()),
             "std": float(result.std())
@@ -906,13 +905,13 @@ class RunInference(SyncProcessTask[dict]):
     def execute(self) -> dict:
         import numpy as np
         import joblib
-        
+
         # Load model
         model = joblib.load(self.model_path)
-        
+
         # Heavy CPU computation
         predictions = model.predict(np.array(self.input_data))
-        
+
         return {
             "predictions": predictions.tolist(),
             "confidence": float(np.mean(predictions))
@@ -929,7 +928,7 @@ class ProcessImageBatch(SyncProcessTask[list[str]]):
 
     def execute(self) -> list[str]:
         from PIL import Image, ImageFilter
-        
+
         output_paths = []
         for path in self.image_paths:
             img = Image.open(path)
@@ -939,7 +938,7 @@ class ProcessImageBatch(SyncProcessTask[list[str]]):
             output = path.replace('.jpg', '_processed.jpg')
             img.save(output, quality=95)
             output_paths.append(output)
-        
+
         return output_paths
 
 # Example 3: Data Encryption (Sync)
@@ -954,11 +953,11 @@ class EncryptData(SyncProcessTask[bytes]):
 
     def execute(self) -> bytes:
         from cryptography.fernet import Fernet
-        
+
         # CPU-intensive encryption
         cipher = Fernet(self.key)
         encrypted = cipher.encrypt(self.data)
-        
+
         return encrypted
 ```
 
@@ -1519,7 +1518,7 @@ async def main():
 Tasks automatically track metadata that you can access in your task methods:
 
 - `_task_id`: UUID string for task identification (set during dispatch)
-- `_attempts`: Current retry attempt count (0-indexed: 0 = first attempt, 1 = first retry, etc.)
+- `_current_attempt`: Current retry attempt count (0-indexed: 0 = first attempt, 1 = first retry, etc.)
 - `_dispatched_at`: Datetime when task was first queued (may be `None` in some edge cases)
 
 **Note:** Metadata is set by the framework during task dispatch and execution. Access these attributes in your `execute()`, `failed()`, or `should_retry()` methods.
@@ -1533,7 +1532,7 @@ from datetime import datetime
 class MyTask(AsyncTask[None]):
     async def execute(self) -> None:
         print(f"Task ID: {self._task_id}")
-        print(f"Attempt: {self._attempts}")  # 0-indexed (0 = first attempt)
+        print(f"Attempt: {self._current_attempt}")  # 0-indexed (0 = first attempt)
         if self._dispatched_at:
             print(f"Dispatched at: {self._dispatched_at}")
         else:
@@ -1553,10 +1552,10 @@ class LoggedTask(AsyncTask[dict]):
 
     async def execute(self) -> dict:
         logger.info(
-            f"Task {self._task_id} executing (attempt {self._attempts + 1})",
+            f"Task {self._task_id} executing (attempt {self._current_attempt + 1})",
             extra={
                 "task_id": self._task_id,
-                "attempt": self._attempts,
+                "attempt": self._current_attempt,
                 "dispatched_at": self._dispatched_at.isoformat() if self._dispatched_at else None
             }
         )
@@ -1572,15 +1571,15 @@ class SmartRetryTask(AsyncTask[None]):
     max_retries = 5
 
     async def execute(self) -> None:
-        # Adjust behavior based on attempt count (0-indexed)
-        if self._attempts == 0:
-            # First attempt (attempt 0) - use fast method
+        # Adjust behavior based on attempt count
+        if self._current_attempt == 1:
+            # (attempt 1) - use fast method
             await self._fast_method()
-        elif self._attempts < 3:
-            # Retries 1-2 (attempts 1-2) - use standard method
+        elif self._current_attempt < 3:
+            #(attempts 2-3) - use standard method
             await self._standard_method()
         else:
-            # Retries 3+ (attempts 3+) - use fallback method
+            # (attempts 4+) - use fallback method
             await self._fallback_method()
 
     async def _fast_method(self):
@@ -2005,7 +2004,7 @@ Here's a complete, runnable example demonstrating multiple class-based task patt
 
 ```python
 import asyncio
-from asynctasq.tasks import AsyncTask, 
+from asynctasq.tasks import AsyncTask,
 from asynctasq.config import set_global_config
 
 # Configure (use 'redis' or 'postgres' for production)
@@ -2289,7 +2288,7 @@ class CreateUserAccount:
 - **Keep `execute()` focused:** Main business logic only, delegate to helper methods
 - **Use `failed()` for cleanup:** Compensation, logging, alerting
 - **Implement `should_retry()` for smart retries:** Don't retry validation errors, always retry network errors
-- **Log in lifecycle hooks:** Use task metadata (`_task_id`, `_attempts`) for better debugging
+- **Log in lifecycle hooks:** Use task metadata (`_task_id`, `_current_attempt`) for better debugging
 
 ### Performance Tips
 

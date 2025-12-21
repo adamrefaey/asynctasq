@@ -431,7 +431,7 @@ class TestDispatcherSerializeTask:
         dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
         task = ConcreteTask(public_param="test_value")
         task._task_id = "test-task-id"
-        task._attempts = 2
+        task._current_attempt = 2
         task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         task.config = replace(task.config, max_retries=5, retry_delay=120, timeout=300)
 
@@ -444,7 +444,7 @@ class TestDispatcherSerializeTask:
         assert call_arg["class"] == f"{task.__class__.__module__}.{task.__class__.__name__}"
         assert call_arg["params"]["public_param"] == "test_value"
         assert call_arg["metadata"]["task_id"] == "test-task-id"
-        assert call_arg["metadata"]["attempts"] == 2
+        assert call_arg["metadata"]["current_attempt"] == 2
         assert call_arg["metadata"]["dispatched_at"] == "2024-01-01T12:00:00+00:00"
         assert call_arg["metadata"]["max_retries"] == 5
         assert call_arg["metadata"]["retry_delay"] == 120
@@ -457,7 +457,7 @@ class TestDispatcherSerializeTask:
         dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
-        task._attempts = 1
+        task._current_attempt = 1
         task._private_attr = "should_not_be_included"  # type: ignore[attr-defined]
 
         # Act
@@ -468,7 +468,7 @@ class TestDispatcherSerializeTask:
         params = call_arg["params"]
         assert "public_param" in params
         assert "_task_id" not in params
-        assert "_attempts" not in params
+        assert "_current_attempt" not in params
         assert "_private_attr" not in params
 
     def test_serialize_task_handles_none_dispatched_at(self) -> None:
@@ -478,7 +478,7 @@ class TestDispatcherSerializeTask:
         dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
         task = ConcreteTask()
         task._task_id = "test-id"
-        task._attempts = 0
+        task._current_attempt = 0
         task._dispatched_at = None
 
         # Act
@@ -518,7 +518,7 @@ class TestDispatcherSerializeTask:
         # Remove the default public_param by creating a task without it
         del task.public_param  # type: ignore[attr-defined]
         task._task_id = "test-id"
-        task._attempts = 0
+        task._current_attempt = 0
         task._dispatched_at = None
 
         # Act
@@ -529,7 +529,7 @@ class TestDispatcherSerializeTask:
         # Only check that private attributes are excluded, not that params is empty
         # (since ConcreteTask may have other public attributes)
         assert "_task_id" not in call_arg["params"]
-        assert "_attempts" not in call_arg["params"]
+        assert "_current_attempt" not in call_arg["params"]
         assert "public_param" not in call_arg["params"]
 
     def test_serialize_task_excludes_callable_attributes(self) -> None:
@@ -539,7 +539,7 @@ class TestDispatcherSerializeTask:
         dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
-        task._attempts = 1
+        task._current_attempt = 1
 
         # Add callable attributes that should be excluded
         def some_function() -> None:
@@ -570,7 +570,7 @@ class TestDispatcherSerializeTask:
 
         task = FunctionTask(test_func, 1, y="test")
         task._task_id = "test-id"
-        task._attempts = 0
+        task._current_attempt = 0
         task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
         # Act
@@ -613,7 +613,7 @@ class TestDispatcherSerializeTask:
 
             task = FunctionTask(temp_module.test_func, 5)  # type: ignore[attr-defined]
             task._task_id = "test-id"
-            task._attempts = 0
+            task._current_attempt = 0
             task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
             # Act
@@ -647,7 +647,7 @@ class TestDispatcherSerializeTask:
 
         task = FunctionTask(mock_func)
         task._task_id = "test-id"
-        task._attempts = 0
+        task._current_attempt = 0
         task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
         # Act & Assert - should raise OSError when trying to access co_filename
@@ -670,7 +670,7 @@ class TestDispatcherSerializeTask:
 
         task = FunctionTask(mock_func)
         task._task_id = "test-id"
-        task._attempts = 0
+        task._current_attempt = 0
         task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
         # Act & Assert - should raise AttributeError when trying to access __code__
@@ -688,7 +688,7 @@ class TestDispatcherSerializeTask:
 
         task = FunctionTask(test_func, 5)
         task._task_id = "test-id"
-        task._attempts = 0
+        task._current_attempt = 0
 
         # Act
         dispatcher._task_serializer.serialize(task)

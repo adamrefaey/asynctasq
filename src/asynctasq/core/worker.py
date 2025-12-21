@@ -328,7 +328,7 @@ class Worker:
                         task_name=task.__class__.__name__,
                         queue=queue_name,
                         worker_id=self.worker_id,
-                        attempt=task._attempts + 1,
+                        attempt=task._current_attempt + 1,
                     )
                 )
 
@@ -429,9 +429,9 @@ class Worker:
         """Handle task failure with intelligent retry logic.
 
         Retry decision:
-        1. Check if attempts < max_retries (via TaskService.should_retry)
+        1. Check if current_attempt < max_retries (via TaskService.should_retry)
         2. Call task.should_retry(exception) for custom logic
-        3. If both pass: emit task_retrying, increment attempts, and re-enqueue
+        3. If both pass: emit task_retrying, increment current_attempt, and re-enqueue
         4. If retry exhausted: emit task_failed, call task.failed() and store error
 
         Args:
@@ -446,13 +446,11 @@ class Worker:
 
         # Check if we should retry (uses TaskService for the decision logic)
         if self._task_executor.should_retry(task, exception):
-            # prepare_for_retry increments attempts and serializes
+            # prepare_for_retry increments current_attempt and serializes
             # Returns tuple (task, bytes) for safer error handling
             task = self._task_executor.prepare_retry(task)
             serialized_task = self._task_serializer.serialize(task)
-            logger.info(
-                f"Retrying task {task_id} (attempt {task._attempts}/{task.config.max_retries})"
-            )
+            logger.info(f"Re-enqueuing task {task_id}")
 
             # Emit task_retrying event
             if self.event_emitter:
@@ -463,7 +461,7 @@ class Worker:
                         task_name=task.__class__.__name__,
                         queue=queue_name,
                         worker_id=self.worker_id,
-                        attempt=task._attempts,
+                        attempt=task._current_attempt,
                         error=str(exception),
                         duration_ms=duration_ms,
                     )
@@ -486,20 +484,22 @@ class Worker:
                 )
             except Exception as enqueue_error:
                 # Rollback attempt increment if enqueue failed
-                task._attempts -= 1
+                task._current_attempt -= 1
                 logger.error(
                     f"Failed to enqueue retry for task {task_id}: {enqueue_error}",
                     extra={
                         "task_id": task_id,
                         "queue": task.config.queue,
-                        "attempt": task._attempts,
+                        "attempt": task._current_attempt,
                     },
                 )
                 raise
         else:
             # Task has failed permanently - increment to reflect the failed attempt
-            task._attempts += 1
-            logger.error(f"Task {task_id} failed permanently after {task._attempts} attempts")
+            task._current_attempt = 1
+            logger.error(
+                f"Task {task_id} failed permanently after {task._current_attempt} attempts"
+            )
 
             # Emit task_failed event
             if self.event_emitter:
@@ -513,7 +513,7 @@ class Worker:
                         duration_ms=duration_ms,
                         error=str(exception),
                         traceback=traceback.format_exc(),
-                        attempt=task._attempts,
+                        attempt=task._current_attempt,
                     )
                 )
 

@@ -91,7 +91,7 @@ class BaseTask[T](ABC):
 
         # Metadata (managed internally by dispatcher/worker)
         self._task_id: str | None = None
-        self._attempts: int = 1
+        self._current_attempt: int = 1
         self._dispatched_at: datetime | None = None
 
     async def failed(self, exception: Exception) -> None:  # noqa: B027

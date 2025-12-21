@@ -174,11 +174,11 @@ class TestMySQLDriverErrorHandling:
 
         # First execute (SELECT) succeeds, fetchone returns data, second execute (UPDATE) fails
         mock_cursor.fetchone.return_value = (
-            0,
+            1,
             3,
             "test_queue",
             b"payload",
-        )  # attempts, max_attempts, queue_name, payload
+        )  # current_attempt, max_attempts, queue_name, payload
 
         # Use side_effect to make first execute succeed, second fail
         execute_call_count = 0
