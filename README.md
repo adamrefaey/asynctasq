@@ -60,6 +60,7 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 - **High-performance concurrency** – Process hundreds of tasks concurrently with minimal overhead using asyncio's efficient task scheduling
 - **Smart connection pooling** – All drivers use connection pools optimized for async operations
 - **Non-blocking by design** – Worker polling, task execution, and all I/O operations are truly non-blocking
+ - **uvloop-powered event loop** – AsyncTasQ prefers `uvloop` for production workloads; the project provides a small helper (`asynctasq.utils.loop.run`) that creates and runs a uvloop-based event loop for CLI and short-lived run paths.
 
 ### Intelligent Serialization & ORM Integration
 
@@ -212,6 +213,7 @@ async def main():
 
 
 if __name__ == "__main__":
+  # Note: this uses uvloop (via asynctasq.utils.loop.run) for best performance
   from asynctasq.utils.loop import run as uv_run
 
   uv_run(main())
