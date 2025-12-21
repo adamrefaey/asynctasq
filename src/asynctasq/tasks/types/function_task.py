@@ -144,25 +144,104 @@ class FunctionTask[T](BaseTask[T]):
         return await loop.run_in_executor(pool, func)
 
 
+class TaskFunctionWrapper[T]:
+    """Wrapper that makes function-based tasks behave like class-based tasks.
+
+    Provides both convenience dispatch method and call-based instantiation
+    for method chaining, supporting both sync and async functions.
+    """
+
+    def __init__(self, func: Callable[..., T]) -> None:
+        """Initialize wrapper with function and its task configuration.
+
+        Args:
+            func: The wrapped function with _task_* attributes
+        """
+        self._func = func
+        # Cache task configuration to avoid repeated attribute lookups
+        self._task_config = {
+            "queue": getattr(func, "_task_queue", "default"),
+            "max_retries": getattr(func, "_task_max_retries", 3),
+            "retry_delay": getattr(func, "_task_retry_delay", 60),
+            "timeout": getattr(func, "_task_timeout", None),
+            "driver": getattr(func, "_task_driver", None),
+            "process": getattr(func, "_task_process", False),
+        }
+
+        # Copy function attributes for introspection (includes __name__, __doc__, etc.)
+        functools.update_wrapper(self, func)
+        # Keep reference to original for debugging
+        self.__wrapped__ = func
+
+    def _create_task_instance(self, *args: Any, **kwargs: Any) -> FunctionTask[T]:
+        """Create FunctionTask instance with cached configuration.
+
+        Args:
+            *args: Positional arguments for the function
+            **kwargs: Keyword arguments for the function
+
+        Returns:
+            FunctionTask instance ready for dispatch or configuration
+        """
+        return FunctionTask(
+            self._func,
+            *args,
+            use_process=self._task_config["process"],
+            **kwargs,
+        )
+
+    def __call__(self, *args: Any, **kwargs: Any) -> FunctionTask[T]:
+        """Create task instance for configuration chaining (like class-based tasks).
+
+        This enables the pattern: task(args).on_queue("name").dispatch()
+
+        Args:
+            *args: Positional arguments for the function
+            **kwargs: Keyword arguments for the function
+
+        Returns:
+            FunctionTask instance for method chaining
+
+        Example:
+            ```python
+            @task
+            async def my_task(x: int) -> int:
+                return x * 2
+
+            # Create instance, configure, then dispatch
+            task_id = await my_task(x=5).on_queue("custom").dispatch()
+            ```
+        """
+        return self._create_task_instance(*args, **kwargs)
+
+    def __repr__(self) -> str:
+        """Return helpful representation showing it's a task wrapper."""
+        return f"<TaskFunction {self._func.__module__}.{self._func.__qualname__}>"
+
+    def __str__(self) -> str:
+        """Return string representation."""
+        return f"TaskFunction({self._func.__name__})"
+
+
 class TaskFunction[T](Protocol):
-    """Protocol for @task decorated function with dispatch method."""
+    """Protocol for @task decorated function.
+
+    Function-based tasks are called to create task instances, which are then
+    dispatched using the standard BaseTask.dispatch() method. This makes the
+    API consistent with class-based tasks.
+    """
 
     __name__: str
     __doc__: str | None
-
-    async def dispatch(self, *args: Any, **kwargs: Any) -> str:
-        """Dispatch function as task.
-
-        Returns:
-            Task ID
-        """
-        ...
+    __module__: str
+    __qualname__: str
+    __annotations__: dict[str, Any]
 
     def __call__(self, *args: Any, **kwargs: Any) -> FunctionTask[T]:
         """Create task instance for configuration chaining.
 
         Returns:
-            FunctionTask instance
+            FunctionTask instance which has .dispatch() method from BaseTask
         """
         ...
 
@@ -226,7 +305,9 @@ def task[T](
     """
 
     def decorator(func: Callable[..., T]) -> TaskFunction[T]:
-        # Store task configuration on function
+        """Apply task configuration to function and wrap it."""
+        # Store task configuration on function as attributes
+        # This allows FunctionTask to read config during __init__
         func._task_queue = queue  # type: ignore[attr-defined]
         func._task_max_retries = max_retries  # type: ignore[attr-defined]
         func._task_retry_delay = retry_delay  # type: ignore[attr-defined]
@@ -235,47 +316,8 @@ def task[T](
         func._task_process = process  # type: ignore[attr-defined]
         func._is_task = True  # type: ignore[attr-defined]
 
-        # Add dispatch() method for convenient dispatching
-        @functools.wraps(func)
-        async def dispatch_method(*args, **kwargs) -> str:
-            """Dispatch function as task (supports optional delay parameter)."""
-            from asynctasq.core.dispatcher import get_dispatcher
-
-            # Extract delay from kwargs if present
-            delay = kwargs.pop("delay", None)
-
-            # Create task instance with process flag
-            task_instance = FunctionTask(
-                func,
-                *args,
-                use_process=func._task_process,  # type: ignore[attr-defined]
-                **kwargs,
-            )
-
-            # Apply delay if specified
-            if delay:
-                task_instance.delay(delay)
-
-            # Get dispatcher for this task's driver override (if any)
-            dispatcher = get_dispatcher(func._task_driver)  # type: ignore[attr-defined]
-
-            # Dispatch the task
-            return await dispatcher.dispatch(task_instance)
-
-        # Add callable wrapper that returns task instance for chaining
-        @functools.wraps(func)
-        def call_wrapper(*args, **kwargs) -> FunctionTask[T]:
-            """Create task instance for configuration chaining."""
-            return FunctionTask(
-                func,
-                *args,
-                use_process=func._task_process,  # type: ignore[attr-defined]
-                **kwargs,
-            )
-
-        func.dispatch = dispatch_method  # type: ignore[attr-defined]
-        func.__call__ = call_wrapper  # type: ignore[assignment]
-        return func  # type: ignore[return-value]
+        # Wrap function with TaskFunctionWrapper for consistent API
+        return TaskFunctionWrapper(func)  # type: ignore[return-value]
 
     # Support both @task and @task()
     if callable(_func):

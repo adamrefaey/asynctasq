@@ -8,7 +8,6 @@ Testing Strategy:
 - Fast, isolated tests
 """
 
-from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import main, mark, raises
@@ -253,11 +252,11 @@ class TestTaskDecorator:
         def test_func(x: int) -> int:
             return x * 2
 
-        # Assert
-        assert hasattr(test_func, "dispatch")
-        # Use cast to access dynamically added attributes
-        func_any = cast(Any, test_func)
-        assert callable(func_any.dispatch)
+        # Assert - dispatch is on the task instance, not the wrapper
+        # Call the function to create a task instance
+        task_instance = test_func(x=5)
+        assert hasattr(task_instance, "dispatch")
+        assert callable(task_instance.dispatch)
 
     def test_task_decorator_adds_call_wrapper(self) -> None:
         # Arrange & Act
@@ -265,23 +264,18 @@ class TestTaskDecorator:
         def test_func(x: int) -> int:
             return x * 2
 
-        # Act - __call__ is set but Python's function call mechanism doesn't use it
-        # So calling the function directly executes it, not the wrapper
-        # To get a FunctionTask, we need to use the __call__ attribute explicitly
-        # or create it manually. For chaining, use: test_func(5).delay(60).dispatch()
-        # which works because the function returns a value that can be chained
-        # Actually, the __call__ wrapper is meant for method chaining, but
-        # Python's function call doesn't use __call__ for functions.
-        # So we test that __call__ exists and can be used explicitly
+        # Act - The decorator returns a TaskFunctionWrapper that intercepts calls
+        # Calling test_func(5) returns a FunctionTask instance for method chaining
         assert callable(test_func)
-        # Using __call__ explicitly should work
-        # Use cast to access dynamically added attributes
-        func_any = cast(Any, test_func)
-        task_instance = func_any.__call__(5)
+        task_instance = test_func(5)
 
         # Assert
         assert isinstance(task_instance, FunctionTask)
-        assert task_instance.func == test_func
+        # The underlying function is stored in task_instance.func
+        # We need to compare the wrapped function, not the wrapper
+        from asynctasq.tasks.types.function_task import TaskFunctionWrapper
+
+        assert isinstance(test_func, TaskFunctionWrapper)
         assert task_instance.args == (5,)
 
     @mark.asyncio
@@ -295,10 +289,8 @@ class TestTaskDecorator:
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-123")
 
         with patch("asynctasq.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
-            # Act
-            # Use cast to access dynamically added attributes
-            func_any = cast(Any, test_func)
-            task_id = await func_any.dispatch(x=10)
+            # Act - Use unified API: call function first, then dispatch
+            task_id = await test_func(x=10).dispatch()
 
             # Assert
             assert task_id == "task-id-123"
@@ -306,7 +298,7 @@ class TestTaskDecorator:
             # Verify FunctionTask was created with correct args
             call_args = mock_dispatcher.dispatch.call_args[0][0]
             assert isinstance(call_args, FunctionTask)
-            assert call_args.func == test_func
+            assert call_args.kwargs == {"x": 10}
 
     @mark.asyncio
     async def test_task_decorator_dispatch_with_delay(self) -> None:
@@ -319,10 +311,8 @@ class TestTaskDecorator:
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-delayed")
 
         with patch("asynctasq.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
-            # Act
-            # Use cast to access dynamically added attributes
-            func_any = cast(Any, test_func)
-            task_id = await func_any.dispatch(x=10, delay=60)
+            # Act - Use unified API: call, delay, dispatch
+            task_id = await test_func(x=10).delay(60).dispatch()
 
             # Assert
             assert task_id == "task-id-delayed"
@@ -344,10 +334,8 @@ class TestTaskDecorator:
         with patch(
             "asynctasq.core.dispatcher.get_dispatcher", return_value=mock_dispatcher
         ) as mock_get:
-            # Act
-            # Use cast to access dynamically added attributes
-            func_any = cast(Any, test_func)
-            await func_any.dispatch()
+            # Act - Use unified API: call first, then dispatch
+            await test_func().dispatch()
 
             # Assert
             mock_get.assert_called_once_with("redis")
@@ -363,10 +351,8 @@ class TestTaskDecorator:
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id-chained")
 
         with patch("asynctasq.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
-            # Act - Use __call__ explicitly to get FunctionTask for chaining
-            # Use cast to access dynamically added attributes
-            func_any = cast(Any, test_func)
-            task_id = await func_any.__call__(x=10).delay(120).dispatch()
+            # Act - Use unified API: call function to get FunctionTask for chaining
+            task_id = await test_func(x=10).delay(120).dispatch()
 
             # Assert
             assert task_id == "task-id-chained"
@@ -407,10 +393,8 @@ class TestTaskDecorator:
         def test_func(a: int, b: str) -> str:
             return f"{a}:{b}"
 
-        # Act - Use __call__ explicitly since Python's function call doesn't use __call__
-        # Use cast to access dynamically added attributes
-        func_any = cast(Any, test_func)
-        task_instance = func_any.__call__(1, b="test")
+        # Act - Call the decorated function directly (TaskFunctionWrapper intercepts it)
+        task_instance = test_func(1, b="test")
 
         # Assert
         assert isinstance(task_instance, FunctionTask)
@@ -428,13 +412,11 @@ class TestTaskDecorator:
         mock_dispatcher.dispatch = AsyncMock(return_value="task-id")
 
         with patch("asynctasq.core.dispatcher.get_dispatcher", return_value=mock_dispatcher):
-            # Act
-            # Use cast to access dynamically added attributes
-            func_any = cast(Any, test_func)
-            await func_any.dispatch(x=5, delay=180)
+            # Act - Use unified API: call with args, chain delay, then dispatch
+            await test_func(x=5).delay(180).dispatch()
 
             # Assert
-            # delay should be removed from kwargs and not passed to function
+            # delay should be set via .delay() method, not in kwargs
             call_args = mock_dispatcher.dispatch.call_args[0][0]
             assert isinstance(call_args, FunctionTask)
             # The function kwargs should not contain 'delay'
