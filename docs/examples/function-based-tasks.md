@@ -101,7 +101,7 @@ async def send_notification(message: str):
 
 # Dispatch the task
 async def main():
-    task_id = await send_notification.dispatch(message="Hello, World!")
+    task_id = await send_notification(message="Hello, World!").dispatch()
     print(f"Task dispatched with ID: {task_id}")
     # Note: Task will be executed by a worker process
 
@@ -131,7 +131,7 @@ def process_data(data: list[int]) -> int:
 
 # Dispatch
 async def main():
-    task_id = await process_data.dispatch(data=[1, 2, 3, 4, 5])
+    task_id = await process_data(data=[1, 2, 3, 4, 5]).dispatch()
     print(f"Task dispatched: {task_id}")
 
 if __name__ == "__main__":
@@ -305,11 +305,11 @@ from asynctasq.tasks import task
 async def run_ml_inference(model_path: str, data: list[float]):
     """Async + process=True - runs in subprocess with async support."""
     import aiofiles
-    
+
     # Async I/O
     async with aiofiles.open(model_path, 'rb') as f:
         model_data = await f.read()
-    
+
     # CPU-intensive work (bypasses GIL)
     return run_model(model_data, data)
 
@@ -318,11 +318,11 @@ async def run_ml_inference(model_path: str, data: list[float]):
 def process_large_dataset(data: list[float]):
     """Sync + process=True - runs in subprocess."""
     import numpy as np
-    
+
     # Heavy CPU computation (bypasses GIL)
     arr = np.array(data)
     result = np.fft.fft(arr)
-    
+
     return {
         "mean": float(result.mean()),
         "std": float(result.std())
@@ -331,20 +331,20 @@ def process_large_dataset(data: list[float]):
 
 **When to use `process=True`:**
 
-✅ CPU utilization > 80% (verified with profiling)  
-✅ Task duration > 100ms (amortizes process overhead)  
-✅ All arguments and return values are serializable (msgpack-compatible)  
-✅ Heavy computation: NumPy, Pandas, ML inference, video encoding, encryption  
+✅ CPU utilization > 80% (verified with profiling)
+✅ Task duration > 100ms (amortizes process overhead)
+✅ All arguments and return values are serializable (msgpack-compatible)
+✅ Heavy computation: NumPy, Pandas, ML inference, video encoding, encryption
 
-❌ Don't use for I/O-bound tasks (use default `process=False`)  
-❌ Don't use for short tasks < 100ms (overhead not worth it)  
+❌ Don't use for I/O-bound tasks (use default `process=False`)
+❌ Don't use for short tasks < 100ms (overhead not worth it)
 ❌ Don't use with unserializable objects (lambdas, file handles, sockets)
 
 ---
 
 ## Dispatching Tasks
 
-Tasks are dispatched using the `.dispatch()` method on the decorated function. The method accepts all function parameters plus an optional `delay` parameter.
+Tasks are dispatched using the unified API where you call the function first (with its parameters) to create a task instance, then call `.dispatch()` on that instance.
 
 **Return Value:** `dispatch()` returns a unique task ID (UUID string) that can be used for tracking, monitoring, and debugging.
 
@@ -357,7 +357,7 @@ Tasks are dispatched using the `.dispatch()` method on the decorated function. T
 
 ### Direct Dispatch (Recommended)
 
-The simplest way to dispatch a task is to call `.dispatch()` with the function's parameters:
+The simplest way to dispatch a task is to call the function with its parameters, then call `.dispatch()`:
 
 ```python
 from asynctasq.tasks import task
@@ -368,17 +368,17 @@ async def send_email(to: str, subject: str, body: str):
 
 # Dispatch immediately
 async def main():
-    task_id = await send_email.dispatch(
+    task_id = await send_email(
         to="user@example.com",
         subject="Welcome",
         body="Welcome to our platform!"
-    )
+    ).dispatch()
     print(f"Task ID: {task_id}")
 ```
 
 ### Dispatch with Delay
 
-You can delay task execution using either the `delay` parameter or method chaining:
+You can delay task execution using the `.delay()` method in the chain:
 
 ```python
 from asynctasq.tasks import task
@@ -389,15 +389,11 @@ async def send_reminder(user_id: int, message: str):
 
 # Dispatch with 60 second delay
 async def main():
-    # Method 1: Using delay parameter (recommended for simple delays)
-    task_id = await send_reminder.dispatch(
+    # Using method chaining with delay
+    task_id = await send_reminder(
         user_id=123,
-        message="Don't forget to complete your profile!",
-        delay=60  # Execute after 60 seconds
-    )
-
-    # Method 2: Using method chaining (useful when combining with other overrides)
-    task_id = await send_reminder(user_id=123, message="Reminder").delay(60).dispatch()
+        message="Don't forget to complete your profile!"
+    ).delay(60).dispatch()  # Execute after 60 seconds
 ```
 
 **Note:** The `delay` parameter specifies seconds until execution. For more complex scheduling, consider using a separate scheduling system.
@@ -413,7 +409,7 @@ async def process_items(item1: str, item2: str, item3: str):
 
 # Dispatch with positional arguments
 async def main():
-    task_id = await process_items.dispatch("apple", "banana", "cherry")
+    task_id = await process_items("apple", "banana", "cherry").dispatch()
 ```
 
 ### Dispatch with Mixed Arguments
@@ -427,12 +423,12 @@ async def update_user(user_id: int, name: str, email: str, active: bool = True):
 
 # Dispatch with mixed positional and keyword arguments
 async def main():
-    task_id = await update_user.dispatch(
+    task_id = await update_user(
         123,  # positional
         "John Doe",  # positional
         email="john@example.com",  # keyword
         active=False  # keyword
-    )
+    ).dispatch()
 ```
 
 ---
@@ -542,10 +538,10 @@ async def process_video_async(video_path: str) -> dict:
     # Async I/O
     async with aiofiles.open(video_path, 'rb') as f:
         data = await f.read()
-    
+
     # CPU-intensive work (bypasses GIL in subprocess)
     frames_processed = await process_frames(data)
-    
+
     return {"frames": frames_processed}
 ```
 
@@ -571,7 +567,7 @@ def process_large_dataset(data: list[float]) -> dict:
     # Heavy CPU computation (bypasses GIL)
     arr = np.array(data)
     result = np.fft.fft(arr)
-    
+
     return {
         "mean": float(result.mean()),
         "std": float(result.std())
@@ -656,8 +652,8 @@ def sync_operation(data: str):
 
 # Both can be dispatched the same way
 async def main():
-    task1_id = await async_operation.dispatch(data="async")
-    task2_id = await sync_operation.dispatch(data="sync")
+    task1_id = await async_operation(data="async").dispatch()
+    task2_id = await sync_operation(data="sync").dispatch()
 ```
 
 ---
@@ -716,7 +712,7 @@ async def custom_driver_task(data: dict):
 
 # Dispatch task
 async def main():
-    task_id = await custom_driver_task.dispatch(data={"key": "value"})
+    task_id = await custom_driver_task(data={"key": "value"}).dispatch()
     print(f"Task dispatched: {task_id}")
 ```
 
@@ -822,11 +818,11 @@ async def main():
         user = await session.get(User, 1)
 
         # Only user.id is serialized to queue (90%+ payload reduction)
-        task_id = await send_welcome_email.dispatch(user=user)
+        task_id = await send_welcome_email(user=user).dispatch()
 
         # Multiple models
         order = await session.get(Order, 100)
-        task_id = await process_order.dispatch(order=order, user=user)
+        task_id = await process_order(order=order, user=user).dispatch()
 ```
 
 **Important Notes:**
@@ -868,10 +864,10 @@ async def update_product_price(product: Product, new_price: float):
 async def main():
     # Django async methods (Django 3.1+)
     user = await User.objects.aget(id=1)
-    await send_welcome_email.dispatch(user=user)
+    await send_welcome_email(user=user).dispatch()
 
     product = await Product.objects.aget(id=5)
-    await update_product_price.dispatch(product=product, new_price=99.99)
+    await update_product_price(product=product, new_price=99.99).dispatch()
 ```
 
 ### Tortoise ORM Integration
@@ -904,7 +900,7 @@ async def main():
     user = await User.get(id=1)
     post = await Post.get(id=10)
 
-    await notify_new_post.dispatch(post=post, author=user)
+    await notify_new_post(post=post, author=user).dispatch()
 ```
 
 ---
@@ -1035,19 +1031,18 @@ async def send_email(
 # Dispatch emails
 async def main():
     # Immediate email
-    await send_email.dispatch(
+    await send_email(
         to="user@example.com",
         subject="Welcome!",
         body="Welcome to our platform"
-    )
+    ).dispatch()
 
     # Delayed welcome email (send after 1 hour)
-    await send_email.dispatch(
+    await send_email(
         to="newuser@example.com",
         subject="Getting Started",
-        body="Here's how to get started...",
-        delay=3600
-    )
+        body="Here's how to get started..."
+    ).delay(3600).dispatch()
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -1083,12 +1078,12 @@ async def process_payment(
 
 # Dispatch payment
 async def main():
-    task_id = await process_payment.dispatch(
+    task_id = await process_payment(
         user_id=123,
         amount=Decimal("99.99"),
         payment_method="credit_card",
         order_id=456
-    )
+    ).dispatch()
     print(f"Payment task dispatched: {task_id}")
 
 if __name__ == "__main__":
@@ -1126,12 +1121,12 @@ async def main():
     end_date = datetime.now()
     start_date = end_date - timedelta(days=30)
 
-    task_id = await generate_report.dispatch(
+    task_id = await generate_report(
         report_type="monthly_sales",
         start_date=start_date,
         end_date=end_date,
         user_id=123
-    )
+    ).dispatch()
     print(f"Report generation task dispatched: {task_id}")
 
 if __name__ == "__main__":
@@ -1163,11 +1158,11 @@ async def process_image(
 
 # Dispatch image processing
 async def main():
-    task_id = await process_image.dispatch(
+    task_id = await process_image(
         image_path="/uploads/photo.jpg",
         operations=["resize", "optimize", "watermark"],
         output_path="/processed/photo.jpg"
-    )
+    ).dispatch()
     print(f"Image processing task dispatched: {task_id}")
 
 if __name__ == "__main__":
@@ -1205,11 +1200,11 @@ async def deliver_webhook(
 
 # Dispatch webhook
 async def main():
-    task_id = await deliver_webhook.dispatch(
+    task_id = await deliver_webhook(
         url="https://example.com/webhook",
         payload={"event": "user.created", "user_id": 123},
         headers={"X-API-Key": "secret"}
-    )
+    ).dispatch()
     print(f"Webhook task dispatched: {task_id}")
 
 if __name__ == "__main__":
@@ -1239,12 +1234,11 @@ async def sync_user_data(
 # Schedule sync with delay
 async def main():
     # Sync after 5 minutes
-    task_id = await sync_user_data.dispatch(
+    task_id = await sync_user_data(
         user_id=123,
         source_system="crm",
-        target_system="analytics",
-        delay=300
-    )
+        target_system="analytics"
+    ).delay(300).dispatch()
     print(f"Sync task dispatched: {task_id}")
 
 if __name__ == "__main__":
@@ -1287,10 +1281,10 @@ async def main():
         {"id": 3, "data": "value3"},
     ]
 
-    task_id = await process_batch.dispatch(
+    task_id = await process_batch(
         items=items,
         batch_id="batch-2024-01-15"
-    )
+    ).dispatch()
     print(f"Batch processing task dispatched: {task_id}")
 
 if __name__ == "__main__":
@@ -1356,21 +1350,20 @@ async def main():
 
     # 1. Direct dispatch
     print("1. Direct dispatch:")
-    task_id = await send_email.dispatch(
+    task_id = await send_email(
         to="user@example.com",
         subject="Welcome",
         body="Welcome!"
-    )
+    ).dispatch()
     print(f"   Task ID: {task_id}\n")
 
     # 2. Dispatch with delay
     print("2. Dispatch with delay:")
-    task_id = await send_email.dispatch(
+    task_id = await send_email(
         to="user@example.com",
         subject="Reminder",
-        body="Don't forget!",
-        delay=60
-    )
+        body="Don't forget!"
+    ).delay(60).dispatch()
     print(f"   Task ID: {task_id} (will execute in 60s)\n")
 
     # 3. Method chaining
@@ -1382,18 +1375,18 @@ async def main():
 
     # 4. Payment processing
     print("4. Payment processing:")
-    task_id = await process_payment.dispatch(user_id=123, amount=99.99)
+    task_id = await process_payment(user_id=123, amount=99.99).dispatch()
     print(f"   Task ID: {task_id}\n")
 
     # 5. Sync task
     print("5. Sync task:")
-    task_id = await generate_report.dispatch(report_id=1)
+    task_id = await generate_report(report_id=1).dispatch()
     print(f"   Task ID: {task_id}\n")
 
     # 6. Driver override
     print("6. Driver override:")
     # Note: This requires Redis to be configured
-    # task_id = await critical_task.dispatch(data={"key": "value"})
+    # task_id = await critical_task(data={"key": "value"}).dispatch()
     # print(f"   Task ID: {task_id}\n")
 
     print("=== All tasks dispatched! ===")
@@ -1443,7 +1436,7 @@ Function-based tasks in AsyncTasQ provide a simple, powerful way to convert any 
 3. **Dispatch it:**
 
    ```python
-   task_id = await send_email.dispatch(to="user@example.com", subject="Hello")
+   task_id = await send_email(to="user@example.com", subject="Hello").dispatch()
    print(f"Task ID: {task_id}")
    ```
 
@@ -1494,7 +1487,7 @@ async def create_user_account(email: str, name: str):
     user = await create_user(email, name)
 
     # Dispatch welcome email and store task ID
-    email_task_id = await send_welcome_email.dispatch(user=user)
+    email_task_id = await send_welcome_email(user=user).dispatch()
 
     # Store task ID in database for tracking
     await store_task_reference(user.id, "welcome_email", email_task_id)

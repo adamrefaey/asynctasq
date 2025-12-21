@@ -66,8 +66,8 @@ engine = create_async_engine(
     pool_recycle=3600,   # Recycle connections after 1 hour
 )
 SessionFactory = async_sessionmaker(
-    engine, 
-    class_=AsyncSession, 
+    engine,
+    class_=AsyncSession,
     expire_on_commit=False  # Prevent lazy-load queries after commit
 )
 
@@ -118,7 +118,7 @@ async def main():
     async with SessionFactory() as session:
         user = await session.get(User, 1)
         # Only user.id is serialized to queue
-        await send_welcome_email.dispatch(user=user)
+        await send_welcome_email(user=user).dispatch()
 ```
 
 **For Production/Multiprocessing Workers:**
@@ -295,7 +295,7 @@ async def send_welcome_email(user: User):
 # Dispatch task
 async def main():
     user = await User.objects.aget(id=1)  # Django 3.1+ async support
-    await send_welcome_email.dispatch(user=user)
+    await send_welcome_email(user=user).dispatch()
 ```
 
 **Supports:**
@@ -350,7 +350,7 @@ async def main():
         modules={'models': ['app.models']}
     )
     user = await User.get(id=1)
-    await send_welcome_email.dispatch(user=user)
+    await send_welcome_email(user=user).dispatch()
 ```
 
 **Supports:**

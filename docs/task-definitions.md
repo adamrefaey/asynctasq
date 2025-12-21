@@ -70,14 +70,14 @@ def heavy_computation(data: list[float]):
 **Dispatching Function Tasks:**
 
 ```python
-# Method 1: Direct dispatch
-task_id = await send_email.dispatch(to="user@example.com", subject="Hello", body="Hi!")
+# Direct dispatch
+task_id = await send_email(to="user@example.com", subject="Hello", body="Hi!").dispatch()
 
-# Method 2: With delay (execute after 60 seconds)
-task_id = await send_email.dispatch(to="user@example.com", subject="Hello", body="Hi!", delay=60)
-
-# Method 3: Method chaining
+# With delay (execute after 60 seconds)
 task_id = await send_email(to="user@example.com", subject="Hello", body="Hi!").delay(60).dispatch()
+
+# Method chaining with queue override
+task_id = await send_email(to="user@example.com", subject="Hello", body="Hi!").on_queue("high").dispatch()
 ```
 
 ---
@@ -167,7 +167,7 @@ class ProcessVideoAsync(AsyncProcessTask[dict]):
         # Async preprocessing
         async with aiofiles.open(self.video_path, 'rb') as f:
             data = await f.read()
-        
+
         # CPU-intensive work (bypasses GIL)
         result = await self._process_frames(data)
         return {"frames_processed": result}
@@ -332,43 +332,43 @@ class ProcessDataset(SyncProcessTask[dict]):
 
 **AsyncTask (Default - Use for 90% of tasks):**
 
-✅ I/O-bound async operations (API calls, async database queries)  
-✅ Tasks that spend time waiting (network, disk, external services)  
-✅ Async libraries available (httpx, aiohttp, asyncpg, aiofiles, etc.)  
-✅ Need high concurrency (1000s of tasks)  
-✅ Low CPU utilization during execution  
+✅ I/O-bound async operations (API calls, async database queries)
+✅ Tasks that spend time waiting (network, disk, external services)
+✅ Async libraries available (httpx, aiohttp, asyncpg, aiofiles, etc.)
+✅ Need high concurrency (1000s of tasks)
+✅ Low CPU utilization during execution
 
 **SyncTask (For blocking I/O):**
 
-✅ Blocking I/O libraries (`requests`, sync DB drivers like `psycopg2`)  
-✅ File operations with sync libraries  
-✅ Legacy sync code that can't be easily converted to async  
-✅ Moderate concurrency needed (100s of tasks)  
+✅ Blocking I/O libraries (`requests`, sync DB drivers like `psycopg2`)
+✅ File operations with sync libraries
+✅ Legacy sync code that can't be easily converted to async
+✅ Moderate concurrency needed (100s of tasks)
 
-❌ Don't use for async code (use `AsyncTask` instead)  
+❌ Don't use for async code (use `AsyncTask` instead)
 ❌ Don't use for CPU-intensive work (use process tasks instead)
 
 **AsyncProcessTask (For async CPU-intensive work):**
 
-✅ CPU-intensive work that also needs async I/O  
-✅ ML inference with async preprocessing/postprocessing  
-✅ Video processing with async file operations  
-✅ Task duration > 100ms (amortizes process overhead)  
-✅ All arguments and return values are serializable (msgpack-compatible)  
+✅ CPU-intensive work that also needs async I/O
+✅ ML inference with async preprocessing/postprocessing
+✅ Video processing with async file operations
+✅ Task duration > 100ms (amortizes process overhead)
+✅ All arguments and return values are serializable (msgpack-compatible)
 
-❌ Don't use for pure I/O-bound tasks (use `AsyncTask` instead)  
+❌ Don't use for pure I/O-bound tasks (use `AsyncTask` instead)
 ❌ Don't use for short tasks < 100ms (overhead not worth it)
 
 **SyncProcessTask (For sync CPU-intensive work):**
 
-✅ CPU utilization > 80% (verified with profiling)  
-✅ Heavy computation that bypasses GIL (NumPy, Pandas, encryption)  
-✅ Task duration > 100ms (amortizes process overhead)  
-✅ All arguments and return values are serializable (msgpack-compatible)  
-✅ No async operations needed  
+✅ CPU utilization > 80% (verified with profiling)
+✅ Heavy computation that bypasses GIL (NumPy, Pandas, encryption)
+✅ Task duration > 100ms (amortizes process overhead)
+✅ All arguments and return values are serializable (msgpack-compatible)
+✅ No async operations needed
 
-❌ Don't use for I/O-bound tasks (use `AsyncTask` or `SyncTask` instead)  
-❌ Don't use for short tasks < 100ms (overhead not worth it)  
+❌ Don't use for I/O-bound tasks (use `AsyncTask` or `SyncTask` instead)
+❌ Don't use for short tasks < 100ms (overhead not worth it)
 ❌ Don't use with unserializable objects like lambdas or file handles (will fail at dispatch)
 
 ---
@@ -607,8 +607,8 @@ class ProcessPayment(AsyncTask[bool]):
 # 3. Method chaining (runtime configuration for both)
 await task_instance.on_queue("high").retry_after(120).delay(60).dispatch()
 
-# 4. Dispatch parameters (function tasks only)
-await send_email.dispatch(to="user@example.com", subject="Hello", delay=60)
+# 4. Function tasks - unified API
+await send_email(to="user@example.com", subject="Hello").delay(60).dispatch()
 ```
 
 **Task Metadata:**
