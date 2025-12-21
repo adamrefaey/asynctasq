@@ -144,7 +144,7 @@ class MySQLDriver(BaseDriver):
                         available_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                         locked_until DATETIME(6) NULL,
                         status VARCHAR(50) NOT NULL DEFAULT 'pending',
-                        attempts INT NOT NULL DEFAULT 0,
+                        current_attempt INT NOT NULL DEFAULT 1,
                         max_attempts INT NOT NULL DEFAULT 3,
                         created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                         updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -158,7 +158,7 @@ class MySQLDriver(BaseDriver):
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         queue_name VARCHAR(255) NOT NULL,
                         payload BLOB NOT NULL,
-                        attempts INT NOT NULL,
+                        current_attempt INT NOT NULL,
                         error_message TEXT,
                         failed_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -178,8 +178,8 @@ class MySQLDriver(BaseDriver):
 
         query = f"""
             INSERT INTO {self.queue_table}
-                (queue_name, payload, available_at, status, attempts, max_attempts, created_at)
-            VALUES (%s, %s, DATE_ADD(NOW(6), INTERVAL %s SECOND), 'pending', 0, %s, NOW(6))
+                (queue_name, payload, available_at, status, current_attempt, max_attempts, created_at)
+            VALUES (%s, %s, DATE_ADD(NOW(6), INTERVAL %s SECOND), 'pending', 1, %s, NOW(6))
         """
         async with self.pool.acquire() as conn:
             await conn.begin()
@@ -327,8 +327,8 @@ class MySQLDriver(BaseDriver):
 
         Implementation:
             - Increments attempt counter
-            - If attempts < max_attempts: requeue with exponential backoff
-            - If attempts >= max_attempts: move to dead letter queue
+            - If current_attempt < max_attempts: requeue with exponential backoff
+            - If current_attempt >= max_attempts: move to dead letter queue
         """
         if self.pool is None:
             await self.connect()
@@ -342,45 +342,45 @@ class MySQLDriver(BaseDriver):
             await conn.begin()
             try:
                 async with conn.cursor() as cursor:
-                    # Get current attempts
+                    # Get current attempt
                     await cursor.execute(
-                        f"SELECT attempts, max_attempts, queue_name, payload FROM {self.queue_table} WHERE id = %s",
+                        f"SELECT current_attempt, max_attempts, queue_name, payload FROM {self.queue_table} WHERE id = %s",
                         (task_id,),
                     )
                     row = await cursor.fetchone()
 
                     if row:
-                        attempts = row[0] + 1
+                        current_attempt = row[0] + 1
                         max_attempts = row[1]
                         task_queue_name = row[2]
                         payload = row[3]
 
-                        if attempts < max_attempts:
-                            # Retry: update attempts, available_at, and clear lock
+                        if current_attempt < max_attempts:
+                            # Retry: update current_attempt, available_at, and clear lock
                             retry_delay = self.retry_delay_seconds * (
-                                2 ** (attempts - 1)
+                                2 ** (current_attempt - 1)
                             )  # Exponential backoff
                             await cursor.execute(
                                 f"""
                                 UPDATE {self.queue_table}
-                                SET attempts = %s,
+                                SET current_attempt = %s,
                                     available_at = DATE_ADD(NOW(6), INTERVAL %s SECOND),
                                     status = 'pending',
                                     locked_until = NULL,
                                     updated_at = NOW(6)
                                 WHERE id = %s
                                 """,
-                                (attempts, retry_delay, task_id),
+                                (current_attempt, retry_delay, task_id),
                             )
                         else:
                             # Move to dead letter queue
                             await cursor.execute(
                                 f"""
                                 INSERT INTO {self.dead_letter_table}
-                                    (queue_name, payload, attempts, error_message, failed_at)
+                                    (queue_name, payload, current_attempt, error_message, failed_at)
                                 VALUES (%s, %s, %s, 'Max retries exceeded', NOW(6))
                                 """,
-                                (task_queue_name, payload, attempts),
+                                (task_queue_name, payload, current_attempt),
                             )
                             await cursor.execute(
                                 f"DELETE FROM {self.queue_table} WHERE id = %s", (task_id,)
@@ -417,7 +417,7 @@ class MySQLDriver(BaseDriver):
                 async with conn.cursor() as cursor:
                     # Get task data
                     await cursor.execute(
-                        f"SELECT queue_name, payload, attempts FROM {self.queue_table} WHERE id = %s",
+                        f"SELECT queue_name, payload, current_attempt FROM {self.queue_table} WHERE id = %s",
                         (task_id,),
                     )
                     row = await cursor.fetchone()
@@ -425,16 +425,16 @@ class MySQLDriver(BaseDriver):
                     if row:
                         task_queue_name = row[0]
                         payload = row[1]
-                        attempts = row[2]
+                        current_attempt = row[2]
 
                         # Move to dead letter queue
                         await cursor.execute(
                             f"""
                             INSERT INTO {self.dead_letter_table}
-                                (queue_name, payload, attempts, error_message, failed_at)
+                                (queue_name, payload, current_attempt, error_message, failed_at)
                             VALUES (%s, %s, %s, 'Permanently failed', NOW(6))
                             """,
-                            (task_queue_name, payload, attempts),
+                            (task_queue_name, payload, current_attempt),
                         )
                         # Delete from main queue
                         await cursor.execute(
@@ -663,9 +663,9 @@ class MySQLDriver(BaseDriver):
             await self.connect()
             assert self.pool is not None
 
-        # Dead-letter table columns: id, queue_name, payload, attempts, error_message, failed_at
-        sel = f"SELECT queue_name, payload, attempts FROM {self.dead_letter_table} WHERE id = %s"
-        ins = f"INSERT INTO {self.queue_table} (queue_name, payload, available_at, status, attempts, max_attempts, created_at) VALUES (%s, %s, NOW(6), 'pending', %s, %s, NOW(6))"
+        # Dead-letter table columns: id, queue_name, payload, current_attempt, error_message, failed_at
+        sel = f"SELECT queue_name, payload, current_attempt FROM {self.dead_letter_table} WHERE id = %s"
+        ins = f"INSERT INTO {self.queue_table} (queue_name, payload, available_at, status, current_attempt, max_attempts, created_at) VALUES (%s, %s, NOW(6), 'pending', %s, %s, NOW(6))"
         del_q = f"DELETE FROM {self.dead_letter_table} WHERE id = %s"
 
         async with self.pool.acquire() as conn:
@@ -677,20 +677,21 @@ class MySQLDriver(BaseDriver):
                     if not row:
                         await conn.rollback()
                         return False
-                    # row may contain exactly (queue_name, payload, attempts)
+                    # row may contain exactly (queue_name, payload, current_attempt)
                     # or additional columns depending on driver/schema; be defensive
                     if len(row) >= 3:
-                        queue_name, payload, attempts = row[0], row[1], row[2]
+                        queue_name, payload, current_attempt = row[0], row[1], row[2]
                     else:
                         # Unexpected shape - treat as not found
                         await conn.rollback()
                         return False
+                    # current_attempt should be present; default to 1 defensively
                     await cursor.execute(
                         ins,
                         (
                             queue_name,
                             payload,
-                            0 if attempts is None else attempts,
+                            1 if current_attempt is None else current_attempt,
                             self.max_attempts,
                         ),
                     )

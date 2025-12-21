@@ -616,7 +616,7 @@ await send_email(to="user@example.com", subject="Hello").delay(60).dispatch()
 Tasks automatically track metadata:
 
 - `_task_id`: UUID string for task identification
-- `_attempts`: Current retry attempt count (0-indexed)
+- `_current_attempt`: Current retry attempt count (0-indexed)
 - `_dispatched_at`: ISO format datetime when task was first queued
 
 Access metadata in task methods:
@@ -625,6 +625,6 @@ Access metadata in task methods:
 class MyTask(AsyncTask[None]):
     async def execute(self) -> None:
         print(f"Task ID: {self._task_id}")
-        print(f"Attempt: {self._attempts}")
+        print(f"Attempt: {self._current_attempt}")
         print(f"Dispatched at: {self._dispatched_at}")
 ```

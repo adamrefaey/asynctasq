@@ -16,57 +16,57 @@ The asynctasq error handling system is designed with clear separation of concern
 ┌─────────────────────────────────────────────────────────────────┐
 │                      TaskExecutor.execute()                     │
 │  Framework Entry Point - Wraps execution with timeout           │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  try:                                                     │  │
-│  │      result = await asyncio.wait_for(                    │  │
-│  │          task.execute(),                                 │  │
-│  │          timeout=task.config.timeout                     │  │
-│  │      )                                                     │  │
-│  │      return SUCCESS                                       │  │
-│  │  except asyncio.TimeoutError:                            │  │
-│  │      # Framework handles timeout                         │  │
-│  │  except Exception as e:                                  │  │
-│  │      # Framework catches all exceptions                  │  │
-│  │      return await handle_failed(task, e)                 │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  try:                                                    │   │
+│  │      result = await asyncio.wait_for(                    │   │
+│  │          task.execute(),                                 │   │
+│  │          timeout=task.config.timeout                     │   │
+│  │      )                                                   │   │
+│  │      return SUCCESS                                      │   │
+│  │  except asyncio.TimeoutError:                            │   │
+│  │      # Framework handles timeout                         │   │
+│  │  except Exception as e:                                  │   │
+│  │      # Framework catches all exceptions                  │   │
+│  │      return await handle_failed(task, e)                 │   │
+│  └──────────────────────────────────────────────────────────┘   │
 └─────────────────┬───────────────────────────────────────────────┘
                   │ (Exception caught)
                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                 TaskExecutor.handle_failed()                    │
 │  Framework Error Recovery Logic                                 │
-│                                                                  │
-│  1. Check if task.should_retry(exception) → User Hook          │
-│  2. Check if attempts < max_retries                            │
-│  3. If retry: Re-queue task with incremented attempts          │
-│  4. If exhausted: Call task.failed(exception) → User Hook      │
-│  5. Return appropriate status (RETRY or FAILED)                │
+│                                                                 │
+│  1. Check if task.should_retry(exception) → User Hook           │
+│  2. Check if current_attempt < max_retries                      │
+│  3. If retry: Re-queue task with incremented current_attempt    │
+│  4. If exhausted: Call task.failed(exception) → User Hook       │
+│  5. Return appropriate status (RETRY or FAILED)                 │
 └─────────────────────────────────────────────────────────────────┘
                   │
                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     User Extension Points                       │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  BaseTask.should_retry(exception: Exception) -> bool    │  │
-│  │  ─────────────────────────────────────────────────────  │  │
-│  │  Purpose: Decide if task should retry after failure     │  │
-│  │  Default: Always return True (retry until max_retries)  │  │
-│  │  Override: Custom retry logic (e.g., fail fast on       │  │
-│  │           validation errors, retry on network errors)   │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  async BaseTask.failed(exception: Exception) -> None    │  │
-│  │  ─────────────────────────────────────────────────────  │  │
-│  │  Purpose: Handle task failure after retries exhausted   │  │
-│  │  Default: No-op (pass)                                  │  │
-│  │  Override: Custom failure handling (alerts, logging,    │  │
-│  │           cleanup, compensation logic)                   │  │
-│  │  Note: Exceptions raised here are logged but don't      │  │
-│  │        affect task processing (fail-safe)                │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  BaseTask.should_retry(exception: Exception) -> bool     │   │
+│  │  ─────────────────────────────────────────────────────   │   │
+│  │  Purpose: Decide if task should retry after failure      │   │
+│  │  Default: Always return True (retry until max_retries)   │   │
+│  │  Override: Custom retry logic (e.g., fail fast on        │   │
+│  │           validation errors, retry on network errors)    │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  async BaseTask.failed(exception: Exception) -> None     │   │
+│  │  ─────────────────────────────────────────────────────   │   │
+│  │  Purpose: Handle task failure after retries exhausted    │   │
+│  │  Default: No-op (pass)                                   │   │
+│  │  Override: Custom failure handling (alerts, logging,     │   │
+│  │           cleanup, compensation logic)                   │   │
+│  │  Note: Exceptions raised here are logged but don't       │   │
+│  │        affect task processing (fail-safe)                │   │
+│  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -136,8 +136,8 @@ Worker → TaskExecutor.execute()
        ← Raises ConnectionError
        → TaskExecutor.handle_failed()
        → Check task.should_retry(ConnectionError) → True (default)
-       → Check attempts < max_retries → True
-       → Re-queue task with attempts++
+       → Check current_attempt < max_retries → True
+       → Re-queue task with current_attempt++
        ← RETRY
 ```
 
@@ -150,7 +150,7 @@ Worker → TaskExecutor.execute()
        ← Raises ValueError
        → TaskExecutor.handle_failed()
        → Check task.should_retry(ValueError) → True (default)
-       → Check attempts < max_retries → False (exhausted)
+       → Check current_attempt < max_retries → False (exhausted)
        → Call task.failed(ValueError) [User Hook]
        ← FAILED
        → Mark task failed
@@ -164,7 +164,7 @@ class ValidateDataTask(AsyncTask[None]):
         if not self.data:
             raise ValueError("Invalid data")
         # Process data...
-    
+
     def should_retry(self, exception: Exception) -> bool:
         # Don't retry validation errors
         if isinstance(exception, ValueError):
@@ -186,11 +186,11 @@ Worker → TaskExecutor.execute()
 ```python
 class SendEmailTask(AsyncTask[None]):
     email: str
-    
+
     async def execute(self) -> None:
         # Send email logic...
         raise ConnectionError("SMTP server unavailable")
-    
+
     async def failed(self, exception: Exception) -> None:
         # Custom failure handling
         await alert_team(f"Email to {self.email} failed: {exception}")
@@ -232,7 +232,7 @@ task = MyTask().retry_after(60)  # 60s between retries
 ```python
 class TransactionTask(AsyncTask[None]):
     transaction_id: str
-    
+
     async def failed(self, exception: Exception) -> None:
         # Rollback transaction on permanent failure
         await rollback_transaction(self.transaction_id)
@@ -312,7 +312,7 @@ logger.error(
     extra={
         "task_id": task._task_id,
         "task_class": task.__class__.__name__,
-        "attempt": task._attempts,
+        "attempt": task._current_attempt,
         "max_retries": task.config.max_retries,
         "exception_type": type(exception).__name__,
         "exception_message": str(exception),
@@ -336,7 +336,7 @@ from asynctasq.tasks.types import AsyncTask
 
 class FailingTask(AsyncTask[None]):
     fail_count: int = 0
-    
+
     async def execute(self) -> None:
         self.fail_count += 1
         if self.fail_count < 3:
@@ -347,10 +347,10 @@ class FailingTask(AsyncTask[None]):
 async def test_task_retries():
     task = FailingTask()
     task.config.max_retries = 3
-    
+
     # Simulate 3 execution attempts
     for attempt in range(1, 4):
-        task._attempts = attempt
+        task._current_attempt = attempt
         if attempt < 3:
             with pytest.raises(ConnectionError):
                 await task.execute()
@@ -360,9 +360,9 @@ async def test_task_retries():
 
 ## Summary
 
-| Component | Responsibility | Entry Points |
-|-----------|---------------|-------------|
-| **TaskExecutor** | Framework error handling, retry logic, timeout | `execute()`, `handle_failed()` |
-| **BaseTask** | Business logic, custom error decisions | `handle()`, `should_retry()`, `failed()` |
+| Component        | Responsibility                                 | Entry Points                             |
+| ---------------- | ---------------------------------------------- | ---------------------------------------- |
+| **TaskExecutor** | Framework error handling, retry logic, timeout | `execute()`, `handle_failed()`           |
+| **BaseTask**     | Business logic, custom error decisions         | `handle()`, `should_retry()`, `failed()` |
 
 **Key Principle:** Framework manages error recovery; users implement business logic and custom error decisions via hooks.

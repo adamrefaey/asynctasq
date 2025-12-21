@@ -83,7 +83,7 @@ class PostgresDriver(BaseDriver):
                     available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     locked_until TIMESTAMPTZ,
                     status TEXT NOT NULL DEFAULT 'pending',
-                    attempts INTEGER NOT NULL DEFAULT 0,
+                    current_attempt INTEGER NOT NULL DEFAULT 0,
                     max_attempts INTEGER NOT NULL DEFAULT 3,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -104,7 +104,7 @@ class PostgresDriver(BaseDriver):
                     id SERIAL PRIMARY KEY,
                     queue_name TEXT NOT NULL,
                     payload BYTEA NOT NULL,
-                    attempts INTEGER NOT NULL,
+                    current_attempt INTEGER NOT NULL,
                     error_message TEXT,
                     failed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
@@ -124,8 +124,8 @@ class PostgresDriver(BaseDriver):
 
         query = f"""
             INSERT INTO {self.queue_table}
-                (queue_name, payload, available_at, status, attempts, max_attempts, created_at)
-            VALUES ($1, $2, NOW() + $3 * INTERVAL '1 second', 'pending', 0, $4, NOW())
+                (queue_name, payload, available_at, status, current_attempt, max_attempts, created_at)
+            VALUES ($1, $2, NOW() + $3 * INTERVAL '1 second', 'pending', 1, $4, NOW())
         """
         await self.pool.execute(query, queue_name, task_data, delay_seconds, self.max_attempts)
 
@@ -247,8 +247,8 @@ class PostgresDriver(BaseDriver):
 
         Implementation:
             - Increments attempt counter
-            - If attempts < max_attempts: requeue with exponential backoff
-            - If attempts >= max_attempts: move to dead letter queue
+            - If current_attempt < max_attempts: requeue with exponential backoff
+            - If current_attempt >= max_attempts: move to dead letter queue
         """
         if self.pool is None:
             await self.connect()
@@ -260,34 +260,34 @@ class PostgresDriver(BaseDriver):
 
         async with self.pool.acquire() as conn:
             async with conn.transaction():
-                # Get current attempts
+                # Get current attempt
                 row = await conn.fetchrow(
-                    f"SELECT attempts, max_attempts, queue_name, payload FROM {self.queue_table} WHERE id = $1",
+                    f"SELECT current_attempt, max_attempts, queue_name, payload FROM {self.queue_table} WHERE id = $1",
                     task_id,
                 )
 
                 if row:
-                    attempts = row["attempts"] + 1
+                    current_attempt = row["current_attempt"] + 1
                     max_attempts = row["max_attempts"]
                     task_queue_name = row["queue_name"]
                     payload = row["payload"]
 
-                    if attempts < max_attempts:
-                        # Retry: update attempts, available_at, and clear lock
+                    if current_attempt < max_attempts:
+                        # Retry: update current_attempt, available_at, and clear lock
                         retry_delay = self.retry_delay_seconds * (
-                            2 ** (attempts - 1)
+                            2 ** (current_attempt - 1)
                         )  # Exponential backoff
                         await conn.execute(
                             f"""
                             UPDATE {self.queue_table}
-                            SET attempts = $1,
+                            SET current_attempt = $1,
                                 available_at = NOW() + $2 * INTERVAL '1 second',
                                 status = 'pending',
                                 locked_until = NULL,
                                 updated_at = NOW()
                             WHERE id = $3
                             """,
-                            attempts,
+                            current_attempt,
                             retry_delay,
                             task_id,
                         )
@@ -296,12 +296,12 @@ class PostgresDriver(BaseDriver):
                         await conn.execute(
                             f"""
                             INSERT INTO {self.dead_letter_table}
-                                (queue_name, payload, attempts, error_message, failed_at)
+                                (queue_name, payload, current_attempt, error_message, failed_at)
                             VALUES ($1, $2, $3, 'Max retries exceeded', NOW())
                             """,
                             task_queue_name,
                             payload,
-                            attempts,
+                            current_attempt,
                         )
                         await conn.execute(f"DELETE FROM {self.queue_table} WHERE id = $1", task_id)
 
@@ -330,7 +330,7 @@ class PostgresDriver(BaseDriver):
             async with conn.transaction():
                 # Get task data
                 row = await conn.fetchrow(
-                    f"SELECT queue_name, payload, attempts FROM {self.queue_table} WHERE id = $1",
+                    f"SELECT queue_name, payload, current_attempt FROM {self.queue_table} WHERE id = $1",
                     task_id,
                 )
 
@@ -339,12 +339,12 @@ class PostgresDriver(BaseDriver):
                     await conn.execute(
                         f"""
                         INSERT INTO {self.dead_letter_table}
-                            (queue_name, payload, attempts, error_message, failed_at)
+                            (queue_name, payload, current_attempt, error_message, failed_at)
                         VALUES ($1, $2, $3, 'Permanently failed', NOW())
                         """,
                         row["queue_name"],
                         row["payload"],
-                        row["attempts"],
+                        row["current_attempt"],
                     )
                     # Delete from main queue
                     await conn.execute(f"DELETE FROM {self.queue_table} WHERE id = $1", task_id)
@@ -564,8 +564,8 @@ class PostgresDriver(BaseDriver):
             await self.connect()
             assert self.pool is not None
 
-        sel = f"SELECT queue_name, payload, attempts FROM {self.dead_letter_table} WHERE id = $1"
-        ins = f"INSERT INTO {self.queue_table} (queue_name, payload, available_at, status, attempts, max_attempts, created_at) VALUES ($1, $2, NOW(), 'pending', $3, $4, NOW())"
+        sel = f"SELECT queue_name, payload, current_attempt FROM {self.dead_letter_table} WHERE id = $1"
+        ins = f"INSERT INTO {self.queue_table} (queue_name, payload, available_at, status, current_attempt, max_attempts, created_at) VALUES ($1, $2, NOW(), 'pending', $3, $4, NOW())"
         del_q = f"DELETE FROM {self.dead_letter_table} WHERE id = $1"
 
         async with self.pool.acquire() as conn:
@@ -575,16 +575,24 @@ class PostgresDriver(BaseDriver):
                     return False
                 # Defensive extraction
                 if len(row) >= 3:
-                    queue_name, payload, attempts = (
+                    queue_name, payload, current_attempt = (
                         row["queue_name"],
                         row["payload"],
-                        row["attempts"],
+                        row["current_attempt"],
                     )
                 else:
                     return False
 
+                # DB schema defines current_attempt as NOT NULL, and code paths
+                # that insert into dead-letter always write an integer. Assert
+                # the invariant for clarity and pass the value directly.
+                assert current_attempt is not None
                 await conn.execute(
-                    ins, queue_name, payload, 0 if attempts is None else attempts, self.max_attempts
+                    ins,
+                    queue_name,
+                    payload,
+                    current_attempt,
+                    self.max_attempts,
                 )
                 await conn.execute(del_q, task_id)
                 return True

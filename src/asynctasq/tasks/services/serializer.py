@@ -64,7 +64,7 @@ class TaskSerializer:
         # Build metadata
         metadata = {
             "task_id": task._task_id,
-            "attempts": task._attempts,
+            "current_attempt": task._current_attempt,
             "dispatched_at": task._dispatched_at.isoformat() if task._dispatched_at else None,
             "queue": task.config.queue,
             "max_retries": task.config.max_retries,
@@ -154,7 +154,7 @@ class TaskSerializer:
 
         # Restore metadata
         task._task_id = metadata["task_id"]
-        task._attempts = metadata["attempts"]
+        task._current_attempt = metadata["current_attempt"]
         dispatched_at_str = metadata.get("dispatched_at")
         if dispatched_at_str:
             try:

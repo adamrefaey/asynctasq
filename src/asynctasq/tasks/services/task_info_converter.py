@@ -70,7 +70,9 @@ class TaskInfoConverter:
             completed_at=completed_at,
             duration_ms=task_dict.get("duration_ms"),
             worker_id=task_dict.get("worker_id"),
-            attempt=task_dict.get("attempt", task_dict.get("metadata", {}).get("attempts", 1)),
+            attempt=task_dict.get(
+                "attempt", task_dict.get("metadata", {}).get("current_attempt", 1)
+            ),
             max_retries=task_dict.get(
                 "max_retries", task_dict.get("metadata", {}).get("max_retries", 3)
             ),

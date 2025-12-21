@@ -903,7 +903,7 @@ class TestWorkerHandleTaskFailure:
     """Test Worker._handle_task_failure() method."""
 
     @mark.asyncio
-    async def test_handle_task_failure_retries_when_attempts_less_than_max(self) -> None:
+    async def test_handle_task_failure_retries_when_current_attempt_less_than_max(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
         mock_serializer = MagicMock(spec=BaseSerializer)
@@ -911,7 +911,7 @@ class TestWorkerHandleTaskFailure:
         worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
 
         task = ConcreteTask(public_param="test")
-        task._attempts = 0
+        task._current_attempt = 0
         task.config = replace(task.config, max_retries=3, retry_delay=60, queue="test_queue")
         exception = ValueError("Test error")
         start_time = datetime.now(UTC)
@@ -923,18 +923,18 @@ class TestWorkerHandleTaskFailure:
             )
 
         # Assert
-        assert task._attempts == 1
+        assert task._current_attempt == 1
         mock_driver.enqueue.assert_called_once_with("test_queue", b"serialized", delay_seconds=60)
 
     @mark.asyncio
-    async def test_handle_task_failure_no_retry_when_attempts_exceed_max(self) -> None:
+    async def test_handle_task_failure_no_retry_when_current_attempt_exceed_max(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
         mock_serializer = MagicMock(spec=BaseSerializer)
         worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
 
         task = ConcreteTask(public_param="test")
-        task._attempts = 2
+        task._current_attempt = 2
         task.config = replace(task.config, max_retries=2)
         exception = ValueError("Test error")
         start_time = datetime.now(UTC)
@@ -945,7 +945,7 @@ class TestWorkerHandleTaskFailure:
         await worker._handle_task_failure(task, exception, "test_queue", start_time, b"task_data")
 
         # Assert
-        assert task._attempts == 3
+        assert task._current_attempt == 3
         task.failed.assert_called_once_with(exception)
         mock_driver.enqueue.assert_not_called()
 
@@ -957,7 +957,7 @@ class TestWorkerHandleTaskFailure:
         worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
 
         task = ConcreteTask(public_param="test")
-        task._attempts = 0
+        task._current_attempt = 0
         task.config = replace(task.config, max_retries=3)
         start_time = datetime.now(UTC)
 
@@ -973,7 +973,7 @@ class TestWorkerHandleTaskFailure:
         await worker._handle_task_failure(task, exception, "test_queue", start_time, b"task_data")
 
         # Assert
-        assert task._attempts == 1
+        assert task._current_attempt == 1
         task.failed.assert_called_once_with(exception)
         mock_driver.enqueue.assert_not_called()
 
@@ -985,7 +985,7 @@ class TestWorkerHandleTaskFailure:
         worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
 
         task = ConcreteTask(public_param="test")
-        task._attempts = 2
+        task._current_attempt = 2
         task.config = replace(task.config, max_retries=2)
         exception = ValueError("Test error")
         start_time = datetime.now(UTC)
@@ -1006,7 +1006,7 @@ class TestWorkerHandleTaskFailure:
         worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
 
         task = ConcreteTask(public_param="test")
-        task._attempts = 2
+        task._current_attempt = 2
         task.config = replace(task.config, max_retries=2)
         exception = ValueError("Test error")
         start_time = datetime.now(UTC)
@@ -1030,7 +1030,7 @@ class TestWorkerHandleTaskFailure:
         worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
 
         task = ConcreteTask(public_param="test")
-        task._attempts = 0
+        task._current_attempt = 0
         task.config = replace(task.config, max_retries=3, retry_delay=60, queue="test_queue")
         exception = ValueError("Test error")
         start_time = datetime.now(UTC)
@@ -1059,7 +1059,7 @@ class TestWorkerHandleTaskFailure:
         worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
 
         task = ConcreteTask(public_param="test")
-        task._attempts = 0
+        task._current_attempt = 0
         task.config = replace(task.config, max_retries=3, retry_delay=60, queue="test_queue")
         exception = ValueError("Test error")
         start_time = datetime.now(UTC)
@@ -1092,7 +1092,7 @@ class TestWorkerDeserializeTask:
             "params": {"public_param": "test_value"},
             "metadata": {
                 "task_id": "test-task-id",
-                "attempts": 2,
+                "current_attempt": 2,
                 "dispatched_at": "2024-01-01T12:00:00+00:00",
                 "queue": "default",
                 "max_retries": 5,
@@ -1109,7 +1109,7 @@ class TestWorkerDeserializeTask:
         assert isinstance(result, ConcreteTask)
         assert result.public_param == "test_value"
         assert result._task_id == "test-task-id"
-        assert result._attempts == 2
+        assert result._current_attempt == 2
         assert result.config.max_retries == 5
         assert result.config.retry_delay == 120
         assert result.config.timeout == 300
@@ -1127,7 +1127,7 @@ class TestWorkerDeserializeTask:
             "params": {},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "dispatched_at": None,
                 "queue": "default",
                 "max_retries": 3,
@@ -1155,7 +1155,7 @@ class TestWorkerDeserializeTask:
             "params": {},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "dispatched_at": "",
                 "queue": "default",
                 "max_retries": 3,
@@ -1183,7 +1183,7 @@ class TestWorkerDeserializeTask:
             "params": {},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "dispatched_at": "invalid-datetime-format",
                 "queue": "default",
                 "max_retries": 3,
@@ -1211,7 +1211,7 @@ class TestWorkerDeserializeTask:
             "params": {},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "dispatched_at": 12345,  # Wrong type (should be string)
                 "queue": "default",
                 "max_retries": 3,
@@ -1239,7 +1239,7 @@ class TestWorkerDeserializeTask:
             "params": {},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 1,
+                "current_attempt": 1,
                 "queue": "default",
                 "max_retries": 3,
                 "retry_delay": 60,
@@ -1253,7 +1253,7 @@ class TestWorkerDeserializeTask:
 
         # Assert
         assert result._task_id == "test-id"
-        assert result._attempts == 1
+        assert result._current_attempt == 1
         # Should use class defaults for missing config
         assert result.config.max_retries == 3  # Default from Task class
         assert result.config.retry_delay == 60  # Default from Task class
@@ -1270,7 +1270,7 @@ class TestWorkerDeserializeTask:
             "params": {},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "queue": "default",
                 "max_retries": 10,
                 "retry_delay": 180,
@@ -1342,7 +1342,7 @@ class TestWorkerDeserializeTask:
             "params": {"args": ('{"key": "value"}',), "kwargs": {}},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "queue": "default",
                 "max_retries": 3,
                 "retry_delay": 60,
@@ -1375,7 +1375,7 @@ class TestWorkerDeserializeTask:
             "params": {"args": (), "kwargs": {}},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "queue": "default",
                 "max_retries": 3,
                 "retry_delay": 60,
@@ -1402,7 +1402,7 @@ class TestWorkerDeserializeTask:
             "params": {"args": (), "kwargs": {}},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "queue": "default",
                 "max_retries": 3,
                 "retry_delay": 60,
@@ -1438,7 +1438,7 @@ class TestWorkerDeserializeTask:
                 "params": {"args": (5,), "kwargs": {}},
                 "metadata": {
                     "task_id": "test-id",
-                    "attempts": 0,
+                    "current_attempt": 0,
                     "queue": "default",
                     "max_retries": 3,
                     "retry_delay": 60,
@@ -1474,7 +1474,7 @@ class TestWorkerDeserializeTask:
             "params": {"args": (), "kwargs": {}},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "queue": "default",
                 "max_retries": 3,
                 "retry_delay": 60,
@@ -1507,7 +1507,7 @@ class TestWorkerSerializeTask:
 
         task = ConcreteTask(public_param="test_value")
         task._task_id = "test-task-id"
-        task._attempts = 2
+        task._current_attempt = 2
         task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         task.config = replace(task.config, max_retries=5, retry_delay=120, timeout=300)
 
@@ -1520,7 +1520,7 @@ class TestWorkerSerializeTask:
         assert call_arg["class"] == f"{task.__class__.__module__}.{task.__class__.__name__}"
         assert call_arg["params"]["public_param"] == "test_value"
         assert call_arg["metadata"]["task_id"] == "test-task-id"
-        assert call_arg["metadata"]["attempts"] == 2
+        assert call_arg["metadata"]["current_attempt"] == 2
         assert call_arg["metadata"]["dispatched_at"] == "2024-01-01T12:00:00+00:00"
         assert call_arg["metadata"]["max_retries"] == 5
         assert call_arg["metadata"]["retry_delay"] == 120
@@ -1536,7 +1536,7 @@ class TestWorkerSerializeTask:
 
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
-        task._attempts = 1
+        task._current_attempt = 1
         task._private_attr = "should_not_be_included"  # type: ignore[attr-defined]
 
         # Act
@@ -1547,7 +1547,7 @@ class TestWorkerSerializeTask:
         params = call_arg["params"]
         assert "public_param" in params
         assert "_task_id" not in params
-        assert "_attempts" not in params
+        assert "_current_attempt" not in params
         assert "_private_attr" not in params
 
     @mark.asyncio
@@ -1559,7 +1559,7 @@ class TestWorkerSerializeTask:
 
         task = ConcreteTask()
         task._task_id = "test-id"
-        task._attempts = 0
+        task._current_attempt = 0
         task._dispatched_at = None
 
         # Act
@@ -1732,7 +1732,7 @@ class TestWorkerIntegration:
 
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
-        task._attempts = 0
+        task._current_attempt = 0
 
         # Serialize task
         task_data = {
@@ -1740,7 +1740,7 @@ class TestWorkerIntegration:
             "params": {"public_param": "test"},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "dispatched_at": None,
                 "queue": "test_queue",
                 "max_retries": 3,
@@ -1791,7 +1791,7 @@ class TestWorkerIntegration:
             "params": {"public_param": "test"},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "dispatched_at": None,
                 "queue": "test_queue",
                 "max_retries": 3,
@@ -1830,7 +1830,7 @@ class TestWorkerIntegration:
         1. Worker fetches a task from the queue
         2. Task execution fails (raises exception)
         3. Worker catches the exception and calls _handle_task_failure
-        4. _handle_task_failure checks retry conditions (attempts < max_retries)
+        4. _handle_task_failure checks retry conditions (current_attempt < max_retries)
         5. Task is serialized and re-enqueued with retry_delay
         6. Task counter does NOT increment (only increments on success)
 
@@ -1849,7 +1849,7 @@ class TestWorkerIntegration:
         # Create a task that will fail on execution
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
-        task._attempts = 0  # First attempt
+        task._current_attempt = 0  # First attempt
         task.config = replace(task.config, max_retries=3, retry_delay=60, queue="test_queue")
 
         # Task data structure for deserialization
@@ -1859,7 +1859,7 @@ class TestWorkerIntegration:
             "params": {"public_param": "test"},
             "metadata": {
                 "task_id": "test-id",
-                "attempts": 0,
+                "current_attempt": 0,
                 "dispatched_at": None,
                 "max_retries": 3,
                 "retry_delay": 60,
@@ -1933,7 +1933,7 @@ class TestWorkerIntegration:
         # Assert
         # Verify that enqueue was called with correct parameters
         # Conditions for retry:
-        # - task._attempts (0) < task.max_retries (3) ✓
+        # - task._current_attempt (0) < task.max_retries (3) ✓
         # - task.should_retry(exception) returns True (default) ✓
         # Therefore, enqueue should be called
         assert mock_driver.enqueue.called, (
@@ -2139,7 +2139,7 @@ class TestWorkerEventEmission:
 
         task = ConcreteTask(public_param="test")
         task._task_id = "task-123"
-        task._attempts = 0
+        task._current_attempt = 0
         task.config = replace(task.config, max_retries=3, queue="test_queue")
         exception = ValueError("Test error")
         start_time = datetime.now(UTC)
@@ -2166,7 +2166,7 @@ class TestWorkerEventEmission:
 
         task = ConcreteTask(public_param="test")
         task._task_id = "task-123"
-        task._attempts = 2
+        task._current_attempt = 2
         task.config = replace(task.config, max_retries=2)
         exception = ValueError("Test error")
         start_time = datetime.now(UTC)

@@ -44,7 +44,7 @@ class TestGetTaskContext:
 
         task = ConfiguredTask()
         task._task_id = "test-task-123"
-        task._attempts = 2
+        task._current_attempt = 2
 
         # Act
         context = get_task_context(task)
@@ -53,7 +53,7 @@ class TestGetTaskContext:
         assert context["task_id"] == "test-task-123"
         assert context["task_class"] == "ConfiguredTask"
         assert context["queue"] == "test-queue"
-        assert context["attempts"] == 2
+        assert context["current_attempt"] == 2
         assert context["max_retries"] == 5
         assert "correlation_id" not in context  # Not set by default
 
@@ -61,7 +61,7 @@ class TestGetTaskContext:
         # Arrange
         task = SampleTask()
         task._task_id = "test-task-456"
-        task._attempts = 1
+        task._current_attempt = 1
 
         # Act
         context = get_task_context(task)
@@ -69,18 +69,6 @@ class TestGetTaskContext:
         # Assert
         assert context["task_id"] == "test-task-456"
         # correlation_id would only be in context if set on config
-
-    def test_handles_zero_attempts(self) -> None:
-        # Arrange
-        task = SampleTask()
-        task._task_id = "new-task"
-        task._attempts = 0
-
-        # Act
-        context = get_task_context(task)
-
-        # Assert
-        assert context["attempts"] == 0
 
 
 @mark.unit
@@ -95,7 +83,7 @@ class TestLogTaskInfo:
 
         task = SampleTask()
         task._task_id = "info-task"
-        task._attempts = 1
+        task._current_attempt = 1
 
         # Act
         log_task_info(task, "Task started")
@@ -137,7 +125,7 @@ class TestLogTaskDebug:
 
         task = SampleTask()
         task._task_id = "debug-task"
-        task._attempts = 0
+        task._current_attempt = 0
 
         # Act
         log_task_debug(task, "Debug message")
@@ -183,7 +171,7 @@ class TestLogTaskWarning:
 
         task = WarnTask()
         task._task_id = "warn-task"
-        task._attempts = 2
+        task._current_attempt = 2
 
         # Act
         log_task_warning(task, "Approaching retry limit")
@@ -192,7 +180,7 @@ class TestLogTaskWarning:
         mock_logger.warning.assert_called_once()
         args, kwargs = mock_logger.warning.call_args
         assert args[0] == "Approaching retry limit"
-        assert kwargs["extra"]["attempts"] == 2
+        assert kwargs["extra"]["current_attempt"] == 2
         assert kwargs["extra"]["max_retries"] == 3
 
     @patch("asynctasq.tasks.utils.logger.logging.getLogger")
@@ -231,7 +219,7 @@ class TestLogTaskError:
 
         task = ErrorTask()
         task._task_id = "error-task"
-        task._attempts = 3
+        task._current_attempt = 3
 
         # Act
         log_task_error(task, "Task failed permanently")
@@ -241,7 +229,7 @@ class TestLogTaskError:
         args, kwargs = mock_logger.error.call_args
         assert args[0] == "Task failed permanently"
         assert kwargs["extra"]["task_id"] == "error-task"
-        assert kwargs["extra"]["attempts"] == 3
+        assert kwargs["extra"]["current_attempt"] == 3
         assert kwargs["exc_info"] is True  # Default
 
     @patch("asynctasq.tasks.utils.logger.logging.getLogger")

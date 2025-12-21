@@ -321,7 +321,7 @@ class TestSyncTaskMetadata:
 
         # Assert
         assert task._task_id is None
-        assert task._attempts == 1
+        assert task._current_attempt == 1
         assert task._dispatched_at is None
 
     def test_sync_task_metadata_mutable(self) -> None:
@@ -331,12 +331,12 @@ class TestSyncTaskMetadata:
 
         # Act
         task._task_id = "sync-test-id-999"
-        task._attempts = 3
+        task._current_attempt = 3
         task._dispatched_at = datetime.now(UTC)
 
         # Assert
         assert task._task_id == "sync-test-id-999"
-        assert task._attempts == 3
+        assert task._current_attempt == 3
         assert task._dispatched_at is not None
 
 

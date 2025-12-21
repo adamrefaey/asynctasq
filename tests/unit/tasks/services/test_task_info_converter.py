@@ -31,7 +31,7 @@ class TestTaskInfoConverter:
                 "task_id": "task-123",
                 "queue": "default",
                 "dispatched_at": "2025-12-12T10:00:00+00:00",
-                "attempts": 1,
+                "current_attempt": 1,
                 "max_retries": 3,
                 "timeout": 60,
             },

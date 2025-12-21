@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS ${QUEUE_TABLE} (
     available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     locked_until TIMESTAMPTZ,
     status TEXT NOT NULL DEFAULT 'pending',
-    attempts INTEGER NOT NULL DEFAULT 0,
+    current_attempt INTEGER NOT NULL DEFAULT 0,
     max_attempts INTEGER NOT NULL DEFAULT 3,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS ${DLQ_TABLE} (
     id SERIAL PRIMARY KEY,
     queue_name TEXT NOT NULL,
     payload BYTEA NOT NULL,
-    attempts INTEGER NOT NULL,
+    current_attempt INTEGER NOT NULL,
     error_message TEXT,
     failed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

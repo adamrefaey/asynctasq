@@ -327,7 +327,7 @@ class TestMonitoringServiceTaskDelegation:
             "params": {},
             "metadata": {
                 "task_id": "running-task-id",
-                "attempts": 1,
+                "current_attempt": 1,
                 "dispatched_at": "2024-01-01T12:00:00+00:00",
                 "queue": "default",
             },
@@ -385,7 +385,7 @@ class TestMonitoringServiceTaskDelegation:
             "params": {},
             "metadata": {
                 "task_id": "info-task-id",
-                "attempts": 0,
+                "current_attempt": 1,
                 "dispatched_at": "2024-01-01T12:00:00+00:00",
                 "queue": "default",
             },

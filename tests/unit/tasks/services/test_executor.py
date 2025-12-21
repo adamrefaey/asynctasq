@@ -179,7 +179,7 @@ class TestTaskExecutor:
             await executor.execute(task, timeout=0.01)
 
     @mark.asyncio
-    async def test_should_retry_returns_true_when_attempts_below_max(self) -> None:
+    async def test_should_retry_returns_true_when_current_attempt_below_max(self) -> None:
         # Arrange
         executor = TaskExecutor()
 
@@ -190,7 +190,7 @@ class TestTaskExecutor:
                 return "done"
 
         task = RetryableTask()
-        task._attempts = 1
+        task._current_attempt = 1
         exception = ValueError("Transient error")
 
         # Act
@@ -211,7 +211,7 @@ class TestTaskExecutor:
                 return "done"
 
         task = FailedTask()
-        task._attempts = 3
+        task._current_attempt = 3
         exception = ValueError("Permanent error")
 
         # Act
@@ -236,7 +236,7 @@ class TestTaskExecutor:
                 return not isinstance(exception, ValueError)
 
         task = CustomRetryTask()
-        task._attempts = 1
+        task._current_attempt = 1
 
         # Act
         result_value_error = executor.should_retry(task, ValueError("test"))
@@ -247,17 +247,17 @@ class TestTaskExecutor:
         assert result_runtime_error is True  # Custom logic allows
 
     @mark.asyncio
-    async def test_prepare_retry_increments_attempts(self) -> None:
+    async def test_prepare_retry_increments_current_attempt(self) -> None:
         # Arrange
         executor = TaskExecutor()
         task = HookedAsyncTask("test")
-        task._attempts = 1
+        task._current_attempt = 1
 
         # Act
         result = executor.prepare_retry(task)
 
         # Assert
-        assert result._attempts == 2
+        assert result._current_attempt == 2
 
     @mark.asyncio
     async def test_handle_failed_calls_task_failed_hook(self) -> None:
