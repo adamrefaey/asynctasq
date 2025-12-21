@@ -525,6 +525,7 @@ def cleanup_process_pool():
     yield
     # Create manager instance for cleanup
     manager = ProcessPoolManager()
-    import asyncio
 
-    asyncio.run(manager.shutdown(wait=True))
+    from asynctasq.utils.loop import run as uv_run
+
+    uv_run(manager.shutdown(wait=True))

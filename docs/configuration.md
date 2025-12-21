@@ -18,8 +18,10 @@ AsyncTasQ supports three configuration methods with clear precedence rules.
 export ASYNCTASQ_DRIVER=redis              # Driver: redis, postgres, mysql, rabbitmq, sqs
 export ASYNCTASQ_DEFAULT_QUEUE=default     # Default queue name
 export ASYNCTASQ_MAX_ATTEMPTS=3             # Default max attempt count
+export ASYNCTASQ_RETRY_STRATEGY=exponential # Retry strategy: 'fixed' or 'exponential'
 export ASYNCTASQ_RETRY_DELAY=60            # Default retry delay (seconds)
 export ASYNCTASQ_TIMEOUT=300               # Default task timeout (seconds, None = no timeout)
+export ASYNCTASQ_VISIBILITY_TIMEOUT=300    # Visibility timeout for crash recovery (seconds)
 
 # ProcessTask/ProcessPoolExecutor configuration (for CPU-bound tasks)
 export ASYNCTASQ_PROCESS_POOL_SIZE=4       # Number of worker processes (None = auto-detect CPU count)
@@ -42,8 +44,6 @@ export ASYNCTASQ_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
 export ASYNCTASQ_POSTGRES_QUEUE_TABLE=task_queue
 export ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
 export ASYNCTASQ_POSTGRES_MAX_ATTEMPTS=3
-export ASYNCTASQ_POSTGRES_RETRY_DELAY_SECONDS=60
-export ASYNCTASQ_POSTGRES_VISIBILITY_TIMEOUT_SECONDS=300
 export ASYNCTASQ_POSTGRES_MIN_POOL_SIZE=10
 export ASYNCTASQ_POSTGRES_MAX_POOL_SIZE=10
 ```
@@ -55,8 +55,6 @@ export ASYNCTASQ_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
 export ASYNCTASQ_MYSQL_QUEUE_TABLE=task_queue
 export ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
 export ASYNCTASQ_MYSQL_MAX_ATTEMPTS=3
-export ASYNCTASQ_MYSQL_RETRY_DELAY_SECONDS=60
-export ASYNCTASQ_MYSQL_VISIBILITY_TIMEOUT_SECONDS=300
 export ASYNCTASQ_MYSQL_MIN_POOL_SIZE=10
 export ASYNCTASQ_MYSQL_MAX_POOL_SIZE=10
 ```
@@ -118,6 +116,8 @@ set_global_config(
     postgres_dsn='postgresql://user:pass@localhost:5432/mydb',
     postgres_queue_table='my_queue',
     postgres_max_attempts=5,
+    default_retry_strategy='exponential',  # 'fixed' or 'exponential'
+    default_retry_delay=60,
     postgres_min_pool_size=5,
     postgres_max_pool_size=20
 )
@@ -128,6 +128,8 @@ set_global_config(
     mysql_dsn='mysql://user:pass@localhost:3306/mydb',
     mysql_queue_table='my_queue',
     mysql_max_attempts=5,
+    default_retry_strategy='exponential',  # 'fixed' or 'exponential'
+    default_retry_delay=60,
     mysql_min_pool_size=5,
     mysql_max_pool_size=20
 )
@@ -200,13 +202,15 @@ python -m asynctasq worker \
 
 **General Options:**
 
-| Option                            | Env Var                                   | Default   | Description                    |
-| --------------------------------- | ----------------------------------------- | --------- | ------------------------------ |
-| `driver`                          | `ASYNCTASQ_DRIVER`                       | `redis`   | Queue driver                   |
-| `default_queue`                   | `ASYNCTASQ_DEFAULT_QUEUE`                | `default` | Default queue name             |
-| `default_max_attempts`             | `ASYNCTASQ_MAX_ATTEMPTS`                  | `3`       | Default max attempt count     |
-| `default_retry_delay`             | `ASYNCTASQ_RETRY_DELAY`                  | `60`      | Default retry delay (seconds)  |
-| `default_timeout`                 | `ASYNCTASQ_TIMEOUT`                      | `None`    | Default task timeout (seconds) |
+| Option                            | Env Var                                   | Default       | Description                    |
+| --------------------------------- | ----------------------------------------- | ------------- | ------------------------------ |
+| `driver`                          | `ASYNCTASQ_DRIVER`                       | `redis`       | Queue driver                   |
+| `default_queue`                   | `ASYNCTASQ_DEFAULT_QUEUE`                | `default`     | Default queue name             |
+| `default_max_attempts`             | `ASYNCTASQ_MAX_ATTEMPTS`                  | `3`           | Default max attempt count     |
+| `default_retry_strategy`          | `ASYNCTASQ_RETRY_STRATEGY`               | `exponential` | Retry strategy: 'fixed' or 'exponential' |
+| `default_retry_delay`             | `ASYNCTASQ_RETRY_DELAY`                  | `60`          | Base retry delay (seconds)  |
+| `default_timeout`                 | `ASYNCTASQ_TIMEOUT`                      | `None`        | Default task timeout (seconds) |
+| `default_visibility_timeout`      | `ASYNCTASQ_VISIBILITY_TIMEOUT`           | `300`         | Visibility timeout for crash recovery (seconds) |
 | `process_pool_size`               | `ASYNCTASQ_PROCESS_POOL_SIZE`            | `None`    | Process pool size (CPU-bound)  |
 | `process_pool_max_tasks_per_child`| `ASYNCTASQ_PROCESS_POOL_MAX_TASKS_PER_CHILD` | `None` | Worker recycling threshold    |
 | `task_scan_limit`                 | `ASYNCTASQ_TASK_SCAN_LIMIT`              | `10000`   | Max tasks in repository scans  |
@@ -229,8 +233,6 @@ python -m asynctasq worker \
 | `postgres_queue_table`                | `ASYNCTASQ_POSTGRES_QUEUE_TABLE`                | `task_queue`                                    | Queue table name             |
 | `postgres_dead_letter_table`          | `ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE`          | `dead_letter_queue`                             | Dead letter table name       |
 | `postgres_max_attempts`               | `ASYNCTASQ_POSTGRES_MAX_ATTEMPTS`               | `3`                                             | Max attempts before DLQ      |
-| `postgres_retry_delay_seconds`        | `ASYNCTASQ_POSTGRES_RETRY_DELAY_SECONDS`        | `60`                                            | Retry delay (seconds)        |
-| `postgres_visibility_timeout_seconds` | `ASYNCTASQ_POSTGRES_VISIBILITY_TIMEOUT_SECONDS` | `300`                                           | Visibility timeout (seconds) |
 | `postgres_min_pool_size`              | `ASYNCTASQ_POSTGRES_MIN_POOL_SIZE`              | `10`                                            | Min connection pool size     |
 | `postgres_max_pool_size`              | `ASYNCTASQ_POSTGRES_MAX_POOL_SIZE`              | `10`                                            | Max connection pool size     |
 
@@ -242,8 +244,6 @@ python -m asynctasq worker \
 | `mysql_queue_table`                | `ASYNCTASQ_MYSQL_QUEUE_TABLE`                | `task_queue`                               | Queue table name             |
 | `mysql_dead_letter_table`          | `ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE`          | `dead_letter_queue`                        | Dead letter table name       |
 | `mysql_max_attempts`               | `ASYNCTASQ_MYSQL_MAX_ATTEMPTS`               | `3`                                        | Max attempts before DLQ      |
-| `mysql_retry_delay_seconds`        | `ASYNCTASQ_MYSQL_RETRY_DELAY_SECONDS`        | `60`                                       | Retry delay (seconds)        |
-| `mysql_visibility_timeout_seconds` | `ASYNCTASQ_MYSQL_VISIBILITY_TIMEOUT_SECONDS` | `300`                                      | Visibility timeout (seconds) |
 | `mysql_min_pool_size`              | `ASYNCTASQ_MYSQL_MIN_POOL_SIZE`              | `10`                                       | Min connection pool size     |
 | `mysql_max_pool_size`              | `ASYNCTASQ_MYSQL_MAX_POOL_SIZE`              | `10`                                       | Max connection pool size     |
 
@@ -283,3 +283,71 @@ python -m asynctasq worker \
 - **MySQL**: Completed tasks marked with `status='completed'` in queue table
 - **RabbitMQ**: Completed tasks published to `{queue_name}_completed` queue
 - **SQS**: Not supported (SQS always deletes acknowledged messages)
+
+---
+
+## Retry Strategies
+
+AsyncTasQ supports two retry strategies for PostgreSQL and MySQL drivers: **fixed** and **exponential** backoff.
+
+### Fixed Retry Strategy
+
+With the fixed strategy, failed tasks are retried with a constant delay between attempts.
+
+**Configuration:**
+```python
+set_global_config(
+    driver='postgres',
+    default_retry_strategy='fixed',
+    default_retry_delay=60  # Wait 60 seconds between each retry
+)
+```
+
+**Retry Timeline:**
+- Attempt 1 fails → retry after 60 seconds
+- Attempt 2 fails → retry after 60 seconds
+- Attempt 3 fails → move to dead letter queue
+
+**Use Cases:**
+- External service is temporarily down and may recover at any time
+- Rate limiting where you want consistent retry intervals
+- Simple retry logic without increasing backoff
+
+### Exponential Retry Strategy (Default)
+
+With the exponential strategy, the delay between retries increases exponentially with each failed attempt. This is the default strategy.
+
+**Configuration:**
+```python
+set_global_config(
+    driver='postgres',
+    default_retry_strategy='exponential',
+    default_retry_delay=60  # Initial delay (base)
+)
+```
+
+**Retry Timeline:**
+- Attempt 1 fails → retry after 60s × 2^0 = 60 seconds
+- Attempt 2 fails → retry after 60s × 2^1 = 120 seconds
+- Attempt 3 fails → retry after 60s × 2^2 = 240 seconds
+- Attempt N fails → retry after 60s × 2^(N-1) seconds
+
+**Use Cases:**
+- Transient errors that may require longer recovery time
+- Reducing load on failing external services
+- Network issues that benefit from increasing backoff
+- Default recommended strategy for most use cases
+
+### Driver Support
+
+| Driver     | Retry Strategy Support | Implementation Method |
+|------------|------------------------|-----------------------|
+| PostgreSQL | ✅ Fixed, Exponential   | Database-tracked      |
+| MySQL      | ✅ Fixed, Exponential   | Database-tracked      |
+| Redis      | ✅ Fixed, Exponential   | Worker-calculated     |
+| RabbitMQ   | ✅ Fixed, Exponential   | Worker-calculated     |
+| SQS        | ✅ Fixed, Exponential   | Worker-calculated     |
+
+**Implementation Notes:**
+- **PostgreSQL/MySQL**: Retry delays are calculated and tracked in the database. The `available_at` column ensures tasks aren't retried until the calculated delay has elapsed.
+- **Redis/RabbitMQ/SQS**: Retry delays are calculated by the worker and tasks are re-enqueued with the appropriate delay. The task's attempt count is stored in the serialized task data.

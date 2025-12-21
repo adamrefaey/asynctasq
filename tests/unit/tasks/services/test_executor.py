@@ -2,7 +2,7 @@
 
 Testing Strategy:
 - pytest 9.0.1 with asyncio_mode="auto"
-- Test TaskExecutor methods: execute, should_retry, prepare_retry, handle_failed
+- Test TaskExecutor methods: execute, should_retry, handle_failed
 - Test failed hook error counting
 - Test retry_task with driver and repository fallback
 """
@@ -245,19 +245,6 @@ class TestTaskExecutor:
         # Assert
         assert result_value_error is False  # Custom logic rejects
         assert result_runtime_error is True  # Custom logic allows
-
-    @mark.asyncio
-    async def test_prepare_retry_increments_current_attempt(self) -> None:
-        # Arrange
-        executor = TaskExecutor()
-        task = HookedAsyncTask("test")
-        task._current_attempt = 1
-
-        # Act
-        result = executor.prepare_retry(task)
-
-        # Assert
-        assert result._current_attempt == 2
 
     @mark.asyncio
     async def test_handle_failed_calls_task_failed_hook(self) -> None:

@@ -94,8 +94,6 @@ export ASYNCTASQ_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
 export ASYNCTASQ_POSTGRES_QUEUE_TABLE=task_queue
 export ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
 export ASYNCTASQ_POSTGRES_MAX_ATTEMPTS=3
-export ASYNCTASQ_POSTGRES_RETRY_DELAY_SECONDS=60
-export ASYNCTASQ_POSTGRES_VISIBILITY_TIMEOUT_SECONDS=300
 export ASYNCTASQ_POSTGRES_MIN_POOL_SIZE=10
 export ASYNCTASQ_POSTGRES_MAX_POOL_SIZE=10
 ```
@@ -110,8 +108,6 @@ set_global_config(
     postgres_queue_table='task_queue',
     postgres_dead_letter_table='dead_letter_queue',
     postgres_max_attempts=3,
-    postgres_retry_delay_seconds=60,
-    postgres_visibility_timeout_seconds=300,
     postgres_min_pool_size=10,
     postgres_max_pool_size=10
 )
@@ -165,8 +161,6 @@ export ASYNCTASQ_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
 export ASYNCTASQ_MYSQL_QUEUE_TABLE=task_queue
 export ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
 export ASYNCTASQ_MYSQL_MAX_ATTEMPTS=3
-export ASYNCTASQ_MYSQL_RETRY_DELAY_SECONDS=60
-export ASYNCTASQ_MYSQL_VISIBILITY_TIMEOUT_SECONDS=300
 export ASYNCTASQ_MYSQL_MIN_POOL_SIZE=10
 export ASYNCTASQ_MYSQL_MAX_POOL_SIZE=10
 ```
@@ -181,8 +175,6 @@ set_global_config(
     mysql_queue_table='task_queue',
     mysql_dead_letter_table='dead_letter_queue',
     mysql_max_attempts=3,
-    mysql_retry_delay_seconds=60,
-    mysql_visibility_timeout_seconds=300,
     mysql_min_pool_size=10,
     mysql_max_pool_size=10
 )

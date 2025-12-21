@@ -10,7 +10,9 @@ import uuid
 
 import uvloop
 
+from asynctasq.config import get_global_config
 from asynctasq.drivers.base_driver import BaseDriver
+from asynctasq.drivers.retry_utils import calculate_retry_delay
 from asynctasq.serializers import BaseSerializer, MsgpackSerializer
 from asynctasq.tasks import BaseTask
 from asynctasq.tasks.services.executor import TaskExecutor
@@ -135,7 +137,6 @@ class Worker:
                 self.process_pool_size,
                 self.process_pool_max_tasks_per_child,
             )
-            # Create and initialize manager instance
             manager = ProcessPoolManager(
                 sync_max_workers=self.process_pool_size,
                 async_max_workers=self.process_pool_size,
@@ -242,11 +243,7 @@ class Worker:
         Production workers use max_tasks=None for continuous operation.
         Test/batch workers use max_tasks=N to process exactly N tasks.
 
-        Note: The 0.1s sleep prevents CPU spinning when queues are empty,
-        providing a good balance between responsiveness and resource usage.
-
-        Alternative: Python 3.11+ can use asyncio.TaskGroup for better
-        structured concurrency and automatic exception handling.
+        Note: The 0.1s sleep prevents CPU spinning when queues are empty.
         """
         while self._running:
             # Check if we've reached max tasks (used for testing/batch processing)
@@ -325,6 +322,11 @@ class Worker:
 
             logger.info(f"Processing task {task._task_id}: {task.__class__.__name__}")
 
+            # Increment current attempt when we actually start processing.
+            # This ensures retries that are merely re-enqueued don't advance
+            # the attempt counter until a worker picks them up to run.
+            task._current_attempt += 1
+
             # Emit task_started event
             if self.event_emitter:
                 await self.event_emitter.emit_task_event(
@@ -334,7 +336,7 @@ class Worker:
                         task_name=task.__class__.__name__,
                         queue=queue_name,
                         worker_id=self.worker_id,
-                        attempt=task._current_attempt + 1,
+                        attempt=task._current_attempt,
                     )
                 )
 
@@ -452,9 +454,9 @@ class Worker:
 
         # Check if we should retry (uses TaskService for the decision logic)
         if self._task_executor.should_retry(task, exception):
-            # prepare_for_retry increments current_attempt and serializes
-            # Returns tuple (task, bytes) for safer error handling
-            task = self._task_executor.prepare_retry(task)
+            # Serialize and re-enqueue the task as-is. The worker increments
+            # attempt counts when a worker begins processing, so the
+            # serialized representation should reflect attempts already run.
             serialized_task = self._task_serializer.serialize(task)
             logger.info(f"Re-enqueuing task {task_id}")
 
@@ -484,9 +486,24 @@ class Worker:
                 )
 
             # Re-enqueue with delay (this creates a NEW task with updated attempt count)
+            # Calculate retry delay based on strategy (fixed or exponential)
+            config = get_global_config()
+            # Use the attempt that just ran (existing_attempt) for delay calculation.
+            # We increment attempts when a worker starts processing, so the
+            # current value represents the attempt that just failed.
+            existing_attempt = task._current_attempt
+            # Validate and cast to RetryStrategy for type safety
+            retry_strategy = config.default_retry_strategy
+            if retry_strategy not in ("fixed", "exponential"):
+                retry_strategy = "exponential"  # fallback to default
+            retry_delay = calculate_retry_delay(
+                retry_strategy,
+                config.default_retry_delay,
+                existing_attempt,  # type: ignore[arg-type]
+            )
             try:
                 await self.queue_driver.enqueue(
-                    task.config.queue, serialized_task, delay_seconds=task.config.retry_delay
+                    task.config.queue, serialized_task, delay_seconds=retry_delay
                 )
             except Exception as enqueue_error:
                 # Rollback attempt increment if enqueue failed
@@ -501,9 +518,9 @@ class Worker:
                 )
                 raise
         else:
-            # Task has failed permanently - increment to reflect the failed attempt.
-            # `current_attempt` always starts at 1, so increment to include this final failure.
-            task._current_attempt += 1
+            # Task has failed permanently. The attempt count was incremented
+            # when the worker started, so `task._current_attempt` already
+            # reflects the final attempt number.
             logger.error(
                 f"Task {task_id} failed permanently after {task._current_attempt} attempts"
             )

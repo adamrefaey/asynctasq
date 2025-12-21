@@ -219,10 +219,10 @@ class TestProcessPoolEdgeCases:
         manager_instance = ProcessPoolManager()
         yield manager_instance
         # Cleanup after test
-        import asyncio
-
         if manager_instance.is_initialized():
-            asyncio.run(manager_instance.shutdown(wait=True))
+            from asynctasq.utils.loop import run as uv_run
+
+            uv_run(manager_instance.shutdown(wait=True))
 
     def test_pool_initialization_with_custom_mp_context(self, manager: ProcessPoolManager) -> None:
         """Test pool initialization with custom multiprocessing context."""
@@ -245,14 +245,14 @@ class TestProcessPoolEdgeCases:
 
     def test_re_initialization_after_shutdown(self, manager: ProcessPoolManager) -> None:
         """Test that pool can be re-initialized after shutdown."""
-        import asyncio
-
         # Initialize
         manager.get_sync_pool()
         assert manager.is_initialized()
 
         # Shutdown
-        asyncio.run(manager.shutdown(wait=True))
+        from asynctasq.utils.loop import run as uv_run
+
+        uv_run(manager.shutdown(wait=True))
         assert not manager.is_initialized()
 
         # Re-initialize - create new manager with different settings
@@ -264,26 +264,32 @@ class TestProcessPoolEdgeCases:
         assert stats["sync"]["pool_size"] == 4
 
         # Cleanup
-        asyncio.run(new_manager.shutdown(wait=True))
+        from asynctasq.utils.loop import run as uv_run
+
+        uv_run(new_manager.shutdown(wait=True))
 
     def test_multiple_shutdown_calls_safe(self, manager: ProcessPoolManager) -> None:
         """Test that multiple shutdown calls don't raise errors."""
-        import asyncio
-
         # Initialize first
         manager.get_sync_pool()
         assert manager.is_initialized()
 
         # First shutdown
-        asyncio.run(manager.shutdown(wait=True))
+        from asynctasq.utils.loop import run as uv_run
+
+        uv_run(manager.shutdown(wait=True))
         assert not manager.is_initialized()
 
         # Second shutdown should be safe (no-op)
-        asyncio.run(manager.shutdown(wait=True))
+        from asynctasq.utils.loop import run as uv_run
+
+        uv_run(manager.shutdown(wait=True))
         assert not manager.is_initialized()
 
         # Third shutdown
-        asyncio.run(manager.shutdown(wait=True))
+        from asynctasq.utils.loop import run as uv_run
+
+        uv_run(manager.shutdown(wait=True))
         assert not manager.is_initialized()
 
     def test_concurrent_initialize_pool_calls(self, manager: ProcessPoolManager) -> None:
@@ -317,14 +323,14 @@ class TestProcessPoolEdgeCases:
         self, manager: ProcessPoolManager
     ) -> None:
         """Test that get_stats shows correct state after shutdown."""
-        import asyncio
-
         # Initialize first
         manager.get_sync_pool()
         assert manager.is_initialized()
 
         # Shutdown
-        asyncio.run(manager.shutdown(wait=True))
+        from asynctasq.utils.loop import run as uv_run
+
+        uv_run(manager.shutdown(wait=True))
 
         stats = manager.get_stats()
         assert stats["sync"]["status"] == "not_initialized"

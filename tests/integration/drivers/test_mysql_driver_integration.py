@@ -705,7 +705,7 @@ class TestMySQLDriverWithRealMySQL:
             )
             result = await cursor.fetchone()
             assert result is not None
-            assert result[0] == 2  # current_attempt = 2
+            assert result[0] == 3  # current_attempt = 3 (after second nack)
 
     @mark.asyncio
     async def test_nack_with_invalid_receipt_handle(self, mysql_driver: MySQLDriver) -> None:

@@ -212,7 +212,9 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+  from asynctasq.utils.loop import run as uv_run
+
+  uv_run(main())
 
 ```
 

@@ -924,7 +924,8 @@ class TestWorkerHandleTaskFailure:
 
         # Assert
         assert task._current_attempt == 1
-        mock_driver.enqueue.assert_called_once_with("test_queue", b"serialized", delay_seconds=60)
+        # With current_attempt=0, existing_attempt=-1, exponential: 60 * 2^(-1) = 30
+        mock_driver.enqueue.assert_called_once_with("test_queue", b"serialized", delay_seconds=30.0)
 
     @mark.asyncio
     async def test_handle_task_failure_no_retry_when_current_attempt_exceed_max(self) -> None:
@@ -2338,9 +2339,10 @@ class TestWorkerHealthStatus:
             assert pool_info["sync"]["max_tasks_per_child"] > 0
         finally:
             # Cleanup
-            import asyncio
 
-            asyncio.run(manager.shutdown(wait=True))
+            from asynctasq.utils.loop import run as uv_run
+
+            uv_run(manager.shutdown(wait=True))
 
     def test_get_health_status_pool_not_initialized(self) -> None:
         """Test health status when process pool not initialized."""
@@ -2351,9 +2353,10 @@ class TestWorkerHealthStatus:
 
         # Create a new manager that's not initialized and set as default
         manager = ProcessPoolManager()
-        import asyncio
 
-        asyncio.run(manager.shutdown(wait=True))  # Ensure not initialized
+        from asynctasq.utils.loop import run as uv_run
+
+        uv_run(manager.shutdown(wait=True))  # Ensure not initialized
         set_default_manager(manager)
 
         mock_driver = MagicMock()

@@ -5,6 +5,7 @@ from typing import Any
 from asyncmy import Pool, create_pool
 
 from .base_driver import BaseDriver
+from .retry_utils import RetryStrategy, calculate_retry_delay
 
 
 @dataclass
@@ -37,6 +38,7 @@ class MySQLDriver(BaseDriver):
     queue_table: str = "task_queue"
     dead_letter_table: str = "dead_letter_queue"
     max_attempts: int = 3
+    retry_strategy: RetryStrategy = "exponential"
     retry_delay_seconds: int = 60
     visibility_timeout_seconds: int = 300  # 5 minutes
     min_pool_size: int = 10
@@ -358,7 +360,10 @@ class MySQLDriver(BaseDriver):
                         # If there are retries left, increment and requeue. Otherwise move to DLQ.
                         if existing_attempt < max_attempts:
                             new_attempt = existing_attempt + 1
-                            retry_delay = self.retry_delay_seconds * (2 ** (existing_attempt - 1))
+                            # Calculate retry delay based on strategy (fixed or exponential)
+                            retry_delay = calculate_retry_delay(
+                                self.retry_strategy, self.retry_delay_seconds, existing_attempt
+                            )
                             await cursor.execute(
                                 f"""
                                 UPDATE {self.queue_table}

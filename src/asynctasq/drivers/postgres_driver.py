@@ -5,6 +5,7 @@ from typing import Any
 from asyncpg import Pool, create_pool
 
 from .base_driver import BaseDriver
+from .retry_utils import RetryStrategy, calculate_retry_delay
 
 
 @dataclass
@@ -36,6 +37,7 @@ class PostgresDriver(BaseDriver):
     queue_table: str = "task_queue"
     dead_letter_table: str = "dead_letter_queue"
     max_attempts: int = 3
+    retry_strategy: RetryStrategy = "exponential"
     retry_delay_seconds: int = 60
     visibility_timeout_seconds: int = 300  # 5 minutes
     min_pool_size: int = 10
@@ -83,7 +85,7 @@ class PostgresDriver(BaseDriver):
                     available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     locked_until TIMESTAMPTZ,
                     status TEXT NOT NULL DEFAULT 'pending',
-                    current_attempt INTEGER NOT NULL DEFAULT 0,
+                    current_attempt INTEGER NOT NULL DEFAULT 1,
                     max_attempts INTEGER NOT NULL DEFAULT 3,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -276,8 +278,10 @@ class PostgresDriver(BaseDriver):
                     # increment and requeue. Only move to DLQ when retries are exhausted.
                     if existing_attempt < max_attempts:
                         new_attempt = existing_attempt + 1
-                        # Exponential backoff: base * 2^(existing_attempt-1)
-                        retry_delay = self.retry_delay_seconds * (2 ** (existing_attempt - 1))
+                        # Calculate retry delay based on strategy (fixed or exponential)
+                        retry_delay = calculate_retry_delay(
+                            self.retry_strategy, self.retry_delay_seconds, existing_attempt
+                        )
                         await conn.execute(
                             f"""
                             UPDATE {self.queue_table}

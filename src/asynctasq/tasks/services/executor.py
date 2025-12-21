@@ -87,18 +87,6 @@ class TaskExecutor:
         """
         return task._current_attempt < task.config.max_attempts and task.should_retry(exception)
 
-    def prepare_retry(self, task: BaseTask) -> BaseTask:
-        """Increment current_attempt for retry.
-
-        Args:
-            task: Task to prepare
-
-        Returns:
-            Task with incremented _current_attempt (caller must serialize and re-queue)
-        """
-        task._current_attempt += 1
-        return task
-
     async def handle_failed(self, task: BaseTask, exception: Exception) -> None:
         """Call task.failed() hook when retries exhausted (best-effort).
 
