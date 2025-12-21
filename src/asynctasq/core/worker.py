@@ -8,6 +8,8 @@ import traceback
 from typing import Any
 import uuid
 
+import uvloop
+
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.serializers import BaseSerializer, MsgpackSerializer
 from asynctasq.tasks import BaseTask
@@ -111,6 +113,10 @@ class Worker:
             worker = Worker(queue_driver, queues=['default', 'high-priority'])
             await worker.start()  # Blocks until shutdown
         """
+        # Use uvloop as the event loop policy (required)
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+        logger.info("Using uvloop event loop policy")
+
         self._running = True
         self._start_time = datetime.now(UTC)
 

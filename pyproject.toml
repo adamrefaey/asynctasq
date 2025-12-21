@@ -31,7 +31,10 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-dependencies = ["msgpack>=1.1.0"]
+dependencies = [
+    "msgpack>=1.1.0",
+    "uvloop>=0.22.1",
+]
 
 [project.optional-dependencies]
 redis = ["redis[hiredis]>=7.1.0"]
