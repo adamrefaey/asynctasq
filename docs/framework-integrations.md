@@ -44,7 +44,7 @@ async def send_email(to: str, subject: str, body: str):
 # Use in endpoint
 @app.post("/send-email")
 async def send_email_route(to: str, subject: str, body: str):
-    task_id = await send_email.dispatch(to=to, subject=subject, body=body)
+    task_id = await send_email(to=to, subject=subject, body=body).dispatch()
     return {"task_id": task_id, "status": "queued"}
 ```
 
@@ -140,10 +140,10 @@ app = FastAPI(lifespan=asynctasq.lifespan)
 @app.websocket("/events")
 async def events_websocket(websocket: WebSocket):
     await websocket.accept()
-    
+
     subscriber = EventSubscriber(redis_url="redis://localhost:6379")
     await subscriber.connect()
-    
+
     try:
         async for event in subscriber.listen():
             await websocket.send_json({
