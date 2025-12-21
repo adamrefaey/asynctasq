@@ -54,7 +54,7 @@ class BaseTask[T](ABC):
         """Extract TaskConfig values from class attributes for initialization."""
         return {
             "queue": getattr(cls, "queue", "default"),
-            "max_retries": getattr(cls, "max_retries", 3),
+            "max_attempts": getattr(cls, "max_attempts", 3),
             "retry_delay": getattr(cls, "retry_delay", 60),
             "timeout": getattr(cls, "timeout", None),
         }
@@ -117,7 +117,7 @@ class BaseTask[T](ABC):
         """Hook to determine if task should retry after exception.
 
         Override to implement custom retry logic (e.g., fail fast on validation errors, retry only network errors).
-        Combined with max_retries limit (both must be True to retry).
+        Combined with max_attempts limit (both must be True to retry).
 
         Args:
             exception: Exception that occurred

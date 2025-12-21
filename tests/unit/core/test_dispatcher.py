@@ -433,7 +433,7 @@ class TestDispatcherSerializeTask:
         task._task_id = "test-task-id"
         task._current_attempt = 2
         task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
-        task.config = replace(task.config, max_retries=5, retry_delay=120, timeout=300)
+        task.config = replace(task.config, max_attempts=5, retry_delay=120, timeout=300)
 
         # Act
         dispatcher._task_serializer.serialize(task)
@@ -446,7 +446,7 @@ class TestDispatcherSerializeTask:
         assert call_arg["metadata"]["task_id"] == "test-task-id"
         assert call_arg["metadata"]["current_attempt"] == 2
         assert call_arg["metadata"]["dispatched_at"] == "2024-01-01T12:00:00+00:00"
-        assert call_arg["metadata"]["max_retries"] == 5
+        assert call_arg["metadata"]["max_attempts"] == 5
         assert call_arg["metadata"]["retry_delay"] == 120
         assert call_arg["metadata"]["timeout"] == 300
 

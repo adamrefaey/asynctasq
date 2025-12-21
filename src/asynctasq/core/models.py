@@ -21,7 +21,7 @@ class TaskInfo:
     duration_ms: int | None = None
     worker_id: str | None = None
     attempt: int = 1
-    max_retries: int = 3
+    max_attempts: int = 3
     args: list[Any] | None = None
     kwargs: dict[str, Any] | None = None
     result: Any = None

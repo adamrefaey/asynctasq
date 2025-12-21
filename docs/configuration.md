@@ -17,7 +17,7 @@ AsyncTasQ supports three configuration methods with clear precedence rules.
 ```bash
 export ASYNCTASQ_DRIVER=redis              # Driver: redis, postgres, mysql, rabbitmq, sqs
 export ASYNCTASQ_DEFAULT_QUEUE=default     # Default queue name
-export ASYNCTASQ_MAX_RETRIES=3             # Default max retry attempts
+export ASYNCTASQ_MAX_ATTEMPTS=3             # Default max attempt count
 export ASYNCTASQ_RETRY_DELAY=60            # Default retry delay (seconds)
 export ASYNCTASQ_TIMEOUT=300               # Default task timeout (seconds, None = no timeout)
 
@@ -109,7 +109,7 @@ set_global_config(
     driver='redis',
     redis_url='redis://localhost:6379',
     default_queue='default',
-    default_max_retries=3
+    default_max_attempts=3
 )
 
 # PostgreSQL with custom settings
@@ -175,7 +175,7 @@ from asynctasq.config import Config
 config = Config.from_env(
     driver='redis',
     redis_url='redis://localhost:6379',
-    default_max_retries=5
+    default_max_attempts=5
 )
 ```
 
@@ -204,7 +204,7 @@ python -m asynctasq worker \
 | --------------------------------- | ----------------------------------------- | --------- | ------------------------------ |
 | `driver`                          | `ASYNCTASQ_DRIVER`                       | `redis`   | Queue driver                   |
 | `default_queue`                   | `ASYNCTASQ_DEFAULT_QUEUE`                | `default` | Default queue name             |
-| `default_max_retries`             | `ASYNCTASQ_MAX_RETRIES`                  | `3`       | Default max retry attempts     |
+| `default_max_attempts`             | `ASYNCTASQ_MAX_ATTEMPTS`                  | `3`       | Default max attempt count     |
 | `default_retry_delay`             | `ASYNCTASQ_RETRY_DELAY`                  | `60`      | Default retry delay (seconds)  |
 | `default_timeout`                 | `ASYNCTASQ_TIMEOUT`                      | `None`    | Default task timeout (seconds) |
 | `process_pool_size`               | `ASYNCTASQ_PROCESS_POOL_SIZE`            | `None`    | Process pool size (CPU-bound)  |
@@ -283,4 +283,3 @@ python -m asynctasq worker \
 - **MySQL**: Completed tasks marked with `status='completed'` in queue table
 - **RabbitMQ**: Completed tasks published to `{queue_name}_completed` queue
 - **SQS**: Not supported (SQS always deletes acknowledged messages)
-

@@ -21,7 +21,7 @@ class FactorialTask(SyncProcessTask[int]):
     """Compute factorial in separate process."""
 
     queue = "test-process"
-    max_retries = 2
+    max_attempts = 2
     timeout = 10
 
     n: int
@@ -76,7 +76,7 @@ class FailingTask(SyncProcessTask[None]):
     """Task that always fails for retry testing."""
 
     queue = "test-process"
-    max_retries = 3
+    max_attempts = 3
 
     error_msg: str
 

@@ -145,7 +145,7 @@ class TestAsyncTaskConfiguration:
 
         # Assert
         assert task.config.queue == "default"
-        assert task.config.max_retries == 3
+        assert task.config.max_attempts == 3
         assert task.config.retry_delay == 60
         assert task.config.timeout is None
 
@@ -153,7 +153,7 @@ class TestAsyncTaskConfiguration:
         # Arrange
         class CustomAsyncTask(AsyncTask[str]):
             queue = "high-priority"
-            max_retries = 5
+            max_attempts = 5
             retry_delay = 120
             timeout = 300
 
@@ -165,7 +165,7 @@ class TestAsyncTaskConfiguration:
 
         # Assert
         assert task.config.queue == "high-priority"
-        assert task.config.max_retries == 5
+        assert task.config.max_attempts == 5
         assert task.config.retry_delay == 120
         assert task.config.timeout == 300
 

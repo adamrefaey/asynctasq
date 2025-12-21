@@ -253,7 +253,7 @@ async def test_async_process_task_default_configuration():
 
     # Assert - check default values
     assert task.config.queue == "default"
-    assert task.config.max_retries == 3
+    assert task.config.max_attempts == 3
     assert task.config.retry_delay == 60
     assert task.config.timeout is None
 
@@ -265,7 +265,7 @@ async def test_async_process_task_custom_configuration():
     # Arrange
     class CustomAsyncTask(AsyncProcessTask[int]):
         queue = "custom-queue"
-        max_retries = 5
+        max_attempts = 5
         retry_delay = 120
         timeout = 300
 
@@ -276,7 +276,7 @@ async def test_async_process_task_custom_configuration():
 
     # Assert
     assert task.config.queue == "custom-queue"
-    assert task.config.max_retries == 5
+    assert task.config.max_attempts == 5
     assert task.config.retry_delay == 120
     assert task.config.timeout == 300
 

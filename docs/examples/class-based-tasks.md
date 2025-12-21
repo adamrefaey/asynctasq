@@ -147,7 +147,7 @@ class SendEmail(AsyncTask[bool]):
 
     # Class-level configuration
     queue = "emails"
-    max_retries = 5
+    max_attempts = 5
     retry_delay = 120  # seconds
     timeout = 30  # seconds
 
@@ -200,7 +200,7 @@ All configuration options can be set as class attributes. These settings apply t
 | Option             | Type                        | Default     | Description                                                      |
 | ------------------ | --------------------------- | ----------- | ---------------------------------------------------------------- |
 | `queue`            | `str`                       | `"default"` | Queue name for task execution                                    |
-| `max_retries`      | `int`                       | `3`         | Maximum retry attempts on failure                                |
+| `max_attempts`      | `int`                       | `3`         | Maximum retry attempts on failure                                |
 | `retry_delay`      | `int`                       | `60`        | Seconds to wait between retry attempts                           |
 | `timeout`          | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                    |
 | `_driver_override` | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config) |
@@ -246,7 +246,7 @@ from asynctasq.tasks import AsyncTask
 # High retry count for critical operations
 class ChargeCreditCard(AsyncTask[bool]):
     queue = "payments"
-    max_retries = 10
+    max_attempts = 10
     retry_delay = 30
 
     async def execute(self) -> bool:
@@ -256,7 +256,7 @@ class ChargeCreditCard(AsyncTask[bool]):
 # No retries for validation tasks
 class ValidateData(AsyncTask[bool]):
     queue = "validation"
-    max_retries = 0
+    max_attempts = 0
 
     async def execute(self) -> bool:
         # Validation logic
@@ -265,7 +265,7 @@ class ValidateData(AsyncTask[bool]):
 # Custom retry delay
 class CallExternalAPI(AsyncTask[dict]):
     queue = "api-calls"
-    max_retries = 5
+    max_attempts = 5
     retry_delay = 300  # 5 minutes (for rate-limited APIs)
 
     async def execute(self) -> dict:
@@ -315,7 +315,7 @@ class CriticalOperation(AsyncTask[dict]):
     """Fully configured critical task."""
 
     queue = "critical"
-    max_retries = 10
+    max_attempts = 10
     retry_delay = 60
     timeout = 300
 
@@ -386,7 +386,7 @@ logger = logging.getLogger(__name__)
 
 class ProcessPayment(AsyncTask[bool]):
     queue = "payments"
-    max_retries = 3
+    max_attempts = 3
 
     def __init__(self, user_id: int, amount: float, **kwargs):
         super().__init__(**kwargs)
@@ -447,7 +447,7 @@ import httpx
 
 class CallExternalAPI(AsyncTask[dict]):
     queue = "api"
-    max_retries = 5
+    max_attempts = 5
 
     def __init__(self, url: str, **kwargs):
         super().__init__(**kwargs)
@@ -525,7 +525,7 @@ class ProcessOrder(AsyncTask[dict]):
     """Complete example with all lifecycle hooks."""
 
     queue = "orders"
-    max_retries = 3
+    max_attempts = 3
     retry_delay = 60
 
     def __init__(self, order_id: int, user_id: int, **kwargs):
@@ -1462,7 +1462,7 @@ from asynctasq.tasks import AsyncTask
 
 class CallAPI(AsyncTask[dict]):
     queue = "api"
-    max_retries = 3
+    max_attempts = 3
     retry_delay = 60
 
     def __init__(self, endpoint: str, **kwargs):
@@ -1476,15 +1476,15 @@ class CallAPI(AsyncTask[dict]):
 # Override retry delay at dispatch time
 async def main():
     # Use custom retry delay for this specific dispatch
-    # This only affects the delay between retries, not max_retries
+    # This only affects the delay between retries, not max_attempts
     task_id = await CallAPI(endpoint="https://api.example.com/data") \
         .retry_after(120) \
         .dispatch()
     # Will retry with 120 second delays instead of default 60
-    # Note: max_retries (3) is still from the class attribute
+    # Note: max_attempts (3) is still from the class attribute
 ```
 
-**Important:** Method chaining can only override `queue`, `delay`, and `retry_delay`. The `max_retries` and `timeout` values are set at class definition time and cannot be overridden via chaining. If you need different `max_retries` or `timeout` values, create separate task classes.
+**Important:** Method chaining can only override `queue`, `delay`, and `retry_delay`. The `max_attempts` and `timeout` values are set at class definition time and cannot be overridden via chaining. If you need different `max_attempts` or `timeout` values, create separate task classes.
 
 ### Complex Chaining
 
@@ -1568,7 +1568,7 @@ class LoggedTask(AsyncTask[dict]):
 from asynctasq.tasks import AsyncTask
 
 class SmartRetryTask(AsyncTask[None]):
-    max_retries = 5
+    max_attempts = 5
 
     async def execute(self) -> None:
         # Adjust behavior based on attempt count
@@ -1605,7 +1605,7 @@ from typing import Optional
 
 class SendEmail(AsyncTask[dict]):
     queue = "emails"
-    max_retries = 5
+    max_attempts = 5
     retry_delay = 60
     timeout = 30
 
@@ -1664,7 +1664,7 @@ from decimal import Decimal
 
 class ProcessPayment(AsyncTask[dict]):
     queue = "payments"
-    max_retries = 10
+    max_attempts = 10
     retry_delay = 30
     timeout = 60
 
@@ -1781,7 +1781,7 @@ from pathlib import Path
 
 class ProcessImage(AsyncTask[dict]):
     queue = "images"
-    max_retries = 3
+    max_attempts = 3
     timeout = 300
 
     def __init__(
@@ -1829,7 +1829,7 @@ import httpx
 
 class DeliverWebhook(AsyncTask[dict]):
     queue = "webhooks"
-    max_retries = 5
+    max_attempts = 5
     retry_delay = 120
     timeout = 10
 
@@ -1886,7 +1886,7 @@ from asynctasq.tasks import AsyncTask
 
 class SyncUserData(AsyncTask[dict]):
     queue = "sync"
-    max_retries = 3
+    max_attempts = 3
     retry_delay = 300
 
     def __init__(
@@ -2013,7 +2013,7 @@ set_global_config(driver='redis')
 # Define tasks with different configurations
 class SendEmail(AsyncTask[str]):
     queue = "emails"
-    max_retries = 3
+    max_attempts = 3
     retry_delay = 60
 
     def __init__(self, to: str, subject: str, body: str, **kwargs):
@@ -2030,7 +2030,7 @@ class SendEmail(AsyncTask[str]):
 
 class ProcessPayment(AsyncTask[dict]):
     queue = "payments"
-    max_retries = 10
+    max_attempts = 10
     retry_delay = 30
     timeout = 60
 
@@ -2205,7 +2205,7 @@ All examples above are ready to use - just configure your driver and start dispa
 
 ### Error Handling
 
-Tasks should handle their own errors gracefully. The framework will retry failed tasks according to the `max_retries` configuration and `should_retry()` logic:
+Tasks should handle their own errors gracefully. The framework will retry failed tasks according to the `max_attempts` configuration and `should_retry()` logic:
 
 ```python
 from asynctasq.tasks import AsyncTask
@@ -2213,7 +2213,7 @@ import httpx
 
 class CallExternalAPI(AsyncTask[dict]):
     queue = "api"
-    max_retries = 3
+    max_attempts = 3
     retry_delay = 60
 
     def __init__(self, url: str, **kwargs):

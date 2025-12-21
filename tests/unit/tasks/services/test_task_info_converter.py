@@ -32,7 +32,7 @@ class TestTaskInfoConverter:
                 "queue": "default",
                 "dispatched_at": "2025-12-12T10:00:00+00:00",
                 "current_attempt": 1,
-                "max_retries": 3,
+                "max_attempts": 3,
                 "timeout": 60,
             },
         }
@@ -48,7 +48,7 @@ class TestTaskInfoConverter:
         assert result.queue == "default"
         assert result.status == "pending"
         assert result.attempt == 1
-        assert result.max_retries == 3
+        assert result.max_attempts == 3
         assert result.timeout_seconds == 60
 
     @mark.asyncio
@@ -62,7 +62,7 @@ class TestTaskInfoConverter:
             "status": "running",
             "enqueued_at": "2025-12-12T11:00:00+00:00",
             "attempt": 2,
-            "max_retries": 5,
+            "max_attempts": 5,
         }
 
         converter = TaskInfoConverter(serializer)
@@ -76,7 +76,7 @@ class TestTaskInfoConverter:
         assert result.queue == "priority"
         assert result.status == "running"
         assert result.attempt == 2
-        assert result.max_retries == 5
+        assert result.max_attempts == 5
 
     @mark.asyncio
     async def test_convert_handles_deserialization_error(self) -> None:
@@ -235,7 +235,7 @@ class TestTaskInfoConverter:
             "duration_ms": 60000,
             "worker_id": "worker-1",
             "attempt": 1,
-            "max_retries": 3,
+            "max_attempts": 3,
             "args": [1, 2, 3],
             "kwargs": {"key": "value"},
             "result": "success",

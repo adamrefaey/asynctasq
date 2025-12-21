@@ -78,7 +78,7 @@ class FunctionTask[T](BaseTask[T]):
         self.config = replace(
             self.config,
             queue=getattr(func, "_task_queue", self.config.queue),
-            max_retries=getattr(func, "_task_max_retries", self.config.max_retries),
+            max_attempts=getattr(func, "_task_max_attempts", self.config.max_attempts),
             retry_delay=getattr(func, "_task_retry_delay", self.config.retry_delay),
             timeout=getattr(func, "_task_timeout", self.config.timeout),
             driver_override=getattr(func, "_task_driver", self.config.driver_override),
@@ -161,7 +161,7 @@ class TaskFunctionWrapper[T]:
         # Cache task configuration to avoid repeated attribute lookups
         self._task_config = {
             "queue": getattr(func, "_task_queue", "default"),
-            "max_retries": getattr(func, "_task_max_retries", 3),
+            "max_attempts": getattr(func, "_task_max_attempts", 3),
             "retry_delay": getattr(func, "_task_retry_delay", 60),
             "timeout": getattr(func, "_task_timeout", None),
             "driver": getattr(func, "_task_driver", None),
@@ -258,7 +258,7 @@ def task[T](
     /,
     *,
     queue: str = "default",
-    max_retries: int = 3,
+    max_attempts: int = 3,
     retry_delay: int = 60,
     timeout: int | None = None,
     driver: str | BaseDriver | None = None,
@@ -273,7 +273,7 @@ def task[T](
     /,
     *,
     queue: str = "default",
-    max_retries: int = 3,
+    max_attempts: int = 3,
     retry_delay: int = 60,
     timeout: int | None = None,
     driver: str | BaseDriver | None = None,
@@ -283,7 +283,7 @@ def task[T](
 
     Args:
         queue: Queue name (default: "default")
-        max_retries: Max retry attempts (default: 3)
+        max_attempts: Max attempt count (default: 3)
         retry_delay: Retry delay in seconds (default: 60)
         timeout: Task timeout in seconds (default: None)
         driver: Driver override (default: None)
@@ -309,7 +309,7 @@ def task[T](
         # Store task configuration on function as attributes
         # This allows FunctionTask to read config during __init__
         func._task_queue = queue  # type: ignore[attr-defined]
-        func._task_max_retries = max_retries  # type: ignore[attr-defined]
+        func._task_max_attempts = max_attempts  # type: ignore[attr-defined]
         func._task_retry_delay = retry_delay  # type: ignore[attr-defined]
         func._task_timeout = timeout  # type: ignore[attr-defined]
         func._task_driver = driver  # type: ignore[attr-defined]

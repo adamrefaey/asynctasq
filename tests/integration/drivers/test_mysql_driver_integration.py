@@ -514,7 +514,7 @@ class TestMySQLDriverWithRealMySQL:
             assert dlq_result is not None
             assert dlq_result[2] == task_data  # payload
             assert dlq_result[3] == mysql_driver.max_attempts  # attempts
-            assert dlq_result[4] == "Max retries exceeded"  # error_message
+            assert dlq_result[4] == "Max attempts exceeded"  # error_message
 
             # Task should not be in main queue
             await cursor.execute(

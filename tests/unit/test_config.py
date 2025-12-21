@@ -95,7 +95,7 @@ class TestEnvVarMapping:
             "events_redis_url",
             "events_channel",
             "default_queue",
-            "default_max_retries",
+            "default_max_attempts",
             "default_retry_delay",
             "default_timeout",
             "process_pool_size",
@@ -176,7 +176,7 @@ class TestConfigDefaults:
 
         # Assert
         assert config.default_queue == "default"
-        assert config.default_max_retries == 3
+        assert config.default_max_attempts == 3
         assert config.default_retry_delay == 60
         assert config.default_timeout is None
 
@@ -271,7 +271,7 @@ class TestConfigFromEnv:
     def test_from_env_loads_task_defaults(self, monkeypatch) -> None:
         # Arrange
         monkeypatch.setenv("ASYNCTASQ_DEFAULT_QUEUE", "high_priority")
-        monkeypatch.setenv("ASYNCTASQ_MAX_RETRIES", "5")
+        monkeypatch.setenv("ASYNCTASQ_MAX_ATTEMPTS", "5")
         monkeypatch.setenv("ASYNCTASQ_RETRY_DELAY", "120")
         monkeypatch.setenv("ASYNCTASQ_TIMEOUT", "300")
 
@@ -280,7 +280,7 @@ class TestConfigFromEnv:
 
         # Assert
         assert config.default_queue == "high_priority"
-        assert config.default_max_retries == 5
+        assert config.default_max_attempts == 5
         assert config.default_retry_delay == 120
         assert config.default_timeout == 300
 
@@ -332,7 +332,7 @@ class TestConfigFromEnv:
     def test_from_env_converts_integer_types(self, monkeypatch) -> None:
         # Arrange
         monkeypatch.setenv("ASYNCTASQ_REDIS_DB", "10")
-        monkeypatch.setenv("ASYNCTASQ_MAX_RETRIES", "7")
+        monkeypatch.setenv("ASYNCTASQ_MAX_ATTEMPTS", "7")
 
         # Act
         config = Config.from_env()
@@ -340,8 +340,8 @@ class TestConfigFromEnv:
         # Assert
         assert isinstance(config.redis_db, int)
         assert config.redis_db == 10
-        assert isinstance(config.default_max_retries, int)
-        assert config.default_max_retries == 7
+        assert isinstance(config.default_max_attempts, int)
+        assert config.default_max_attempts == 7
 
 
 @mark.unit
@@ -375,17 +375,17 @@ class TestConfigValidation:
         with raises(ValueError, match="redis_max_connections must be positive"):
             Config.from_env(redis_max_connections=-1)
 
-    def test_validate_default_max_retries_negative_raises_error(self, clean_env) -> None:
+    def test_validate_default_max_attempts_negative_raises_error(self, clean_env) -> None:
         # Act & Assert
-        with raises(ValueError, match="default_max_retries must be non-negative"):
-            Config.from_env(default_max_retries=-1)
+        with raises(ValueError, match="default_max_attempts must be non-negative"):
+            Config.from_env(default_max_attempts=-1)
 
-    def test_validate_default_max_retries_zero_is_valid(self, clean_env) -> None:
+    def test_validate_default_max_attempts_zero_is_valid(self, clean_env) -> None:
         # Act
-        config = Config.from_env(default_max_retries=0)
+        config = Config.from_env(default_max_attempts=0)
 
         # Assert
-        assert config.default_max_retries == 0
+        assert config.default_max_attempts == 0
 
     def test_validate_default_retry_delay_negative_raises_error(self, clean_env) -> None:
         # Act & Assert
@@ -438,7 +438,7 @@ class TestConfigValidation:
         config = Config.from_env(
             redis_db=5,
             redis_max_connections=20,
-            default_max_retries=5,
+            default_max_attempts=5,
             default_retry_delay=120,
             postgres_max_attempts=10,
             postgres_retry_delay_seconds=300,
@@ -595,7 +595,7 @@ class TestConfigEdgeCases:
         config = Config.from_env(
             redis_db=15,
             redis_max_connections=10000,
-            default_max_retries=1000,
+            default_max_attempts=1000,
             postgres_max_attempts=100,
             postgres_min_pool_size=1,
             postgres_max_pool_size=10000,
@@ -604,7 +604,7 @@ class TestConfigEdgeCases:
         # Assert
         assert config.redis_db == 15
         assert config.redis_max_connections == 10000
-        assert config.default_max_retries == 1000
+        assert config.default_max_attempts == 1000
         assert config.postgres_max_attempts == 100
         assert config.postgres_min_pool_size == 1
         assert config.postgres_max_pool_size == 10000
@@ -613,15 +613,14 @@ class TestConfigEdgeCases:
         # Act
         config = Config.from_env(
             redis_db=0,
-            default_max_retries=0,
+            default_max_attempts=0,
             default_retry_delay=0,
             postgres_retry_delay_seconds=0,
         )
 
         # Assert
         assert config.redis_db == 0
-        assert config.default_max_retries == 0
-        assert config.default_retry_delay == 0
+        assert config.default_max_attempts == 0
         assert config.postgres_retry_delay_seconds == 0
 
     def test_config_with_special_characters_in_strings(self, clean_env) -> None:
@@ -691,14 +690,14 @@ class TestConfigTypeConversion:
     def test_int_conversion_from_string(self, monkeypatch) -> None:
         # Arrange
         monkeypatch.setenv("ASYNCTASQ_REDIS_DB", "7")
-        monkeypatch.setenv("ASYNCTASQ_MAX_RETRIES", "10")
+        monkeypatch.setenv("ASYNCTASQ_MAX_ATTEMPTS", "10")
 
         # Act
         config = Config.from_env()
 
         # Assert
         assert type(config.redis_db) is int
-        assert type(config.default_max_retries) is int
+        assert type(config.default_max_attempts) is int
 
     def test_str_conversion_preserves_string(self, monkeypatch) -> None:
         # Arrange

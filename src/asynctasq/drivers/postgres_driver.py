@@ -297,7 +297,7 @@ class PostgresDriver(BaseDriver):
                             f"""
                             INSERT INTO {self.dead_letter_table}
                                 (queue_name, payload, current_attempt, error_message, failed_at)
-                            VALUES ($1, $2, $3, 'Max retries exceeded', NOW())
+                            VALUES ($1, $2, $3, 'Max attempts exceeded', NOW())
                             """,
                             task_queue_name,
                             payload,

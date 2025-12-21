@@ -429,7 +429,7 @@ class Worker:
         """Handle task failure with intelligent retry logic.
 
         Retry decision:
-        1. Check if current_attempt < max_retries (via TaskService.should_retry)
+        1. Check if current_attempt < max_attempts (via TaskService.should_retry)
         2. Call task.should_retry(exception) for custom logic
         3. If both pass: emit task_retrying, increment current_attempt, and re-enqueue
         4. If retry exhausted: emit task_failed, call task.failed() and store error

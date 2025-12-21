@@ -520,7 +520,7 @@ class TestRetryLogicEdgeCases:
                 raise ValueError("Transient error")
 
         task = RetryableTask()
-        task.config = replace(task.config, max_retries=3)
+        task.config = replace(task.config, max_attempts=3)
 
         with patch("asynctasq.core.dispatcher.get_dispatcher") as mock_get_dispatcher:
             mock_dispatcher = MagicMock()
@@ -540,19 +540,19 @@ class TestRetryLogicEdgeCases:
             with pytest.raises(ConnectionError):
                 await task.dispatch()
 
-    def test_should_retry_with_max_retries_zero(self) -> None:
-        """Test that should_retry is still called when max_retries=0."""
+    def test_should_retry_with_max_attempts_zero(self) -> None:
+        """Test that should_retry is still called when max_attempts=0."""
 
         class NoRetryTask(AsyncTask[str]):
             async def execute(self) -> str:
                 raise ValueError("Error")
 
             def should_retry(self, exception: Exception) -> bool:
-                # This should still be called even with max_retries=0
+                # This should still be called even with max_attempts=0
                 return False
 
         task = NoRetryTask()
-        task.config = replace(task.config, max_retries=0)
+        task.config = replace(task.config, max_attempts=0)
 
         # should_retry should still be callable
         result = task.should_retry(ValueError("test"))

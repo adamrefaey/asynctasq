@@ -35,7 +35,7 @@ task_id = await send_email.dispatch(
 **With Configuration:**
 
 ```python
-@task(queue='emails', max_retries=5, retry_delay=120, timeout=30)
+@task(queue='emails', max_attempts=5, retry_delay=120, timeout=30)
 async def send_welcome_email(user_id: int):
     # Task automatically retries up to 5 times with 120s delay
     # Timeout after 30 seconds
@@ -109,7 +109,7 @@ from asynctasq.tasks import AsyncTask
 
 class ProcessPayment(AsyncTask[bool]):
     queue = "payments"
-    max_retries = 3
+    max_attempts = 3
     retry_delay = 60
     timeout = 30
 
@@ -135,7 +135,7 @@ import requests
 
 class FetchWebPage(SyncTask[str]):
     queue = "web-scraping"
-    max_retries = 3
+    max_attempts = 3
 
     def __init__(self, url: str, **kwargs):
         super().__init__(**kwargs)
@@ -201,7 +201,7 @@ class ProcessLargeDataset(SyncProcessTask[dict]):
 ```python
 class ProcessPayment(AsyncTask[bool]):
     queue = "payments"
-    max_retries = 3
+    max_attempts = 3
     retry_delay = 60
 
     def __init__(self, user_id: int, amount: float, **kwargs):
@@ -380,7 +380,7 @@ class ProcessDataset(SyncProcessTask[dict]):
 | Option        | Type          | Default     | Description                                 |
 | ------------- | ------------- | ----------- | ------------------------------------------- |
 | `queue`       | `str`         | `"default"` | Queue name for task                         |
-| `max_retries` | `int`         | `3`         | Maximum retry attempts                      |
+| `max_attempts` | `int`         | `3`         | Maximum retry attempts                      |
 | `retry_delay` | `int`         | `60`        | Seconds to wait between retries             |
 | `timeout`     | `int \| None` | `None`      | Task timeout in seconds (None = no timeout) |
 
@@ -394,7 +394,7 @@ AsyncTasQ provides **two distinct configuration systems** depending on your task
 
 | Task Style | Configuration Source | Example |
 |-----------|---------------------|---------|
-| **Function-based** (`@task`) | Decorator arguments | `@task(queue='emails', max_retries=5)` |
+| **Function-based** (`@task`) | Decorator arguments | `@task(queue='emails', max_attempts=5)` |
 | **Class-based** (`AsyncTask`, `SyncTask`) | Class attributes | `class MyTask: queue = 'emails'` |
 
 ### Function-Based Task Configuration
@@ -403,7 +403,7 @@ AsyncTasQ provides **two distinct configuration systems** depending on your task
 
 ```python
 # ✅ CORRECT: Use decorator arguments
-@task(queue='emails', max_retries=5, retry_delay=120, timeout=30)
+@task(queue='emails', max_attempts=5, retry_delay=120, timeout=30)
 async def send_email(to: str, subject: str, body: str):
     print(f"Sending email to {to}: {subject}")
     return f"Email sent to {to}"
@@ -413,7 +413,7 @@ async def send_email(to: str, subject: str, body: str):
 async def send_email(to: str, subject: str, body: str):
     # These attributes are ignored!
     queue = "emails"  # This is just a local variable
-    max_retries = 5   # This does nothing
+    max_attempts = 5   # This does nothing
     print(f"Sending email to {to}: {subject}")
 ```
 
@@ -421,7 +421,7 @@ async def send_email(to: str, subject: str, body: str):
 
 ```python
 # Decorator sets defaults
-@task(queue='notifications', max_retries=3)
+@task(queue='notifications', max_attempts=3)
 async def send_notification(user_id: int, message: str):
     pass
 
@@ -442,7 +442,7 @@ task_id = await send_notification(user_id=123, message="Hello") \
 class ProcessPayment(AsyncTask[bool]):
     # Configuration via class attributes
     queue = "payments"
-    max_retries = 3
+    max_attempts = 3
     retry_delay = 60
     timeout = 30
 
@@ -479,7 +479,7 @@ class BaseTask:
         """Extract TaskConfig values from class attributes."""
         return {
             "queue": getattr(cls, "queue", "default"),
-            "max_retries": getattr(cls, "max_retries", 3),
+            "max_attempts": getattr(cls, "max_attempts", 3),
             "retry_delay": getattr(cls, "retry_delay", 60),
             "timeout": getattr(cls, "timeout", None),
         }
@@ -509,7 +509,7 @@ When multiple configuration sources are present, AsyncTasQ follows this priority
 
 ```python
 # Function task priority order
-@task(queue='notifications', max_retries=3)  # 2. Decorator defaults
+@task(queue='notifications', max_attempts=3)  # 2. Decorator defaults
 async def send_notification(user_id: int):
     pass
 
@@ -517,12 +517,12 @@ async def send_notification(user_id: int):
 task_id = await send_notification(user_id=123) \
     .on_queue("urgent") \  # 1. Highest priority - overrides decorator
     .dispatch()
-# Result: Uses queue="urgent", max_retries=3
+# Result: Uses queue="urgent", max_attempts=3
 
 # Class task priority order
 class ProcessOrder(AsyncTask[bool]):
     queue = "orders"      # 2. Class attribute
-    max_retries = 3
+    max_attempts = 3
 
     def __init__(self, order_id: int, **kwargs):
         super().__init__(**kwargs)
@@ -535,7 +535,7 @@ class ProcessOrder(AsyncTask[bool]):
 task_id = await ProcessOrder(order_id=456) \
     .on_queue("express") \  # 1. Highest priority - overrides class attribute
     .dispatch()
-# Result: Uses queue="express", max_retries=3
+# Result: Uses queue="express", max_attempts=3
 ```
 
 ### Best Practices
@@ -593,14 +593,14 @@ Beyond the two primary approaches, AsyncTasQ provides convenience methods for co
 
 ```python
 # 1. Decorator configuration (function tasks)
-@task(queue='emails', max_retries=5, retry_delay=120, timeout=30)
+@task(queue='emails', max_attempts=5, retry_delay=120, timeout=30)
 async def send_email(to: str, subject: str):
     pass
 
 # 2. Class attributes (class tasks)
 class ProcessPayment(AsyncTask[bool]):
     queue = "payments"
-    max_retries = 3
+    max_attempts = 3
     retry_delay = 60
     timeout = 30
 

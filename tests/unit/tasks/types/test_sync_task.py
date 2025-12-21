@@ -166,7 +166,7 @@ class TestSyncTaskConfiguration:
 
         # Assert
         assert task.config.queue == "default"
-        assert task.config.max_retries == 3
+        assert task.config.max_attempts == 3
         assert task.config.retry_delay == 60
         assert task.config.timeout is None
 
@@ -174,7 +174,7 @@ class TestSyncTaskConfiguration:
         # Arrange
         class CustomSyncTask(SyncTask[str]):
             queue = "background"
-            max_retries = 10
+            max_attempts = 10
             retry_delay = 30
             timeout = 600
 
@@ -186,7 +186,7 @@ class TestSyncTaskConfiguration:
 
         # Assert
         assert task.config.queue == "background"
-        assert task.config.max_retries == 10
+        assert task.config.max_attempts == 10
         assert task.config.retry_delay == 30
         assert task.config.timeout == 600
 

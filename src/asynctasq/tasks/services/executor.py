@@ -76,7 +76,7 @@ class TaskExecutor:
     def should_retry(self, task: BaseTask, exception: Exception) -> bool:
         """Determine if task should retry after exception.
 
-        Combines framework policy (current_attempt < max_retries) with user policy (task.should_retry()).
+        Combines framework policy (current_attempt < max_attempts) with user policy (task.should_retry()).
 
         Args:
             task: Task that failed
@@ -85,7 +85,7 @@ class TaskExecutor:
         Returns:
             True to retry, False if permanently failed
         """
-        return task._current_attempt < task.config.max_retries and task.should_retry(exception)
+        return task._current_attempt < task.config.max_attempts and task.should_retry(exception)
 
     def prepare_retry(self, task: BaseTask) -> BaseTask:
         """Increment current_attempt for retry.

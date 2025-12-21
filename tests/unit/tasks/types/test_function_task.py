@@ -56,14 +56,14 @@ class TestFunctionTask:
 
         # Assert
         assert task_instance.config.queue == "default"
-        assert task_instance.config.max_retries == 3
+        assert task_instance.config.max_attempts == 3
         assert task_instance.config.retry_delay == 60
         assert task_instance.config.timeout is None
         assert task_instance.config.driver_override is None
 
     def test_function_task_init_extracts_decorator_config(self) -> None:
         # Arrange
-        @task(queue="custom", max_retries=5, retry_delay=120, timeout=300)
+        @task(queue="custom", max_attempts=5, retry_delay=120, timeout=300)
         def test_func() -> None:
             pass
 
@@ -72,7 +72,7 @@ class TestFunctionTask:
 
         # Assert
         assert task_instance.config.queue == "custom"
-        assert task_instance.config.max_retries == 5
+        assert task_instance.config.max_attempts == 5
         assert task_instance.config.retry_delay == 120
         assert task_instance.config.timeout == 300
 
@@ -194,7 +194,7 @@ class TestFunctionTask:
         # Assert
         # Should use defaults when attributes don't exist
         assert task_instance.config.queue == "default"
-        assert task_instance.config.max_retries == 3
+        assert task_instance.config.max_attempts == 3
 
 
 @mark.unit
@@ -211,17 +211,17 @@ class TestTaskDecorator:
         assert hasattr(test_func, "_is_task")
         assert test_func._is_task is True  # type: ignore[attr-defined]
         assert test_func._task_queue == "default"  # type: ignore[attr-defined]
-        assert test_func._task_max_retries == 3  # type: ignore[attr-defined]
+        assert test_func._task_max_attempts == 3  # type: ignore[attr-defined]
 
     def test_task_decorator_with_params(self) -> None:
         # Arrange & Act
-        @task(queue="custom", max_retries=5, retry_delay=120, timeout=300)
+        @task(queue="custom", max_attempts=5, retry_delay=120, timeout=300)
         def test_func() -> str:
             return "test"
 
         # Assert
         assert test_func._task_queue == "custom"  # type: ignore[attr-defined]
-        assert test_func._task_max_retries == 5  # type: ignore[attr-defined]
+        assert test_func._task_max_attempts == 5  # type: ignore[attr-defined]
         assert test_func._task_retry_delay == 120  # type: ignore[attr-defined]
         assert test_func._task_timeout == 300  # type: ignore[attr-defined]
 
