@@ -260,23 +260,24 @@ class PostgresDriver(BaseDriver):
 
         async with self.pool.acquire() as conn:
             async with conn.transaction():
-                # Get current attempt
+                # Get current attempt (do not pre-increment for the decision)
                 row = await conn.fetchrow(
                     f"SELECT current_attempt, max_attempts, queue_name, payload FROM {self.queue_table} WHERE id = $1",
                     task_id,
                 )
 
                 if row:
-                    current_attempt = row["current_attempt"] + 1
+                    existing_attempt = row["current_attempt"]
                     max_attempts = row["max_attempts"]
                     task_queue_name = row["queue_name"]
                     payload = row["payload"]
 
-                    if current_attempt < max_attempts:
-                        # Retry: update current_attempt, available_at, and clear lock
-                        retry_delay = self.retry_delay_seconds * (
-                            2 ** (current_attempt - 1)
-                        )  # Exponential backoff
+                    # If we have remaining retries (existing_attempt < max_attempts),
+                    # increment and requeue. Only move to DLQ when retries are exhausted.
+                    if existing_attempt < max_attempts:
+                        new_attempt = existing_attempt + 1
+                        # Exponential backoff: base * 2^(existing_attempt-1)
+                        retry_delay = self.retry_delay_seconds * (2 ** (existing_attempt - 1))
                         await conn.execute(
                             f"""
                             UPDATE {self.queue_table}
@@ -287,12 +288,12 @@ class PostgresDriver(BaseDriver):
                                 updated_at = NOW()
                             WHERE id = $3
                             """,
-                            current_attempt,
+                            new_attempt,
                             retry_delay,
                             task_id,
                         )
                     else:
-                        # Move to dead letter queue
+                        # Move to dead letter queue using the existing attempt count
                         await conn.execute(
                             f"""
                             INSERT INTO {self.dead_letter_table}
@@ -301,7 +302,7 @@ class PostgresDriver(BaseDriver):
                             """,
                             task_queue_name,
                             payload,
-                            current_attempt,
+                            existing_attempt,
                         )
                         await conn.execute(f"DELETE FROM {self.queue_table} WHERE id = $1", task_id)
 
