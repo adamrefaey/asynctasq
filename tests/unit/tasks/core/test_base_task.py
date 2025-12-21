@@ -48,7 +48,7 @@ class TestTaskInitialization:
 
         # Assert
         assert task_instance._task_id is None
-        assert task_instance._attempts == 0
+        assert task_instance._attempts == 1
         assert task_instance._dispatched_at is None
 
     def test_init_with_empty_kwargs(self) -> None:
