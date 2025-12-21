@@ -350,16 +350,15 @@ class MySQLDriver(BaseDriver):
                     row = await cursor.fetchone()
 
                     if row:
-                        current_attempt = row[0] + 1
+                        existing_attempt = row[0]
                         max_attempts = row[1]
                         task_queue_name = row[2]
                         payload = row[3]
 
-                        if current_attempt < max_attempts:
-                            # Retry: update current_attempt, available_at, and clear lock
-                            retry_delay = self.retry_delay_seconds * (
-                                2 ** (current_attempt - 1)
-                            )  # Exponential backoff
+                        # If there are retries left, increment and requeue. Otherwise move to DLQ.
+                        if existing_attempt < max_attempts:
+                            new_attempt = existing_attempt + 1
+                            retry_delay = self.retry_delay_seconds * (2 ** (existing_attempt - 1))
                             await cursor.execute(
                                 f"""
                                 UPDATE {self.queue_table}
@@ -370,17 +369,16 @@ class MySQLDriver(BaseDriver):
                                     updated_at = NOW(6)
                                 WHERE id = %s
                                 """,
-                                (current_attempt, retry_delay, task_id),
+                                (new_attempt, retry_delay, task_id),
                             )
                         else:
-                            # Move to dead letter queue
                             await cursor.execute(
                                 f"""
                                 INSERT INTO {self.dead_letter_table}
                                     (queue_name, payload, current_attempt, error_message, failed_at)
                                 VALUES (%s, %s, %s, 'Max attempts exceeded', NOW(6))
                                 """,
-                                (task_queue_name, payload, current_attempt),
+                                (task_queue_name, payload, existing_attempt),
                             )
                             await cursor.execute(
                                 f"DELETE FROM {self.queue_table} WHERE id = %s", (task_id,)

@@ -495,8 +495,9 @@ class Worker:
                 )
                 raise
         else:
-            # Task has failed permanently - increment to reflect the failed attempt
-            task._current_attempt = 1
+            # Task has failed permanently - increment to reflect the failed attempt.
+            # `current_attempt` always starts at 1, so increment to include this final failure.
+            task._current_attempt += 1
             logger.error(
                 f"Task {task_id} failed permanently after {task._current_attempt} attempts"
             )
