@@ -9,7 +9,7 @@ Testing Strategy:
 
 from unittest.mock import AsyncMock
 
-from pytest import mark
+from pytest import main, mark
 
 from asynctasq.core.models import TaskInfo
 from asynctasq.tasks.services.repository import TaskRepository
@@ -383,3 +383,7 @@ class TestTaskRepository:
 
         # Assert (can't delete without queue_name)
         assert result is False
+
+
+if __name__ == "__main__":
+    main([__file__, "-s", "-m", "unit"])

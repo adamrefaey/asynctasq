@@ -911,7 +911,8 @@ class TestWorkerHandleTaskFailure:
         worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
 
         task = ConcreteTask(public_param="test")
-        task._current_attempt = 0
+        # Simulate that the worker already incremented the attempt when starting
+        task._current_attempt = 1
         task.config = replace(task.config, max_attempts=3, retry_delay=60, queue="test_queue")
         exception = ValueError("Test error")
         start_time = datetime.now(UTC)
@@ -922,10 +923,10 @@ class TestWorkerHandleTaskFailure:
                 task, exception, "test_queue", start_time, b"task_data"
             )
 
-        # Assert
+        # Assert - _handle_task_failure should not modify the attempt
         assert task._current_attempt == 1
-        # With current_attempt=0, existing_attempt=-1, exponential: 60 * 2^(-1) = 30
-        mock_driver.enqueue.assert_called_once_with("test_queue", b"serialized", delay_seconds=30.0)
+        # With current_attempt=1, exponential backoff: 60 * 2^(1-1) = 60
+        mock_driver.enqueue.assert_called_once_with("test_queue", b"serialized", delay_seconds=60.0)
 
     @mark.asyncio
     async def test_handle_task_failure_no_retry_when_current_attempt_exceed_max(self) -> None:
@@ -935,6 +936,7 @@ class TestWorkerHandleTaskFailure:
         worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
 
         task = ConcreteTask(public_param="test")
+        # Simulate worker increment prior to failure handling
         task._current_attempt = 2
         task.config = replace(task.config, max_attempts=2)
         exception = ValueError("Test error")
@@ -945,8 +947,8 @@ class TestWorkerHandleTaskFailure:
         # Act
         await worker._handle_task_failure(task, exception, "test_queue", start_time, b"task_data")
 
-        # Assert
-        assert task._current_attempt == 3
+        # Assert - attempt remains unchanged by failure handler
+        assert task._current_attempt == 2
         task.failed.assert_called_once_with(exception)
         mock_driver.enqueue.assert_not_called()
 
@@ -958,7 +960,8 @@ class TestWorkerHandleTaskFailure:
         worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
 
         task = ConcreteTask(public_param="test")
-        task._current_attempt = 0
+        # Simulate that the worker already incremented the attempt when starting
+        task._current_attempt = 1
         task.config = replace(task.config, max_attempts=3)
         start_time = datetime.now(UTC)
 
@@ -973,7 +976,7 @@ class TestWorkerHandleTaskFailure:
         # Act
         await worker._handle_task_failure(task, exception, "test_queue", start_time, b"task_data")
 
-        # Assert
+        # Assert - attempt remains the worker-set value
         assert task._current_attempt == 1
         task.failed.assert_called_once_with(exception)
         mock_driver.enqueue.assert_not_called()
@@ -1254,6 +1257,7 @@ class TestWorkerDeserializeTask:
 
         # Assert
         assert result._task_id == "test-id"
+        # The deserialized metadata should be preserved as provided
         assert result._current_attempt == 1
         # Should use class defaults for missing config
         assert result.config.max_attempts == 3  # Default from Task class
@@ -2153,7 +2157,7 @@ class TestWorkerEventEmission:
 
         # Assert
         emit_calls = mock_emitter.emit_task_event.call_args_list
-        assert any(call[0][0].event_type == EventType.TASK_RETRYING for call in emit_calls)
+        assert any(call[0][0].event_type == EventType.TASK_REENQUEUE for call in emit_calls)
 
     @mark.asyncio
     async def test_handle_task_failure_emits_task_failed_event(self) -> None:

@@ -10,7 +10,7 @@ Testing Strategy:
 
 from unittest.mock import MagicMock, patch
 
-from pytest import mark
+from pytest import main, mark
 
 from asynctasq.tasks.core.base_task import BaseTask
 from asynctasq.tasks.utils.logger import (
@@ -269,3 +269,7 @@ class TestLogTaskError:
         args, kwargs = mock_logger.error.call_args
         assert kwargs["extra"]["error_type"] == "ConnectionError"
         assert kwargs["extra"]["retry_after"] == 60
+
+
+if __name__ == "__main__":
+    main([__file__, "-s", "-m", "unit"])

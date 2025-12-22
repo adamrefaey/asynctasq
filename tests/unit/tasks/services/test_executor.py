@@ -13,7 +13,7 @@ import asyncio
 import time
 from unittest.mock import AsyncMock
 
-from pytest import mark, raises
+from pytest import main, mark, raises
 
 from asynctasq.tasks import AsyncTask, SyncTask
 from asynctasq.tasks.services.executor import (
@@ -420,3 +420,7 @@ class TestTaskExecutor:
         # Assert
         assert count_before == 2
         assert count_after == 0
+
+
+if __name__ == "__main__":
+    main([__file__, "-s", "-m", "unit"])

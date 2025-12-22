@@ -12,6 +12,7 @@ from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from pytest import main
 
 from asynctasq.tasks import SyncTask
 
@@ -321,7 +322,8 @@ class TestSyncTaskMetadata:
 
         # Assert
         assert task._task_id is None
-        assert task._current_attempt == 1
+        # Default attempt is 0; worker increments when processing starts
+        assert task._current_attempt == 0
         assert task._dispatched_at is None
 
     def test_sync_task_metadata_mutable(self) -> None:
@@ -366,3 +368,7 @@ class TestSyncTaskThreadPool:
         # Assert - all should complete successfully
         assert len(results) == 5
         assert all(r == "sync_result" for r in results)
+
+
+if __name__ == "__main__":
+    main([__file__, "-s", "-m", "unit"])

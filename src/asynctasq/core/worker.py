@@ -322,10 +322,9 @@ class Worker:
 
             logger.info(f"Processing task {task._task_id}: {task.__class__.__name__}")
 
-            # Increment current attempt when we actually start processing.
-            # This ensures retries that are merely re-enqueued don't advance
-            # the attempt counter until a worker picks them up to run.
-            task._current_attempt += 1
+            # Mark that this worker is starting an attempt. Use the task API
+            # so attempt tracking is centralized on the task instance.
+            task.mark_attempt_started()
 
             # Emit task_started event
             if self.event_emitter:
@@ -452,17 +451,16 @@ class Worker:
         duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
         task_id = task._task_id or "unknown"  # Fallback for type safety
 
-        # Capture the attempt that just ran, then increment for bookkeeping.
-        # Tests expect the delay calculation to use the prior attempt value
-        # while retry decision uses the incremented attempt count.
-        existing_attempt = task._current_attempt
-        task._current_attempt += 1
+        # The worker increments the attempt via `mark_attempt_started()` when
+        # starting execution. Use the current value as the attempt that just ran
+        # for delay calculation and event emission. Do not mutate attempts here
+        # to avoid double-counting.
+        existing_attempt = task.current_attempt
 
         # Check if we should retry (uses TaskService for the decision logic)
         if self._task_executor.should_retry(task, exception):
-            # Serialize and re-enqueue the task as-is. The worker increments
-            # attempt counts when a worker begins processing, so the
-            # serialized representation should reflect attempts already run.
+            # Serialize and re-enqueue the task as-is. The serialized
+            # representation should reflect attempts already run.
             serialized_task = self._task_serializer.serialize(task)
             logger.info(f"Re-enqueuing task {task_id}")
 
@@ -491,7 +489,9 @@ class Worker:
                     f"{ack_error}"
                 )
 
-            # Re-enqueue with delay (this creates a NEW task with updated attempt count)
+            # Re-enqueue with delay (this preserves the current attempt count
+            # in the serialized payload; the next worker will call
+            # `mark_attempt_started()` when the task is actually started again)
             # Calculate retry delay based on strategy (fixed or exponential)
             config = get_global_config()
             # Use the attempt that just ran (existing_attempt) for delay calculation.
@@ -504,22 +504,9 @@ class Worker:
                 config.default_retry_delay,
                 existing_attempt,  # type: ignore[arg-type]
             )
-            try:
-                await self.queue_driver.enqueue(
-                    task.config.queue, serialized_task, delay_seconds=retry_delay
-                )
-            except Exception as enqueue_error:
-                # Rollback attempt increment if enqueue failed
-                task._current_attempt -= 1
-                logger.error(
-                    f"Failed to enqueue retry for task {task_id}: {enqueue_error}",
-                    extra={
-                        "task_id": task_id,
-                        "queue": task.config.queue,
-                        "attempt": task._current_attempt,
-                    },
-                )
-                raise
+            await self.queue_driver.enqueue(
+                task.config.queue, serialized_task, delay_seconds=retry_delay
+            )
         else:
             # Task has failed permanently. The attempt count was incremented
             # when the worker started, so `task._current_attempt` already

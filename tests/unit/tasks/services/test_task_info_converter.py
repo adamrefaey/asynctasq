@@ -11,7 +11,7 @@ Testing Strategy:
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
-from pytest import mark
+from pytest import main, mark
 
 from asynctasq.tasks.services.task_info_converter import TaskInfoConverter
 
@@ -323,3 +323,7 @@ class TestTaskInfoConverter:
 
         # Assert
         assert result.name == "SimpleTask"
+
+
+if __name__ == "__main__":
+    main([__file__, "-s", "-m", "unit"])

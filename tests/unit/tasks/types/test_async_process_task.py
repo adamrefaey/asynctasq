@@ -4,6 +4,7 @@ import asyncio
 import os
 
 import pytest
+from pytest import main
 
 from asynctasq.tasks import AsyncProcessTask
 from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
@@ -435,3 +436,7 @@ async def test_async_process_task_calls_get_async_pool():
         assert result == 1
         mock_manager.get_async_pool.assert_called_once()
         mock_pool.submit.assert_called_once()
+
+
+if __name__ == "__main__":
+    main([__file__, "-s", "-m", "unit"])
