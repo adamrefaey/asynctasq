@@ -439,7 +439,7 @@ class Worker:
         Retry decision:
         1. Check if current_attempt < max_attempts (via TaskService.should_retry)
         2. Call task.should_retry(exception) for custom logic
-        3. If both pass: emit task_retrying, increment current_attempt, and re-enqueue
+        3. If both pass: emit task_reenqueue, increment current_attempt, and re-enqueue
         4. If retry exhausted: emit task_failed, call task.failed() and store error
 
         Args:
@@ -466,11 +466,11 @@ class Worker:
             serialized_task = self._task_serializer.serialize(task)
             logger.info(f"Re-enqueuing task {task_id}")
 
-            # Emit task_retrying event
+            # Emit task_reenqueue event
             if self.event_emitter:
                 await self.event_emitter.emit_task_event(
                     TaskEvent(
-                        event_type=EventType.TASK_RETRYING,
+                        event_type=EventType.TASK_REENQUEUE,
                         task_id=task_id,
                         task_name=task.__class__.__name__,
                         queue=queue_name,

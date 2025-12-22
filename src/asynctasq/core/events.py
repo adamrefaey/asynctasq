@@ -9,7 +9,7 @@ Task Events:
     - task_started: Worker began executing the task
     - task_completed: Task finished successfully
     - task_failed: Task failed after exhausting retries
-    - task_retrying: Task failed but will be retried
+    - task_reenqueue: Task failed but will be retried
     - task_cancelled: Task was cancelled/revoked before completion
 
 Worker Events:
@@ -59,7 +59,7 @@ class EventType(str, Enum):
     TASK_STARTED = "task_started"
     TASK_COMPLETED = "task_completed"
     TASK_FAILED = "task_failed"
-    TASK_RETRYING = "task_retrying"
+    TASK_REENQUEUE = "task_reenqueue"
     TASK_CANCELLED = "task_cancelled"
 
     # Worker lifecycle events
