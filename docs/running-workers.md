@@ -191,7 +191,7 @@ Workers can emit real-time events for monitoring via Redis Pub/Sub. This enables
 | `task_started`     | Worker began executing task                |
 | `task_completed`   | Task finished successfully                 |
 | `task_failed`      | Task failed after all retries              |
-| `task_retrying`    | Task failed, will retry                    |
+| `task_reenqueue`    | Task failed, will retry                    |
 | `task_cancelled`   | Task was cancelled/revoked                 |
 | `worker_online`    | Worker started                             |
 | `worker_heartbeat` | Periodic worker status (every 60s default) |
