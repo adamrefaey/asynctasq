@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pytest import main
 
 from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
 
@@ -400,3 +401,7 @@ class TestProcessPoolManagerAdvanced:
         assert stats["sync"]["pool_size"] == 3
         assert stats["async"]["status"] == "initialized"
         assert stats["async"]["pool_size"] == 5
+
+
+if __name__ == "__main__":
+    main([__file__, "-s", "-m", "unit"])

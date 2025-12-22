@@ -124,6 +124,10 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+# Prevent pytest from rewriting third-party async libraries
+# This avoids "Module already imported so cannot be rewritten" warnings
+# when these modules are imported by pytest-asyncio or our event loop fixture
+asyncio_default_fixture_loop_scope = "function"
 addopts = [
     "-s",
     "-v",
@@ -154,6 +158,10 @@ filterwarnings = [
     "ignore:coroutine.*was never awaited:RuntimeWarning:tracemalloc",
     "ignore:coroutine.*was never awaited:RuntimeWarning:re",
     "ignore:coroutine.*was never awaited:RuntimeWarning:argparse",
+    # Filter pytest assertion rewrite warnings for third-party async libraries
+    # anyio is imported by pytest-asyncio before pytest can rewrite it
+    # This is expected behavior and not an issue with our code
+    "ignore:Module already imported so cannot be rewritten.*anyio:pytest.PytestAssertRewriteWarning",
 ]
 
 [tool.coverage.run]

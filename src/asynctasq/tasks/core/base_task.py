@@ -91,8 +91,25 @@ class BaseTask[T](ABC):
 
         # Metadata (managed internally by dispatcher/worker)
         self._task_id: str | None = None
-        self._current_attempt: int = 1
+        # Number of attempts that have already been executed.
+        # Starts at 0; worker will increment to 1 when execution actually starts.
+        self._current_attempt: int = 0
         self._dispatched_at: datetime | None = None
+
+    def mark_attempt_started(self) -> int:
+        """Increment the current attempt counter and return the new value.
+
+        Worker should call this when it begins processing a task. This
+        centralizes attempt incrementing so handlers and drivers don't mutate
+        the counter directly.
+        """
+        self._current_attempt += 1
+        return self._current_attempt
+
+    @property
+    def current_attempt(self) -> int:
+        """Read-only view of the current attempt (0 before first start)."""
+        return self._current_attempt
 
     async def failed(self, exception: Exception) -> None:  # noqa: B027
         """Hook called when task fails after exhausting retries.

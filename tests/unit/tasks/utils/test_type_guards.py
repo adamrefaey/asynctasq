@@ -7,7 +7,7 @@ Testing Strategy:
 - Mock imports to avoid circular dependencies
 """
 
-from pytest import mark
+from pytest import main, mark
 
 from asynctasq.tasks.core.base_task import BaseTask
 from asynctasq.tasks.types.function_task import FunctionTask
@@ -123,3 +123,7 @@ class TestIsFunctionTaskClass:
 
         # Assert
         assert result is False
+
+
+if __name__ == "__main__":
+    main([__file__, "-s", "-m", "unit"])

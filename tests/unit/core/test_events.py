@@ -55,7 +55,7 @@ class TestEventType:
         assert EventType.TASK_STARTED == "task_started"
         assert EventType.TASK_COMPLETED == "task_completed"
         assert EventType.TASK_FAILED == "task_failed"
-        assert EventType.TASK_RETRYING == "task_retrying"
+        assert EventType.TASK_REENQUEUE == "task_reenqueue"
         assert EventType.TASK_CANCELLED == "task_cancelled"
 
     def test_worker_event_types_exist(self) -> None:

@@ -48,7 +48,8 @@ class TestTaskInitialization:
 
         # Assert
         assert task_instance._task_id is None
-        assert task_instance._current_attempt == 1
+        # Default attempt is 0 under the refined semantics
+        assert task_instance._current_attempt == 0
         assert task_instance._dispatched_at is None
 
     def test_init_with_empty_kwargs(self) -> None:
