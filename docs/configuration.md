@@ -1,6 +1,6 @@
 # Configuration
 
-AsyncTasQ uses `Config.set()` and `Config.get()` as the primary configuration interface. Users should not instantiate `Config` directly.
+AsyncTasQ uses the `asynctasq.init()` function as the primary configuration interface. This function initializes both configuration and event emitters.
 
 ## Configuration Functions
 
@@ -9,7 +9,7 @@ AsyncTasQ uses `Config.set()` and `Config.get()` as the primary configuration in
 - [Configuration](#configuration)
   - [Configuration Functions](#configuration-functions)
   - [Table of Contents](#table-of-contents)
-    - [`Config.set(**kwargs)`](#configsetkwargs)
+    - [`asynctasq.init()`](#asynctasqinit)
     - [`Config.get()`](#configget)
   - [Configuration Options](#configuration-options)
     - [Driver Selection](#driver-selection)
@@ -26,16 +26,39 @@ AsyncTasQ uses `Config.set()` and `Config.get()` as the primary configuration in
   - [Best Practices](#best-practices)
   - [Environment-specific configuration example](#environment-specific-configuration-example)
 
-### `Config.set(**kwargs)`
+### `asynctasq.init()`
 
-Set the global configuration for AsyncTasQ. Call this once at application startup before creating tasks or workers.
+Initialize AsyncTasQ with configuration and event emitters. **This function must be called before using any AsyncTasQ functionality.** It is recommended to call it as early as possible in your main script.
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    driver='redis',
-    redis_url='redis://localhost:6379'
+# Initialize with Redis driver
+asynctasq.init({
+    'driver': 'redis',
+    'redis_url': 'redis://localhost:6379'
+})
+```
+
+**Parameters:**
+- `config_overrides` (optional): Configuration overrides as a dictionary
+- `event_emitters` (optional): List of additional event emitters to register
+
+**Example with custom event emitters:**
+```python
+import asynctasq
+from asynctasq.core.events import LoggingEventEmitter
+
+# Create custom emitter
+custom_emitter = LoggingEventEmitter()
+
+# Initialize with config and additional emitters
+asynctasq.init(
+    config_overrides={
+        'driver': 'redis',
+        'redis_url': 'redis://localhost:6379'
+    },
+    event_emitters=[custom_emitter]
 )
 ```
 
@@ -54,7 +77,7 @@ print(config.driver)  # 'redis'
 
 ## Configuration Options
 
-All configuration options are set via keyword arguments to `Config.set()`.
+All configuration options are set via the `config_overrides` parameter of `asynctasq.init()`.
 
 ### Driver Selection
 
@@ -63,9 +86,9 @@ All configuration options are set via keyword arguments to `Config.set()`.
 | `driver` |  str | Queue driver to use | `redis`, `postgres`, `mysql`, `rabbitmq`, `sqs` | `redis` |
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(driver='postgres')
+asynctasq.init({'driver': 'postgres'})
 ```
 
 ---
@@ -82,16 +105,16 @@ Config.set(driver='postgres')
 | `default_visibility_timeout` |         int | Visibility timeout for crash recovery in seconds    | —                      | `300`         |
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    default_queue='high-priority',
-    default_max_attempts=5,
-    default_retry_strategy='exponential',
-    default_retry_delay=120,
-    default_timeout=600,
-    default_visibility_timeout=300
-)
+asynctasq.init({
+    'default_queue': 'high-priority',
+    'default_max_attempts': 5,
+    'default_retry_strategy': 'exponential',
+    'default_retry_delay': 120,
+    'default_timeout': 600,
+    'default_visibility_timeout': 300
+})
 ```
 
 ---
@@ -106,12 +129,12 @@ For CPU-bound tasks using `AsyncProcessTask` or `SyncProcessTask`.
 | `process_pool_max_tasks_per_child` | int \| None | Recycle worker processes after N tasks (recommended: 100–1000) | `None`  |
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    process_pool_size=4,
-    process_pool_max_tasks_per_child=100
-)
+asynctasq.init({
+    'process_pool_size': 4,
+    'process_pool_max_tasks_per_child': 100
+})
 ```
 
 ---
@@ -126,15 +149,15 @@ Config.set(
 | `redis_max_connections` |         int | Maximum connections in Redis pool | `100`                    |
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    driver='redis',
-    redis_url='redis://prod.example.com:6379',
-    redis_password='secure_password',
-    redis_db=1,
-    redis_max_connections=200
-)
+asynctasq.init({
+    'driver': 'redis',
+    'redis_url': 'redis://prod.example.com:6379',
+    'redis_password': 'secure_password',
+    'redis_db': 1,
+    'redis_max_connections': 200
+})
 ```
 
 ---
@@ -151,17 +174,17 @@ Config.set(
 | `postgres_max_pool_size`     |  int | Maximum connection pool size           | `10`                                            |
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    driver='postgres',
-    postgres_dsn='postgresql://user:pass@localhost:5432/mydb',
-    postgres_queue_table='task_queue',
-    postgres_dead_letter_table='dead_letter_queue',
-    postgres_max_attempts=5,
-    postgres_min_pool_size=10,
-    postgres_max_pool_size=50
-)
+asynctasq.init({
+    'driver': 'postgres',
+    'postgres_dsn': 'postgresql://user:pass@localhost:5432/mydb',
+    'postgres_queue_table': 'task_queue',
+    'postgres_dead_letter_table': 'dead_letter_queue',
+    'postgres_max_attempts': 5,
+    'postgres_min_pool_size': 10,
+    'postgres_max_pool_size': 50
+})
 ```
 
 ---
@@ -180,15 +203,15 @@ Config.set(
 ```python
 from asynctasq.config import Config
 
-Config.set(
-    driver='mysql',
-    mysql_dsn='mysql://user:pass@localhost:3306/mydb',
-    mysql_queue_table='task_queue',
-    mysql_dead_letter_table='dead_letter_queue',
-    mysql_max_attempts=5,
-    mysql_min_pool_size=10,
-    mysql_max_pool_size=50
-)
+asynctasq.init({
+    'driver': 'mysql',
+    'mysql_dsn': 'mysql://user:pass@localhost:3306/mydb',
+    'mysql_queue_table': 'task_queue',
+    'mysql_dead_letter_table': 'dead_letter_queue',
+    'mysql_max_attempts': 5,
+    'mysql_min_pool_size': 10,
+    'mysql_max_pool_size': 50
+})
 ```
 
 ---
@@ -204,12 +227,12 @@ Config.set(
 ```python
 from asynctasq.config import Config
 
-Config.set(
-    driver='rabbitmq',
-    rabbitmq_url='amqp://user:pass@localhost:5672/',
-    rabbitmq_exchange_name='my_exchange',
-    rabbitmq_prefetch_count=10
-)
+asynctasq.init({
+    'driver': 'rabbitmq',
+    'rabbitmq_url': 'amqp://user:pass@localhost:5672/',
+    'rabbitmq_exchange_name': 'my_exchange',
+    'rabbitmq_prefetch_count': 10
+})
 ```
 
 ---
@@ -224,15 +247,15 @@ Config.set(
 | `aws_secret_access_key` | str \| None | AWS secret access key (None uses credential chain) | `None`      |
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    driver='sqs',
-    sqs_region='us-west-2',
-    sqs_queue_url_prefix='https://sqs.us-west-2.amazonaws.com/123456789/',
-    aws_access_key_id='your_key',
-    aws_secret_access_key='your_secret'
-)
+asynctasq.init({
+    'driver': 'sqs',
+    'sqs_region': 'us-west-2',
+    'sqs_queue_url_prefix': 'https://sqs.us-west-2.amazonaws.com/123456789/',
+    'aws_access_key_id': 'your_key',
+    'aws_secret_access_key': 'your_secret'
+})
 ```
 
 ---
@@ -250,13 +273,13 @@ For Redis Pub/Sub event monitoring.
 **Note:** When `enable_event_emitter_redis=False`, no events are emitted (zero overhead). When `True`, events like `task_enqueued`, `task_started`, `task_completed`, etc. are emitted for monitoring purposes.
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    enable_event_emitter_redis=True,
-    events_redis_url='redis://events.example.com:6379',
-    events_channel='asynctasq:prod:events'
-)
+asynctasq.init({
+    'enable_event_emitter_redis': True,
+    'events_redis_url': 'redis://events.example.com:6379',
+    'events_channel': 'asynctasq:prod:events'
+})
 ```
 
 ---
@@ -271,10 +294,10 @@ Config.set(
 ```python
 from asynctasq.config import Config
 
-Config.set(
-    task_scan_limit=50000,
-    keep_completed_tasks=True
-)
+asynctasq.init({
+    'task_scan_limit': 50000,
+    'keep_completed_tasks': True
+})
 ```
 
 ---
@@ -282,49 +305,50 @@ Config.set(
 ## Complete Example
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 
 # Production PostgreSQL configuration
-Config.set(
+asynctasq.init({
     # Driver selection
-    driver='postgres',
+    'driver': 'postgres',
 
     # PostgreSQL connection
-    postgres_dsn='postgresql://worker:secure_pass@db.prod.example.com:5432/asynctasq',
-    postgres_queue_table='task_queue',
-    postgres_dead_letter_table='dead_letter_queue',
-    postgres_max_attempts=3,
-    postgres_min_pool_size=10,
-    postgres_max_pool_size=50,
+    'postgres_dsn': 'postgresql://worker:secure_pass@db.prod.example.com:5432/asynctasq',
+    'postgres_queue_table': 'task_queue',
+    'postgres_dead_letter_table': 'dead_letter_queue',
+    'postgres_max_attempts': 3,
+    'postgres_min_pool_size': 10,
+    'postgres_max_pool_size': 50,
 
     # Task defaults
-    default_queue='default',
-    default_max_attempts=3,
-    default_retry_strategy='exponential',
-    default_retry_delay=60,
-    default_timeout=300,
-    default_visibility_timeout=300,
+    'default_queue': 'default',
+    'default_max_attempts': 3,
+    'default_retry_strategy': 'exponential',
+    'default_retry_delay': 60,
+    'default_timeout': 300,
+    'default_visibility_timeout': 300,
 
     # Process pool for CPU-bound tasks
-    process_pool_size=4,
-    process_pool_max_tasks_per_child=100,
+    'process_pool_size': 4,
+    'process_pool_max_tasks_per_child': 100,
 
     # Events monitoring
-    enable_event_emitter_redis=True,
-    events_redis_url='redis://events.prod.example.com:6379',
-    events_channel='asynctasq:prod:events',
+    'enable_event_emitter_redis': True,
+    'events_redis_url': 'redis://events.prod.example.com:6379',
+    'events_channel': 'asynctasq:prod:events',
 
     # Task retention for audit
-    keep_completed_tasks=True,
-    task_scan_limit=50000
-)
+    'keep_completed_tasks': True,
+    'task_scan_limit': 50000
+})
 ```
+
 
 ---
 
 ## Best Practices
 
-1. **Call `Config.set()` once** at application startup before creating tasks or workers
+1. **Call `asynctasq.init()` once** at application startup before creating tasks or workers
 2. **Use different configurations** for different environments (dev, staging, production)
 3. **Store sensitive credentials** securely (secret managers, configuration files, etc.)
 4. **Configure appropriate pool sizes** for database drivers based on your workload
@@ -389,7 +413,7 @@ else:
     raise ValueError(f"Unknown environment: {environment}")
 
 # Apply configuration
-Config.set(**config)
+asynctasq.init(config)
 
 # Notes:
 # - Use secret managers (AWS Secrets Manager, HashiCorp Vault, etc.) for credentials

@@ -41,11 +41,11 @@ uv add asynctasq[redis]
 ```python
 import asyncio
 
-from asynctasq.config import Config
+import asynctasq
 from asynctasq.tasks import task
 
 # 1. Configure AsyncTasQ
-Config.set(driver="redis", redis_url="redis://localhost:6379")
+asynctasq.init(driver="redis", redis_url="redis://localhost:6379")
 
 
 # 2. Define a task
@@ -87,7 +87,7 @@ python -m asynctasq worker
 Comprehensive guides to get you started:
 
 - **[Installation](https://github.com/adamrefaey/asynctasq/blob/main/docs/installation.md)** – Installation instructions for uv and pip
-- **[Configuration](https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md)** – Complete configuration guide with `Config.set()` and `Config.get()`
+- **[Configuration](https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md)** – Complete configuration guide with `asynctasq.init()` and `Config.get()`
 - **[Task Definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md)** – Function-based and class-based tasks
 - **[Queue Drivers](https://github.com/adamrefaey/asynctasq/blob/main/docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
 - **[Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md)** – CLI and programmatic workers
@@ -144,7 +144,7 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 
 - **Elegant, Laravel-inspired API** – Clean, intuitive syntax that feels natural
 - **Full type safety** – Complete type hints, mypy/pyright compatible, Generic `Task[T]` for return type checking
-- **Simple configuration** – Use `Config.set()` and `Config.get()` for all configuration needs
+- **Simple configuration** – Use `asynctasq.init()` and `Config.get()` for all configuration needs
 - **Two task styles** – Choose function-based `@task` decorators or class-based tasks with lifecycle hooks
 - **Fluent method chaining** – Configure tasks expressively: `.delay(60).on_queue("high").retry_after(120).dispatch()`
 - **First-class FastAPI integration** – Lifespan management, automatic connection pooling, native async support
@@ -230,7 +230,7 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 
   - ✅ **Method chaining** for fluent task configuration
 
-  - ✅ **Flexible configuration** – Use `Config.set()` / `Config.get()` for all settings
+  - ✅ **Flexible configuration** – Use `asynctasq.init()` / `Config.get()` for all settings
 
 ---
 
@@ -271,7 +271,7 @@ asynctasq-monitor web
 | **Dead-Letter Queue**   | ✅ Built-in (PostgreSQL/MySQL)                     | ⚠️ Manual setup (RabbitMQ DLX)             |
 | **ACID Guarantees**     | ✅ PostgreSQL/MySQL drivers                        | ❌ Not available                           |
 | **Global Rate Limiting** | ⚠️ Not yet implemented                            | ❌ Not available (per-worker only)         |
-| **Setup Complexity**    | ✅ Simple with `Config.set()`                      | ⚠️ Complex configuration                   |
+| **Setup Complexity**    | ✅ Simple with `asynctasq.init()`                      | ⚠️ Complex configuration                   |
 | **Prefetch Multiplier** | ✅ Sensible default (1)                            | ⚠️ Dangerous default (4x), often causes performance issues |
 | **Learning Curve**      | ✅ Simple, intuitive API                           | ⚠️ Steep learning curve                    |
 | **Maturity**            | ⚠️ Young project (v0.9.x)                          | ✅ 13+ years, battle-tested               |
@@ -435,7 +435,7 @@ asynctasq-monitor web
 10. **Real-time event streaming** – Redis Pub/Sub broadcasts task lifecycle events for monitoring
 11. **Optional monitoring UI** – Beautiful real-time dashboard via [asynctasq-monitor](https://github.com/adamrefaey/asynctasq-monitor)
 12. **Elegant, Laravel-inspired API** – Method chaining (`.delay(60).on_queue("high").dispatch()`) and intuitive task definitions
-13. **Simple configuration** – Use `Config.set()` and `Config.get()` for all configuration needs
+13. **Simple configuration** – Use `asynctasq.init()` and `Config.get()` for all configuration needs
 
 ---
 

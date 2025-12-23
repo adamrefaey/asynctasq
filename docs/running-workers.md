@@ -188,21 +188,17 @@ Workers can emit real-time events for monitoring via Redis Pub/Sub. This enables
 **Enable Event Streaming:**
 
 ```python
+import asynctasq
 from asynctasq.core.events import EventRegistry
 from asynctasq.core.worker import Worker
 from asynctasq.core.driver_factory import DriverFactory
-from asynctasq.config import Config
 
 # Enable monitoring in config
-Config.set(
-    enable_event_emitter_redis=True,  # Required to emit events
-    events_redis_url="redis://localhost:6379",
-    events_channel="asynctasq:events"
-)
-
-# Initialize global event emitters (uses Redis Pub/Sub)
-# When enable_event_emitter_redis=True, emits events; when False, uses no-op emitter
-EventRegistry.init()
+asynctasq.init({
+    'enable_event_emitter_redis': True,  # Required to emit events
+    'events_redis_url': "redis://localhost:6379",
+    'events_channel': "asynctasq:events"
+})
 
 # Create worker with events and process pool for CPU-bound tasks
 config = Config.get()
@@ -227,13 +223,13 @@ finally:
 **Configure Programmatically:**
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    enable_monitoring=True,
-    events_redis_url="redis://localhost:6379",
-    events_channel="asynctasq:events"
-)
+asynctasq.init({
+    'enable_monitoring': True,
+    'events_redis_url': "redis://localhost:6379",
+    'events_channel': "asynctasq:events"
+})
 ```
 
 **Consume Events:**
