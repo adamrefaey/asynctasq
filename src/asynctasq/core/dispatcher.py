@@ -161,8 +161,6 @@ def get_dispatcher(driver: str | BaseDriver | None = None) -> Dispatcher:
         return _dispatchers[driver_key][0]
 
     config = Config.get()
-    if config is None:
-        config = Config()
 
     # Create driver
     if isinstance(driver, str):
