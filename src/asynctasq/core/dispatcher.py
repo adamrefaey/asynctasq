@@ -10,7 +10,7 @@ from asynctasq.serializers import BaseSerializer, MsgpackSerializer
 from asynctasq.tasks.services.serializer import TaskSerializer
 
 from .driver_factory import DriverFactory
-from .events import EventEmitter, EventType, TaskEvent
+from .events import EventRegistry, EventType, TaskEvent
 
 if TYPE_CHECKING:
     from asynctasq.tasks import BaseTask
@@ -34,11 +34,12 @@ class Dispatcher:
         self,
         driver: BaseDriver,
         serializer: BaseSerializer | None = None,
-        event_emitter: EventEmitter | None = None,
+        event_emitter: None = None,
     ) -> None:
         self.driver = driver
         self.serializer = serializer or MsgpackSerializer()
-        self.event_emitter = event_emitter
+        # Dispatcher no longer stores an emitter instance; global emitters are used
+        self.event_emitter = None
         self._driver_cache: dict[str, BaseDriver] = {}  # Cache for driver overrides
         self._task_serializer = TaskSerializer(self.serializer)
 
@@ -110,17 +111,16 @@ class Dispatcher:
         # Enqueue
         await driver.enqueue(target_queue, serialized_task, delay_seconds)
 
-        # Emit task_enqueued event
-        if self.event_emitter:
-            await self.event_emitter.emit_task_event(
-                TaskEvent(
-                    event_type=EventType.TASK_ENQUEUED,
-                    task_id=task_id,
-                    task_name=task.__class__.__name__,
-                    queue=target_queue,
-                    worker_id="dispatcher",  # Not yet assigned to a worker
-                )
+        # Emit task_enqueued event via global emitters
+        await EventRegistry.emit(
+            TaskEvent(
+                event_type=EventType.TASK_ENQUEUED,
+                task_id=task_id,
+                task_name=task.__class__.__name__,
+                queue=target_queue,
+                worker_id="dispatcher",
             )
+        )
 
         logger.info(
             f"Dispatching task {task_id}: {task.__class__.__name__} "
@@ -172,13 +172,11 @@ def get_dispatcher(driver: str | BaseDriver | None = None) -> Dispatcher:
     else:
         driver_instance = driver
 
-    # Create event emitter for monitoring integration
-    from .events import create_event_emitter
+    # Ensure global event emitters are configured
+    EventRegistry.init()
 
-    event_emitter = create_event_emitter()
-
-    # Create dispatcher with event emitter
-    dispatcher = Dispatcher(driver_instance, event_emitter=event_emitter)
+    # Create dispatcher (uses global emission)
+    dispatcher = Dispatcher(driver_instance)
     _dispatchers[driver_key] = (dispatcher, driver_instance)
 
     logger.debug(f"Created dispatcher for driver: {driver_key}")
@@ -196,12 +194,10 @@ async def cleanup():
 
     logger.info(f"Cleaning up {len(_dispatchers)} dispatcher(s)")
 
-    for driver_key, (dispatcher, driver) in _dispatchers.items():
+    for driver_key, (_dispatcher, driver) in _dispatchers.items():
         try:
-            # Close event emitter if present
-            event_emitter = getattr(dispatcher, "event_emitter", None)
-            if event_emitter:
-                await event_emitter.close()
+            # Close global event emitters
+            await EventRegistry.close_all()
             await driver.disconnect()
             logger.debug(f"Successfully cleaned up dispatcher: {driver_key}")
         except Exception as e:

@@ -125,7 +125,6 @@ if __name__ == "__main__":
 | `concurrency`                     | `int`            | `10`    | Maximum concurrent tasks                       |
 | `max_tasks`                       | `int \| None`    | `None`  | Process N tasks then exit (None = run forever) |
 | `serializer`                      | `BaseSerializer` | `MsgpackSerializer` | Custom serializer            |
-| `event_emitter`                   | `EventEmitter`   | `None`  | Event emitter for real-time monitoring         |
 | `worker_id`                       | `str \| None`    | auto    | Custom worker identifier (auto-generated if None) |
 | `heartbeat_interval`              | `float`          | `60.0`  | Seconds between heartbeat events               |
 | `process_pool_size`               | `int \| None`    | `None`  | Process pool size for CPU-bound tasks          |
@@ -191,7 +190,7 @@ Workers can emit real-time events for monitoring via Redis Pub/Sub. This enables
 | `task_started`     | Worker began executing task                |
 | `task_completed`   | Task finished successfully                 |
 | `task_failed`      | Task failed after all retries              |
-| `task_reenqueue`    | Task failed, will retry                    |
+| `task_reenqueued`    | Task failed, will retry                    |
 | `task_cancelled`   | Task was cancelled/revoked                 |
 | `worker_online`    | Worker started                             |
 | `worker_heartbeat` | Periodic worker status (every 60s default) |
@@ -200,14 +199,21 @@ Workers can emit real-time events for monitoring via Redis Pub/Sub. This enables
 **Enable Event Streaming:**
 
 ```python
-from asynctasq.core.events import create_event_emitter
+from asynctasq.core.events import EventRegistry
 from asynctasq.core.worker import Worker
 from asynctasq.core.driver_factory import DriverFactory
 from asynctasq.config import Config
 
-# Create event emitter (uses Redis Pub/Sub)
-# Reads from ASYNCTASQ_EVENTS_REDIS_URL or falls back to ASYNCTASQ_REDIS_URL
-emitter = create_event_emitter()
+# Enable monitoring in config
+Config.set(
+    enable_event_emitter_redis=True,  # Required to emit events
+    events_redis_url="redis://localhost:6379",
+    events_channel="asynctasq:events"
+)
+
+# Initialize global event emitters (uses Redis Pub/Sub)
+# When enable_event_emitter_redis=True, emits events; when False, uses no-op emitter
+EventRegistry.init()
 
 # Create worker with events and process pool for CPU-bound tasks
 config = Config.get()
@@ -216,7 +222,6 @@ driver = DriverFactory.create_from_config(config)
 worker = Worker(
     queue_driver=driver,
     queues=['default'],
-    event_emitter=emitter,
     worker_id="worker-1",              # Custom ID for identification
     heartbeat_interval=60.0,           # Heartbeat every 60 seconds
     process_pool_size=4,               # 4 worker processes for CPU-bound tasks
@@ -233,6 +238,7 @@ finally:
 **Configure via Environment:**
 
 ```bash
+export ASYNCTASQ_ENABLE_MONITORING=true
 export ASYNCTASQ_EVENTS_REDIS_URL=redis://localhost:6379
 export ASYNCTASQ_EVENTS_CHANNEL=asynctasq:events
 ```

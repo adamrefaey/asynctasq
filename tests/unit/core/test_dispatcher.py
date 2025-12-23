@@ -12,7 +12,7 @@ Testing Strategy:
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import ANY, AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 from pytest import main, mark, raises
 
@@ -728,7 +728,7 @@ class TestGetDispatcher:
             assert result == mock_dispatcher
             mock_get_config.assert_called()
             mock_create.assert_called_once_with(mock_config)
-            mock_dispatcher_class.assert_called_once_with(mock_driver, event_emitter=ANY)
+            mock_dispatcher_class.assert_called_once_with(mock_driver)
 
     def test_get_dispatcher_with_string_creates_from_config(self) -> None:
         # Arrange
@@ -750,7 +750,7 @@ class TestGetDispatcher:
             # Assert
             assert result == mock_dispatcher
             mock_create.assert_called_once_with(mock_config, driver_type="redis")
-            mock_dispatcher_class.assert_called_once_with(mock_driver, event_emitter=ANY)
+            mock_dispatcher_class.assert_called_once_with(mock_driver)
 
     def test_get_dispatcher_with_base_driver_instance(self) -> None:
         # Arrange
@@ -764,7 +764,7 @@ class TestGetDispatcher:
 
             # Assert
             assert result == mock_dispatcher
-            mock_dispatcher_class.assert_called_once_with(mock_driver, event_emitter=ANY)
+            mock_dispatcher_class.assert_called_once_with(mock_driver)
 
     def test_get_dispatcher_caches_dispatchers(self) -> None:
         # Arrange - clear cache first
@@ -874,7 +874,7 @@ class TestGetDispatcher:
             # Note: result may be a different mock instance, so check behavior instead
             assert result is not None
             assert isinstance(result, MagicMock)
-            mock_dispatcher_class.assert_called_once_with(mock_driver, event_emitter=ANY)
+            mock_dispatcher_class.assert_called_once_with(mock_driver)
 
     def test_get_dispatcher_caches_by_driver_instance_id(self) -> None:
         # Arrange

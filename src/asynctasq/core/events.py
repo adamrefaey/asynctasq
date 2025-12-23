@@ -9,7 +9,7 @@ Task Events:
     - task_started: Worker began executing the task
     - task_completed: Task finished successfully
     - task_failed: Task failed after exhausting retries
-    - task_reenqueue: Task failed but will be retried
+    - task_reenqueued: Task failed but will be retried
     - task_cancelled: Task was cancelled/revoked before completion
 
 Worker Events:
@@ -21,21 +21,23 @@ Architecture:
     Events flow from workers → Redis Pub/Sub → Monitor → WebSocket → UI
 
 Example:
-    >>> emitter = create_event_emitter(redis_url="redis://localhost:6379")
-    >>> await emitter.emit_task_event(TaskEvent(
-    ...     event_type=EventType.TASK_STARTED,
-    ...     task_id="abc123",
-    ...     task_name="SendEmailTask",
-    ...     queue="default",
-    ...     worker_id="worker-1"
-    ... ))
+    >>> emitters = EventRegistry.init()
+    >>> for emitter in emitters:
+    ...     await emitter.emit_task_event(TaskEvent(
+    ...         event_type=EventType.TASK_STARTED,
+    ...         task_id="abc123",
+    ...         task_name="SendEmailTask",
+    ...         queue="default",
+    ...         worker_id="worker-1"
+    ...     ))
 """
 
+from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 import logging
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
 
 import msgpack
 
@@ -59,7 +61,7 @@ class EventType(str, Enum):
     TASK_STARTED = "task_started"
     TASK_COMPLETED = "task_completed"
     TASK_FAILED = "task_failed"
-    TASK_REENQUEUE = "task_reenqueue"
+    TASK_REENQUEUED = "task_reenqueued"
     TASK_CANCELLED = "task_cancelled"
 
     # Worker lifecycle events
@@ -135,63 +137,54 @@ class WorkerEvent:
     uptime_seconds: int | None = None
 
 
-class EventEmitter(Protocol):
-    """Protocol for event emission - allows multiple implementations.
+class EventEmitter(ABC):
+    """Abstract base class for event emitters.
 
-    Using Protocol (PEP 544) for structural typing instead of ABC,
-    which is more Pythonic and allows duck typing without inheritance.
-
-    Implementations:
-    - LoggingEventEmitter: Logs events (default, no dependencies)
-    - RedisEventEmitter: Publishes to Redis Pub/Sub
-    - CompositeEventEmitter: Combines multiple emitters
+    Concrete implementations must implement an emit method and
+    a close method. Provides static helpers to build emitter instances and
+    to compose them into a single emitter.
     """
 
-    async def emit_task_event(self, event: TaskEvent) -> None:
-        """Emit a task lifecycle event."""
-        ...
+    @abstractmethod
+    async def emit(self, event: TaskEvent | WorkerEvent) -> None:
+        """Emit a task or worker lifecycle event."""
 
-    async def emit_worker_event(self, event: WorkerEvent) -> None:
-        """Emit a worker lifecycle event."""
-        ...
-
+    @abstractmethod
     async def close(self) -> None:
-        """Close any connections."""
-        ...
+        """Close any connections held by the emitter."""
 
 
-class LoggingEventEmitter:
+class LoggingEventEmitter(EventEmitter):
     """Simple event emitter that logs events (default, no dependencies).
 
     This is the default emitter when Redis is not configured. Useful for
     development, debugging, or when monitoring is not required.
     """
 
-    async def emit_task_event(self, event: TaskEvent) -> None:
-        """Log a task event at INFO level."""
-        logger.info(
-            "TaskEvent: %s task=%s queue=%s worker=%s",
-            event.event_type.value,
-            event.task_id,
-            event.queue,
-            event.worker_id,
-        )
-
-    async def emit_worker_event(self, event: WorkerEvent) -> None:
-        """Log a worker event at INFO level."""
-        logger.info(
-            "WorkerEvent: %s worker=%s active=%d processed=%d",
-            event.event_type.value,
-            event.worker_id,
-            event.active,
-            event.processed,
-        )
+    async def emit(self, event: TaskEvent | WorkerEvent) -> None:
+        """Log a task or worker event at INFO level."""
+        if isinstance(event, TaskEvent):
+            logger.info(
+                "TaskEvent: %s task=%s queue=%s worker=%s",
+                event.event_type.value,
+                event.task_id,
+                event.queue,
+                event.worker_id,
+            )
+        else:
+            logger.info(
+                "WorkerEvent: %s worker=%s active=%d processed=%d",
+                event.event_type.value,
+                event.worker_id,
+                event.active,
+                event.processed,
+            )
 
     async def close(self) -> None:
         """No-op for logging emitter."""
 
 
-class RedisEventEmitter:
+class RedisEventEmitter(EventEmitter):
     """Publishes events to Redis Pub/Sub for monitor consumption.
 
     Uses msgpack for efficient serialization (matches existing serializers).
@@ -199,11 +192,11 @@ class RedisEventEmitter:
 
     Configuration:
         The Redis URL for events is read from global config in this order:
-        1. events_redis_url if explicitly set (ASYNCTASQ_EVENTS_REDIS_URL env var)
-        2. Falls back to redis_url (ASYNCTASQ_REDIS_URL env var)
+        1. events_redis_url if explicitly set
+        2. Falls back to redis_url
 
         The Pub/Sub channel is configured via events_channel in global config
-        (ASYNCTASQ_EVENTS_CHANNEL env var, default: asynctasq:events).
+        (default: asynctasq:events).
 
         This allows using a different Redis instance for events/monitoring
         than the one used for the queue driver.
@@ -261,8 +254,8 @@ class RedisEventEmitter:
             raise ValueError("msgpack.packb returned None")
         return result
 
-    async def emit_task_event(self, event: TaskEvent) -> None:
-        """Publish a task event to Redis Pub/Sub."""
+    async def emit(self, event: TaskEvent | WorkerEvent) -> None:
+        """Publish an event to Redis Pub/Sub."""
         await self._ensure_connected()
         assert self._client is not None
 
@@ -270,18 +263,8 @@ class RedisEventEmitter:
             message = self._serialize_event(event)
             await self._client.publish(self.channel, message)
         except Exception as e:
-            logger.warning("Failed to publish task event to Redis: %s", e)
-
-    async def emit_worker_event(self, event: WorkerEvent) -> None:
-        """Publish a worker event to Redis Pub/Sub."""
-        await self._ensure_connected()
-        assert self._client is not None
-
-        try:
-            message = self._serialize_event(event)
-            await self._client.publish(self.channel, message)
-        except Exception as e:
-            logger.warning("Failed to publish worker event to Redis: %s", e)
+            event_type = "task" if isinstance(event, TaskEvent) else "worker"
+            logger.warning("Failed to publish %s event to Redis: %s", event_type, e)
 
     async def close(self) -> None:
         """Close the Redis connection."""
@@ -290,97 +273,59 @@ class RedisEventEmitter:
             self._client = None
 
 
-class CompositeEventEmitter:
-    """Emits events to multiple emitters (e.g., logging + Redis).
+class EventRegistry:
+    """Static registry for `EventEmitter` instances."""
 
-    Useful for maintaining log visibility while also publishing to
-    Redis for the monitoring UI.
+    _emitters: set[EventEmitter] = set()
 
-    Exceptions in individual emitters are caught and logged to prevent
-    one failing emitter from blocking others.
-    """
+    @staticmethod
+    def add(emitter: EventEmitter) -> None:
+        """Register an EventEmitter in the registry (idempotent)."""
+        EventRegistry._emitters.add(emitter)
 
-    def __init__(self, emitters: list[EventEmitter]) -> None:
-        """Initialize with a list of emitters.
+    @staticmethod
+    def get_all() -> set[EventEmitter]:
+        """Return a shallow copy of registered emitters."""
+        return set(EventRegistry._emitters)
 
-        Args:
-            emitters: List of EventEmitter implementations to delegate to
+    @staticmethod
+    async def emit(event: TaskEvent | WorkerEvent) -> None:
+        """Emit the event to all registered emitters.
+
+        Exceptions from individual emitters are logged and do not prevent
+        other emitters from receiving the event.
         """
-        self.emitters = emitters
-
-    async def emit_task_event(self, event: TaskEvent) -> None:
-        """Emit task event to all registered emitters."""
-        for emitter in self.emitters:
+        for emitter in EventRegistry.get_all():
             try:
-                await emitter.emit_task_event(event)
+                await emitter.emit(event)
             except Exception as e:
-                logger.warning("Failed to emit task event via %s: %s", type(emitter).__name__, e)
+                logger.warning("Global emit failed for %s: %s", type(emitter).__name__, e)
 
-    async def emit_worker_event(self, event: WorkerEvent) -> None:
-        """Emit worker event to all registered emitters."""
-        for emitter in self.emitters:
-            try:
-                await emitter.emit_worker_event(event)
-            except Exception as e:
-                logger.warning("Failed to emit worker event via %s: %s", type(emitter).__name__, e)
-
-    async def close(self) -> None:
-        """Close all emitters."""
-        for emitter in self.emitters:
+    @staticmethod
+    async def close_all() -> None:
+        """Close all registered emitters, ignoring exceptions."""
+        for emitter in EventRegistry.get_all():
             try:
                 await emitter.close()
             except Exception as e:
                 logger.warning("Failed to close emitter %s: %s", type(emitter).__name__, e)
 
+    @staticmethod
+    def init() -> None:
+        """Initialize the registry with emitters using config only.
 
-def create_event_emitter(
-    redis_url: str | None = None,
-    channel: str | None = None,
-    *,
-    include_logging: bool = True,
-) -> EventEmitter:
-    """Factory function to create an appropriate event emitter.
+        Initialization rules:
+        - Always include a `LoggingEventEmitter` (first) unless disabled in config.
+        - If `Config.enable_event_emitter_redis` is True, add `RedisEventEmitter`.
+        """
+        EventRegistry._emitters.clear()
+        config = Config.get()
 
-    Creates a Redis emitter if redis package is available, optionally combined
-    with a logging emitter for visibility.
+        # Always include logging emitter as first emitter unless explicitly disabled
+        EventRegistry._emitters.add(LoggingEventEmitter())
 
-    Args:
-        redis_url: Redis URL (defaults to config's events_redis_url, then redis_url)
-        channel: Pub/Sub channel (defaults to config's events_channel)
-        include_logging: Whether to also log events (default True)
+        # Add Redis emitter only if enabled in config
+        if config.enable_event_emitter_redis:
+            from redis.asyncio import Redis as _  # noqa: F401
 
-    Returns:
-        An EventEmitter instance (single or composite)
-
-    Note:
-        To enable Redis event emission for monitor integration:
-        1. Install with monitor extra: pip install asynctasq[monitor]
-        2. Ensure a Redis server is running and accessible
-        3. Configure via Config.set() or environment variables:
-           - events_redis_url / ASYNCTASQ_EVENTS_REDIS_URL (dedicated events Redis)
-           - redis_url / ASYNCTASQ_REDIS_URL (fallback if events_redis_url not set)
-           - events_channel / ASYNCTASQ_EVENTS_CHANNEL (Pub/Sub channel name)
-    """
-    emitters: list[EventEmitter] = []
-
-    # Always add logging emitter if requested
-    if include_logging:
-        emitters.append(LoggingEventEmitter())
-
-    # Try to add Redis emitter if redis package is available
-    try:
-        from redis.asyncio import Redis as _  # noqa: F401
-
-        redis_emitter = RedisEventEmitter(redis_url=redis_url, channel=channel)
-        emitters.append(redis_emitter)
-        logger.debug("Redis event emitter configured for channel: %s", redis_emitter.channel)
-    except ImportError:
-        logger.debug(
-            "Redis package not available. Install asynctasq[monitor] for Redis event emission."
-        )
-
-    if len(emitters) == 0:
-        return LoggingEventEmitter()
-    if len(emitters) == 1:
-        return emitters[0]
-    return CompositeEventEmitter(emitters)
+            EventRegistry._emitters.add(RedisEventEmitter())

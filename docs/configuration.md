@@ -243,13 +243,17 @@ For Redis Pub/Sub event monitoring.
 
 | Option             |        Type | Description                                             | Default            |
 | ------------------ | ----------: | ------------------------------------------------------- | ------------------ |
+| `enable_event_emitter_redis`    |        bool | Enable/disable event emission for monitoring            | `False`            |
 | `events_redis_url` | str \| None | Redis URL for event Pub/Sub (falls back to `redis_url`) | `None`             |
 | `events_channel`   |         str | Redis Pub/Sub channel name                              | `asynctasq:events` |
+
+**Note:** When `enable_event_emitter_redis=False`, no events are emitted (zero overhead). When `True`, events like `task_enqueued`, `task_started`, `task_completed`, etc. are emitted for monitoring purposes.
 
 ```python
 from asynctasq.config import Config
 
 Config.set(
+    enable_event_emitter_redis=True,
     events_redis_url='redis://events.example.com:6379',
     events_channel='asynctasq:prod:events'
 )
@@ -306,6 +310,7 @@ Config.set(
     process_pool_max_tasks_per_child=100,
 
     # Events monitoring
+    enable_event_emitter_redis=True,
     events_redis_url='redis://events.prod.example.com:6379',
     events_channel='asynctasq:prod:events',
 
@@ -363,6 +368,7 @@ Config.set(
     default_retry_delay=int(os.getenv("ASYNCTASQ_RETRY_DELAY", "60")),
     default_timeout=(int(os.getenv("ASYNCTASQ_TIMEOUT")) if os.getenv("ASYNCTASQ_TIMEOUT") else None),
     default_visibility_timeout=int(os.getenv("ASYNCTASQ_VISIBILITY_TIMEOUT", "300")),
+    enable_event_emitter_redis=env_bool("ASYNCTASQ_ENABLE_MONITORING", False),
     keep_completed_tasks=env_bool("ASYNCTASQ_KEEP_COMPLETED_TASKS", False),
 )
 
