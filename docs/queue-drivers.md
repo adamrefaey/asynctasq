@@ -30,15 +30,15 @@ pip install "asynctasq[redis]"
 
 ```python
 # Programmatic configuration
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    driver='redis',
-    redis_url='redis://localhost:6379',
-    redis_password='secret',  # Optional
-    redis_db=0,
-    redis_max_connections=100
-)
+asynctasq.init({
+    'driver': 'redis',
+    'redis_url': 'redis://localhost:6379',
+    'redis_password': 'secret',  # Optional
+    'redis_db': 0,
+    'redis_max_connections': 100
+})
 ```
 
 **Architecture:**
@@ -80,17 +80,17 @@ pip install "asynctasq[postgres]"
 
 ```python
 # Programmatic configuration
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    driver='postgres',
-    postgres_dsn='postgresql://user:pass@localhost:5432/dbname',
-    postgres_queue_table='task_queue',
-    postgres_dead_letter_table='dead_letter_queue',
-    postgres_max_attempts=3,
-    postgres_min_pool_size=10,
-    postgres_max_pool_size=10
-)
+asynctasq.init({
+    'driver': 'postgres',
+    'postgres_dsn': 'postgresql://user:pass@localhost:5432/dbname',
+    'postgres_queue_table': 'task_queue',
+    'postgres_dead_letter_table': 'dead_letter_queue',
+    'postgres_max_attempts': 3,
+    'postgres_min_pool_size': 10,
+    'postgres_max_pool_size': 10
+})
 ```
 
 **Schema Setup:**
@@ -136,17 +136,17 @@ pip install "asynctasq[mysql]"
 
 ```python
 # Programmatic configuration
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    driver='mysql',
-    mysql_dsn='mysql://user:pass@localhost:3306/dbname',
-    mysql_queue_table='task_queue',
-    mysql_dead_letter_table='dead_letter_queue',
-    mysql_max_attempts=3,
-    mysql_min_pool_size=10,
-    mysql_max_pool_size=10
-)
+asynctasq.init({
+    'driver': 'mysql',
+    'mysql_dsn': 'mysql://user:pass@localhost:3306/dbname',
+    'mysql_queue_table': 'task_queue',
+    'mysql_dead_letter_table': 'dead_letter_queue',
+    'mysql_max_attempts': 3,
+    'mysql_min_pool_size': 10,
+    'mysql_max_pool_size': 10
+})
 ```
 
 **Schema Setup:**
@@ -192,15 +192,15 @@ pip install "asynctasq[sqs]"
 
 ```python
 # Programmatic configuration
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    driver='sqs',
-    sqs_region='us-east-1',
-    sqs_queue_url_prefix='https://sqs.us-east-1.amazonaws.com/123456789/',
-    aws_access_key_id='your_access_key',     # Optional (uses AWS credentials chain)
-    aws_secret_access_key='your_secret_key'  # Optional
-)
+asynctasq.init({
+    'driver': 'sqs',
+    'sqs_region': 'us-east-1',
+    'sqs_queue_url_prefix': 'https://sqs.us-east-1.amazonaws.com/123456789/',
+    'aws_access_key_id': 'your_access_key',     # Optional (uses AWS credentials chain)
+    'aws_secret_access_key': 'your_secret_key'  # Optional
+})
 ```
 
 **Queue URLs:** Constructed as `{queue_url_prefix}{queue_name}`
@@ -246,14 +246,14 @@ pip install "asynctasq[rabbitmq]"
 
 ```python
 # Programmatic configuration
-from asynctasq.config import Config
+import asynctasq
 
-Config.set(
-    driver='rabbitmq',
-    rabbitmq_url='amqp://user:pass@localhost:5672/',
-    rabbitmq_exchange_name='asynctasq',
-    rabbitmq_prefetch_count=1
-)
+asynctasq.init({
+    'driver': 'rabbitmq',
+    'rabbitmq_url': 'amqp://user:pass@localhost:5672/',
+    'rabbitmq_exchange_name': 'asynctasq',
+    'rabbitmq_prefetch_count': 1
+})
 ```
 
 **Architecture:**

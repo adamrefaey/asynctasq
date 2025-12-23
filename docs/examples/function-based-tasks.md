@@ -90,12 +90,12 @@ The simplest way to create a task is to add the `@task` decorator to an async fu
 
 ```python
 import asyncio
+import asynctasq
 from asynctasq.tasks import task
-from asynctasq.config import Config
 
 # Configure the queue driver
 # Note: Use 'redis', 'postgres', 'mysql', or 'sqs' for production
-Config.set(driver='redis')
+asynctasq.init({'driver': 'redis'})
 
 # Define a simple task
 @task
@@ -124,10 +124,10 @@ if __name__ == "__main__":
 Synchronous functions are automatically executed in a thread pool, so you can use blocking operations without converting to async:
 
 ```python
+import asynctasq
 from asynctasq.tasks import task
-from asynctasq.config import Config
 
-Config.set(driver='redis')
+asynctasq.init({'driver': 'redis'})
 
 # Synchronous function (automatically runs in thread pool)
 @task
@@ -672,11 +672,11 @@ async def main():
 ### Per-Task Driver Override (String)
 
 ```python
+import asynctasq
 from asynctasq.tasks import task
-from asynctasq.config import Config
 
 # Global config uses redis driver
-Config.set(driver='redis')
+asynctasq.init({'driver': 'redis'})
 
 # This task uses Redis regardless of global config
 @task(queue='critical', driver='redis')
@@ -735,11 +735,11 @@ async def main():
 ### Multiple Drivers in Same Application
 
 ```python
+import asynctasq
 from asynctasq.tasks import task
-from asynctasq.config import Config
 
 # Default driver
-Config.set(driver='redis')
+asynctasq.init({'driver': 'redis'})
 
 # Tasks using different drivers
 @task(queue='redis-queue', driver='redis')
@@ -1319,11 +1319,11 @@ Here's a complete, runnable example demonstrating multiple function-based task p
 ```python
 import asyncio
 import uvloop
+import asynctasq
 from asynctasq.tasks import task
-from asynctasq.config import Config
 
 # Configure (use 'redis' or 'postgres' for production)
-Config.set(driver='redis')
+asynctasq.init({'driver': 'redis'})
 
 # Define tasks with different configurations
 @task(queue='emails', max_attempts=3, retry_delay=60)
@@ -1429,8 +1429,8 @@ Function-based tasks in AsyncTasQ provide a simple, powerful way to convert any 
 1. **Configure your driver:**
 
     ```python
-    from asynctasq.config import Config
-    Config.set(driver='redis')  # or 'postgres', 'mysql', 'sqs'
+    import asynctasq
+    asynctasq.init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs'
     ```
 
 2. **Define a task:**

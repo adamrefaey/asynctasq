@@ -62,12 +62,12 @@ The simplest class-based task extends `Task` and implements the `execute()` meth
 
 ```python
 import asyncio
+import asynctasq
 from asynctasq.tasks import AsyncTask
-from asynctasq.config import Config
 
 # Configure the queue driver
 # Note: Use 'redis', 'postgres', 'mysql', or 'sqs' for production
-Config.set(driver='redis')
+asynctasq.init({'driver': 'redis'})
 
 # Define a simple task class
 class SendNotification(AsyncTask[str]):
@@ -101,10 +101,10 @@ if __name__ == "__main__":
 Tasks accept parameters via `__init__`, which are automatically stored as instance attributes. All parameters passed to `__init__` (except `**kwargs`) should be explicitly assigned to instance attributes:
 
 ```python
+import asynctasq
 from asynctasq.tasks import AsyncTask
-from asynctasq.config import Config
 
-Config.set(driver='redis')
+asynctasq.init({'driver': 'redis'})
 
 class ProcessData(AsyncTask[int]):
     """Process data and return sum."""
@@ -1094,11 +1094,11 @@ async def main():
 ### Per-Task Driver Override (String)
 
 ```python
+import asynctasq
 from asynctasq.tasks import AsyncTask
-from asynctasq.config import Config
 
 # Global config uses redis driver
-Config.set(driver='redis')
+asynctasq.init({'driver': 'redis'})
 
 # This task uses Redis regardless of global config
 class CriticalTask(AsyncTask[None]):
@@ -1171,11 +1171,11 @@ async def main():
 ### Multiple Drivers in Same Application
 
 ```python
+import asynctasq
 from asynctasq.tasks import AsyncTask
-from asynctasq.config import Config
 
 # Default driver
-Config.set(driver='redis')
+asynctasq.init({'driver': 'redis'})
 
 # Tasks using different drivers
 class RedisTask(AsyncTask[None]):
@@ -2013,11 +2013,11 @@ Here's a complete, runnable example demonstrating multiple class-based task patt
 
 ```python
 import asyncio
-from asynctasq.tasks import AsyncTask,
-from asynctasq.config import Config
+import asynctasq
+from asynctasq.tasks import AsyncTask
 
 # Configure (use 'redis' or 'postgres' for production)
-Config.set(driver='redis')
+asynctasq.init({'driver': 'redis'})
 
 # Define tasks with different configurations
 class SendEmail(AsyncTask[str]):
@@ -2166,8 +2166,8 @@ Class-based tasks in AsyncTasQ provide a powerful, flexible way to create reusab
 1. **Configure your driver:**
 
     ```python
-    from asynctasq.config import Config
-    Config.set(driver='redis')  # or 'postgres', 'mysql', 'sqs'
+    import asynctasq
+    asynctasq.init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs'
     ```
 
 2. **Define a task class:**

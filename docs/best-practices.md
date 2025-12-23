@@ -106,26 +106,26 @@ class ProcessPayment(AsyncTask[bool]):
 **Example Production Setup:**
 
 ```python
-from asynctasq.config import Config
+import asynctasq
 from asynctasq.core.worker import Worker
 from asynctasq.core.driver_factory import DriverFactory
 
-# Configure AsyncTasQ programmatically
-Config.set(
-    driver="redis",
-    redis_url="redis://redis-master:6379",
-    redis_password="your-redis-password",
-    default_max_attempts=5,
-    default_retry_delay=120,  # 2 minutes
-    default_timeout=300,      # 5 minutes
+# Initialize AsyncTasQ with configuration
+asynctasq.init({
+    'driver': 'redis',
+    'redis_url': 'redis://redis-master:6379',
+    'redis_password': 'your-redis-password',
+    'default_max_attempts': 5,
+    'default_retry_delay': 120,  # 2 minutes
+    'default_timeout': 300,      # 5 minutes
     # Event streaming for monitoring (asynctasq-monitor)
-    enable_event_emitter_redis=True,
-    events_redis_url="redis://redis-master:6379",
-    events_channel="asynctasq:events",
+    'enable_event_emitter_redis': True,
+    'events_redis_url': 'redis://redis-master:6379',
+    'events_channel': 'asynctasq:events',
     # Process pool configuration (for CPU-bound tasks)
-    process_pool_size=4,
-    process_pool_max_tasks_per_child=100
-)
+    'process_pool_size': 4,
+    'process_pool_max_tasks_per_child': 100
+})
 
 # Create and start multiple worker processes for different priorities
 import asyncio
@@ -184,18 +184,20 @@ from asynctasq.config import Config
 
 # Worker with event streaming enabled
 async def start_worker_with_events():
-    # Enable monitoring in config
-    Config.set(
-        enable_event_emitter_redis=True,  # Required to emit events
-        events_redis_url="redis://localhost:6379",
-        events_channel="asynctasq:events"
-    )
+    # Initialize AsyncTasQ with event streaming enabled
+    asynctasq.init({
+        'enable_event_emitter_redis': True,  # Required to emit events
+        'events_redis_url': 'redis://localhost:6379',
+        'events_channel': 'asynctasq:events'
+    })
+
+    from asynctasq.config import Config
+    from asynctasq.core.driver_factory import DriverFactory
 
     config = Config.get()
     driver = DriverFactory.create_from_config(config)
 
-    # Initialize global event emitters (publishes to Redis Pub/Sub on asynctasq:events channel)
-    EventRegistry.init()  # Uses config.enable_event_emitter_redis
+    from asynctasq.core.worker import Worker
 
     worker = Worker(
         queue_driver=driver,
@@ -207,6 +209,7 @@ async def start_worker_with_events():
     try:
         await worker.start()
     finally:
+        from asynctasq.core.events import EventRegistry
         await EventRegistry.close_all()
         await driver.disconnect()
 
