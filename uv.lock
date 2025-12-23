@@ -309,7 +309,7 @@ wheels = [
 
 [[package]]
 name = "asynctasq"
-version = "0.9.16"
+version = "0.9.17"
 source = { editable = "." }
 dependencies = [
     { name = "msgpack" },
@@ -477,15 +477,15 @@ wheels = [
 
 [[package]]
 name = "boto3-stubs"
-version = "1.42.14"
+version = "1.42.15"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore-stubs" },
     { name = "types-s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/42/2a73afec394eec6350d59c4deb4bda2639f7fc0ca8dfb2a41dcc4115f07e/boto3_stubs-1.42.14.tar.gz", hash = "sha256:b06c4be79348573fa03fc7fbe4bd82ebbc7e1e27cf208c8f5ab7bfcb75f55c05", size = 101097, upload-time = "2025-12-19T20:41:44.497Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/e5/70c21fae52cc4b11ead55dc1384b9a61da15983e50c73310781d247dfbff/boto3_stubs-1.42.15.tar.gz", hash = "sha256:7d4ef2148f247810c769bc69ff94232b8fa97d7330bff2336b4443d55447de4c", size = 101137, upload-time = "2025-12-22T20:41:30.089Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/6a/f325a61d06e664ab1cd904a1813c10f0a29b64a63bf521c574ff840d191d/boto3_stubs-1.42.14-py3-none-any.whl", hash = "sha256:87bbad7f8e3dbd50e11c47f6850084d598934cd5b7ef85af13539a50b54d1202", size = 69888, upload-time = "2025-12-19T20:41:41.611Z" },
+    { url = "https://files.pythonhosted.org/packages/ea/6a/1579f844cd8d589502d527ea58ed8d83d862d990de34e416ab033e303460/boto3_stubs-1.42.15-py3-none-any.whl", hash = "sha256:e6be0f3b7b443f98ef29a6b715c05274fc4656a08613c7df6f8d77eeb32e34f5", size = 69888, upload-time = "2025-12-22T20:41:23.47Z" },
 ]
 
 [package.optional-dependencies]
@@ -515,14 +515,14 @@ wheels = [
 
 [[package]]
 name = "botocore-stubs"
-version = "1.42.14"
+version = "1.42.15"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "types-awscrt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8a/36/1a0f56e6537df74e176cc1843048b25a6273567ab2a5e2b6a8c6c27778e1/botocore_stubs-1.42.14.tar.gz", hash = "sha256:635192fb510e59b6f46843c9893029b8fd387b7089ec72f700063316a67bbb14", size = 42386, upload-time = "2025-12-19T21:24:59.476Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/95/53/32cfe868269e9801d0ed020654ab0d3924b6870c720ede8956536c2b50f3/botocore_stubs-1.42.15.tar.gz", hash = "sha256:f92cec51967135b21fe3e0e36c19451f5c49a2b9043350a7a204220eba61cae6", size = 42396, upload-time = "2025-12-22T21:24:40.688Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/76/ba/89fa39e2aa8b296b8a0b99a3c19d55bf76d3edb5e4711936359d410d18c0/botocore_stubs-1.42.14-py3-none-any.whl", hash = "sha256:e8b8d87b57bb6c9104f02db54b5df12a91aad913305967d017eba25a6aaf8b32", size = 66761, upload-time = "2025-12-19T21:24:58.317Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/91/f715f23e380173e2dd6aa332ceb4ed507ae8eaa2b8aa9996c33a950fee48/botocore_stubs-1.42.15-py3-none-any.whl", hash = "sha256:4139df99bbedf6eb4347a463ff06cfd7cf20f70790662250af814aa6fd5f3132", size = 66762, upload-time = "2025-12-22T21:24:39.014Z" },
 ]
 
 [[package]]
@@ -877,7 +877,7 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.126.0"
+version = "0.127.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -885,9 +885,9 @@ dependencies = [
     { name = "starlette" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/6c/28773e19bc203a2f3cf1d54a8e96ca7d05b58157a350aa4d8d37f2a5ba07/fastapi-0.126.0.tar.gz", hash = "sha256:f099fceb2a6d56dd21c59c4543d00be123dedacff869e76ae31ba3c0f963e2cd", size = 367455, upload-time = "2025-12-20T16:16:44.484Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0c/02/2cbbecf6551e0c1a06f9b9765eb8f7ae126362fbba43babbb11b0e3b7db3/fastapi-0.127.0.tar.gz", hash = "sha256:5a9246e03dcd1fdb19f1396db30894867c1d630f5107dc167dcbc5ed1ea7d259", size = 369269, upload-time = "2025-12-21T16:47:16.393Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/0b/d5f999f27cb90152a6aadf094205b4d0eeab6a6b03e3e60346cde988c1bd/fastapi-0.126.0-py3-none-any.whl", hash = "sha256:c9330b9731e3bd2caae0a00e76353f86adbf592c5a25649a1682f3a92aeaff41", size = 111758, upload-time = "2025-12-20T16:16:42.349Z" },
+    { url = "https://files.pythonhosted.org/packages/8a/fa/6a27e2ef789eb03060abb43b952a7f0bd39e6feaa3805362b48785bcedc5/fastapi-0.127.0-py3-none-any.whl", hash = "sha256:725aa2bb904e2eff8031557cf4b9b77459bfedd63cae8427634744fd199f6a49", size = 112055, upload-time = "2025-12-21T16:47:14.757Z" },
 ]
 
 [[package]]
@@ -1365,11 +1365,11 @@ wheels = [
 
 [[package]]
 name = "mypy-boto3-ec2"
-version = "1.42.13"
+version = "1.42.15"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b1/95/96275dd284214abee702dd11c1b287daa7b40100262c551c9dab56d0cc77/mypy_boto3_ec2-1.42.13.tar.gz", hash = "sha256:d86406842e8fdeb3dda2097372bc51ecddebf3903e206b9ffb7472ee2660d2b8", size = 432747, upload-time = "2025-12-18T20:34:28.013Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/8e/7c4ea0819e76077da7b2498092848650921d3e1de7fb4ae295ad95121661/mypy_boto3_ec2-1.42.15.tar.gz", hash = "sha256:667b48a0ceeeec4a6717324cb1ecd5cf2ed7c2c5f78ba67e17085a540c51d27a", size = 432846, upload-time = "2025-12-22T20:36:33.124Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f4/9a/b7dfb86555091d307564a72000213941a548e8cea0761be948438773c9af/mypy_boto3_ec2-1.42.13-py3-none-any.whl", hash = "sha256:a7e392906fac6a3aeb78edd990f9781de435f437be376bebe9e137a44143f73f", size = 423018, upload-time = "2025-12-18T20:34:22.883Z" },
+    { url = "https://files.pythonhosted.org/packages/76/8a/a60b9bcf7dab16da5bde9e0d57e6f20ff6d594c90f30fa6e8a1926b8777f/mypy_boto3_ec2-1.42.15-py3-none-any.whl", hash = "sha256:f3f535091ea79c57741967c6c154648e24ccbb4aaf18da7ec2bce091fd5be910", size = 423073, upload-time = "2025-12-22T20:36:28.738Z" },
 ]
 
 [[package]]
@@ -1785,11 +1785,11 @@ wheels = [
 
 [[package]]
 name = "pyparsing"
-version = "3.2.5"
+version = "3.3.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f2/a5/181488fc2b9d093e3972d2a472855aae8a03f000592dbfce716a512b3359/pyparsing-3.2.5.tar.gz", hash = "sha256:2df8d5b7b2802ef88e8d016a2eb9c7aeaa923529cd251ed0fe4608275d4105b6", size = 1099274, upload-time = "2025-09-21T04:11:06.277Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/c1/1d9de9aeaa1b89b0186e5fe23294ff6517fce1bc69149185577cd31016b2/pyparsing-3.3.1.tar.gz", hash = "sha256:47fad0f17ac1e2cad3de3b458570fbc9b03560aa029ed5e16ee5554da9a2251c", size = 1550512, upload-time = "2025-12-23T03:14:04.391Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/10/5e/1aa9a93198c6b64513c9d7752de7422c06402de6600a8767da1524f9570b/pyparsing-3.2.5-py3-none-any.whl", hash = "sha256:e38a4f02064cf41fe6593d328d0512495ad1f3d8a91c4f73fc401b3079a59a5e", size = 113890, upload-time = "2025-09-21T04:11:04.117Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/40/2614036cdd416452f5bf98ec037f38a1afb17f327cb8e6b652d4729e0af8/pyparsing-3.3.1-py3-none-any.whl", hash = "sha256:023b5e7e5520ad96642e2c6db4cb683d3970bd640cdf7115049a6e9c3682df82", size = 121793, upload-time = "2025-12-23T03:14:02.103Z" },
 ]
 
 [[package]]
