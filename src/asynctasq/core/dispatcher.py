@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 import logging
 from typing import TYPE_CHECKING, cast
@@ -197,8 +198,9 @@ async def cleanup():
     for driver_key, (_dispatcher, driver) in _dispatchers.items():
         try:
             # Close global event emitters
-            await EventRegistry.close_all()
-            await driver.disconnect()
+            await asyncio.wait_for(EventRegistry.close_all(), timeout=5.0)
+            # Disconnect driver
+            await asyncio.wait_for(driver.disconnect(), timeout=5.0)
             logger.debug(f"Successfully cleaned up dispatcher: {driver_key}")
         except Exception as e:
             logger.exception(f"Error disconnecting driver {driver_key}: {e}")
