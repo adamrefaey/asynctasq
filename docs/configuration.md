@@ -24,7 +24,7 @@ AsyncTasQ uses `Config.set()` and `Config.get()` as the primary configuration in
     - [Task Repository Configuration](#task-repository-configuration)
   - [Complete Example](#complete-example)
   - [Best Practices](#best-practices)
-  - [Environment-driven configuration example](#environment-driven-configuration-example)
+  - [Environment-specific configuration example](#environment-specific-configuration-example)
 
 ### `Config.set(**kwargs)`
 
@@ -326,55 +326,74 @@ Config.set(
 
 1. **Call `Config.set()` once** at application startup before creating tasks or workers
 2. **Use different configurations** for different environments (dev, staging, production)
-3. **Store sensitive credentials** securely (environment variables, secret managers, etc.)
+3. **Store sensitive credentials** securely (secret managers, configuration files, etc.)
 4. **Configure appropriate pool sizes** for database drivers based on your workload
 5. **Set reasonable timeouts** to prevent hung tasks from blocking workers
 6. **Use `keep_completed_tasks=True`** if you need task history for audit/compliance
 
 ---
 
-## Environment-driven configuration example
+## Environment-specific configuration example
 
-This example shows a simple, 12-factor-friendly way to configure AsyncTasQ from
-environment variables. It reads commonly used settings, provides sensible
-defaults, and includes a note about using `python-dotenv` for local
-development.
+This example shows how to configure AsyncTasQ differently for development, staging, and production environments. You can load configuration from any source (files, databases, secret managers, etc.).
 
 ```python
 import os
 from asynctasq.config import Config
 
-# Optional: load a .env file in development (install python-dotenv)
-# from dotenv import load_dotenv
-# load_dotenv()
+# Determine environment
+environment = os.getenv("APP_ENV", "development")
 
-# Helper to read booleans from env
-def env_bool(name: str, default: bool = False) -> bool:
-    val = os.getenv(name)
-    if val is None:
-        return default
-    return val.lower() not in ("0", "false", "no", "off")
+# Base configuration
+base_config = {
+    "default_max_attempts": 3,
+    "default_retry_delay": 60,
+    "default_timeout": 300,
+    "process_pool_size": 4,
+    "process_pool_max_tasks_per_child": 100,
+}
 
-# Read configuration from environment with sensible defaults
-from asynctasq.config import Config
+# Environment-specific overrides
+if environment == "development":
+    config = {
+        **base_config,
+        "driver": "redis",
+        "redis_url": "redis://localhost:6379",
+        "enable_event_emitter_redis": False,
+        "keep_completed_tasks": True,  # Keep tasks for debugging
+    }
+elif environment == "staging":
+    config = {
+        **base_config,
+        "driver": "redis",
+        "redis_url": "redis://staging-redis:6379",
+        "redis_password": "staging-password",  # Load from secrets manager
+        "enable_event_emitter_redis": True,
+        "events_redis_url": "redis://staging-events:6379",
+        "events_channel": "asynctasq:staging:events",
+    }
+elif environment == "production":
+    config = {
+        **base_config,
+        "driver": "redis",
+        "redis_url": "redis://prod-redis-cluster:6379",
+        "redis_password": "prod-password",  # Load from secrets manager
+        "default_max_attempts": 5,
+        "default_retry_delay": 120,
+        "enable_event_emitter_redis": True,
+        "events_redis_url": "redis://prod-events-cluster:6379",
+        "events_channel": "asynctasq:prod:events",
+        "keep_completed_tasks": False,  # Don't keep completed tasks in prod
+    }
+else:
+    raise ValueError(f"Unknown environment: {environment}")
 
-Config.set(
-    driver=os.getenv("ASYNCTASQ_DRIVER", "redis"),
-    redis_url=os.getenv("ASYNCTASQ_REDIS_URL", "redis://localhost:6379"),
-    postgres_dsn=os.getenv("ASYNCTASQ_POSTGRES_DSN"),
-    default_queue=os.getenv("ASYNCTASQ_DEFAULT_QUEUE", "default"),
-    default_max_attempts=int(os.getenv("ASYNCTASQ_MAX_ATTEMPTS", "3")),
-    default_retry_strategy=os.getenv("ASYNCTASQ_RETRY_STRATEGY", "exponential"),
-    default_retry_delay=int(os.getenv("ASYNCTASQ_RETRY_DELAY", "60")),
-    default_timeout=(int(os.getenv("ASYNCTASQ_TIMEOUT")) if os.getenv("ASYNCTASQ_TIMEOUT") else None),
-    default_visibility_timeout=int(os.getenv("ASYNCTASQ_VISIBILITY_TIMEOUT", "300")),
-    enable_event_emitter_redis=env_bool("ASYNCTASQ_ENABLE_MONITORING", False),
-    keep_completed_tasks=env_bool("ASYNCTASQ_KEEP_COMPLETED_TASKS", False),
-)
+# Apply configuration
+Config.set(**config)
 
 # Notes:
-# - Prefer distinct environment variables per deployment (dev/staging/prod).
-# - Use a secrets manager or CI/CD environment injection to provide credentials.
-# - For local development you can store variables in a `.env` file and load it
-#   with `python-dotenv` as shown above.
+# - Use secret managers (AWS Secrets Manager, HashiCorp Vault, etc.) for credentials
+# - Consider using configuration files (YAML, JSON, TOML) for complex setups
+# - Validate configuration at startup to catch issues early
+# - Use different Redis instances for events vs queues in production for better isolation
 ```

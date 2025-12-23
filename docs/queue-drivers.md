@@ -28,15 +28,6 @@ pip install "asynctasq[redis]"
 
 **Configuration:**
 
-```bash
-# Environment variables
-export ASYNCTASQ_DRIVER=redis
-export ASYNCTASQ_REDIS_URL=redis://localhost:6379
-export ASYNCTASQ_REDIS_PASSWORD=secret  # Optional
-export ASYNCTASQ_REDIS_DB=0
-export ASYNCTASQ_REDIS_MAX_CONNECTIONS=100
-```
-
 ```python
 # Programmatic configuration
 from asynctasq.config import Config
@@ -86,17 +77,6 @@ pip install "asynctasq[postgres]"
 ```
 
 **Configuration:**
-
-```bash
-# Environment variables
-export ASYNCTASQ_DRIVER=postgres
-export ASYNCTASQ_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
-export ASYNCTASQ_POSTGRES_QUEUE_TABLE=task_queue
-export ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
-export ASYNCTASQ_POSTGRES_MAX_ATTEMPTS=3
-export ASYNCTASQ_POSTGRES_MIN_POOL_SIZE=10
-export ASYNCTASQ_POSTGRES_MAX_POOL_SIZE=10
-```
 
 ```python
 # Programmatic configuration
@@ -154,17 +134,6 @@ pip install "asynctasq[mysql]"
 
 **Configuration:**
 
-```bash
-# Environment variables
-export ASYNCTASQ_DRIVER=mysql
-export ASYNCTASQ_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
-export ASYNCTASQ_MYSQL_QUEUE_TABLE=task_queue
-export ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
-export ASYNCTASQ_MYSQL_MAX_ATTEMPTS=3
-export ASYNCTASQ_MYSQL_MIN_POOL_SIZE=10
-export ASYNCTASQ_MYSQL_MAX_POOL_SIZE=10
-```
-
 ```python
 # Programmatic configuration
 from asynctasq.config import Config
@@ -221,15 +190,6 @@ pip install "asynctasq[sqs]"
 
 **Configuration:**
 
-```bash
-# Environment variables
-export ASYNCTASQ_DRIVER=sqs
-export ASYNCTASQ_SQS_REGION=us-east-1
-export ASYNCTASQ_SQS_QUEUE_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
-export AWS_ACCESS_KEY_ID=your_access_key
-export AWS_SECRET_ACCESS_KEY=your_secret_key
-```
-
 ```python
 # Programmatic configuration
 from asynctasq.config import Config
@@ -283,14 +243,6 @@ pip install "asynctasq[rabbitmq]"
 ```
 
 **Configuration:**
-
-```bash
-# Environment variables
-export ASYNCTASQ_DRIVER=rabbitmq
-export ASYNCTASQ_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-export ASYNCTASQ_RABBITMQ_EXCHANGE_NAME=asynctasq
-export ASYNCTASQ_RABBITMQ_PREFETCH_COUNT=1
-```
 
 ```python
 # Programmatic configuration
