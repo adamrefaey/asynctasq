@@ -14,38 +14,96 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 
 ## Table of Contents
 
-- [AsyncTasQ](#asynctasq)
-  - [Table of Contents](#table-of-contents)
-  - [Why AsyncTasQ?](#why-asynctasq)
-    - [True Async-First Architecture](#true-async-first-architecture)
-    - [Intelligent Serialization \& ORM Integration](#intelligent-serialization--orm-integration)
-    - [Enterprise-Grade Reliability](#enterprise-grade-reliability)
-    - [Developer Experience That Just Works](#developer-experience-that-just-works)
-    - [Multi-Driver Flexibility Without Vendor Lock-In](#multi-driver-flexibility-without-vendor-lock-in)
-  - [Key Features](#key-features)
-    - [Core Capabilities](#core-capabilities)
-    - [Enterprise Features](#enterprise-features)
-    - [Integrations](#integrations)
-    - [Developer Tools](#developer-tools)
-  - [Quick Start](#quick-start)
-  - [Quick Reference](#quick-reference)
-  - [CI \& Contributing (short)](#ci--contributing-short)
-  - [Comparison with Alternatives](#comparison-with-alternatives)
-    - [AsyncTasQ vs. Celery](#asynctasq-vs-celery)
-    - [AsyncTasQ vs. Dramatiq](#asynctasq-vs-dramatiq)
-    - [AsyncTasQ vs. ARQ (Async Redis Queue)](#asynctasq-vs-arq-async-redis-queue)
-    - [AsyncTasQ vs. RQ (Redis Queue)](#asynctasq-vs-rq-redis-queue)
-    - [AsyncTasQ vs. Huey](#asynctasq-vs-huey)
-    - [Key Differentiators](#key-differentiators)
-  - [📊 Monitoring Dashboard](#-monitoring-dashboard)
-    - [asynctasq-monitor](#asynctasq-monitor)
-  - [Documentation](#documentation)
-  - [Examples](#examples)
-  - [Contributing](#contributing)
-  - [License](#license)
-  - [Support](#support)
-  - [Roadmap](#roadmap)
-  - [Credits](#credits)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Examples](#examples)
+- [Why AsyncTasQ?](#why-asynctasq)
+- [Key Features](#key-features)
+- [Monitoring Dashboard](#-monitoring-dashboard)
+- [Comparison with Alternatives](#comparison-with-alternatives)
+- [Quick Reference](#quick-reference)
+- [Contributing](#contributing)
+- [License](#license)
+- [Support](#support)
+- [Roadmap](#roadmap)
+
+---
+
+## Quick Start
+
+Get started in 60 seconds:
+
+```bash
+# Install AsyncTasQ (Python 3.12+ required)
+uv add asynctasq[redis]
+```
+
+```python
+import asyncio
+
+from asynctasq.config import Config
+from asynctasq.tasks import task
+
+# 1. Configure AsyncTasQ
+Config.set(driver="redis", redis_url="redis://localhost:6379")
+
+
+# 2. Define a task
+@task
+async def send_email(to: str, subject: str, body: str):
+    print(f"Sending email to {to}: {subject}")
+    await asyncio.sleep(1)  # Simulate email sending
+    return f"Email sent to {to}"
+
+
+# 3. Dispatch the task
+async def main():
+    for i in range(10):
+        task_id = await send_email(
+            to=f"user{i}@example.com", subject=f"Welcome {i}!", body="Welcome to our platform!"
+        ).dispatch()
+        print(f"Task dispatched: {task_id}")
+
+
+if __name__ == "__main__":
+    # Note: this uses uvloop (via asynctasq.utils.loop.run) for best performance
+    from asynctasq.utils.loop import run as uv_run
+
+    uv_run(main())
+
+```
+
+```bash
+# Run the worker (in a separate terminal)
+python -m asynctasq worker
+```
+
+**That's it!** Your first AsyncTasQ is ready. Now let's explore the powerful features.
+
+---
+
+## Documentation
+
+Comprehensive guides to get you started:
+
+- **[Installation](https://github.com/adamrefaey/asynctasq/blob/main/docs/installation.md)** – Installation instructions for uv and pip
+- **[Configuration](https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md)** – Complete configuration guide with `Config.set()` and `Config.get()`
+- **[Task Definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md)** – Function-based and class-based tasks
+- **[Queue Drivers](https://github.com/adamrefaey/asynctasq/blob/main/docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
+- **[Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md)** – CLI and programmatic workers
+- **[ORM Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/orm-integrations.md)** – SQLAlchemy, Django, Tortoise ORM
+- **[Framework Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/framework-integrations.md)** – FastAPI integration
+- **[CLI Reference](https://github.com/adamrefaey/asynctasq/blob/main/docs/cli-reference.md)** – Complete command reference
+- **[Best Practices](https://github.com/adamrefaey/asynctasq/blob/main/docs/best-practices.md)** – Task design, queue organization, production deployment
+
+---
+
+## Examples
+
+Complete code examples:
+
+- **[Function-Based Tasks Examples](https://github.com/adamrefaey/asynctasq/blob/main/docs/examples/function-based-tasks.md)** – Decorators, configuration, and best practices
+- **[Class-Based Tasks Examples](https://github.com/adamrefaey/asynctasq/blob/main/docs/examples/class-based-tasks.md)** – AsyncTask, SyncTask, ProcessTask variants
 
 ---
 
@@ -60,7 +118,7 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 - **High-performance concurrency** – Process hundreds of tasks concurrently with minimal overhead using asyncio's efficient task scheduling
 - **Smart connection pooling** – All drivers use connection pools optimized for async operations
 - **Non-blocking by design** – Worker polling, task execution, and all I/O operations are truly non-blocking
- - **uvloop-powered event loop** – AsyncTasQ prefers `uvloop` for production workloads; the project provides a small helper (`asynctasq.utils.loop.run`) that creates and runs a uvloop-based event loop for CLI and short-lived run paths.
+- **uvloop-powered event loop** – AsyncTasQ prefers `uvloop` for production workloads; the project provides a small helper (`asynctasq.utils.loop.run`) that creates and runs a uvloop-based event loop for CLI and short-lived run paths.
 
 ### Intelligent Serialization & ORM Integration
 
@@ -86,7 +144,7 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 
 - **Elegant, Laravel-inspired API** – Clean, intuitive syntax that feels natural
 - **Full type safety** – Complete type hints, mypy/pyright compatible, Generic `Task[T]` for return type checking
-- **Zero configuration** – Works with environment variables out of the box, sensible defaults everywhere
+- **Simple configuration** – Use `Config.set()` and `Config.get()` for all configuration needs
 - **Two task styles** – Choose function-based `@task` decorators or class-based tasks with lifecycle hooks
 - **Fluent method chaining** – Configure tasks expressively: `.delay(60).on_queue("high").retry_after(120).dispatch()`
 - **First-class FastAPI integration** – Lifespan management, automatic connection pooling, native async support
@@ -172,80 +230,31 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 
   - ✅ **Method chaining** for fluent task configuration
 
-  - ✅ **Environment variable configuration** for 12-factor apps
+  - ✅ **Flexible configuration** – Use `Config.set()` / `Config.get()` for all settings
 
 ---
 
-## Quick Start
+## 📊 Monitoring Dashboard
 
-Get started in 60 seconds:
+### [asynctasq-monitor](https://github.com/adamrefaey/asynctasq-monitor)
 
-```bash
-# Install AsyncTasQ (Python 3.12+ required)
-uv add asynctasq[redis]
-```
+A beautiful **real-time monitoring dashboard** for AsyncTasQ:
 
-```python
-import asyncio
-
-from asynctasq.config import set_global_config
-from asynctasq.tasks import task
-
-# 1. Configure (or use environment variables)
-set_global_config(driver="redis", redis_url="redis://localhost:6379")
-
-
-# 2. Define a task
-@task
-async def send_email(to: str, subject: str, body: str):
-    print(f"Sending email to {to}: {subject}")
-    await asyncio.sleep(1)  # Simulate email sending
-    return f"Email sent to {to}"
-
-
-# 3. Dispatch the task
-async def main():
-    for i in range(10):
-        task_id = await send_email(
-            to=f"user{i}@example.com", subject=f"Welcome {i}!", body="Welcome to our platform!"
-        ).dispatch()
-        print(f"Task dispatched: {task_id}")
-
-
-if __name__ == "__main__":
-  # Note: this uses uvloop (via asynctasq.utils.loop.run) for best performance
-  from asynctasq.utils.loop import run as uv_run
-
-  uv_run(main())
-
-```
+- 📈 **Live Dashboard** – Real-time task metrics, queue depths, and worker status
+- 📊 **Task Analytics** – Execution times, success/failure rates, retry patterns
+- 🔍 **Task Explorer** – Browse, search, and inspect task details
+- 👷 **Worker Management** – Monitor worker health and performance
+- 🚨 **Alerts** – Get notified about failures and queue backlogs
 
 ```bash
-# Run the worker (in a separate terminal)
-python -m asynctasq worker
-```
+# Install the monitoring package
+uv add asynctasq-monitor
 
-**That's it!** Your first AsyncTasQ is ready. Now let's explore the powerful features.
+# Start the monitoring server
+asynctasq-monitor web
+```
 
 ---
-
-## Quick Reference
-
-- **One-line setup:** `just init` — install deps and pre-commit hooks
-- **Start services:** `just services-up` — Redis, PostgreSQL, MySQL, RabbitMQ, LocalStack (SQS) for local integration tests
-- **Run tests:** `just test` (or `pytest`) — use `just test-unit` / `just test-integration` to scope
-- **Run with coverage:** `just test-cov` or `pytest --cov=src/asynctasq --cov-report=html`
-- **Run the worker locally:** `python -m asynctasq worker`
-- **Pre-commit hooks:** [`./setup-pre-commit.sh`](https://github.com/adamrefaey/asynctasq/blob/main/setup-pre-commit.sh) or `just setup-hooks`
-- **Format / lint / typecheck:** `just format`, `just lint`, `just typecheck`
-
-## CI & Contributing (short)
-
-- **CI runs on PRs and pushes to `main`** and includes lint, type checks and tests across Python 3.12–3.14.
-- **Pre-commit hooks** enforce formatting and static checks locally before commits (see [`./setup-pre-commit.sh`](https://github.com/adamrefaey/asynctasq/blob/main/setup-pre-commit.sh)).
-- **Branch protection:** enable required status checks (CI success, lint, unit/integration jobs) for `main`.
-- **Coverage badge:** the repository updates `.github/coverage.svg` automatically via `.github/workflows/coverage-badge.yml`.
-- **Run full CI locally:** `just ci` (runs format/lint/typecheck/tests like the workflow).
 
 ## Comparison with Alternatives
 
@@ -262,7 +271,7 @@ python -m asynctasq worker
 | **Dead-Letter Queue**   | ✅ Built-in (PostgreSQL/MySQL)                     | ⚠️ Manual setup (RabbitMQ DLX)             |
 | **ACID Guarantees**     | ✅ PostgreSQL/MySQL drivers                        | ❌ Not available                           |
 | **Global Rate Limiting** | ⚠️ Not yet implemented                            | ❌ Not available (per-worker only)         |
-| **Setup Complexity**    | ✅ Zero-config with env vars                       | ⚠️ Complex configuration                   |
+| **Setup Complexity**    | ✅ Simple with `Config.set()`                      | ⚠️ Complex configuration                   |
 | **Prefetch Multiplier** | ✅ Sensible default (1)                            | ⚠️ Dangerous default (4x), often causes performance issues |
 | **Learning Curve**      | ✅ Simple, intuitive API                           | ⚠️ Steep learning curve                    |
 | **Maturity**            | ⚠️ Young project (v0.9.x)                          | ✅ 13+ years, battle-tested               |
@@ -426,54 +435,27 @@ python -m asynctasq worker
 10. **Real-time event streaming** – Redis Pub/Sub broadcasts task lifecycle events for monitoring
 11. **Optional monitoring UI** – Beautiful real-time dashboard via [asynctasq-monitor](https://github.com/adamrefaey/asynctasq-monitor)
 12. **Elegant, Laravel-inspired API** – Method chaining (`.delay(60).on_queue("high").dispatch()`) and intuitive task definitions
-13. **Zero configuration** – Works with environment variables out of the box, sensible defaults everywhere
+13. **Simple configuration** – Use `Config.set()` and `Config.get()` for all configuration needs
 
 ---
 
-## 📊 Monitoring Dashboard
+## Quick Reference
 
-### [asynctasq-monitor](https://github.com/adamrefaey/asynctasq-monitor)
+- **One-line setup:** `just init` — install deps and pre-commit hooks
+- **Start services:** `just services-up` — Redis, PostgreSQL, MySQL, RabbitMQ, LocalStack (SQS) for local integration tests
+- **Run tests:** `just test` (or `pytest`) — use `just test-unit` / `just test-integration` to scope
+- **Run with coverage:** `just test-cov` or `pytest --cov=src/asynctasq --cov-report=html`
+- **Run the worker locally:** `python -m asynctasq worker`
+- **Pre-commit hooks:** [`./setup-pre-commit.sh`](https://github.com/adamrefaey/asynctasq/blob/main/setup-pre-commit.sh) or `just setup-hooks`
+- **Format / lint / typecheck:** `just format`, `just lint`, `just typecheck`
 
-A beautiful **real-time monitoring dashboard** for AsyncTasQ:
+## CI & Contributing (short)
 
-- 📈 **Live Dashboard** – Real-time task metrics, queue depths, and worker status
-- 📊 **Task Analytics** – Execution times, success/failure rates, retry patterns
-- 🔍 **Task Explorer** – Browse, search, and inspect task details
-- 👷 **Worker Management** – Monitor worker health and performance
-- 🚨 **Alerts** – Get notified about failures and queue backlogs
-
-```bash
-# Install the monitoring package
-uv add asynctasq-monitor
-
-# Start the monitoring server
-asynctasq-monitor web
-```
-
----
-
-## Documentation
-
-For detailed documentation, see the following guides:
-
-- **[Installation](https://github.com/adamrefaey/asynctasq/blob/main/docs/installation.md)** – Installation instructions for uv and pip
-- **[Queue Drivers](https://github.com/adamrefaey/asynctasq/blob/main/docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
-- **[ORM Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/orm-integrations.md)** – SQLAlchemy, Django, Tortoise ORM
-- **[Framework Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/framework-integrations.md)** – FastAPI integration
-- **[Task Definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md)** – Function-based and class-based tasks
-- **[Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md)** – CLI and programmatic workers
-- **[Configuration](https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md)** – Environment variables, programmatic, CLI
-- **[CLI Reference](https://github.com/adamrefaey/asynctasq/blob/main/docs/cli-reference.md)** – Complete command reference
-- **[Best Practices](https://github.com/adamrefaey/asynctasq/blob/main/docs/best-practices.md)** – Task design, queue organization, production deployment
-
----
-
-## Examples
-
-For complete examples, see the following guides:
-
-- **[Function-Based Tasks Examples](https://github.com/adamrefaey/asynctasq/blob/main/docs/examples/function-based-tasks.md)** – Complete examples guide
-- **[Class-Based Tasks Examples](https://github.com/adamrefaey/asynctasq/blob/main/docs/examples/class-based-tasks.md)** – Complete examples guide
+- **CI runs on PRs and pushes to `main`** and includes lint, type checks and tests across Python 3.12–3.14.
+- **Pre-commit hooks** enforce formatting and static checks locally before commits (see [`./setup-pre-commit.sh`](https://github.com/adamrefaey/asynctasq/blob/main/setup-pre-commit.sh)).
+- **Branch protection:** enable required status checks (CI success, lint, unit/integration jobs) for `main`.
+- **Coverage badge:** the repository updates `.github/coverage.svg` automatically via `.github/workflows/coverage-badge.yml`.
+- **Run full CI locally:** `just ci` (runs format/lint/typecheck/tests like the workflow).
 
 ---
 
