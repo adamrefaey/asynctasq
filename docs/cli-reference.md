@@ -126,10 +126,6 @@ asynctasq migrate \
     --driver mysql \
     --mysql-dsn mysql://user:pass@localhost:3306/db
 
-# Using environment variables
-export ASYNCTASQ_POSTGRES_DSN=postgresql://user:pass@localhost/db
-asynctasq migrate
-
 # With uv
 uv run asynctasq migrate --driver postgres --postgres-dsn postgresql://user:pass@localhost/db
 ```

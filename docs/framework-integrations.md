@@ -27,9 +27,10 @@ from asynctasq.tasks import task
 from asynctasq.core.dispatcher import Dispatcher
 from asynctasq.drivers.base_driver import BaseDriver
 
-# Auto-configure from environment variables
-# ASYNCTASQ_DRIVER=redis
-# ASYNCTASQ_REDIS_URL=redis://localhost:6379
+# Configure programmatically
+from asynctasq.config import Config
+Config.set(driver="redis", redis_url="redis://localhost:6379")
+
 asynctasq = AsyncTaskIntegration()
 
 # Create FastAPI app with asynctasq lifespan

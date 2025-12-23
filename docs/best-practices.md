@@ -105,27 +105,58 @@ class ProcessPayment(AsyncTask[bool]):
 
 **Example Production Setup:**
 
-```bash
-# Environment variables in production
-export ASYNCTASQ_DRIVER=redis
-export ASYNCTASQ_REDIS_URL=redis://redis-master:6379
-export ASYNCTASQ_REDIS_PASSWORD=${REDIS_PASSWORD}
-export ASYNCTASQ_DEFAULT_MAX_ATTEMPTS=5
-export ASYNCTASQ_DEFAULT_RETRY_DELAY=120  # 2 minutes
-export ASYNCTASQ_DEFAULT_TIMEOUT=300      # 5 minutes
+```python
+from asynctasq.config import Config
+from asynctasq.core.worker import Worker
+from asynctasq.core.driver_factory import DriverFactory
 
-# Event streaming for monitoring (asynctasq-monitor)
-export ASYNCTASQ_EVENTS_REDIS_URL=redis://redis-master:6379
-export ASYNCTASQ_EVENTS_CHANNEL=asynctasq:events
+# Configure AsyncTasQ programmatically
+Config.set(
+    driver="redis",
+    redis_url="redis://redis-master:6379",
+    redis_password="your-redis-password",
+    default_max_attempts=5,
+    default_retry_delay=120,  # 2 minutes
+    default_timeout=300,      # 5 minutes
+    # Event streaming for monitoring (asynctasq-monitor)
+    enable_event_emitter_redis=True,
+    events_redis_url="redis://redis-master:6379",
+    events_channel="asynctasq:events",
+    # Process pool configuration (for CPU-bound tasks)
+    process_pool_size=4,
+    process_pool_max_tasks_per_child=100
+)
 
-# Process pool configuration (for CPU-bound tasks)
-export ASYNCTASQ_PROCESS_POOL_SIZE=4
-export ASYNCTASQ_PROCESS_POOL_MAX_TASKS_PER_CHILD=100
+# Create and start multiple worker processes for different priorities
+import asyncio
+import multiprocessing
 
-# Multiple worker processes for different priorities
-python -m asynctasq worker --queues critical --concurrency 20 &
-python -m asynctasq worker --queues default --concurrency 10 &
-python -m asynctasq worker --queues low-priority --concurrency 5 &
+async def run_worker(queues, concurrency):
+    config = Config.get()
+    driver = DriverFactory.create_from_config(config)
+
+    worker = Worker(
+        queue_driver=driver,
+        queues=queues,
+        concurrency=concurrency
+    )
+
+    await worker.start()
+
+def start_worker_process(queues, concurrency):
+    asyncio.run(run_worker(queues, concurrency))
+
+# Start multiple worker processes
+processes = [
+    multiprocessing.Process(target=start_worker_process, args=(["critical"], 20)),
+    multiprocessing.Process(target=start_worker_process, args=(["default"], 10)),
+    multiprocessing.Process(target=start_worker_process, args=(["low-priority"], 5)),
+]
+
+for p in processes:
+    p.start()
+for p in processes:
+    p.join()
 ```
 
 ## Monitoring

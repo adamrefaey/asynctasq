@@ -53,17 +53,6 @@ python -m asynctasq worker \
 python -m asynctasq worker --queues high,default,low --concurrency 20
 ```
 
-**Environment Variables:**
-
-```bash
-# Set environment variables
-export ASYNCTASQ_DRIVER=redis
-export ASYNCTASQ_REDIS_URL=redis://localhost:6379
-
-# Start worker (reads from env vars)
-python -m asynctasq worker
-```
-
 **Worker Options:**
 
 | Option          | Description                                  | Default   |
@@ -235,12 +224,16 @@ finally:
     await driver.disconnect()
 ```
 
-**Configure via Environment:**
+**Configure Programmatically:**
 
-```bash
-export ASYNCTASQ_ENABLE_MONITORING=true
-export ASYNCTASQ_EVENTS_REDIS_URL=redis://localhost:6379
-export ASYNCTASQ_EVENTS_CHANNEL=asynctasq:events
+```python
+from asynctasq.config import Config
+
+Config.set(
+    enable_monitoring=True,
+    events_redis_url="redis://localhost:6379",
+    events_channel="asynctasq:events"
+)
 ```
 
 **Consume Events:**
