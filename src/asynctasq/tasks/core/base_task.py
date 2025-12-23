@@ -255,12 +255,26 @@ class BaseTask[T](ABC):
     async def dispatch(self) -> str:
         """Dispatch task to queue backend for asynchronous execution.
 
+        This method takes NO arguments. Task configuration (queue, delays, retries)
+        must be set via method chaining (.on_queue(), .delay(), .retry_after())
+        before calling dispatch().
+
         Serializes task and submits to configured queue backend for processing by a worker.
 
         Returns
         -------
         str
             Unique task identifier (UUID)
+
+        Example
+        -------
+        ```python
+        # Class-based task
+        task_id = await MyTask(x=5).delay(60).on_queue("custom").dispatch()
+
+        # Function-based task
+        task_id = await my_task(x=5).delay(60).on_queue("custom").dispatch()
+        ```
         """
         from asynctasq.core.dispatcher import get_dispatcher
 
