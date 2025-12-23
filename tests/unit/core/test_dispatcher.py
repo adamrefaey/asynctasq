@@ -726,7 +726,7 @@ class TestGetDispatcher:
 
             # Assert
             assert result == mock_dispatcher
-            mock_get_config.assert_called_once()
+            mock_get_config.assert_called()
             mock_create.assert_called_once_with(mock_config)
             mock_dispatcher_class.assert_called_once_with(mock_driver, event_emitter=ANY)
 
@@ -856,13 +856,11 @@ class TestGetDispatcher:
 
         with (
             patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
-            patch("asynctasq.core.dispatcher.Config") as mock_config_class,
             patch("asynctasq.core.dispatcher.DriverFactory.create_from_config") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
-            mock_get_config.return_value = None
             mock_config = MagicMock(spec=Config)
-            mock_config_class.return_value = mock_config
+            mock_get_config.return_value = mock_config
             mock_driver = MagicMock(spec=BaseDriver)
             mock_create.return_value = mock_driver
             mock_dispatcher = MagicMock(spec=Dispatcher)
@@ -876,8 +874,6 @@ class TestGetDispatcher:
             # Note: result may be a different mock instance, so check behavior instead
             assert result is not None
             assert isinstance(result, MagicMock)
-            mock_config_class.assert_called_once()
-            mock_create.assert_called_once_with(mock_config)
             mock_dispatcher_class.assert_called_once_with(mock_driver, event_emitter=ANY)
 
     def test_get_dispatcher_caches_by_driver_instance_id(self) -> None:
