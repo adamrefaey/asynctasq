@@ -150,8 +150,14 @@ class FunctionTask[T](BaseTask[T]):
 class TaskFunctionWrapper[T]:
     """Wrapper that makes function-based tasks behave like class-based tasks.
 
-    Provides both convenience dispatch method and call-based instantiation
-    for method chaining, supporting both sync and async functions.
+    When called, creates a FunctionTask instance that can be configured via
+    method chaining (.on_queue(), .delay(), .retry_after()) before calling
+    .dispatch() with NO arguments.
+
+    The API is consistent with class-based tasks:
+    - Call the function with its arguments to create a task instance
+    - Configure the instance using method chaining (optional)
+    - Call .dispatch() with NO arguments to queue the task
     """
 
     def __init__(self, func: Callable[..., T]) -> None:
@@ -244,7 +250,7 @@ class TaskFunction[T](Protocol):
         """Create task instance for configuration chaining.
 
         Returns:
-            FunctionTask instance which has .dispatch() method from BaseTask
+            FunctionTask instance for method chaining
         """
         ...
 
@@ -284,6 +290,9 @@ def task[T](
 ) -> TaskFunction[T] | Callable[[Callable[..., T]], TaskFunction[T]]:
     """Decorator to mark function as task.
 
+    The decorated function becomes callable and returns a FunctionTask instance
+    that can be configured via method chaining before dispatch.
+
     Args:
         queue: Queue name (default: "default")
         max_attempts: Max attempt count (default: 3)
@@ -293,7 +302,8 @@ def task[T](
         process: Use process pool for CPU-bound work (default: False)
 
     Returns:
-        Decorated function with dispatch() method
+        Decorated function that creates FunctionTask instances when called.
+        Call the function with args, then call .dispatch() with NO arguments.
 
     Example:
         ```python
@@ -301,9 +311,18 @@ def task[T](
         async def process_data(data: str) -> str:
             return data.upper()
 
+        # Dispatch - note that dispatch() takes NO arguments
+        task_id = await process_data("hello").dispatch()
+
+        # With method chaining
+        task_id = await process_data("hello").delay(60).dispatch()
+
         @task(queue="emails", process=True)
         def heavy_computation(x: int) -> int:
             return sum(range(x))
+
+        # dispatch() never takes arguments - configure via chaining
+        task_id = await heavy_computation(1000).on_queue("cpu").dispatch()
         ```
     """
 
