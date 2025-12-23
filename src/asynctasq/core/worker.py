@@ -24,47 +24,34 @@ logger = logging.getLogger(__name__)
 
 
 class Worker:
-    """Worker process that consumes and executes tasks from queues.
+    """Asynchronous worker for consuming and executing tasks from queue backends.
 
-    The worker continuously polls configured queues for tasks and executes them
-    asynchronously with respect to the concurrency limit. Supports graceful shutdown
-    via SIGTERM/SIGINT signals.
+    Continuously polls configured queues for tasks and executes them concurrently with
+    respect to configured limits. Provides graceful shutdown, retry logic with exponential/
+    fixed backoff, and event emission for observability.
 
-    ## Architecture
-
-    - **Continuous polling loop**: Prevents CPU spinning with 0.1s sleep when idle
-    - **Round-robin queue checking**: Ensures fair task distribution across queues
-    - **Concurrency control**: Uses asyncio.wait() to respect concurrency limits
-    - **Automatic retry handling**: Supports exponential backoff and configurable retry logic
-    - **Graceful shutdown**: Waits for in-flight tasks before exiting on SIGTERM/SIGINT
-
-    ## Best Practices Implemented
-
-    - **Timeout handling**: Task execution respects configured timeouts (via TaskService)
-    - **Structured logging**: All errors logged with context (task_id, worker_id, queue)
-    - **Event emission**: Integration points for observability and monitoring
-    - **Error resilience**: Distinguishes deserialization failures from execution failures
-    - **Resource cleanup**: Ensures proper driver disconnection and task service cleanup
-
-    ## Modes
-
-    - **Production**: max_tasks=None (runs indefinitely until signaled)
-    - **Testing**: max_tasks=N (processes exactly N tasks then exits)
-    - **Batch**: max_tasks=N (processes N tasks from queue then exits)
-
-    ## Attributes
-
-        queue_driver: An instance of a driver that extends BaseDriver
-        queues: List of queue names to poll (in priority order)
-        concurrency: Maximum number of concurrent task executions
-        max_tasks: Optional limit on total tasks to process (None = unlimited)
-        event_emitter: Optional EventEmitter for observability
-        heartbeat_interval: Seconds between heartbeat events (default: 60)
-
-    ## Signal Handling
-
-    - SIGTERM: Graceful shutdown with task draining
-    - SIGINT: Same as SIGTERM (Ctrl+C)
+    Attributes
+    ----------
+    queue_driver : BaseDriver
+        Driver instance for queue backend operations
+    queues : list[str]
+        Queue names to poll in priority order (default: ["default"])
+    concurrency : int
+        Maximum concurrent task executions (default: 10)
+    max_tasks : int | None
+        Total task limit before shutdown (None = unlimited)
+    serializer : BaseSerializer
+        Task serialization handler (default: MsgpackSerializer)
+    event_emitter : EventEmitter | None
+        Optional event emitter for monitoring
+    worker_id : str
+        Unique worker identifier
+    heartbeat_interval : float
+        Seconds between heartbeat emissions (default: 60.0)
+    process_pool_size : int | None
+        Size of process pool for ProcessTask execution
+    process_pool_max_tasks_per_child : int | None
+        Max tasks per worker process before recycling
     """
 
     def __init__(
@@ -101,19 +88,17 @@ class Worker:
         self._task_executor = TaskExecutor()
 
     async def start(self) -> None:
-        """Start the worker loop and block until shutdown.
+        """Initialize worker and begin processing tasks until shutdown.
 
-        Initializes signal handlers for graceful shutdown (SIGTERM, SIGINT)
-        and runs the main polling loop. Blocks until:
-        - Shutdown signal received (SIGTERM/SIGINT)
-        - max_tasks limit reached (if configured)
-        - Unhandled exception occurs
+        Sets up uvloop, connects to queue driver, initializes process pool if configured,
+        registers signal handlers, and enters the main polling loop. Blocks until shutdown
+        signal (SIGTERM/SIGINT) or max_tasks limit reached. Cleanup is always performed
+        to ensure graceful shutdown.
 
-        Ensures cleanup is always performed via finally block.
-
-        Example:
-            worker = Worker(queue_driver, queues=['default', 'high-priority'])
-            await worker.start()  # Blocks until shutdown
+        Raises
+        ------
+        Exception
+            Any unhandled exception from the worker loop is propagated after cleanup
         """
         # Use uvloop as the event loop policy (required)
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -182,16 +167,10 @@ class Worker:
             await self._cleanup()
 
     async def _heartbeat_loop(self) -> None:
-        """Send periodic heartbeat events (default: every 60 seconds).
+        """Emit periodic heartbeat events for worker health monitoring.
 
-        The heartbeat contains worker status including:
-        - Number of active tasks (currently executing)
-        - Total tasks processed
-        - Worker uptime
-        - Configured queues
-
-        If a worker hasn't sent a heartbeat in 2× the heartbeat interval,
-        it should be considered offline by the monitoring system.
+        Sends WORKER_HEARTBEAT events at configured intervals containing worker statistics
+        (active tasks, processed count, uptime). Runs as background task until shutdown.
         """
         while self._running:
             try:
@@ -226,24 +205,12 @@ class Worker:
                 logger.warning("Failed to send heartbeat: %s", e)
 
     async def _run(self) -> None:
-        """Main worker loop - continuously processes tasks until stopped.
+        """Main worker polling loop - continuously fetches and processes tasks.
 
-        Loop behavior:
-        1. Check if max_tasks limit reached (exit if true)
-        2. Wait for concurrency slot if at limit
-        3. Fetch next task from queues (round-robin)
-        4. If task found: spawn async task for processing
-        5. If no task found: sleep 0.1s to avoid CPU spinning
-        6. Repeat until self._running becomes False
-
-        Exit conditions:
-        - self._running set to False (via signal handler)
-        - max_tasks limit reached (if configured)
-
-        Production workers use max_tasks=None for continuous operation.
-        Test/batch workers use max_tasks=N to process exactly N tasks.
-
-        Note: The 0.1s sleep prevents CPU spinning when queues are empty.
+        Checks max_tasks limit, waits for concurrency slot if needed, fetches task from
+        queues in round-robin order, spawns background task for processing. Sleeps 0.1s
+        when no tasks available to prevent CPU spinning. Exits on shutdown signal or when
+        max_tasks limit reached.
         """
         while self._running:
             # Check if we've reached max tasks (used for testing/batch processing)
@@ -275,13 +242,15 @@ class Worker:
             task.add_done_callback(self._tasks.discard)
 
     async def _fetch_task(self) -> tuple[bytes, str] | None:
-        """Fetch next task from queues in round-robin order.
+        """Fetch next available task from configured queues using round-robin polling.
 
-        Polls each queue in order until a task is found. This provides
-        fair distribution across queues (first-listed queues have priority).
+        Iterates through queues in order until a task is found. Returns None if all queues
+        are empty.
 
-        Returns:
-            tuple[bytes, str]: (Serialized task data, queue name) or None if all queues empty
+        Returns
+        -------
+        tuple[bytes, str] | None
+            Tuple of (serialized_task_data, queue_name) or None if no tasks available
         """
         for queue_name in self.queues:
             task_data = await self.queue_driver.dequeue(queue_name)
@@ -290,25 +259,18 @@ class Worker:
         return None
 
     async def _process_task(self, task_data: bytes, queue_name: str) -> None:
-        """Process a single task with error handling and timeout support.
+        """Process a single task with error handling and lifecycle management.
 
-        Workflow:
-        1. Deserialize task from bytes
-        2. Emit task_started event
-        3. Execute task.handle() with optional timeout
-        4. Emit task_completed or task_failed event
-        5. Handle failures with retry logic
-        6. Increment processed task counter
+        Deserializes task, increments attempt counter, executes via TaskExecutor, emits
+        events, and handles success/failure. Deserialization errors re-enqueue with delay.
+        Execution failures delegate to _handle_task_failure() for retry logic.
 
-        Error handling:
-        - DeserializationError: Re-enqueue raw task_data for retry
-        - TimeoutError: Task exceeded configured timeout
-        - Exception: General task failure (logged with stacktrace)
-        - Both trigger retry logic via _handle_task_failure()
-
-        Args:
-            task_data: Serialized task bytes from queue
-            queue_name: Name of the queue the task came from
+        Parameters
+        ----------
+        task_data : bytes
+            Serialized task payload from queue
+        queue_name : str
+            Name of the queue this task was dequeued from
         """
         task: BaseTask | None = None
         start_time = datetime.now(UTC)
@@ -433,20 +395,24 @@ class Worker:
         start_time: datetime,
         task_data: bytes,
     ) -> None:
-        """Handle task failure with intelligent retry logic.
+        """Handle task execution failure with retry and dead-letter logic.
 
-        Retry decision:
-        1. Check if current_attempt < max_attempts (via TaskService.should_retry)
-        2. Call task.should_retry(exception) for custom logic
-        3. If both pass: emit task_reenqueue, increment current_attempt, and re-enqueue
-        4. If retry exhausted: emit task_failed, call task.failed() and store error
+        Checks if task should retry (via TaskExecutor). If yes, serializes task, calculates
+        retry delay (exponential/fixed), emits TASK_REENQUEUE event, and re-enqueues. If no,
+        emits TASK_FAILED event, calls task.failed() hook, and moves to dead letter queue.
 
-        Args:
-            task: Failed task instance
-            exception: Exception that caused the failure
-            queue_name: Name of the queue the task came from
-            start_time: When task processing started
-            task_data: Original serialized task data (receipt handle)
+        Parameters
+        ----------
+        task : BaseTask
+            The task instance that failed execution
+        exception : Exception
+            The exception that caused the failure
+        queue_name : str
+            Name of the queue the task came from
+        start_time : datetime
+            Timestamp when task processing began
+        task_data : bytes
+            Original serialized task data (receipt handle)
         """
         duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
         task_id = task._task_id or "unknown"  # Fallback for type safety
@@ -551,48 +517,36 @@ class Worker:
             self._tasks_processed += 1
 
     async def _deserialize_task(self, task_data: bytes) -> BaseTask:
-        """Deserialize task from bytes and reconstruct instance.
+        """Deserialize task from bytes into task instance.
 
-        Delegates to TaskService for the actual deserialization logic.
+        Delegates to TaskSerializer to unpack payload, import task class, reconstruct
+        with original parameters, and restore metadata.
 
-        Args:
-            task_data: Serialized task bytes
+        Parameters
+        ----------
+        task_data : bytes
+            Serialized task payload from queue
 
-        Returns:
-            Task: Fully reconstructed task instance
+        Returns
+        -------
+        BaseTask
+            Reconstructed task instance ready for execution
 
-        Raises:
-            ImportError: If task class cannot be imported
-            AttributeError: If task class not found in module
+        Raises
+        ------
+        ImportError, AttributeError, ValueError, TypeError
+            Deserialization failures (handled by _process_task)
         """
         return await self._task_serializer.deserialize(task_data)
 
     def get_health_status(self) -> dict[str, Any]:
         """Get worker health status including process pool info.
 
-        Returns comprehensive health information for monitoring:
-        - Worker identification (id, hostname)
-        - Runtime stats (uptime, tasks processed, active tasks)
-        - Queue configuration
-        - Process pool status and configuration
-
-        Returns:
-            Dict with health status information
-
-        Example:
-            {
-                "worker_id": "worker-abc123",
-                "hostname": "server-1",
-                "uptime_seconds": 3600,
-                "tasks_processed": 1234,
-                "active_tasks": 5,
-                "queues": ["default", "high-priority"],
-                "process_pool": {
-                    "status": "initialized",
-                    "pool_size": 8,
-                    "max_tasks_per_child": 1000
-                }
-            }
+        Returns
+        -------
+        dict[str, Any]
+            Health status with worker_id, hostname, uptime, tasks_processed, active_tasks,
+            queues, and process_pool information
         """
         from asynctasq.tasks.infrastructure.process_pool_manager import get_default_manager
 
@@ -611,16 +565,20 @@ class Worker:
         }
 
     def _handle_shutdown(self) -> None:
-        """Handle graceful shutdown."""
+        """Handle graceful shutdown signal (SIGTERM or SIGINT).
+
+        Sets self._running to False to exit polling loop. In-flight tasks complete
+        before cleanup.
+        """
         logger.info("Shutdown signal received")
         self._running = False
 
     async def _cleanup(self) -> None:
-        """Cleanup on shutdown - wait for in-flight tasks to complete.
+        """Perform graceful cleanup and resource deallocation on worker shutdown.
 
-        Ensures graceful shutdown by waiting for all currently executing
-        tasks to finish before exiting. This prevents task loss and ensures
-        clean resource cleanup.
+        Cancels heartbeat task, waits for in-flight tasks, shuts down process pool,
+        emits WORKER_OFFLINE event, closes event emitter, and disconnects driver.
+        Blocks until complete. Called automatically in finally block of start().
         """
         logger.info("Waiting for running tasks to complete...")
 
