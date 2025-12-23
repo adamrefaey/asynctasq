@@ -6,11 +6,11 @@ import uuid
 from asynctasq.config import Config
 from asynctasq.drivers import DriverType
 from asynctasq.drivers.base_driver import BaseDriver
+from asynctasq.monitoring import EventRegistry, EventType, TaskEvent
 from asynctasq.serializers import BaseSerializer, MsgpackSerializer
 from asynctasq.tasks.services.serializer import TaskSerializer
 
 from .driver_factory import DriverFactory
-from .events import EventRegistry, EventType, TaskEvent
 
 if TYPE_CHECKING:
     from asynctasq.tasks import BaseTask

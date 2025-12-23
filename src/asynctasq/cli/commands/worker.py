@@ -5,8 +5,8 @@ import logging
 
 from asynctasq.cli.utils import DEFAULT_CONCURRENCY, parse_queues
 from asynctasq.core.driver_factory import DriverFactory
-from asynctasq.core.events import EventRegistry
 from asynctasq.core.worker import Worker
+from asynctasq.monitoring import EventRegistry
 
 logger = logging.getLogger(__name__)
 

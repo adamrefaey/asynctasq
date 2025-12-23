@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, MagicMock
 from pytest import main, mark
 
 from asynctasq.core.models import QueueStats, TaskInfo, WorkerInfo
-from asynctasq.core.monitoring import MonitoringService
 from asynctasq.drivers.base_driver import BaseDriver
+from asynctasq.monitoring import MonitoringService
 from asynctasq.serializers.base_serializer import BaseSerializer
 from asynctasq.serializers.msgpack_serializer import MsgpackSerializer
 

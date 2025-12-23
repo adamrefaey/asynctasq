@@ -13,12 +13,11 @@ import uvloop
 from asynctasq.config import Config
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.drivers.retry_utils import calculate_retry_delay
+from asynctasq.monitoring import EventRegistry, EventType, TaskEvent, WorkerEvent
 from asynctasq.serializers import BaseSerializer, MsgpackSerializer
 from asynctasq.tasks import BaseTask
 from asynctasq.tasks.services.executor import TaskExecutor
 from asynctasq.tasks.services.serializer import TaskSerializer
-
-from .events import EventRegistry, EventType, TaskEvent, WorkerEvent
 
 logger = logging.getLogger(__name__)
 
