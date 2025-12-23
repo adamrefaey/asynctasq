@@ -8,7 +8,7 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "0.0.0"
 
 from asynctasq.config import Config, ConfigOverrides
-from asynctasq.core.events import EventEmitter, EventRegistry
+from asynctasq.monitoring import EventEmitter, EventRegistry
 
 
 def init(
@@ -36,7 +36,7 @@ def init(
         ... })
         >>>
         >>> # Initialize with custom event emitters
-        >>> from asynctasq.core.events import LoggingEventEmitter
+        >>> from asynctasq.monitoring import LoggingEventEmitter
         >>> custom_emitter = LoggingEventEmitter()
         >>> asynctasq.init(
         ...     config_overrides={'driver': 'redis'},

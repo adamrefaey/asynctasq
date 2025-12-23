@@ -16,9 +16,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest import main, mark, raises
 
-from asynctasq.core.events import EventRegistry, EventType
 from asynctasq.core.worker import Worker
 from asynctasq.drivers.base_driver import BaseDriver
+from asynctasq.monitoring import EventRegistry, EventType
 from asynctasq.serializers import BaseSerializer, MsgpackSerializer
 from asynctasq.tasks import AsyncTask, BaseTask, FunctionTask
 

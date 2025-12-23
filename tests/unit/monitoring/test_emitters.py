@@ -1,4 +1,4 @@
-"""Tests for the event emission system."""
+"""Tests for event emitters."""
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 from pytest import fixture, main, mark
 
 from asynctasq.config import Config
-from asynctasq.core.events import (
+from asynctasq.monitoring import (
     EventType,
     LoggingEventEmitter,
     RedisEventEmitter,
@@ -41,107 +41,6 @@ def sample_worker_event() -> WorkerEvent:
         active=5,
         processed=100,
     )
-
-
-@mark.unit
-class TestEventType:
-    """Test EventType enum."""
-
-    def test_task_event_types_exist(self) -> None:
-        """Test that all task event types are defined."""
-        assert EventType.TASK_ENQUEUED == "task_enqueued"
-        assert EventType.TASK_STARTED == "task_started"
-        assert EventType.TASK_COMPLETED == "task_completed"
-        assert EventType.TASK_FAILED == "task_failed"
-        assert EventType.TASK_REENQUEUED == "task_reenqueued"
-        assert EventType.TASK_CANCELLED == "task_cancelled"
-
-    def test_worker_event_types_exist(self) -> None:
-        """Test that all worker event types are defined."""
-        assert EventType.WORKER_ONLINE == "worker_online"
-        assert EventType.WORKER_HEARTBEAT == "worker_heartbeat"
-        assert EventType.WORKER_OFFLINE == "worker_offline"
-
-
-@mark.unit
-class TestTaskEvent:
-    """Test TaskEvent dataclass."""
-
-    def test_task_event_creation(self, sample_task_event: TaskEvent) -> None:
-        """Test that TaskEvent can be created with required fields."""
-        assert sample_task_event.event_type == EventType.TASK_STARTED
-        assert sample_task_event.task_id == "test-task-123"
-        assert sample_task_event.task_name == "TestTask"
-        assert sample_task_event.queue == "default"
-        assert sample_task_event.worker_id == "worker-abc123"
-
-    def test_task_event_is_frozen(self, sample_task_event: TaskEvent) -> None:
-        """Test that TaskEvent is immutable."""
-        try:
-            sample_task_event.task_id = "new-id"  # type: ignore[misc]
-            raise AssertionError("Should have raised FrozenInstanceError")
-        except AttributeError:
-            pass  # Expected
-
-    def test_task_event_with_optional_fields(self) -> None:
-        """Test TaskEvent with optional fields populated."""
-        event = TaskEvent(
-            event_type=EventType.TASK_COMPLETED,
-            task_id="test-123",
-            task_name="TestTask",
-            queue="default",
-            worker_id="worker-1",
-            duration_ms=1500,
-            result={"status": "success"},
-        )
-        assert event.duration_ms == 1500
-        assert event.result == {"status": "success"}
-
-    def test_task_event_with_error_fields(self) -> None:
-        """Test TaskEvent with error fields populated."""
-        event = TaskEvent(
-            event_type=EventType.TASK_FAILED,
-            task_id="test-123",
-            task_name="TestTask",
-            queue="default",
-            worker_id="worker-1",
-            error="ValueError: Invalid input",
-            traceback="Traceback (most recent call last):\n...",
-        )
-        assert event.error == "ValueError: Invalid input"
-        assert event.traceback is not None
-
-
-@mark.unit
-class TestWorkerEvent:
-    """Test WorkerEvent dataclass."""
-
-    def test_worker_event_creation(self, sample_worker_event: WorkerEvent) -> None:
-        """Test that WorkerEvent can be created with required fields."""
-        assert sample_worker_event.event_type == EventType.WORKER_ONLINE
-        assert sample_worker_event.worker_id == "worker-abc123"
-        assert sample_worker_event.hostname == "test-host"
-
-    def test_worker_event_is_frozen(self, sample_worker_event: WorkerEvent) -> None:
-        """Test that WorkerEvent is immutable."""
-        try:
-            sample_worker_event.worker_id = "new-id"  # type: ignore[misc]
-            raise AssertionError("Should have raised FrozenInstanceError")
-        except AttributeError:
-            pass  # Expected
-
-    def test_worker_event_defaults(self) -> None:
-        """Test WorkerEvent default values."""
-        event = WorkerEvent(
-            event_type=EventType.WORKER_HEARTBEAT,
-            worker_id="worker-1",
-            hostname="host-1",
-        )
-        assert event.freq == 60.0
-        assert event.active == 0
-        assert event.processed == 0
-        assert event.queues == ()
-        assert event.sw_ident == "asynctasq"
 
 
 @mark.unit
@@ -193,7 +92,7 @@ class TestRedisEventEmitter:
             events_channel="custom:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         assert emitter.redis_url == "redis://events:6379"
@@ -207,7 +106,7 @@ class TestRedisEventEmitter:
             events_channel="asynctasq:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         assert emitter.redis_url == "redis://queue:6379"
@@ -220,7 +119,7 @@ class TestRedisEventEmitter:
             events_channel="config:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter(
                 redis_url="redis://explicit:6379", channel="explicit:channel"
             )
@@ -236,7 +135,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         # Mock the Redis client
@@ -260,7 +159,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         mock_client = AsyncMock()
@@ -280,7 +179,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         mock_client = AsyncMock()
@@ -300,7 +199,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         mock_client = AsyncMock()
@@ -319,7 +218,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         await emitter.close()  # Should not raise
@@ -331,7 +230,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         result = emitter._serialize_event(sample_task_event)
@@ -354,7 +253,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         result = emitter._serialize_event(sample_worker_event)
@@ -378,7 +277,7 @@ class TestEventsRedisUrlConfig:
             events_channel="custom:channel",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         assert emitter.redis_url == "redis://events-server:6379"
@@ -391,7 +290,7 @@ class TestEventsRedisUrlConfig:
             events_channel="asynctasq:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         assert emitter.redis_url == "redis://queue-server:6379"
@@ -404,7 +303,7 @@ class TestEventsRedisUrlConfig:
             events_channel="config:channel",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter(redis_url="redis://param:6379")
 
         assert emitter.redis_url == "redis://param:6379"
@@ -416,7 +315,7 @@ class TestEventsRedisUrlConfig:
             events_channel="my-app:events",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         assert emitter.channel == "my-app:events"
@@ -428,7 +327,7 @@ class TestEventsRedisUrlConfig:
             events_channel="config:channel",
         )
 
-        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter(channel="param:channel")
 
         assert emitter.channel == "param:channel"
