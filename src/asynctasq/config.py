@@ -52,9 +52,7 @@ class Config:
 
     # Class-level storage for the global Config singleton. Use classmethods
     # `set` and `get` to access. Declared as ClassVar so dataclasses ignore it.
-    # Use postponed evaluation of annotations so `Config` can be referenced
-    # directly in the annotation without a string forward reference.
-    _global: ClassVar[Config] | None = None
+    _instance: ClassVar[Config] | None = None
 
     # Driver selection
     driver: DriverType = "redis"
@@ -162,12 +160,12 @@ class Config:
         This centralizes global state on the `Config` class and keeps the
         instance-level validation performed by `__post_init__`.
         """
-        cls._global = cls(**overrides)
+        cls._instance = cls(**overrides)
 
     @classmethod
     def get(cls) -> Config:
         """Return the global `Config` singleton, initializing with defaults
         if it hasn't been set yet."""
-        if cls._global is None:
-            cls._global = cls()
-        return cls._global
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
