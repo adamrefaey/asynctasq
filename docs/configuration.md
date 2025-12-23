@@ -20,7 +20,6 @@ AsyncTasQ uses the `asynctasq.init()` function as the primary configuration inte
     - [MySQL Driver Configuration](#mysql-driver-configuration)
     - [RabbitMQ Driver Configuration](#rabbitmq-driver-configuration)
     - [AWS SQS Driver Configuration](#aws-sqs-driver-configuration)
-    - [Events \& Monitoring Configuration](#events--monitoring-configuration)
     - [Task Repository Configuration](#task-repository-configuration)
   - [Complete Example](#complete-example)
   - [Best Practices](#best-practices)
@@ -255,30 +254,6 @@ asynctasq.init({
     'sqs_queue_url_prefix': 'https://sqs.us-west-2.amazonaws.com/123456789/',
     'aws_access_key_id': 'your_key',
     'aws_secret_access_key': 'your_secret'
-})
-```
-
----
-
-### Events & Monitoring Configuration
-
-For Redis Pub/Sub event monitoring.
-
-| Option             |        Type | Description                                             | Default            |
-| ------------------ | ----------: | ------------------------------------------------------- | ------------------ |
-| `enable_event_emitter_redis`    |        bool | Enable/disable event emission for monitoring            | `False`            |
-| `events_redis_url` | str \| None | Redis URL for event Pub/Sub (falls back to `redis_url`) | `None`             |
-| `events_channel`   |         str | Redis Pub/Sub channel name                              | `asynctasq:events` |
-
-**Note:** When `enable_event_emitter_redis=False`, no events are emitted (zero overhead). When `True`, events like `task_enqueued`, `task_started`, `task_completed`, etc. are emitted for monitoring purposes.
-
-```python
-import asynctasq
-
-asynctasq.init({
-    'enable_event_emitter_redis': True,
-    'events_redis_url': 'redis://events.example.com:6379',
-    'events_channel': 'asynctasq:prod:events'
 })
 ```
 
