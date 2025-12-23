@@ -4,7 +4,7 @@ Testing Strategy:
 - pytest 9.0.1 with asyncio_mode="auto" (no decorators needed)
 - AAA pattern (Arrange, Act, Assert)
 - Test config building from CLI arguments
-- Mock Config.from_env() to avoid real environment dependencies
+- Mock Config() to avoid real dependencies
 - Fast, isolated tests
 """
 
@@ -190,39 +190,39 @@ class TestBuildConfigOverrides:
 class TestBuildConfig:
     """Test build_config() function."""
 
-    @patch("asynctasq.cli.config.Config.from_env")
-    def test_build_config_calls_from_env_with_overrides(self, mock_from_env) -> None:
+    @patch("asynctasq.cli.config.Config")
+    def test_build_config_calls_config_with_overrides(self, mock_config_class) -> None:
         # Arrange
         args = argparse.Namespace(driver="redis", redis_url="redis://test:6379")
         mock_config = MagicMock()
-        mock_from_env.return_value = mock_config
+        mock_config_class.return_value = mock_config
 
         # Act
         result = build_config(args)
 
         # Assert
-        mock_from_env.assert_called_once_with(
+        mock_config_class.assert_called_once_with(
             driver="redis",
             redis_url="redis://test:6379",
         )
         assert result == mock_config
 
-    @patch("asynctasq.cli.config.Config.from_env")
-    def test_build_config_with_empty_args(self, mock_from_env) -> None:
+    @patch("asynctasq.cli.config.Config")
+    def test_build_config_with_empty_args(self, mock_config_class) -> None:
         # Arrange
         args = argparse.Namespace()
         mock_config = MagicMock()
-        mock_from_env.return_value = mock_config
+        mock_config_class.return_value = mock_config
 
         # Act
         result = build_config(args)
 
         # Assert
-        mock_from_env.assert_called_once_with()
+        mock_config_class.assert_called_once_with()
         assert result == mock_config
 
-    @patch("asynctasq.cli.config.Config.from_env")
-    def test_build_config_passes_all_overrides(self, mock_from_env) -> None:
+    @patch("asynctasq.cli.config.Config")
+    def test_build_config_passes_all_overrides(self, mock_config_class) -> None:
         # Arrange
         args = argparse.Namespace(
             driver="postgres",
@@ -231,13 +231,13 @@ class TestBuildConfig:
             postgres_dead_letter_table="dlq",
         )
         mock_config = MagicMock()
-        mock_from_env.return_value = mock_config
+        mock_config_class.return_value = mock_config
 
         # Act
         result = build_config(args)
 
         # Assert
-        mock_from_env.assert_called_once_with(
+        mock_config_class.assert_called_once_with(
             driver="postgres",
             postgres_dsn="postgresql://test",
             postgres_queue_table="queue",

@@ -195,7 +195,7 @@ class TestRedisEventEmitter:
             events_channel="custom:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         assert emitter.redis_url == "redis://events:6379"
@@ -209,7 +209,7 @@ class TestRedisEventEmitter:
             events_channel="asynctasq:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         assert emitter.redis_url == "redis://queue:6379"
@@ -222,7 +222,7 @@ class TestRedisEventEmitter:
             events_channel="config:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter(
                 redis_url="redis://explicit:6379", channel="explicit:channel"
             )
@@ -238,7 +238,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         # Mock the Redis client
@@ -262,7 +262,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         mock_client = AsyncMock()
@@ -282,7 +282,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         mock_client = AsyncMock()
@@ -302,7 +302,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         mock_client = AsyncMock()
@@ -321,7 +321,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         await emitter.close()  # Should not raise
@@ -333,7 +333,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         result = emitter._serialize_event(sample_task_event)
@@ -356,7 +356,7 @@ class TestRedisEventEmitter:
             events_channel="test:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         result = emitter._serialize_event(sample_worker_event)
@@ -445,7 +445,7 @@ class TestCreateEventEmitter:
         )
 
         with (
-            patch("asynctasq.core.events.get_global_config", return_value=mock_config),
+            patch("asynctasq.core.events.Config.get", return_value=mock_config),
             patch("redis.asyncio.Redis"),
         ):
             emitter = create_event_emitter(include_logging=True)
@@ -460,7 +460,7 @@ class TestCreateEventEmitter:
         )
 
         with (
-            patch("asynctasq.core.events.get_global_config", return_value=mock_config),
+            patch("asynctasq.core.events.Config.get", return_value=mock_config),
             patch("redis.asyncio.Redis"),
         ):
             emitter = create_event_emitter(include_logging=False)
@@ -474,7 +474,7 @@ class TestCreateEventEmitter:
         )
 
         with (
-            patch("asynctasq.core.events.get_global_config", return_value=mock_config),
+            patch("asynctasq.core.events.Config.get", return_value=mock_config),
             patch("redis.asyncio.Redis"),
         ):
             emitter = create_event_emitter(redis_url="redis://explicit:6379", include_logging=False)
@@ -489,7 +489,7 @@ class TestCreateEventEmitter:
         )
 
         with (
-            patch("asynctasq.core.events.get_global_config", return_value=mock_config),
+            patch("asynctasq.core.events.Config.get", return_value=mock_config),
             patch("redis.asyncio.Redis"),
         ):
             emitter = create_event_emitter(channel="explicit:channel", include_logging=False)
@@ -509,7 +509,7 @@ class TestEventsRedisUrlConfig:
             events_channel="custom:channel",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         assert emitter.redis_url == "redis://events-server:6379"
@@ -522,7 +522,7 @@ class TestEventsRedisUrlConfig:
             events_channel="asynctasq:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         assert emitter.redis_url == "redis://queue-server:6379"
@@ -535,7 +535,7 @@ class TestEventsRedisUrlConfig:
             events_channel="config:channel",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter(redis_url="redis://param:6379")
 
         assert emitter.redis_url == "redis://param:6379"
@@ -547,7 +547,7 @@ class TestEventsRedisUrlConfig:
             events_channel="my-app:events",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter()
 
         assert emitter.channel == "my-app:events"
@@ -559,7 +559,7 @@ class TestEventsRedisUrlConfig:
             events_channel="config:channel",
         )
 
-        with patch("asynctasq.core.events.get_global_config", return_value=mock_config):
+        with patch("asynctasq.core.events.Config.get", return_value=mock_config):
             emitter = RedisEventEmitter(channel="param:channel")
 
         assert emitter.channel == "param:channel"

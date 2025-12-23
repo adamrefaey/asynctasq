@@ -16,7 +16,7 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
         args: Parsed command-line arguments
 
     Returns:
-        Dictionary of config overrides to pass to Config.from_env()
+        Dictionary of config overrides to pass to Config()
     """
     # Map of CLI argument names to config field names
     arg_mapping = {
@@ -47,7 +47,7 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def build_config(args: argparse.Namespace) -> Config:
-    """Build Config object from parsed arguments and environment variables.
+    """Build Config object from parsed arguments.
 
     Args:
         args: Parsed command-line arguments
@@ -56,4 +56,4 @@ def build_config(args: argparse.Namespace) -> Config:
         Configured Config instance
     """
     overrides = build_config_overrides(args)
-    return Config.from_env(**overrides)
+    return Config(**overrides)

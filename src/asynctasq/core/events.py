@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import msgpack
 
-from asynctasq.config import get_global_config
+from asynctasq.config import Config
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
@@ -227,7 +227,7 @@ class RedisEventEmitter:
             redis_url: Redis connection URL (default from config's events_redis_url or redis_url)
             channel: Pub/Sub channel name (default from config's events_channel)
         """
-        config = get_global_config()
+        config = Config.get()
         # Use events_redis_url if set, otherwise fall back to redis_url
         self.redis_url = redis_url or config.events_redis_url or config.redis_url
         self.channel = channel or config.events_channel
@@ -356,7 +356,7 @@ def create_event_emitter(
         To enable Redis event emission for monitor integration:
         1. Install with monitor extra: pip install asynctasq[monitor]
         2. Ensure a Redis server is running and accessible
-        3. Configure via set_global_config() or environment variables:
+        3. Configure via Config.set() or environment variables:
            - events_redis_url / ASYNCTASQ_EVENTS_REDIS_URL (dedicated events Redis)
            - redis_url / ASYNCTASQ_REDIS_URL (fallback if events_redis_url not set)
            - events_channel / ASYNCTASQ_EVENTS_CHANNEL (Pub/Sub channel name)
