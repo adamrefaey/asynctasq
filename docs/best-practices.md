@@ -149,11 +149,11 @@ AsyncTasQ integrates with `asynctasq-monitor` via Redis Pub/Sub for real-time ob
 from asynctasq.core.events import create_event_emitter
 from asynctasq.core.worker import Worker
 from asynctasq.core.driver_factory import DriverFactory
-from asynctasq.config import get_global_config
+from asynctasq.config import Config
 
 # Worker with event streaming enabled
 async def start_worker_with_events():
-    config = get_global_config()
+    config = Config.get()
     driver = DriverFactory.create_from_config(config)
 
     # Event emitter publishes to Redis Pub/Sub (asynctasq:events channel)
@@ -200,7 +200,7 @@ from asynctasq.core.driver_factory import DriverFactory
 
 async def check_queue_health():
     """Check queue health and alert on issues."""
-    config = Config.from_env()
+    config = Config()
     driver = DriverFactory.create_from_config(config)
     await driver.connect()
 

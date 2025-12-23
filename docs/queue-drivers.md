@@ -39,9 +39,9 @@ export ASYNCTASQ_REDIS_MAX_CONNECTIONS=100
 
 ```python
 # Programmatic configuration
-from asynctasq.config import set_global_config
+from asynctasq.config import Config
 
-set_global_config(
+Config.set(
     driver='redis',
     redis_url='redis://localhost:6379',
     redis_password='secret',  # Optional
@@ -100,9 +100,9 @@ export ASYNCTASQ_POSTGRES_MAX_POOL_SIZE=10
 
 ```python
 # Programmatic configuration
-from asynctasq.config import set_global_config
+from asynctasq.config import Config
 
-set_global_config(
+Config.set(
     driver='postgres',
     postgres_dsn='postgresql://user:pass@localhost:5432/dbname',
     postgres_queue_table='task_queue',
@@ -167,9 +167,9 @@ export ASYNCTASQ_MYSQL_MAX_POOL_SIZE=10
 
 ```python
 # Programmatic configuration
-from asynctasq.config import set_global_config
+from asynctasq.config import Config
 
-set_global_config(
+Config.set(
     driver='mysql',
     mysql_dsn='mysql://user:pass@localhost:3306/dbname',
     mysql_queue_table='task_queue',
@@ -232,9 +232,9 @@ export AWS_SECRET_ACCESS_KEY=your_secret_key
 
 ```python
 # Programmatic configuration
-from asynctasq.config import set_global_config
+from asynctasq.config import Config
 
-set_global_config(
+Config.set(
     driver='sqs',
     sqs_region='us-east-1',
     sqs_queue_url_prefix='https://sqs.us-east-1.amazonaws.com/123456789/',
@@ -294,9 +294,9 @@ export ASYNCTASQ_RABBITMQ_PREFETCH_COUNT=1
 
 ```python
 # Programmatic configuration
-from asynctasq.config import set_global_config
+from asynctasq.config import Config
 
-set_global_config(
+Config.set(
     driver='rabbitmq',
     rabbitmq_url='amqp://user:pass@localhost:5672/',
     rabbitmq_exchange_name='asynctasq',

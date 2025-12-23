@@ -1,14 +1,14 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from dataclasses import dataclass
-import os
-from typing import Any, TypedDict, Unpack
+from typing import ClassVar, TypedDict, Unpack
 
 from asynctasq.drivers import DriverType
 
 
 # TypedDict for config overrides
 class ConfigOverrides(TypedDict, total=False):
-    driver: str
+    driver: DriverType
     redis_url: str
     redis_password: str | None
     redis_db: int
@@ -46,81 +46,15 @@ class ConfigOverrides(TypedDict, total=False):
     keep_completed_tasks: bool
 
 
-# Environment variable mapping: field_name -> (env_var, default_value, type_converter)
-ENV_VAR_MAPPING: dict[str, tuple[str, Any, Callable[[str], Any]]] = {
-    # Driver selection
-    "driver": ("ASYNCTASQ_DRIVER", "redis", str),
-    # Redis configuration
-    "redis_url": ("ASYNCTASQ_REDIS_URL", "redis://localhost:6379", str),
-    "redis_password": ("ASYNCTASQ_REDIS_PASSWORD", None, str),
-    "redis_db": ("ASYNCTASQ_REDIS_DB", "0", int),
-    "redis_max_connections": ("ASYNCTASQ_REDIS_MAX_CONNECTIONS", "100", int),
-    # SQS configuration
-    "sqs_region": ("ASYNCTASQ_SQS_REGION", "us-east-1", str),
-    "sqs_queue_url_prefix": ("ASYNCTASQ_SQS_QUEUE_PREFIX", None, str),
-    "aws_access_key_id": ("AWS_ACCESS_KEY_ID", None, str),
-    "aws_secret_access_key": ("AWS_SECRET_ACCESS_KEY", None, str),
-    # PostgreSQL configuration
-    "postgres_dsn": (
-        "ASYNCTASQ_POSTGRES_DSN",
-        "postgresql://test:test@localhost:5432/test_db",
-        str,
-    ),
-    "postgres_queue_table": ("ASYNCTASQ_POSTGRES_QUEUE_TABLE", "task_queue", str),
-    "postgres_dead_letter_table": (
-        "ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE",
-        "dead_letter_queue",
-        str,
-    ),
-    "postgres_max_attempts": ("ASYNCTASQ_POSTGRES_MAX_ATTEMPTS", "3", int),
-    "postgres_min_pool_size": ("ASYNCTASQ_POSTGRES_MIN_POOL_SIZE", "10", int),
-    "postgres_max_pool_size": ("ASYNCTASQ_POSTGRES_MAX_POOL_SIZE", "10", int),
-    # MySQL configuration
-    "mysql_dsn": (
-        "ASYNCTASQ_MYSQL_DSN",
-        "mysql://test:test@localhost:3306/test_db",
-        str,
-    ),
-    "mysql_queue_table": ("ASYNCTASQ_MYSQL_QUEUE_TABLE", "task_queue", str),
-    "mysql_dead_letter_table": (
-        "ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE",
-        "dead_letter_queue",
-        str,
-    ),
-    "mysql_max_attempts": ("ASYNCTASQ_MYSQL_MAX_ATTEMPTS", "3", int),
-    "mysql_min_pool_size": ("ASYNCTASQ_MYSQL_MIN_POOL_SIZE", "10", int),
-    "mysql_max_pool_size": ("ASYNCTASQ_MYSQL_MAX_POOL_SIZE", "10", int),
-    # RabbitMQ configuration
-    "rabbitmq_url": ("ASYNCTASQ_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/", str),
-    "rabbitmq_exchange_name": ("ASYNCTASQ_RABBITMQ_EXCHANGE_NAME", "asynctasq", str),
-    "rabbitmq_prefetch_count": ("ASYNCTASQ_RABBITMQ_PREFETCH_COUNT", "1", int),
-    # Events/Monitoring configuration
-    "events_redis_url": ("ASYNCTASQ_EVENTS_REDIS_URL", None, str),
-    "events_channel": ("ASYNCTASQ_EVENTS_CHANNEL", "asynctasq:events", str),
-    # Task defaults
-    "default_queue": ("ASYNCTASQ_DEFAULT_QUEUE", "default", str),
-    "default_max_attempts": ("ASYNCTASQ_MAX_ATTEMPTS", "3", int),
-    "default_retry_strategy": ("ASYNCTASQ_RETRY_STRATEGY", "exponential", str),
-    "default_retry_delay": ("ASYNCTASQ_RETRY_DELAY", "60", int),
-    "default_timeout": ("ASYNCTASQ_TIMEOUT", None, int),
-    "default_visibility_timeout": ("ASYNCTASQ_VISIBILITY_TIMEOUT", "300", int),
-    # ProcessTask/ProcessPoolExecutor configuration
-    "process_pool_size": ("ASYNCTASQ_PROCESS_POOL_SIZE", None, int),
-    "process_pool_max_tasks_per_child": ("ASYNCTASQ_PROCESS_POOL_MAX_TASKS_PER_CHILD", None, int),
-    # Task repository configuration
-    "task_scan_limit": ("ASYNCTASQ_TASK_SCAN_LIMIT", "10000", int),
-    # Task retention configuration
-    "keep_completed_tasks": (
-        "ASYNCTASQ_KEEP_COMPLETED_TASKS",
-        "False",
-        lambda x: x.lower() in ("true", "1", "yes"),
-    ),
-}
-
-
 @dataclass
 class Config:
     """Configuration for AsyncTasQ library"""
+
+    # Class-level storage for the global Config singleton. Use classmethods
+    # `set` and `get` to access. Declared as ClassVar so dataclasses ignore it.
+    # Use postponed evaluation of annotations so `Config` can be referenced
+    # directly in the annotation without a string forward reference.
+    _global: ClassVar[Config] | None = None
 
     # Driver selection
     driver: DriverType = "redis"
@@ -187,294 +121,53 @@ class Config:
     # Note: Not applicable for SQS driver (SQS always deletes acknowledged messages)
     keep_completed_tasks: bool = False
 
-    @staticmethod
-    def from_env(**overrides: Unpack[ConfigOverrides]) -> "Config":
-        """Load configuration from environment variables"""
-        config_dict = {}
-
-        for field_name, (env_var, default_value, type_converter) in ENV_VAR_MAPPING.items():
-            env_value = os.getenv(env_var)
-
-            if env_value is None:
-                # Use default value, converting if not None
-                if default_value is not None:
-                    config_dict[field_name] = type_converter(default_value)
-                else:
-                    config_dict[field_name] = None
-            else:
-                # Convert the string value to appropriate type
-                config_dict[field_name] = type_converter(env_value)
-
-        # Apply overrides
-        config_dict.update(overrides)
-
-        Config._validate(config_dict)
-
-        return Config(**config_dict)
-
-    @staticmethod
-    def _validate(config: dict):
+    def __post_init__(self):
         """Validate configuration after initialization."""
-        if config["redis_db"] < 0 or config["redis_db"] > 15:
-            raise ValueError("redis_db must be between 0 and 15")
-        if config["redis_max_connections"] < 1:
-            raise ValueError("redis_max_connections must be positive")
-        if config["default_max_attempts"] < 0:
+        if self.default_max_attempts < 0:
             raise ValueError("default_max_attempts must be non-negative")
-        if config["default_retry_delay"] < 0:
+        if self.default_retry_delay < 0:
             raise ValueError("default_retry_delay must be non-negative")
-        if config["postgres_max_attempts"] < 1:
-            raise ValueError("postgres_max_attempts must be positive")
-        if config["postgres_min_pool_size"] < 1:
-            raise ValueError("postgres_min_pool_size must be positive")
-        if config["postgres_max_pool_size"] < 1:
-            raise ValueError("postgres_max_pool_size must be positive")
-        if config["postgres_min_pool_size"] > config["postgres_max_pool_size"]:
-            raise ValueError("postgres_min_pool_size cannot be greater than postgres_max_pool_size")
-        if config.get("mysql_max_attempts", 3) < 1:
-            raise ValueError("mysql_max_attempts must be positive")
-        if config.get("default_retry_strategy", "exponential") not in ("fixed", "exponential"):
+        if self.default_retry_strategy not in ("fixed", "exponential"):
             raise ValueError("default_retry_strategy must be 'fixed' or 'exponential'")
-        if config.get("default_visibility_timeout", 300) < 1:
+        if self.default_visibility_timeout < 1:
             raise ValueError("default_visibility_timeout must be positive")
-        if config.get("mysql_min_pool_size", 10) < 1:
+        if self.redis_db < 0 or self.redis_db > 15:
+            raise ValueError("redis_db must be between 0 and 15")
+        if self.redis_max_connections < 1:
+            raise ValueError("redis_max_connections must be positive")
+        if self.postgres_max_attempts < 1:
+            raise ValueError("postgres_max_attempts must be positive")
+        if self.postgres_min_pool_size < 1:
+            raise ValueError("postgres_min_pool_size must be positive")
+        if self.postgres_max_pool_size < 1:
+            raise ValueError("postgres_max_pool_size must be positive")
+        if self.postgres_min_pool_size > self.postgres_max_pool_size:
+            raise ValueError("postgres_min_pool_size cannot be greater than postgres_max_pool_size")
+        if self.mysql_max_attempts < 1:
+            raise ValueError("mysql_max_attempts must be positive")
+        if self.mysql_min_pool_size < 1:
             raise ValueError("mysql_min_pool_size must be positive")
-        if config.get("mysql_max_pool_size", 10) < 1:
+        if self.mysql_max_pool_size < 1:
             raise ValueError("mysql_max_pool_size must be positive")
-        if config.get("mysql_min_pool_size", 10) > config.get("mysql_max_pool_size", 10):
+        if self.mysql_min_pool_size > self.mysql_max_pool_size:
             raise ValueError("mysql_min_pool_size cannot be greater than mysql_max_pool_size")
-        if config.get("task_scan_limit", 10000) < 1:
+        if self.task_scan_limit < 1:
             raise ValueError("task_scan_limit must be positive")
 
+    @classmethod
+    def set(cls, **overrides: Unpack[ConfigOverrides]) -> None:
+        """Set the global configuration using the same overrides accepted by
+        `Config`'s constructor.
 
-_global_config: Config | None = None
+        This centralizes global state on the `Config` class and keeps the
+        instance-level validation performed by `__post_init__`.
+        """
+        cls._global = cls(**overrides)
 
-
-def set_global_config(**overrides: Unpack[ConfigOverrides]) -> None:
-    """Set global configuration for the asynctasq library.
-
-    This function sets the global configuration that will be used by all tasks
-    and workers. Configuration can be provided via keyword arguments, which
-    override environment variables and defaults.
-
-    Args:
-        **overrides: Configuration options to override. All options can also be
-            set via environment variables (see below for mappings).
-
-    General Options:
-        driver (str): Queue driver to use. Choices: "redis", "sqs", "postgres", "mysql", "rabbitmq"
-            Env var: ASYNCTASQ_DRIVER
-            Default: "redis"
-
-        default_queue (str): Default queue name for tasks
-            Env var: ASYNCTASQ_DEFAULT_QUEUE
-            Default: "default"
-
-        default_max_attempts (int): Default maximum attempts for tasks
-            Env var: ASYNCTASQ_MAX_ATTEMPTS
-            Default: 3
-
-        default_retry_delay (int): Default retry delay in seconds
-            Env var: ASYNCTASQ_RETRY_DELAY
-            Default: 60
-
-        default_timeout (int | None): Default task timeout in seconds (None = no timeout)
-            Env var: ASYNCTASQ_TIMEOUT
-            Default: None
-
-    Redis Options:
-        redis_url (str): Redis connection URL
-            Env var: ASYNCTASQ_REDIS_URL
-            Default: "redis://localhost:6379"
-
-        redis_password (str | None): Redis password
-            Env var: ASYNCTASQ_REDIS_PASSWORD
-            Default: None
-
-        redis_db (int): Redis database number (0-15)
-            Env var: ASYNCTASQ_REDIS_DB
-            Default: 0
-
-        redis_max_connections (int): Maximum number of connections in Redis pool
-            Env var: ASYNCTASQ_REDIS_MAX_CONNECTIONS
-            Default: 100
-
-    PostgreSQL Options:
-        postgres_dsn (str): PostgreSQL connection DSN
-            Env var: ASYNCTASQ_POSTGRES_DSN
-            Default: "postgresql://test:test@localhost:5432/test_db"
-
-        postgres_queue_table (str): PostgreSQL queue table name
-            Env var: ASYNCTASQ_POSTGRES_QUEUE_TABLE
-            Default: "task_queue"
-
-        postgres_dead_letter_table (str): PostgreSQL dead letter table name
-            Env var: ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE
-            Default: "dead_letter_queue"
-
-        postgres_max_attempts (int): Maximum attempts before moving to dead letter queue
-            Env var: ASYNCTASQ_POSTGRES_MAX_ATTEMPTS
-            Default: 3
-
-        postgres_retry_delay_seconds (int): Retry delay in seconds for PostgreSQL driver
-            Env var: ASYNCTASQ_POSTGRES_RETRY_DELAY_SECONDS
-            Default: 60
-
-        postgres_visibility_timeout_seconds (int): Visibility timeout in seconds
-            Env var: ASYNCTASQ_POSTGRES_VISIBILITY_TIMEOUT_SECONDS
-            Default: 300
-
-        postgres_min_pool_size (int): Minimum connection pool size
-            Env var: ASYNCTASQ_POSTGRES_MIN_POOL_SIZE
-            Default: 10
-
-        postgres_max_pool_size (int): Maximum connection pool size
-            Env var: ASYNCTASQ_POSTGRES_MAX_POOL_SIZE
-            Default: 10
-
-    MySQL Options:
-        mysql_dsn (str): MySQL connection DSN
-            Env var: ASYNCTASQ_MYSQL_DSN
-            Default: "mysql://test:test@localhost:3306/test_db"
-
-        mysql_queue_table (str): MySQL queue table name
-            Env var: ASYNCTASQ_MYSQL_QUEUE_TABLE
-            Default: "task_queue"
-
-        mysql_dead_letter_table (str): MySQL dead letter table name
-            Env var: ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE
-            Default: "dead_letter_queue"
-
-        mysql_max_attempts (int): Maximum attempts before moving to dead letter queue
-            Env var: ASYNCTASQ_MYSQL_MAX_ATTEMPTS
-            Default: 3
-
-        mysql_retry_delay_seconds (int): Retry delay in seconds for MySQL driver
-            Env var: ASYNCTASQ_MYSQL_RETRY_DELAY_SECONDS
-            Default: 60
-
-        mysql_visibility_timeout_seconds (int): Visibility timeout in seconds
-            Env var: ASYNCTASQ_MYSQL_VISIBILITY_TIMEOUT_SECONDS
-            Default: 300
-
-        mysql_min_pool_size (int): Minimum connection pool size
-            Env var: ASYNCTASQ_MYSQL_MIN_POOL_SIZE
-            Default: 10
-
-        mysql_max_pool_size (int): Maximum connection pool size
-            Env var: ASYNCTASQ_MYSQL_MAX_POOL_SIZE
-            Default: 10
-
-    SQS Options:
-        sqs_region (str): AWS SQS region
-            Env var: ASYNCTASQ_SQS_REGION
-            Default: "us-east-1"
-
-        sqs_queue_url_prefix (str | None): SQS queue URL prefix
-            Env var: ASYNCTASQ_SQS_QUEUE_PREFIX
-            Default: None
-
-        aws_access_key_id (str | None): AWS access key ID
-            Env var: AWS_ACCESS_KEY_ID
-            Default: None (uses AWS credential chain)
-
-        aws_secret_access_key (str | None): AWS secret access key
-            Env var: AWS_SECRET_ACCESS_KEY
-            Default: None (uses AWS credential chain)
-
-    RabbitMQ Options:
-        rabbitmq_url (str): RabbitMQ connection URL
-            Env var: ASYNCTASQ_RABBITMQ_URL
-            Default: "amqp://guest:guest@localhost:5672/"
-
-        rabbitmq_exchange_name (str): RabbitMQ exchange name
-            Env var: ASYNCTASQ_RABBITMQ_EXCHANGE_NAME
-            Default: "asynctasq"
-
-        rabbitmq_prefetch_count (int): RabbitMQ consumer prefetch count
-            Env var: ASYNCTASQ_RABBITMQ_PREFETCH_COUNT
-            Default: 1
-
-    Events/Monitoring Options:
-        events_redis_url (str | None): Redis URL for event Pub/Sub (monitor integration)
-            Env var: ASYNCTASQ_EVENTS_REDIS_URL
-            Default: None (falls back to redis_url)
-
-        events_channel (str): Redis Pub/Sub channel for events
-            Env var: ASYNCTASQ_EVENTS_CHANNEL
-            Default: "asynctasq:events"
-
-    Examples:
-        # Basic configuration with Redis
-        set_global_config(
-            driver='redis',
-            redis_url='redis://localhost:6379',
-            default_queue='default'
-        )
-
-        # PostgreSQL with custom settings
-        set_global_config(
-            driver='postgres',
-            postgres_dsn='postgresql://user:pass@localhost:5432/mydb',
-            postgres_queue_table='my_queue',
-            postgres_max_attempts=5,
-            postgres_min_pool_size=5,
-            postgres_max_pool_size=20
-        )
-
-        # MySQL with custom settings
-        set_global_config(
-            driver='mysql',
-            mysql_dsn='mysql://user:pass@localhost:3306/mydb',
-            mysql_queue_table='my_queue',
-            mysql_max_attempts=5,
-            mysql_min_pool_size=5,
-            mysql_max_pool_size=20
-        )
-
-        # SQS configuration
-        set_global_config(
-            driver='sqs',
-            sqs_region='us-west-2',
-            sqs_queue_url_prefix='https://sqs.us-west-2.amazonaws.com/123456789/',
-            aws_access_key_id='your_key',
-            aws_secret_access_key='your_secret'
-        )
-
-        # RabbitMQ configuration
-        set_global_config(
-            driver='rabbitmq',
-            rabbitmq_url='amqp://user:pass@localhost:5672/',
-            rabbitmq_exchange_name='my_exchange',
-            rabbitmq_prefetch_count=10
-        )
-
-        # Task defaults
-            set_global_config(
-                default_max_attempts=5,
-            default_retry_delay=120,
-            default_timeout=300
-        )
-
-        # Task retention (keep completed tasks for history)
-        set_global_config(
-            keep_completed_tasks=True  # Keep completed tasks (default: False)
-        )
-
-    Note:
-        Configuration precedence (highest to lowest):
-        1. Keyword arguments to set_global_config()
-        2. Environment variables
-        3. Default values
-    """
-    global _global_config
-    _global_config = Config.from_env(**overrides)
-
-
-def get_global_config() -> Config:
-    """Get global configuration for the asynctasq library, initializing from environment if not set"""
-    global _global_config
-    if _global_config is None:
-        _global_config = Config.from_env()
-
-    return _global_config
+    @classmethod
+    def get(cls) -> Config:
+        """Return the global `Config` singleton, initializing with defaults
+        if it hasn't been set yet."""
+        if cls._global is None:
+            cls._global = cls()
+        return cls._global

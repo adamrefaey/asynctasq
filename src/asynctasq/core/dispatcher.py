@@ -3,7 +3,7 @@ import logging
 from typing import TYPE_CHECKING, cast
 import uuid
 
-from asynctasq.config import Config, get_global_config
+from asynctasq.config import Config
 from asynctasq.drivers import DriverType
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.serializers import BaseSerializer, MsgpackSerializer
@@ -66,7 +66,7 @@ class Dispatcher:
                 logger.debug(
                     f"Creating driver override '{driver_override}' for {task.__class__.__name__}"
                 )
-                config = get_global_config()
+                config = Config.get()
                 self._driver_cache[cache_key] = DriverFactory.create_from_config(
                     config, driver_type=cast(DriverType, driver_override)
                 )
@@ -160,9 +160,9 @@ def get_dispatcher(driver: str | BaseDriver | None = None) -> Dispatcher:
     if driver_key in _dispatchers:
         return _dispatchers[driver_key][0]
 
-    config = get_global_config()
+    config = Config.get()
     if config is None:
-        config = Config.from_env()
+        config = Config()
 
     # Create driver
     if isinstance(driver, str):

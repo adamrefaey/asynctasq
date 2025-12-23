@@ -1,353 +1,374 @@
 # Configuration
 
-AsyncTasQ supports three configuration methods with clear precedence rules.
+AsyncTasQ uses `Config.set()` and `Config.get()` as the primary configuration interface. Users should not instantiate `Config` directly.
 
-## Configuration Precedence (highest to lowest)
+## Configuration Functions
 
-1. **Keyword arguments** to `set_global_config()` or `Config.from_env()`
-2. **Environment variables**
-3. **Default values**
+## Table of Contents
 
----
+- [Configuration](#configuration)
+  - [Configuration Functions](#configuration-functions)
+  - [Table of Contents](#table-of-contents)
+    - [`Config.set(**kwargs)`](#configsetkwargs)
+    - [`Config.get()`](#configget)
+  - [Configuration Options](#configuration-options)
+    - [Driver Selection](#driver-selection)
+    - [Task Defaults](#task-defaults)
+    - [Process Pool Configuration](#process-pool-configuration)
+    - [Redis Driver Configuration](#redis-driver-configuration)
+    - [PostgreSQL Driver Configuration](#postgresql-driver-configuration)
+    - [MySQL Driver Configuration](#mysql-driver-configuration)
+    - [RabbitMQ Driver Configuration](#rabbitmq-driver-configuration)
+    - [AWS SQS Driver Configuration](#aws-sqs-driver-configuration)
+    - [Events \& Monitoring Configuration](#events--monitoring-configuration)
+    - [Task Repository Configuration](#task-repository-configuration)
+  - [Complete Example](#complete-example)
+  - [Best Practices](#best-practices)
+  - [Environment-driven configuration example](#environment-driven-configuration-example)
 
-## Method 1: Environment Variables (Recommended for Production)
+### `Config.set(**kwargs)`
 
-**General Configuration:**
-
-```bash
-export ASYNCTASQ_DRIVER=redis              # Driver: redis, postgres, mysql, rabbitmq, sqs
-export ASYNCTASQ_DEFAULT_QUEUE=default     # Default queue name
-export ASYNCTASQ_MAX_ATTEMPTS=3             # Default max attempt count
-export ASYNCTASQ_RETRY_STRATEGY=exponential # Retry strategy: 'fixed' or 'exponential'
-export ASYNCTASQ_RETRY_DELAY=60            # Default retry delay (seconds)
-export ASYNCTASQ_TIMEOUT=300               # Default task timeout (seconds, None = no timeout)
-export ASYNCTASQ_VISIBILITY_TIMEOUT=300    # Visibility timeout for crash recovery (seconds)
-
-# ProcessTask/ProcessPoolExecutor configuration (for CPU-bound tasks)
-export ASYNCTASQ_PROCESS_POOL_SIZE=4       # Number of worker processes (None = auto-detect CPU count)
-export ASYNCTASQ_PROCESS_POOL_MAX_TASKS_PER_CHILD=100  # Recycle workers after N tasks (None = no recycling, Python 3.11+)
-```
-
-**Redis Configuration:**
-
-```bash
-export ASYNCTASQ_REDIS_URL=redis://localhost:6379
-export ASYNCTASQ_REDIS_PASSWORD=secret
-export ASYNCTASQ_REDIS_DB=0
-export ASYNCTASQ_REDIS_MAX_CONNECTIONS=100
-```
-
-**PostgreSQL Configuration:**
-
-```bash
-export ASYNCTASQ_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
-export ASYNCTASQ_POSTGRES_QUEUE_TABLE=task_queue
-export ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
-export ASYNCTASQ_POSTGRES_MAX_ATTEMPTS=3
-export ASYNCTASQ_POSTGRES_MIN_POOL_SIZE=10
-export ASYNCTASQ_POSTGRES_MAX_POOL_SIZE=10
-```
-
-**MySQL Configuration:**
-
-```bash
-export ASYNCTASQ_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
-export ASYNCTASQ_MYSQL_QUEUE_TABLE=task_queue
-export ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
-export ASYNCTASQ_MYSQL_MAX_ATTEMPTS=3
-export ASYNCTASQ_MYSQL_MIN_POOL_SIZE=10
-export ASYNCTASQ_MYSQL_MAX_POOL_SIZE=10
-```
-
-**RabbitMQ Configuration:**
-
-```bash
-export ASYNCTASQ_DRIVER=rabbitmq
-export ASYNCTASQ_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-export ASYNCTASQ_RABBITMQ_EXCHANGE_NAME=asynctasq
-export ASYNCTASQ_RABBITMQ_PREFETCH_COUNT=1
-```
-
-**AWS SQS Configuration:**
-
-```bash
-export ASYNCTASQ_SQS_REGION=us-east-1
-export ASYNCTASQ_SQS_QUEUE_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
-export AWS_ACCESS_KEY_ID=your_access_key
-export AWS_SECRET_ACCESS_KEY=your_secret_key
-```
-
-**Events Configuration (Redis Pub/Sub):**
-
-```bash
-export ASYNCTASQ_EVENTS_REDIS_URL=redis://localhost:6379  # Separate Redis for events (optional)
-export ASYNCTASQ_EVENTS_CHANNEL=asynctasq:events          # Pub/Sub channel name
-```
-
-**Task Retention Configuration:**
-
-```bash
-export ASYNCTASQ_KEEP_COMPLETED_TASKS=false  # Keep completed tasks for history (default: false)
-export ASYNCTASQ_TASK_SCAN_LIMIT=10000      # Max tasks to scan in repository queries
-```
-
-**Note:** `keep_completed_tasks` is not applicable for SQS driver (SQS always deletes acknowledged messages).
-
----
-
-## Method 2: Programmatic Configuration
-
-**Using `set_global_config()`:**
+Set the global configuration for AsyncTasQ. Call this once at application startup before creating tasks or workers.
 
 ```python
-from asynctasq.config import set_global_config
+from asynctasq.config import Config
 
-# Basic Redis configuration
-set_global_config(
+Config.set(
     driver='redis',
-    redis_url='redis://localhost:6379',
-    default_queue='default',
-    default_max_attempts=3
+    redis_url='redis://localhost:6379'
 )
+```
 
-# PostgreSQL with custom settings
-set_global_config(
+### `Config.get()`
+
+Get the current global configuration. If not set, returns a `Config` with default values.
+
+```python
+from asynctasq.config import Config
+
+config = Config.get()
+print(config.driver)  # 'redis'
+```
+
+---
+
+## Configuration Options
+
+All configuration options are set via keyword arguments to `Config.set()`.
+
+### Driver Selection
+
+| Option   | Type | Description         | Choices                                         | Default |
+| -------- | ---: | ------------------- | ----------------------------------------------- | ------- |
+| `driver` |  str | Queue driver to use | `redis`, `postgres`, `mysql`, `rabbitmq`, `sqs` | `redis` |
+
+```python
+from asynctasq.config import Config
+
+Config.set(driver='postgres')
+```
+
+---
+
+### Task Defaults
+
+| Option                       |        Type | Description                                         | Choices                | Default       |
+| ---------------------------- | ----------: | --------------------------------------------------- | ---------------------- | ------------- |
+| `default_queue`              |         str | Default queue name for tasks                        | —                      | `default`     |
+| `default_max_attempts`       |         int | Default maximum retry attempts                      | —                      | `3`           |
+| `default_retry_strategy`     |         str | Retry delay strategy                                | `fixed`, `exponential` | `exponential` |
+| `default_retry_delay`        |         int | Base retry delay in seconds                         | —                      | `60`          |
+| `default_timeout`            | int \| None | Default task timeout in seconds (None = no timeout) | —                      | `None`        |
+| `default_visibility_timeout` |         int | Visibility timeout for crash recovery in seconds    | —                      | `300`         |
+
+```python
+from asynctasq.config import Config
+
+Config.set(
+    default_queue='high-priority',
+    default_max_attempts=5,
+    default_retry_strategy='exponential',
+    default_retry_delay=120,
+    default_timeout=600,
+    default_visibility_timeout=300
+)
+```
+
+---
+
+### Process Pool Configuration
+
+For CPU-bound tasks using `AsyncProcessTask` or `SyncProcessTask`.
+
+| Option                             |        Type | Description                                                    | Default |
+| ---------------------------------- | ----------: | -------------------------------------------------------------- | ------- |
+| `process_pool_size`                | int \| None | Number of worker processes (None = auto-detect CPU count)      | `None`  |
+| `process_pool_max_tasks_per_child` | int \| None | Recycle worker processes after N tasks (recommended: 100–1000) | `None`  |
+
+```python
+from asynctasq.config import Config
+
+Config.set(
+    process_pool_size=4,
+    process_pool_max_tasks_per_child=100
+)
+```
+
+---
+
+### Redis Driver Configuration
+
+| Option                  |        Type | Description                       | Default                  |
+| ----------------------- | ----------: | --------------------------------- | ------------------------ |
+| `redis_url`             |         str | Redis connection URL              | `redis://localhost:6379` |
+| `redis_password`        | str \| None | Redis password                    | `None`                   |
+| `redis_db`              |         int | Redis database number (0–15)      | `0`                      |
+| `redis_max_connections` |         int | Maximum connections in Redis pool | `100`                    |
+
+```python
+from asynctasq.config import Config
+
+Config.set(
+    driver='redis',
+    redis_url='redis://prod.example.com:6379',
+    redis_password='secure_password',
+    redis_db=1,
+    redis_max_connections=200
+)
+```
+
+---
+
+### PostgreSQL Driver Configuration
+
+| Option                       | Type | Description                            | Default                                         |
+| ---------------------------- | ---: | -------------------------------------- | ----------------------------------------------- |
+| `postgres_dsn`               |  str | PostgreSQL connection DSN              | `postgresql://test:test@localhost:5432/test_db` |
+| `postgres_queue_table`       |  str | Queue table name                       | `task_queue`                                    |
+| `postgres_dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`                             |
+| `postgres_max_attempts`      |  int | Maximum attempts before dead-lettering | `3`                                             |
+| `postgres_min_pool_size`     |  int | Minimum connection pool size           | `10`                                            |
+| `postgres_max_pool_size`     |  int | Maximum connection pool size           | `10`                                            |
+
+```python
+from asynctasq.config import Config
+
+Config.set(
     driver='postgres',
     postgres_dsn='postgresql://user:pass@localhost:5432/mydb',
-    postgres_queue_table='my_queue',
+    postgres_queue_table='task_queue',
+    postgres_dead_letter_table='dead_letter_queue',
     postgres_max_attempts=5,
-    default_retry_strategy='exponential',  # 'fixed' or 'exponential'
-    default_retry_delay=60,
-    postgres_min_pool_size=5,
-    postgres_max_pool_size=20
+    postgres_min_pool_size=10,
+    postgres_max_pool_size=50
 )
+```
 
-# MySQL with custom settings
-set_global_config(
+---
+
+### MySQL Driver Configuration
+
+| Option                    | Type | Description                            | Default                                    |
+| ------------------------- | ---: | -------------------------------------- | ------------------------------------------ |
+| `mysql_dsn`               |  str | MySQL connection DSN                   | `mysql://test:test@localhost:3306/test_db` |
+| `mysql_queue_table`       |  str | Queue table name                       | `task_queue`                               |
+| `mysql_dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`                        |
+| `mysql_max_attempts`      |  int | Maximum attempts before dead-lettering | `3`                                        |
+| `mysql_min_pool_size`     |  int | Minimum connection pool size           | `10`                                       |
+| `mysql_max_pool_size`     |  int | Maximum connection pool size           | `10`                                       |
+
+```python
+from asynctasq.config import Config
+
+Config.set(
     driver='mysql',
     mysql_dsn='mysql://user:pass@localhost:3306/mydb',
-    mysql_queue_table='my_queue',
+    mysql_queue_table='task_queue',
+    mysql_dead_letter_table='dead_letter_queue',
     mysql_max_attempts=5,
-    default_retry_strategy='exponential',  # 'fixed' or 'exponential'
-    default_retry_delay=60,
-    mysql_min_pool_size=5,
-    mysql_max_pool_size=20
+    mysql_min_pool_size=10,
+    mysql_max_pool_size=50
 )
+```
 
-# RabbitMQ configuration
-set_global_config(
+---
+
+### RabbitMQ Driver Configuration
+
+| Option                    | Type | Description             | Default                              |
+| ------------------------- | ---: | ----------------------- | ------------------------------------ |
+| `rabbitmq_url`            |  str | RabbitMQ connection URL | `amqp://guest:guest@localhost:5672/` |
+| `rabbitmq_exchange_name`  |  str | RabbitMQ exchange name  | `asynctasq`                          |
+| `rabbitmq_prefetch_count` |  int | Consumer prefetch count | `1`                                  |
+
+```python
+from asynctasq.config import Config
+
+Config.set(
     driver='rabbitmq',
     rabbitmq_url='amqp://user:pass@localhost:5672/',
-    rabbitmq_exchange_name='asynctasq',
-    rabbitmq_prefetch_count=1
+    rabbitmq_exchange_name='my_exchange',
+    rabbitmq_prefetch_count=10
 )
+```
 
-# SQS configuration
-set_global_config(
+---
+
+### AWS SQS Driver Configuration
+
+| Option                  |        Type | Description                                        | Default     |
+| ----------------------- | ----------: | -------------------------------------------------- | ----------- |
+| `sqs_region`            |         str | AWS SQS region                                     | `us-east-1` |
+| `sqs_queue_url_prefix`  | str \| None | SQS queue URL prefix                               | `None`      |
+| `aws_access_key_id`     | str \| None | AWS access key ID (None uses credential chain)     | `None`      |
+| `aws_secret_access_key` | str \| None | AWS secret access key (None uses credential chain) | `None`      |
+
+```python
+from asynctasq.config import Config
+
+Config.set(
     driver='sqs',
     sqs_region='us-west-2',
     sqs_queue_url_prefix='https://sqs.us-west-2.amazonaws.com/123456789/',
     aws_access_key_id='your_key',
     aws_secret_access_key='your_secret'
 )
-
-# Task retention (keep completed tasks for history/audit)
-set_global_config(
-    keep_completed_tasks=True  # Default: False (tasks are deleted after completion)
-)
-
-# ProcessTask/ProcessPoolExecutor configuration (for CPU-bound tasks)
-set_global_config(
-    process_pool_size=4,                    # Number of worker processes
-    process_pool_max_tasks_per_child=100   # Recycle workers after 100 tasks (prevents memory leaks)
-)
-
-# Task repository configuration
-set_global_config(
-    task_scan_limit=10000  # Max tasks to scan in repository queries
-)
 ```
 
-**Using `Config.from_env()` with Overrides:**
+---
+
+### Events & Monitoring Configuration
+
+For Redis Pub/Sub event monitoring.
+
+| Option             |        Type | Description                                             | Default            |
+| ------------------ | ----------: | ------------------------------------------------------- | ------------------ |
+| `events_redis_url` | str \| None | Redis URL for event Pub/Sub (falls back to `redis_url`) | `None`             |
+| `events_channel`   |         str | Redis Pub/Sub channel name                              | `asynctasq:events` |
 
 ```python
 from asynctasq.config import Config
 
-# Create config from environment variables with overrides
-config = Config.from_env(
-    driver='redis',
-    redis_url='redis://localhost:6379',
-    default_max_attempts=5
+Config.set(
+    events_redis_url='redis://events.example.com:6379',
+    events_channel='asynctasq:prod:events'
 )
 ```
 
 ---
 
-## Method 3: CLI Arguments
+### Task Repository Configuration
 
-CLI arguments override both environment variables and programmatic configuration:
+| Option                 | Type | Description                                                     | Default |
+| ---------------------- | ---: | --------------------------------------------------------------- | ------- |
+| `task_scan_limit`      |  int | Maximum tasks to scan in repository queries                     | `10000` |
+| `keep_completed_tasks` | bool | Keep completed tasks for history/audit (not applicable for SQS) | `False` |
 
-```bash
-python -m asynctasq worker \
-    --driver redis \
-    --redis-url redis://localhost:6379 \
-    --redis-password secret \
-    --queues high,default,low \
-    --concurrency 20
-```
-
----
-
-## Complete Configuration Reference
-
-**General Options:**
-
-| Option                            | Env Var                                   | Default       | Description                    |
-| --------------------------------- | ----------------------------------------- | ------------- | ------------------------------ |
-| `driver`                          | `ASYNCTASQ_DRIVER`                       | `redis`       | Queue driver                   |
-| `default_queue`                   | `ASYNCTASQ_DEFAULT_QUEUE`                | `default`     | Default queue name             |
-| `default_max_attempts`             | `ASYNCTASQ_MAX_ATTEMPTS`                  | `3`           | Default max attempt count     |
-| `default_retry_strategy`          | `ASYNCTASQ_RETRY_STRATEGY`               | `exponential` | Retry strategy: 'fixed' or 'exponential' |
-| `default_retry_delay`             | `ASYNCTASQ_RETRY_DELAY`                  | `60`          | Base retry delay (seconds)  |
-| `default_timeout`                 | `ASYNCTASQ_TIMEOUT`                      | `None`        | Default task timeout (seconds) |
-| `default_visibility_timeout`      | `ASYNCTASQ_VISIBILITY_TIMEOUT`           | `300`         | Visibility timeout for crash recovery (seconds) |
-| `process_pool_size`               | `ASYNCTASQ_PROCESS_POOL_SIZE`            | `None`    | Process pool size (CPU-bound)  |
-| `process_pool_max_tasks_per_child`| `ASYNCTASQ_PROCESS_POOL_MAX_TASKS_PER_CHILD` | `None` | Worker recycling threshold    |
-| `task_scan_limit`                 | `ASYNCTASQ_TASK_SCAN_LIMIT`              | `10000`   | Max tasks in repository scans  |
-| `keep_completed_tasks`            | `ASYNCTASQ_KEEP_COMPLETED_TASKS`         | `False`   | Keep completed tasks for audit |
-
-**Redis Options:**
-
-| Option                  | Env Var                            | Default                  | Description                  |
-| ----------------------- | ---------------------------------- | ------------------------ | ---------------------------- |
-| `redis_url`             | `ASYNCTASQ_REDIS_URL`             | `redis://localhost:6379` | Redis connection URL         |
-| `redis_password`        | `ASYNCTASQ_REDIS_PASSWORD`        | `None`                   | Redis password               |
-| `redis_db`              | `ASYNCTASQ_REDIS_DB`              | `0`                      | Redis database number (0-15) |
-| `redis_max_connections` | `ASYNCTASQ_REDIS_MAX_CONNECTIONS` | `100`                     | Redis connection pool size   |
-
-**PostgreSQL Options:**
-
-| Option                                | Env Var                                          | Default                                         | Description                  |
-| ------------------------------------- | ------------------------------------------------ | ----------------------------------------------- | ---------------------------- |
-| `postgres_dsn`                        | `ASYNCTASQ_POSTGRES_DSN`                        | `postgresql://test:test@localhost:5432/test_db` | PostgreSQL connection string |
-| `postgres_queue_table`                | `ASYNCTASQ_POSTGRES_QUEUE_TABLE`                | `task_queue`                                    | Queue table name             |
-| `postgres_dead_letter_table`          | `ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE`          | `dead_letter_queue`                             | Dead letter table name       |
-| `postgres_max_attempts`               | `ASYNCTASQ_POSTGRES_MAX_ATTEMPTS`               | `3`                                             | Max attempts before DLQ      |
-| `postgres_min_pool_size`              | `ASYNCTASQ_POSTGRES_MIN_POOL_SIZE`              | `10`                                            | Min connection pool size     |
-| `postgres_max_pool_size`              | `ASYNCTASQ_POSTGRES_MAX_POOL_SIZE`              | `10`                                            | Max connection pool size     |
-
-**MySQL Options:**
-
-| Option                             | Env Var                                       | Default                                    | Description                  |
-| ---------------------------------- | --------------------------------------------- | ------------------------------------------ | ---------------------------- |
-| `mysql_dsn`                        | `ASYNCTASQ_MYSQL_DSN`                        | `mysql://test:test@localhost:3306/test_db` | MySQL connection string      |
-| `mysql_queue_table`                | `ASYNCTASQ_MYSQL_QUEUE_TABLE`                | `task_queue`                               | Queue table name             |
-| `mysql_dead_letter_table`          | `ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE`          | `dead_letter_queue`                        | Dead letter table name       |
-| `mysql_max_attempts`               | `ASYNCTASQ_MYSQL_MAX_ATTEMPTS`               | `3`                                        | Max attempts before DLQ      |
-| `mysql_min_pool_size`              | `ASYNCTASQ_MYSQL_MIN_POOL_SIZE`              | `10`                                       | Min connection pool size     |
-| `mysql_max_pool_size`              | `ASYNCTASQ_MYSQL_MAX_POOL_SIZE`              | `10`                                       | Max connection pool size     |
-
-**RabbitMQ Options:**
-
-| Option                    | Env Var                              | Default                              | Description                      |
-| ------------------------- | ------------------------------------ | ------------------------------------ | -------------------------------- |
-| `rabbitmq_url`            | `ASYNCTASQ_RABBITMQ_URL`            | `amqp://guest:guest@localhost:5672/` | RabbitMQ connection URL          |
-| `rabbitmq_exchange_name`  | `ASYNCTASQ_RABBITMQ_EXCHANGE_NAME`  | `asynctasq`                         | RabbitMQ exchange name           |
-| `rabbitmq_prefetch_count` | `ASYNCTASQ_RABBITMQ_PREFETCH_COUNT` | `1`                                  | RabbitMQ consumer prefetch count |
-
-**AWS SQS Options:**
-
-| Option                  | Env Var                       | Default     | Description                                          |
-| ----------------------- | ----------------------------- | ----------- | ---------------------------------------------------- |
-| `sqs_region`            | `ASYNCTASQ_SQS_REGION`       | `us-east-1` | AWS region                                           |
-| `sqs_queue_url_prefix`  | `ASYNCTASQ_SQS_QUEUE_PREFIX` | `None`      | SQS queue URL prefix                                 |
-| `aws_access_key_id`     | `AWS_ACCESS_KEY_ID`           | `None`      | AWS access key (optional, uses AWS credential chain) |
-| `aws_secret_access_key` | `AWS_SECRET_ACCESS_KEY`       | `None`      | AWS secret key (optional, uses AWS credential chain) |
-
-**Events Options (Redis Pub/Sub):**
-
-| Option              | Env Var                         | Default            | Description                                       |
-| ------------------- | ------------------------------- | ------------------ | ------------------------------------------------- |
-| `events_redis_url`  | `ASYNCTASQ_EVENTS_REDIS_URL`   | `None`             | Dedicated Redis URL for events (falls back to redis_url) |
-| `events_channel`    | `ASYNCTASQ_EVENTS_CHANNEL`     | `asynctasq:events` | Pub/Sub channel name for task events              |
-
-**Task Retention Options:**
-
-| Option                  | Env Var                              | Default | Description                                                                 |
-| ----------------------- | ------------------------------------ | ------- | --------------------------------------------------------------------------- |
-| `keep_completed_tasks`  | `ASYNCTASQ_KEEP_COMPLETED_TASKS`    | `False` | Keep completed tasks for history/audit (not applicable for SQS driver)      |
-
-**Note:** When `keep_completed_tasks=True`:
-- **Redis**: Completed tasks stored in `queue:{name}:completed` list
-- **PostgreSQL**: Completed tasks marked with `status='completed'` in queue table
-- **MySQL**: Completed tasks marked with `status='completed'` in queue table
-- **RabbitMQ**: Completed tasks published to `{queue_name}_completed` queue
-- **SQS**: Not supported (SQS always deletes acknowledged messages)
-
----
-
-## Retry Strategies
-
-AsyncTasQ supports two retry strategies for PostgreSQL and MySQL drivers: **fixed** and **exponential** backoff.
-
-### Fixed Retry Strategy
-
-With the fixed strategy, failed tasks are retried with a constant delay between attempts.
-
-**Configuration:**
 ```python
-set_global_config(
-    driver='postgres',
-    default_retry_strategy='fixed',
-    default_retry_delay=60  # Wait 60 seconds between each retry
+from asynctasq.config import Config
+
+Config.set(
+    task_scan_limit=50000,
+    keep_completed_tasks=True
 )
 ```
 
-**Retry Timeline:**
-- Attempt 1 fails → retry after 60 seconds
-- Attempt 2 fails → retry after 60 seconds
-- Attempt 3 fails → move to dead letter queue
+---
 
-**Use Cases:**
-- External service is temporarily down and may recover at any time
-- Rate limiting where you want consistent retry intervals
-- Simple retry logic without increasing backoff
+## Complete Example
 
-### Exponential Retry Strategy (Default)
-
-With the exponential strategy, the delay between retries increases exponentially with each failed attempt. This is the default strategy.
-
-**Configuration:**
 ```python
-set_global_config(
+from asynctasq.config import Config
+
+# Production PostgreSQL configuration
+Config.set(
+    # Driver selection
     driver='postgres',
+
+    # PostgreSQL connection
+    postgres_dsn='postgresql://worker:secure_pass@db.prod.example.com:5432/asynctasq',
+    postgres_queue_table='task_queue',
+    postgres_dead_letter_table='dead_letter_queue',
+    postgres_max_attempts=3,
+    postgres_min_pool_size=10,
+    postgres_max_pool_size=50,
+
+    # Task defaults
+    default_queue='default',
+    default_max_attempts=3,
     default_retry_strategy='exponential',
-    default_retry_delay=60  # Initial delay (base)
+    default_retry_delay=60,
+    default_timeout=300,
+    default_visibility_timeout=300,
+
+    # Process pool for CPU-bound tasks
+    process_pool_size=4,
+    process_pool_max_tasks_per_child=100,
+
+    # Events monitoring
+    events_redis_url='redis://events.prod.example.com:6379',
+    events_channel='asynctasq:prod:events',
+
+    # Task retention for audit
+    keep_completed_tasks=True,
+    task_scan_limit=50000
 )
 ```
 
-**Retry Timeline:**
-- Attempt 1 fails → retry after 60s × 2^0 = 60 seconds
-- Attempt 2 fails → retry after 60s × 2^1 = 120 seconds
-- Attempt 3 fails → retry after 60s × 2^2 = 240 seconds
-- Attempt N fails → retry after 60s × 2^(N-1) seconds
+---
 
-**Use Cases:**
-- Transient errors that may require longer recovery time
-- Reducing load on failing external services
-- Network issues that benefit from increasing backoff
-- Default recommended strategy for most use cases
+## Best Practices
 
-### Driver Support
+1. **Call `Config.set()` once** at application startup before creating tasks or workers
+2. **Use different configurations** for different environments (dev, staging, production)
+3. **Store sensitive credentials** securely (environment variables, secret managers, etc.)
+4. **Configure appropriate pool sizes** for database drivers based on your workload
+5. **Set reasonable timeouts** to prevent hung tasks from blocking workers
+6. **Use `keep_completed_tasks=True`** if you need task history for audit/compliance
 
-| Driver     | Retry Strategy Support | Implementation Method |
-|------------|------------------------|-----------------------|
-| PostgreSQL | ✅ Fixed, Exponential   | Database-tracked      |
-| MySQL      | ✅ Fixed, Exponential   | Database-tracked      |
-| Redis      | ✅ Fixed, Exponential   | Worker-calculated     |
-| RabbitMQ   | ✅ Fixed, Exponential   | Worker-calculated     |
-| SQS        | ✅ Fixed, Exponential   | Worker-calculated     |
+---
 
-**Implementation Notes:**
-- **PostgreSQL/MySQL**: Retry delays are calculated and tracked in the database. The `available_at` column ensures tasks aren't retried until the calculated delay has elapsed.
-- **Redis/RabbitMQ/SQS**: Retry delays are calculated by the worker and tasks are re-enqueued with the appropriate delay. The task's attempt count is stored in the serialized task data.
+## Environment-driven configuration example
+
+This example shows a simple, 12-factor-friendly way to configure AsyncTasQ from
+environment variables. It reads commonly used settings, provides sensible
+defaults, and includes a note about using `python-dotenv` for local
+development.
+
+```python
+import os
+from asynctasq.config import Config
+
+# Optional: load a .env file in development (install python-dotenv)
+# from dotenv import load_dotenv
+# load_dotenv()
+
+# Helper to read booleans from env
+def env_bool(name: str, default: bool = False) -> bool:
+    val = os.getenv(name)
+    if val is None:
+        return default
+    return val.lower() not in ("0", "false", "no", "off")
+
+# Read configuration from environment with sensible defaults
+from asynctasq.config import Config
+
+Config.set(
+    driver=os.getenv("ASYNCTASQ_DRIVER", "redis"),
+    redis_url=os.getenv("ASYNCTASQ_REDIS_URL", "redis://localhost:6379"),
+    postgres_dsn=os.getenv("ASYNCTASQ_POSTGRES_DSN"),
+    default_queue=os.getenv("ASYNCTASQ_DEFAULT_QUEUE", "default"),
+    default_max_attempts=int(os.getenv("ASYNCTASQ_MAX_ATTEMPTS", "3")),
+    default_retry_strategy=os.getenv("ASYNCTASQ_RETRY_STRATEGY", "exponential"),
+    default_retry_delay=int(os.getenv("ASYNCTASQ_RETRY_DELAY", "60")),
+    default_timeout=(int(os.getenv("ASYNCTASQ_TIMEOUT")) if os.getenv("ASYNCTASQ_TIMEOUT") else None),
+    default_visibility_timeout=int(os.getenv("ASYNCTASQ_VISIBILITY_TIMEOUT", "300")),
+    keep_completed_tasks=env_bool("ASYNCTASQ_KEEP_COMPLETED_TASKS", False),
+)
+
+# Notes:
+# - Prefer distinct environment variables per deployment (dev/staging/prod).
+# - Use a secrets manager or CI/CD environment injection to provide credentials.
+# - For local development you can store variables in a `.env` file and load it
+#   with `python-dotenv` as shown above.
+```

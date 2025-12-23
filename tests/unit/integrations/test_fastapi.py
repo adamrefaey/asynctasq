@@ -109,7 +109,7 @@ class TestAsyncTaskIntegration:
         integration = AsyncTaskIntegration()
 
         with (
-            patch("asynctasq.integrations.fastapi.get_global_config") as mock_get_config,
+            patch("asynctasq.integrations.fastapi.Config.get") as mock_get_config,
             patch(
                 "asynctasq.integrations.fastapi.DriverFactory.create_from_config"
             ) as mock_factory,

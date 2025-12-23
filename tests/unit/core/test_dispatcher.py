@@ -116,7 +116,7 @@ class TestDispatcherGetDriver:
         task.config = replace(task.config, driver_override="redis")  # type: ignore[call-overload]
 
         with (
-            patch("asynctasq.core.dispatcher.get_global_config") as mock_get_config,
+            patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create_from_config") as mock_create,
         ):
             mock_config = MagicMock(spec=Config)
@@ -143,7 +143,7 @@ class TestDispatcherGetDriver:
         task2.config = replace(task2.config, driver_override="redis")  # type: ignore[call-overload]
 
         with (
-            patch("asynctasq.core.dispatcher.get_global_config") as mock_get_config,
+            patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create_from_config") as mock_create,
         ):
             mock_config = MagicMock(spec=Config)
@@ -362,7 +362,7 @@ class TestDispatcherDispatch:
             task._delay_seconds = 0  # type: ignore[attr-defined]
 
         with (
-            patch("asynctasq.core.dispatcher.get_global_config") as mock_get_config,
+            patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create_from_config") as mock_create,
         ):
             mock_config = MagicMock(spec=Config)
@@ -710,7 +710,7 @@ class TestGetDispatcher:
     def test_get_dispatcher_with_none_uses_default_config(self) -> None:
         # Arrange
         with (
-            patch("asynctasq.core.dispatcher.get_global_config") as mock_get_config,
+            patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create_from_config") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
@@ -733,7 +733,7 @@ class TestGetDispatcher:
     def test_get_dispatcher_with_string_creates_from_config(self) -> None:
         # Arrange
         with (
-            patch("asynctasq.core.dispatcher.get_global_config") as mock_get_config,
+            patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create_from_config") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
@@ -773,7 +773,7 @@ class TestGetDispatcher:
         _dispatchers.clear()
 
         with (
-            patch("asynctasq.core.dispatcher.get_global_config") as mock_get_config,
+            patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create_from_config") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
@@ -802,7 +802,7 @@ class TestGetDispatcher:
         _dispatchers.clear()
 
         with (
-            patch("asynctasq.core.dispatcher.get_global_config") as mock_get_config,
+            patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create_from_config") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
@@ -848,21 +848,21 @@ class TestGetDispatcher:
             assert result1 != result2
             assert mock_dispatcher_class.call_count == 2
 
-    def test_get_dispatcher_handles_config_none_creates_from_env(self) -> None:
+    def test_get_dispatcher_handles_config_none_creates_default(self) -> None:
         # Arrange - clear cache first
         from asynctasq.core.dispatcher import _dispatchers
 
         _dispatchers.clear()
 
         with (
-            patch("asynctasq.core.dispatcher.get_global_config") as mock_get_config,
-            patch("asynctasq.core.dispatcher.Config.from_env") as mock_from_env,
+            patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
+            patch("asynctasq.core.dispatcher.Config") as mock_config_class,
             patch("asynctasq.core.dispatcher.DriverFactory.create_from_config") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
         ):
             mock_get_config.return_value = None
             mock_config = MagicMock(spec=Config)
-            mock_from_env.return_value = mock_config
+            mock_config_class.return_value = mock_config
             mock_driver = MagicMock(spec=BaseDriver)
             mock_create.return_value = mock_driver
             mock_dispatcher = MagicMock(spec=Dispatcher)
@@ -876,7 +876,7 @@ class TestGetDispatcher:
             # Note: result may be a different mock instance, so check behavior instead
             assert result is not None
             assert isinstance(result, MagicMock)
-            mock_from_env.assert_called_once()
+            mock_config_class.assert_called_once()
             mock_create.assert_called_once_with(mock_config)
             mock_dispatcher_class.assert_called_once_with(mock_driver, event_emitter=ANY)
 

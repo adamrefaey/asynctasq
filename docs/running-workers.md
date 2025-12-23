@@ -90,7 +90,7 @@ from asynctasq.core.worker import Worker
 
 async def main():
     # Create configuration
-    config = Config.from_env(driver='redis', redis_url='redis://localhost:6379')
+    config = Config(driver='redis', redis_url='redis://localhost:6379')
 
     # Create driver and connect
     driver = DriverFactory.create_from_config(config)
@@ -203,14 +203,14 @@ Workers can emit real-time events for monitoring via Redis Pub/Sub. This enables
 from asynctasq.core.events import create_event_emitter
 from asynctasq.core.worker import Worker
 from asynctasq.core.driver_factory import DriverFactory
-from asynctasq.config import get_global_config
+from asynctasq.config import Config
 
 # Create event emitter (uses Redis Pub/Sub)
 # Reads from ASYNCTASQ_EVENTS_REDIS_URL or falls back to ASYNCTASQ_REDIS_URL
 emitter = create_event_emitter()
 
 # Create worker with events and process pool for CPU-bound tasks
-config = get_global_config()
+config = Config.get()
 driver = DriverFactory.create_from_config(config)
 
 worker = Worker(

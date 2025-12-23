@@ -10,7 +10,7 @@ import uuid
 
 import uvloop
 
-from asynctasq.config import get_global_config
+from asynctasq.config import Config
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.drivers.retry_utils import calculate_retry_delay
 from asynctasq.serializers import BaseSerializer, MsgpackSerializer
@@ -459,7 +459,7 @@ class Worker:
             # in the serialized payload; the next worker will call
             # `mark_attempt_started()` when the task is actually started again)
             # Calculate retry delay based on strategy (fixed or exponential)
-            config = get_global_config()
+            config = Config.get()
             # Use the attempt that just ran (existing_attempt) for delay calculation.
             # Validate and cast to RetryStrategy for type safety
             retry_strategy = config.default_retry_strategy

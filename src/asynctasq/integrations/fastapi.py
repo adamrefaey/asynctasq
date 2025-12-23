@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 import logging
 from typing import TYPE_CHECKING, Any
 
-from asynctasq.config import Config, get_global_config
+from asynctasq.config import Config
 from asynctasq.core.dispatcher import Dispatcher
 from asynctasq.core.driver_factory import DriverFactory
 from asynctasq.drivers.base_driver import BaseDriver
@@ -101,7 +101,7 @@ class AsyncTaskIntegration:
                 driver = DriverFactory.create_from_config(self._config)
             else:
                 # Use global config or load from environment
-                config = get_global_config()
+                config = Config.get()
                 driver = DriverFactory.create_from_config(config)
 
             # Connect driver
