@@ -34,6 +34,7 @@ class ConfigOverrides(TypedDict, total=False):
     rabbitmq_prefetch_count: int
     events_redis_url: str | None
     events_channel: str
+    enable_event_emitter_redis: bool
     default_queue: str
     default_max_attempts: int
     default_retry_strategy: str
@@ -94,6 +95,8 @@ class Config:
     # If None, falls back to redis_url for Pub/Sub events
     events_redis_url: str | None = None
     events_channel: str = "asynctasq:events"
+    # Controls whether to emit monitoring events (task_enqueued, task_started, etc.) via Redis Pub/Sub
+    enable_event_emitter_redis: bool = False
 
     # Task defaults
     default_queue: str = "default"

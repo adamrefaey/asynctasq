@@ -18,7 +18,7 @@ from asynctasq.tasks import BaseTask
 from asynctasq.tasks.services.executor import TaskExecutor
 from asynctasq.tasks.services.serializer import TaskSerializer
 
-from .events import EventEmitter, EventType, TaskEvent, WorkerEvent
+from .events import EventRegistry, EventType, TaskEvent, WorkerEvent
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class Worker:
         concurrency: int = 10,
         max_tasks: int | None = None,  # None = run indefinitely (production default)
         serializer: BaseSerializer | None = None,
-        event_emitter: EventEmitter | None = None,
+        event_emitter: None = None,
         worker_id: str | None = None,
         heartbeat_interval: float = 60.0,
         process_pool_size: int | None = None,
@@ -72,7 +72,8 @@ class Worker:
         self.concurrency = concurrency
         self.max_tasks = max_tasks  # None = continuous operation, N = stop after N tasks
         self.serializer = serializer or MsgpackSerializer()
-        self.event_emitter = event_emitter
+        # Worker uses global event emitters via EventRegistry.emit()
+        self.event_emitter = None
         self.worker_id = worker_id or f"worker-{uuid.uuid4().hex[:8]}"
         self.hostname = socket.gethostname()
         self.heartbeat_interval = heartbeat_interval
@@ -143,23 +144,22 @@ class Worker:
             self.concurrency,
         )
 
-        # Emit worker_online event
-        if self.event_emitter:
-            await self.event_emitter.emit_worker_event(
-                WorkerEvent(
-                    event_type=EventType.WORKER_ONLINE,
-                    worker_id=self.worker_id,
-                    hostname=self.hostname,
-                    queues=tuple(self.queues),
-                    freq=self.heartbeat_interval,
-                )
+        # Emit worker_online event via global emitters
+        await EventRegistry.emit(
+            WorkerEvent(
+                event_type=EventType.WORKER_ONLINE,
+                worker_id=self.worker_id,
+                hostname=self.hostname,
+                queues=tuple(self.queues),
+                freq=self.heartbeat_interval,
             )
+        )
 
         # Start heartbeat loop
-        if self.event_emitter:
-            self._heartbeat_task = asyncio.create_task(
-                self._heartbeat_loop(), name=f"{self.worker_id}-heartbeat"
-            )
+        # Start heartbeat loop (will call EventRegistry.emit internally)
+        self._heartbeat_task = asyncio.create_task(
+            self._heartbeat_loop(), name=f"{self.worker_id}-heartbeat"
+        )
 
         try:
             await self._run()
@@ -185,19 +185,18 @@ class Worker:
                     else 0
                 )
 
-                if self.event_emitter:
-                    await self.event_emitter.emit_worker_event(
-                        WorkerEvent(
-                            event_type=EventType.WORKER_HEARTBEAT,
-                            worker_id=self.worker_id,
-                            hostname=self.hostname,
-                            freq=self.heartbeat_interval,
-                            active=len(self._tasks),
-                            processed=self._tasks_processed,
-                            queues=tuple(self.queues),
-                            uptime_seconds=uptime,
-                        )
+                await EventRegistry.emit(
+                    WorkerEvent(
+                        event_type=EventType.WORKER_HEARTBEAT,
+                        worker_id=self.worker_id,
+                        hostname=self.hostname,
+                        freq=self.heartbeat_interval,
+                        active=len(self._tasks),
+                        processed=self._tasks_processed,
+                        queues=tuple(self.queues),
+                        uptime_seconds=uptime,
                     )
+                )
 
             except asyncio.CancelledError:
                 break
@@ -289,17 +288,16 @@ class Worker:
             task.mark_attempt_started()
 
             # Emit task_started event
-            if self.event_emitter:
-                await self.event_emitter.emit_task_event(
-                    TaskEvent(
-                        event_type=EventType.TASK_STARTED,
-                        task_id=task._task_id,
-                        task_name=task.__class__.__name__,
-                        queue=queue_name,
-                        worker_id=self.worker_id,
-                        attempt=task._current_attempt,
-                    )
+            await EventRegistry.emit(
+                TaskEvent(
+                    event_type=EventType.TASK_STARTED,
+                    task_id=task._task_id,
+                    task_name=task.__class__.__name__,
+                    queue=queue_name,
+                    worker_id=self.worker_id,
+                    attempt=task._current_attempt,
                 )
+            )
 
             # Execute task with timeout (delegated to TaskService)
             await self._task_executor.execute(task)
@@ -308,17 +306,16 @@ class Worker:
             duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
 
             # Emit task_completed event
-            if self.event_emitter:
-                await self.event_emitter.emit_task_event(
-                    TaskEvent(
-                        event_type=EventType.TASK_COMPLETED,
-                        task_id=task._task_id,
-                        task_name=task.__class__.__name__,
-                        queue=queue_name,
-                        worker_id=self.worker_id,
-                        duration_ms=duration_ms,
-                    )
+            await EventRegistry.emit(
+                TaskEvent(
+                    event_type=EventType.TASK_COMPLETED,
+                    task_id=task._task_id,
+                    task_name=task.__class__.__name__,
+                    queue=queue_name,
+                    worker_id=self.worker_id,
+                    duration_ms=duration_ms,
                 )
+            )
 
             # Task succeeded - acknowledge and remove from queue
             logger.info(f"Task {task._task_id} completed successfully")
@@ -398,7 +395,7 @@ class Worker:
         """Handle task execution failure with retry and dead-letter logic.
 
         Checks if task should retry (via TaskExecutor). If yes, serializes task, calculates
-        retry delay (exponential/fixed), emits TASK_REENQUEUE event, and re-enqueues. If no,
+        retry delay (exponential/fixed), emits TASK_REENQUEUED event, and re-enqueues. If no,
         emits TASK_FAILED event, calls task.failed() hook, and moves to dead letter queue.
 
         Parameters
@@ -430,20 +427,19 @@ class Worker:
             serialized_task = self._task_serializer.serialize(task)
             logger.info(f"Re-enqueuing task {task_id}")
 
-            # Emit task_reenqueue event
-            if self.event_emitter:
-                await self.event_emitter.emit_task_event(
-                    TaskEvent(
-                        event_type=EventType.TASK_REENQUEUE,
-                        task_id=task_id,
-                        task_name=task.__class__.__name__,
-                        queue=queue_name,
-                        worker_id=self.worker_id,
-                        attempt=task._current_attempt,
-                        error=str(exception),
-                        duration_ms=duration_ms,
-                    )
+            # Emit task_reenqueued event
+            await EventRegistry.emit(
+                TaskEvent(
+                    event_type=EventType.TASK_REENQUEUED,
+                    task_id=task_id,
+                    task_name=task.__class__.__name__,
+                    queue=queue_name,
+                    worker_id=self.worker_id,
+                    attempt=task._current_attempt,
+                    error=str(exception),
+                    duration_ms=duration_ms,
                 )
+            )
 
             # Remove old task from processing list before re-enqueuing
             # Use ack() to clean up the old task data
@@ -482,20 +478,19 @@ class Worker:
             )
 
             # Emit task_failed event
-            if self.event_emitter:
-                await self.event_emitter.emit_task_event(
-                    TaskEvent(
-                        event_type=EventType.TASK_FAILED,
-                        task_id=task_id,
-                        task_name=task.__class__.__name__,
-                        queue=queue_name,
-                        worker_id=self.worker_id,
-                        duration_ms=duration_ms,
-                        error=str(exception),
-                        traceback=traceback.format_exc(),
-                        attempt=task._current_attempt,
-                    )
+            await EventRegistry.emit(
+                TaskEvent(
+                    event_type=EventType.TASK_FAILED,
+                    task_id=task_id,
+                    task_name=task.__class__.__name__,
+                    queue=queue_name,
+                    worker_id=self.worker_id,
+                    duration_ms=duration_ms,
+                    error=str(exception),
+                    traceback=traceback.format_exc(),
+                    attempt=task._current_attempt,
                 )
+            )
 
             # Call task's failed() hook via TaskService
             await self._task_executor.handle_failed(task, exception)
@@ -601,23 +596,22 @@ class Worker:
             logger.info("Shutting down process pool...")
             await manager.shutdown(wait=True, cancel_futures=False)
 
-        # Emit worker_offline event
-        if self.event_emitter:
-            uptime = (
-                int((datetime.now(UTC) - self._start_time).total_seconds())
-                if self._start_time
-                else 0
+        # Emit worker_offline event and close global emitters
+        uptime = (
+            int((datetime.now(UTC) - self._start_time).total_seconds()) if self._start_time else 0
+        )
+        await EventRegistry.emit(
+            WorkerEvent(
+                event_type=EventType.WORKER_OFFLINE,
+                worker_id=self.worker_id,
+                hostname=self.hostname,
+                processed=self._tasks_processed,
+                uptime_seconds=uptime,
             )
-            await self.event_emitter.emit_worker_event(
-                WorkerEvent(
-                    event_type=EventType.WORKER_OFFLINE,
-                    worker_id=self.worker_id,
-                    hostname=self.hostname,
-                    processed=self._tasks_processed,
-                    uptime_seconds=uptime,
-                )
-            )
-            await self.event_emitter.close()
+        )
+
+        # Close any registered global emitters
+        await EventRegistry.close_all()
 
         # Disconnect driver
         await self.queue_driver.disconnect()

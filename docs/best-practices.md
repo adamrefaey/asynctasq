@@ -146,23 +146,29 @@ python -m asynctasq worker --queues low-priority --concurrency 5 &
 AsyncTasQ integrates with `asynctasq-monitor` via Redis Pub/Sub for real-time observability:
 
 ```python
-from asynctasq.core.events import create_event_emitter
+from asynctasq.core.events import EventRegistry
 from asynctasq.core.worker import Worker
 from asynctasq.core.driver_factory import DriverFactory
 from asynctasq.config import Config
 
 # Worker with event streaming enabled
 async def start_worker_with_events():
+    # Enable monitoring in config
+    Config.set(
+        enable_event_emitter_redis=True,  # Required to emit events
+        events_redis_url="redis://localhost:6379",
+        events_channel="asynctasq:events"
+    )
+
     config = Config.get()
     driver = DriverFactory.create_from_config(config)
 
-    # Event emitter publishes to Redis Pub/Sub (asynctasq:events channel)
-    emitter = create_event_emitter()  # Reads from ASYNCTASQ_EVENTS_REDIS_URL
+    # Initialize global event emitters (publishes to Redis Pub/Sub on asynctasq:events channel)
+    EventRegistry.init()  # Uses config.enable_event_emitter_redis
 
     worker = Worker(
         queue_driver=driver,
         queues=['default'],
-        event_emitter=emitter,
         worker_id="worker-1",
         heartbeat_interval=60.0  # Send heartbeat every 60s
     )
@@ -170,7 +176,7 @@ async def start_worker_with_events():
     try:
         await worker.start()
     finally:
-        await emitter.close()
+        await EventRegistry.close_all()
         await driver.disconnect()
 
 # Event consumer for custom monitoring

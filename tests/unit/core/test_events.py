@@ -7,13 +7,11 @@ from pytest import fixture, main, mark
 
 from asynctasq.config import Config
 from asynctasq.core.events import (
-    CompositeEventEmitter,
     EventType,
     LoggingEventEmitter,
     RedisEventEmitter,
     TaskEvent,
     WorkerEvent,
-    create_event_emitter,
 )
 
 
@@ -55,7 +53,7 @@ class TestEventType:
         assert EventType.TASK_STARTED == "task_started"
         assert EventType.TASK_COMPLETED == "task_completed"
         assert EventType.TASK_FAILED == "task_failed"
-        assert EventType.TASK_REENQUEUE == "task_reenqueue"
+        assert EventType.TASK_REENQUEUED == "task_reenqueued"
         assert EventType.TASK_CANCELLED == "task_cancelled"
 
     def test_worker_event_types_exist(self) -> None:
@@ -157,7 +155,7 @@ class TestLoggingEventEmitter:
 
         with caplog.at_level(logging.INFO):
             emitter = LoggingEventEmitter()
-            await emitter.emit_task_event(sample_task_event)
+            await emitter.emit(sample_task_event)
 
         assert "TaskEvent" in caplog.text
         assert "task_started" in caplog.text
@@ -170,7 +168,7 @@ class TestLoggingEventEmitter:
 
         with caplog.at_level(logging.INFO):
             emitter = LoggingEventEmitter()
-            await emitter.emit_worker_event(sample_worker_event)
+            await emitter.emit(sample_worker_event)
 
         assert "WorkerEvent" in caplog.text
         assert "worker_online" in caplog.text
@@ -245,7 +243,7 @@ class TestRedisEventEmitter:
         mock_client = AsyncMock()
         emitter._client = mock_client
 
-        await emitter.emit_task_event(sample_task_event)
+        await emitter.emit(sample_task_event)
 
         mock_client.publish.assert_called_once()
         call_args = mock_client.publish.call_args
@@ -268,7 +266,7 @@ class TestRedisEventEmitter:
         mock_client = AsyncMock()
         emitter._client = mock_client
 
-        await emitter.emit_worker_event(sample_worker_event)
+        await emitter.emit(sample_worker_event)
 
         mock_client.publish.assert_called_once()
 
@@ -290,7 +288,7 @@ class TestRedisEventEmitter:
         emitter._client = mock_client
 
         # Should not raise
-        await emitter.emit_task_event(sample_task_event)
+        await emitter.emit(sample_task_event)
 
         assert "Failed to publish task event" in caplog.text
 
@@ -366,135 +364,6 @@ class TestRedisEventEmitter:
         data = msgpack.unpackb(result)
         assert isinstance(data["queues"], list)
         assert data["queues"] == ["default", "high-priority"]
-
-
-@mark.unit
-class TestCompositeEventEmitter:
-    """Test CompositeEventEmitter."""
-
-    @mark.asyncio
-    async def test_emits_to_all_emitters(self, sample_task_event: TaskEvent) -> None:
-        """Test that events are emitted to all registered emitters."""
-        emitter1 = AsyncMock()
-        emitter2 = AsyncMock()
-
-        composite = CompositeEventEmitter([emitter1, emitter2])
-        await composite.emit_task_event(sample_task_event)
-
-        emitter1.emit_task_event.assert_called_once_with(sample_task_event)
-        emitter2.emit_task_event.assert_called_once_with(sample_task_event)
-
-    @mark.asyncio
-    async def test_continues_on_emitter_error(self, sample_task_event: TaskEvent, caplog) -> None:
-        """Test that one failing emitter doesn't block others."""
-        emitter1 = AsyncMock()
-        emitter1.emit_task_event.side_effect = Exception("Emitter 1 failed")
-        emitter2 = AsyncMock()
-
-        composite = CompositeEventEmitter([emitter1, emitter2])
-        await composite.emit_task_event(sample_task_event)
-
-        # emitter2 should still be called
-        emitter2.emit_task_event.assert_called_once_with(sample_task_event)
-        assert "Failed to emit task event" in caplog.text
-
-    @mark.asyncio
-    async def test_close_closes_all_emitters(self) -> None:
-        """Test that close is called on all emitters."""
-        emitter1 = AsyncMock()
-        emitter2 = AsyncMock()
-
-        composite = CompositeEventEmitter([emitter1, emitter2])
-        await composite.close()
-
-        emitter1.close.assert_called_once()
-        emitter2.close.assert_called_once()
-
-    @mark.asyncio
-    async def test_close_continues_on_error(self, caplog) -> None:
-        """Test that close continues even if one emitter fails."""
-        emitter1 = AsyncMock()
-        emitter1.close.side_effect = Exception("Close failed")
-        emitter2 = AsyncMock()
-
-        composite = CompositeEventEmitter([emitter1, emitter2])
-        await composite.close()
-
-        emitter2.close.assert_called_once()
-        assert "Failed to close emitter" in caplog.text
-
-
-@mark.unit
-class TestCreateEventEmitter:
-    """Test create_event_emitter factory function."""
-
-    def test_returns_logging_emitter_when_redis_not_available(self) -> None:
-        """Test fallback to logging emitter when redis not installed."""
-        with patch.dict("sys.modules", {"redis": None, "redis.asyncio": None}):
-            # Force ImportError by patching the import
-            with patch("asynctasq.core.events.create_event_emitter") as mock_factory:
-                mock_factory.return_value = LoggingEventEmitter()
-                emitter = mock_factory()
-                assert isinstance(emitter, LoggingEventEmitter)
-
-    def test_returns_composite_when_redis_available_and_logging_enabled(self) -> None:
-        """Test that composite emitter is returned with both logging and Redis."""
-        mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="test:events",
-        )
-
-        with (
-            patch("asynctasq.core.events.Config.get", return_value=mock_config),
-            patch("redis.asyncio.Redis"),
-        ):
-            emitter = create_event_emitter(include_logging=True)
-            assert isinstance(emitter, CompositeEventEmitter)
-            assert len(emitter.emitters) == 2
-
-    def test_returns_redis_only_when_logging_disabled(self) -> None:
-        """Test that only Redis emitter is returned when logging disabled."""
-        mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="test:events",
-        )
-
-        with (
-            patch("asynctasq.core.events.Config.get", return_value=mock_config),
-            patch("redis.asyncio.Redis"),
-        ):
-            emitter = create_event_emitter(include_logging=False)
-            assert isinstance(emitter, RedisEventEmitter)
-
-    def test_passes_redis_url_to_emitter(self) -> None:
-        """Test that explicit redis_url is passed to RedisEventEmitter."""
-        mock_config = Config(
-            events_redis_url="redis://config:6379",
-            events_channel="test:events",
-        )
-
-        with (
-            patch("asynctasq.core.events.Config.get", return_value=mock_config),
-            patch("redis.asyncio.Redis"),
-        ):
-            emitter = create_event_emitter(redis_url="redis://explicit:6379", include_logging=False)
-            assert isinstance(emitter, RedisEventEmitter)
-            assert emitter.redis_url == "redis://explicit:6379"
-
-    def test_passes_channel_to_emitter(self) -> None:
-        """Test that explicit channel is passed to RedisEventEmitter."""
-        mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="config:events",
-        )
-
-        with (
-            patch("asynctasq.core.events.Config.get", return_value=mock_config),
-            patch("redis.asyncio.Redis"),
-        ):
-            emitter = create_event_emitter(channel="explicit:channel", include_logging=False)
-            assert isinstance(emitter, RedisEventEmitter)
-            assert emitter.channel == "explicit:channel"
 
 
 @mark.unit
