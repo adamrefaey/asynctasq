@@ -114,6 +114,13 @@ max-statements = 50
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "standard"
+# Allow task subclasses to override methods with class attributes for configuration
+# This is a valid pattern where max_attempts/timeout can be either:
+# 1. Class attributes for default configuration (e.g., max_attempts = 3)
+# 2. Instance methods for chaining (e.g., task.max_attempts(5))
+#
+# Pyright sees this as an assignment type error, but it's intentional shadowing
+reportAssignmentType = "none"
 
 [tool.pytest.ini_options]
 # Use strict mode to avoid false positives from auto-detection
