@@ -208,6 +208,23 @@ def receive_checkout(dbapi_conn, connection_record, connection_proxy):
 - ✅ **Cleaner code** - No manual session management in tasks
 - ✅ **Production-ready** - Follows Celery best practices for multiprocessing
 
+**Engine Cleanup:**
+
+To ensure SQLAlchemy engines are properly disposed when your AsyncTasQ application shuts down, pass your engine to `asynctasq.init()`:
+
+```python
+import asynctasq
+
+# Pass your SQLAlchemy engine to AsyncTasQ for automatic cleanup
+asynctasq.init({
+    "driver": "redis",
+    "redis_url": "redis://localhost:6379",
+    "sqlalchemy_engine": engine  # AsyncTasQ will dispose this on shutdown
+})
+```
+
+This prevents connection leaks and ensures graceful shutdown of database connections.
+
 **How It Works:**
 
 1. **Serialization (Dispatch):** ORM models are converted to lightweight references `{"__orm:sqlalchemy__": pk, "__orm_class__": "app.models.User"}` containing only the primary key

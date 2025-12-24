@@ -25,6 +25,23 @@ async def _cleanup_asynctasq():
         # Ignore cleanup errors
         pass
 
+    # Cleanup user-supplied SQLAlchemy engine
+    try:
+        from sqlalchemy.ext.asyncio import AsyncEngine
+
+        from asynctasq.config import Config
+
+        config = Config.get()
+        if config.sqlalchemy_engine and isinstance(config.sqlalchemy_engine, AsyncEngine):
+            try:
+                await config.sqlalchemy_engine.dispose()
+            except Exception:
+                pass
+    except ImportError:
+        pass
+    except Exception:
+        pass
+
 
 def run(coro: Any):
     """Run coroutine using a fresh uvloop event loop.
