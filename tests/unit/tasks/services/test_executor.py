@@ -159,8 +159,8 @@ class TestTaskExecutor:
         # Act
         await executor.execute(task, timeout=None)
 
-        # Assert (should use task.config.timeout)
-        assert task.config.timeout == 10
+        # Assert (should use task.config.get("timeout"))
+        assert task.config.get("timeout") == 10
 
     @mark.asyncio
     async def test_execute_raises_timeout_error(self) -> None:

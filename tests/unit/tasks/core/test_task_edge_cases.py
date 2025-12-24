@@ -12,7 +12,8 @@ Testing Strategy:
 from __future__ import annotations
 
 from collections.abc import Generator
-from dataclasses import replace
+
+# from dataclasses import replace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -34,55 +35,56 @@ from asynctasq.tasks.types.function_task import FunctionTask
 class TestTaskConfigEdgeCases:
     """Test TaskConfig edge cases and validation."""
 
-    def test_driver_override_with_invalid_string(self) -> None:
-        """Test that invalid driver_override string value is handled."""
+    def test_driver_with_invalid_string(self) -> None:
+        """Test that invalid driver string value is handled."""
         # This should be caught by type system but test runtime behavior
-        config = TaskConfig(driver_override="invalid_driver")  # type: ignore[arg-type]
+        config: TaskConfig = {"driver": "invalid_driver"}  # type: ignore[typeddict-item]
 
         # Config creation succeeds, but validation happens at runtime
-        assert config.driver_override == "invalid_driver"
+        assert config.get("driver") == "invalid_driver"
 
-    def test_driver_override_with_connected_base_driver_instance(self) -> None:
-        """Test driver_override with connected BaseDriver instance."""
+    def test_driver_with_connected_base_driver_instance(self) -> None:
+        """Test driver with connected BaseDriver instance."""
         # Create a mock driver instance
         mock_driver = MagicMock(spec=BaseDriver)
         mock_driver._connected = True
 
-        config = TaskConfig(driver_override=mock_driver)
+        config: TaskConfig = {"driver": mock_driver}
 
         # Should accept BaseDriver instances
-        assert config.driver_override is mock_driver
-        assert isinstance(config.driver_override, BaseDriver)
+        assert config.get("driver") is mock_driver
+        assert isinstance(config.get("driver"), BaseDriver)
 
-    def test_conflicting_driver_override_at_multiple_levels(self) -> None:
-        """Test behavior when driver_override conflicts at class and instance level."""
+    def test_conflicting_driver_at_multiple_levels(self) -> None:
+        """Test behavior when driver conflicts at class and instance level."""
 
         class TaskWithClassDriver(AsyncTask[str]):
-            driver_override = "redis"  # type: ignore[assignment]
+            driver = "redis"  # type: ignore[assignment]
 
             async def execute(self) -> str:
                 return "test"
 
-        # Instance config should take precedence
+        # Class attribute is extracted into config
         task = TaskWithClassDriver()
-        assert task.config.driver_override is None  # Class attribute doesn't affect config
+        assert task.config.get("driver") == "redis"  # Class attribute is extracted into config
 
-        # Explicitly set at instance level
-        task.config = replace(task.config, driver_override="postgres")  # type: ignore[call-overload]
-        assert task.config.driver_override == "postgres"
+        # Explicitly set at instance level overrides class-level config
+        task.config = {**task.config, "driver": "postgres"}
+        assert task.config.get("driver") == "postgres"
 
-    def test_driver_override_with_none(self) -> None:
-        """Test driver_override explicitly set to None."""
-        config = TaskConfig(driver_override=None)
-        assert config.driver_override is None
+    def test_driver_with_none(self) -> None:
+        """Test driver explicitly set to None."""
+        config: TaskConfig = {"driver": None}
+        assert config.get("driver") is None
 
-    def test_task_config_repr_excludes_driver_override(self) -> None:
-        """Test that driver_override is excluded from repr."""
+    def test_task_config_includes_driver(self) -> None:
+        """Test that driver is included in config dict."""
         mock_driver = MagicMock(spec=BaseDriver)
-        config = TaskConfig(driver_override=mock_driver)
+        config: TaskConfig = {"driver": mock_driver}
 
-        repr_str = repr(config)
-        assert "driver_override" not in repr_str
+        # Since TaskConfig is now a dict, driver is included
+        assert "driver" in config
+        assert config.get("driver") is mock_driver
 
 
 # ============================================================================
@@ -526,7 +528,7 @@ class TestRetryLogicEdgeCases:
                 raise ValueError("Transient error")
 
         task = RetryableTask()
-        task.config = replace(task.config, max_attempts=3)
+        task.config = {**task.config, "max_attempts": 3}
 
         with patch("asynctasq.core.dispatcher.get_dispatcher") as mock_get_dispatcher:
             mock_dispatcher = MagicMock()
@@ -558,7 +560,7 @@ class TestRetryLogicEdgeCases:
                 return False
 
         task = NoRetryTask()
-        task.config = replace(task.config, max_attempts=0)
+        task.config = {**task.config, "max_attempts": 0}
 
         # should_retry should still be callable
         result = task.should_retry(ValueError("test"))

@@ -1,15 +1,8 @@
-"""Base task implementation providing foundation for all task types.
-
-Defines BaseTask, the abstract base class for all task types. Provides configuration
-management, lifecycle hooks (failed, should_retry), fluent method chaining API
-(on_queue, delay, retry_after, max_attempts, timeout), dispatch mechanism, and
-attempt tracking.
-"""
+"""Base task implementation providing foundation for all task types."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import replace
 from datetime import datetime
 from typing import Any, Self
 
@@ -37,87 +30,24 @@ class BaseTask[T](ABC):
     """Abstract base class for all asynchronous task types.
 
     Provides foundation for creating background tasks that can be dispatched to a queue,
-    executed by workers, and automatically retried on failure. Uses Template Method pattern:
-    framework calls run() (implemented by subclasses), users override execute() with logic.
+    executed by workers, and automatically retried on failure.
 
     Type Parameter
     --------------
     T : Return type of the task's execute() method
 
-    Instance Attributes
-    -------------------
-    config : TaskConfig
-        Task configuration object containing:
-        - queue: str - Queue name for task execution
-        - max_attempts: int - Maximum retry attempts (default: 3)
-        - retry_delay: int - Delay between retries in seconds (default: 60)
-        - timeout: int | None - Execution timeout in seconds (default: None)
-        - driver_override: DriverType | None - Override default queue driver
-
-    _task_id : str | None
-        Unique task identifier (UUID, set by dispatcher upon dispatch)
-    _current_attempt : int
-        Current execution attempt counter (starts at 0, increments on retry)
-    _dispatched_at : datetime | None
-        UTC timestamp when task was dispatched to queue
-    _delay_seconds : int | None
-        Scheduled delay before task execution in seconds
-
-    Configuration: Class Attributes (Optional)
-    -------------------------------------------
-    You can set default configuration by defining class attributes:
-
-        class MyTask(AsyncTask):
-            queue = "high-priority"  # Default queue name
-            max_attempts = 5         # Default max retry attempts
-            retry_delay = 120        # Default seconds between retries
-            timeout = 300            # Default execution timeout in seconds
-
-    These are extracted during __init__() and used as config defaults.
-
-    Configuration: Method Chaining (Runtime)
-    -----------------------------------------
-    All configuration can be set at runtime using fluent method chaining.
-    All methods return Self for chaining:
-
-        task = MyTask(data="value").max_attempts(10).timeout(60).on_queue("custom")
-
-    Available chainable methods:
-
-    - on_queue(queue_name: str) -> Self
-        Set the target queue for task dispatch
-
-    - delay(seconds: int) -> Self
-        Delay task execution by N seconds after dispatch
-
-    - retry_after(seconds: int) -> Self
-        Set delay between retry attempts (overrides retry_delay)
-
-    - max_attempts(attempts: int) -> Self
-        Set maximum number of execution attempts (including initial)
-
-    - timeout(seconds: int | None) -> Self
-        Set task execution timeout (None = no timeout)
-
-    Lifecycle Hooks
-    ---------------
-    - execute() -> T [abstract]
-        Main task logic (must be implemented by subclasses)
-
-    - failed(exception: Exception) -> None [optional]
-        Called when task fails, before retry logic
-
-    - should_retry(exception: Exception, attempt: int) -> bool [optional]
-        Custom retry logic (default: retry on all exceptions up to max_attempts)
-
     Example
     -------
     ```python
+    from asynctasq.tasks import AsyncTask, TaskConfig
+
     class SendEmail(AsyncTask[str]):
-        # Optional: set defaults via class attributes
-        queue = "emails"
-        max_attempts = 5
-        timeout = 30
+        # Optional: set defaults via config dict (type-safe)
+        config: TaskConfig = {
+            "queue": "emails",
+            "max_attempts": 5,
+            "timeout": 30,
+        }
 
         # Task parameters
         to: str
@@ -127,14 +57,20 @@ class BaseTask[T](ABC):
             # Send email logic
             return f"Sent to {self.to}"
 
-    # Usage with method chaining
-    task_id = await SendEmail(to="user@example.com", subject="Hi")
+    # Usage - uses config defaults
+    task_id = await SendEmail(to="user@example.com", subject="Hi").dispatch()
+
+    # Override defaults with method chaining
+    task_id = await SendEmail(to="admin@example.com", subject="Alert")
         .max_attempts(10)
         .timeout(60)
         .retry_after(120)
         .dispatch()
     ```
     """
+
+    # Task configuration
+    config: TaskConfig
 
     # Delay configuration (separate from TaskConfig for runtime flexibility)
     _delay_seconds: int | None = None
@@ -151,31 +87,47 @@ class BaseTask[T](ABC):
         return frozenset()
 
     @classmethod
-    def _extract_config_from_class(cls) -> dict[str, Any]:
-        """Extract TaskConfig values from class attributes.
+    def _extract_config_from_class(cls) -> TaskConfig:
+        """Extract TaskConfig values from class attributes or config dict.
+
+        Supports two configuration patterns:
+        1. Config dict (recommended): class MyTask: config = {"timeout": 10}
+        2. Class attributes: class MyTask: timeout = 10
 
         Returns
         -------
-        dict[str, Any]
-            Dictionary with queue, max_attempts, retry_delay, timeout from class attributes
+        TaskConfig
+            Configuration dictionary with all task settings
         """
         # Use __dict__ to get class attributes only (not inherited methods)
         # This allows subclasses to set: class MyTask: max_attempts = 5
-        # while avoiding the max_attempts() method from BaseTask
+        # while avoiding conflicts with the max_attempts() method from BaseTask
         class_dict = cls.__dict__
 
-        return {
-            "queue": class_dict.get("queue", "default"),
-            "max_attempts": class_dict.get("max_attempts", 3),
-            "retry_delay": class_dict.get("retry_delay", 60),
-            "timeout": class_dict.get("timeout", None),
-        }
+        # First check for config dict (preferred method)
+        config_dict = class_dict.get("config")
+        if isinstance(config_dict, dict):
+            return TaskConfig(
+                queue=config_dict.get("queue", "default"),
+                max_attempts=config_dict.get("max_attempts", 3),
+                retry_delay=config_dict.get("retry_delay", 60),
+                timeout=config_dict.get("timeout", None),
+                driver=config_dict.get("driver", None),
+                correlation_id=config_dict.get("correlation_id", None),
+            )
+
+        # Fall back to individual class attributes
+        return TaskConfig(
+            queue=class_dict.get("queue", "default"),
+            max_attempts=class_dict.get("max_attempts", 3),
+            retry_delay=class_dict.get("retry_delay", 60),
+            timeout=class_dict.get("timeout", None),
+            driver=class_dict.get("driver", None),
+            correlation_id=class_dict.get("correlation_id", None),
+        )
 
     def __init__(self, **kwargs: Any) -> None:
         """Initialize task instance with custom parameters.
-
-        Initializes configuration from class attributes and sets user-provided parameters
-        as instance attributes. All keyword arguments become accessible as self.param_name.
 
         Parameters
         ----------
@@ -188,9 +140,7 @@ class BaseTask[T](ABC):
             If parameter name starts with underscore or matches reserved names
         """
         # Initialize configuration from class attributes if present
-        # This supports the pattern: class MyTask: queue = "custom"
-        config_values = self._extract_config_from_class()
-        self.config = TaskConfig(**config_values)
+        self.config: TaskConfig = self._extract_config_from_class()
 
         # Combine base reserved names with subclass-specific ones
         all_reserved = RESERVED_NAMES | self._get_additional_reserved_names()
@@ -218,9 +168,6 @@ class BaseTask[T](ABC):
     def mark_attempt_started(self) -> int:
         """Increment the current attempt counter and return the new value.
 
-        Called by worker when beginning task execution. Centralizes attempt incrementing
-        logic. Counter starts at 0 and increments to 1 before first execution.
-
         Returns
         -------
         int
@@ -241,11 +188,10 @@ class BaseTask[T](ABC):
         return self._current_attempt
 
     async def failed(self, exception: Exception) -> None:  # noqa: B027
-        """Lifecycle hook called when task permanently fails after exhausting all retries.
+        """Lifecycle hook called when task permanently fails.
 
-        Override to implement custom failure handling (alerting, cleanup, logging). Called
-        after all retry attempts exhausted. Exceptions raised here are logged but don't
-        affect task processing. Keep idempotent as may be called multiple times on restart.
+        Called after all retry attempts exhausted. Exceptions raised here are logged but don't
+        affect task processing.
 
         Parameters
         ----------
@@ -257,28 +203,45 @@ class BaseTask[T](ABC):
     def should_retry(self, exception: Exception) -> bool:
         """Lifecycle hook to determine if task should retry after an exception.
 
-        Override to implement custom retry logic based on exception type. Combined with
-        max_attempts limit: both must be True for retry to occur. Default returns True.
+        Override this method to implement custom retry logic based on exception type.
+        Combined with max_attempts limit: both conditions must be True for retry.
+        Default implementation always returns True (retry unless max_attempts reached).
 
         Parameters
         ----------
         exception : Exception
-            Exception that occurred during task execution
+            The exception that caused the task execution to fail
 
         Returns
         -------
         bool
-            True to retry, False to fail immediately and skip remaining attempts
+            True to allow retry (if within max_attempts), False to fail immediately
+
+        Examples
+        --------
+        Skip retries for specific exception types:
+
+        >>> def should_retry(self, exception: Exception) -> bool:
+        ...     # Don't retry validation errors
+        ...     if isinstance(exception, ValueError):
+        ...         return False
+        ...     return True
+
+        Notes
+        -----
+        - The framework checks current_attempt < max_attempts separately
+        - Returning False skips all remaining retry attempts
+        - This method is called after each failed execution attempt
+        - Current attempt number is available via self._current_attempt
         """
         return True
 
     @abstractmethod
     async def run(self) -> T:
-        """Execute task using the subclass-defined execution strategy (framework entry point).
+        """Execute task using the subclass-defined execution strategy.
 
-        Abstract method implemented by task type subclasses to define execution strategy
-        (async/sync, process/thread). Framework calls this from TaskExecutor with timeout
-        wrapper. Users should implement execute() method, not override run().
+        Framework calls this from TaskExecutor with timeout wrapper.
+        Users should implement execute() method, not override run().
 
         Returns
         -------
@@ -288,7 +251,7 @@ class BaseTask[T](ABC):
         ...
 
     def on_queue(self, queue_name: str) -> Self:
-        """Set the queue name for task dispatch (method chaining).
+        """Set the queue name for task dispatch.
 
         Parameters
         ----------
@@ -300,12 +263,11 @@ class BaseTask[T](ABC):
         Self
             Returns self for method chaining
         """
-
-        self.config = replace(self.config, queue=queue_name)
+        self.config = {**self.config, "queue": queue_name}
         return self
 
     def delay(self, seconds: int) -> Self:
-        """Set execution delay before task runs (method chaining).
+        """Set execution delay before task runs.
 
         Parameters
         ----------
@@ -321,7 +283,7 @@ class BaseTask[T](ABC):
         return self
 
     def retry_after(self, seconds: int) -> Self:
-        """Set retry delay between failed attempts (method chaining).
+        """Set retry delay between failed attempts.
 
         Parameters
         ----------
@@ -333,12 +295,11 @@ class BaseTask[T](ABC):
         Self
             Returns self for method chaining
         """
-
-        self.config = replace(self.config, retry_delay=seconds)
+        self.config = {**self.config, "retry_delay": seconds}
         return self
 
     def max_attempts(self, attempts: int) -> Self:
-        """Set maximum number of retry attempts (method chaining).
+        """Set maximum number of retry attempts.
 
         Parameters
         ----------
@@ -350,12 +311,11 @@ class BaseTask[T](ABC):
         Self
             Returns self for method chaining
         """
-
-        self.config = replace(self.config, max_attempts=attempts)
+        self.config = {**self.config, "max_attempts": attempts}
         return self
 
     def timeout(self, seconds: int | None) -> Self:
-        """Set task execution timeout (method chaining).
+        """Set task execution timeout.
 
         Parameters
         ----------
@@ -367,36 +327,19 @@ class BaseTask[T](ABC):
         Self
             Returns self for method chaining
         """
-
-        self.config = replace(self.config, timeout=seconds)
+        self.config = {**self.config, "timeout": seconds}
         return self
 
     async def dispatch(self) -> str:
         """Dispatch task to queue backend for asynchronous execution.
 
-        This method takes NO arguments. Task configuration (queue, delays, retries, timeout)
-        must be set via method chaining (.on_queue(), .delay(), .retry_after(),
-        .max_attempts(), .timeout()) before calling dispatch().
-
-        Serializes task and submits to configured queue backend for processing by a worker.
-
         Returns
         -------
         str
             Unique task identifier (UUID)
-
-        Example
-        -------
-        ```python
-        # Class-based task with full configuration
-        task_id = await MyTask(x=5).delay(60).on_queue("custom").max_attempts(5).timeout(30).dispatch()
-
-        # Function-based task with chaining
-        task_id = await my_task(x=5).delay(60).retry_after(120).dispatch()
-        ```
         """
         from asynctasq.core.dispatcher import get_dispatcher
 
         # Pass driver override to get_dispatcher if set
-        driver_override = self.config.driver_override
-        return await get_dispatcher(driver_override).dispatch(self)
+        driver = self.config.get("driver")
+        return await get_dispatcher(driver).dispatch(self)

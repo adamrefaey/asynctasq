@@ -212,7 +212,7 @@ All configuration options can be set as class attributes. These settings apply t
 | `max_attempts`      | `int`                       | `3`         | Maximum retry attempts on failure                                |
 | `retry_delay`      | `int`                       | `60`        | Seconds to wait between retry attempts                           |
 | `timeout`          | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                    |
-| `_driver_override` | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config) |
+| `_driver` | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config) |
 
 ### Queue Configuration
 
@@ -1103,7 +1103,7 @@ asynctasq.init({'driver': 'redis'})
 # This task uses Redis regardless of global config
 class CriticalTask(AsyncTask[None]):
     queue = "critical"
-    _driver_override = "redis"
+    _driver = "redis"
 
     async def execute(self) -> None:
         print("Processing critical task")
@@ -1111,7 +1111,7 @@ class CriticalTask(AsyncTask[None]):
 # This task uses SQS
 class AWSTask(AsyncTask[None]):
     queue = "aws-tasks"
-    _driver_override = "sqs"
+    _driver = "sqs"
 
     async def execute(self) -> None:
         print("Processing AWS task")
@@ -1119,7 +1119,7 @@ class AWSTask(AsyncTask[None]):
 # This task uses global config (redis)
 class NormalTask(AsyncTask[None]):
     queue = "normal"
-    # No _driver_override - uses global config
+    # No _driver - uses global config
 
     async def execute(self) -> None:
         print("Processing normal task")
@@ -1144,7 +1144,7 @@ custom_redis = RedisDriver(
 # Use the custom driver instance
 class CustomDriverTask(AsyncTask[dict]):
     queue = "custom"
-    _driver_override = custom_redis
+    _driver = custom_redis
 
     def __init__(self, data: dict, **kwargs):
         super().__init__(**kwargs)
@@ -1180,28 +1180,28 @@ asynctasq.init({'driver': 'redis'})
 # Tasks using different drivers
 class RedisTask(AsyncTask[None]):
     queue = "redis-queue"
-    _driver_override = "redis"
+    _driver = "redis"
 
     async def execute(self) -> None:
         pass
 
 class PostgresTask(AsyncTask[None]):
     queue = "postgres-queue"
-    _driver_override = "postgres"
+    _driver = "postgres"
 
     async def execute(self) -> None:
         pass
 
 class SQSTask(AsyncTask[None]):
     queue = "sqs-queue"
-    _driver_override = "sqs"
+    _driver = "sqs"
 
     async def execute(self) -> None:
         pass
 
 class RedisTask(AsyncTask[None]):
     queue = "default-queue"
-    # No _driver_override - uses global config (redis)
+    # No _driver - uses global config (redis)
 
     async def execute(self) -> None:
         pass
@@ -2075,7 +2075,7 @@ class GenerateReport(SyncTask[str]):
 
 class CriticalTask(AsyncTask[None]):
     queue = "critical"
-    _driver_override = "redis"  # Override driver (requires Redis configured)
+    _driver = "redis"  # Override driver (requires Redis configured)
 
     def __init__(self, data: dict, **kwargs):
         super().__init__(**kwargs)

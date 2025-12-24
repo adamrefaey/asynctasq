@@ -466,7 +466,7 @@ class Worker:
                 existing_attempt,  # type: ignore[arg-type]
             )
             await self.queue_driver.enqueue(
-                task.config.queue, serialized_task, delay_seconds=retry_delay
+                task.config.get("queue", "default"), serialized_task, delay_seconds=retry_delay
             )
         else:
             # Task has failed permanently. The attempt count was incremented

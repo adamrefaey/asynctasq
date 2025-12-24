@@ -36,8 +36,10 @@ class TestGetTaskContext:
     def test_extracts_basic_task_context(self) -> None:
         # Arrange
         class ConfiguredTask(BaseTask[int]):
-            queue = "test-queue"
-            max_attempts = 5
+            config = {
+                "queue": "test-queue",
+                "max_attempts": 5,
+            }
 
             async def run(self) -> int:
                 return 42

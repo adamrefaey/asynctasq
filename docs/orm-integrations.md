@@ -108,7 +108,7 @@ Base._asynctasq_session_factory = WorkerSessionFactory
 @task(queue='users')
 async def send_welcome_email(user: User):
     # Safe for multiprocessing - NullPool prevents connection sharing issues
-```
+
     # Workers automatically create sessions from factory to fetch the model
     print(f"Sending welcome email to {user.email}")
     # User data is fresh from database

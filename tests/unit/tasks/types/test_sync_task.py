@@ -8,13 +8,14 @@ Testing Strategy:
 - Fast, isolated tests
 """
 
-from dataclasses import replace
+# from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from pytest import main
 
 from asynctasq.tasks import SyncTask
+from asynctasq.tasks.core.task_config import TaskConfig
 
 
 class SimpleSyncTask(SyncTask[str]):
@@ -166,18 +167,20 @@ class TestSyncTaskConfiguration:
         task = SimpleSyncTask()
 
         # Assert
-        assert task.config.queue == "default"
-        assert task.config.max_attempts == 3
-        assert task.config.retry_delay == 60
-        assert task.config.timeout is None
+        assert task.config.get("queue") == "default"
+        assert task.config.get("max_attempts") == 3
+        assert task.config.get("retry_delay") == 60
+        assert task.config.get("timeout") is None
 
     def test_sync_task_custom_configuration(self) -> None:
         # Arrange
         class CustomSyncTask(SyncTask[str]):
-            queue = "background"
-            max_attempts = 10
-            retry_delay = 30
-            timeout = 600
+            config: TaskConfig = {
+                "queue": "background",
+                "max_attempts": 10,
+                "retry_delay": 30,
+                "timeout": 600,
+            }
 
             def execute(self) -> str:
                 return "custom"
@@ -186,10 +189,10 @@ class TestSyncTaskConfiguration:
         task = CustomSyncTask()
 
         # Assert
-        assert task.config.queue == "background"
-        assert task.config.max_attempts == 10
-        assert task.config.retry_delay == 30
-        assert task.config.timeout == 600
+        assert task.config.get("queue") == "background"
+        assert task.config.get("max_attempts") == 10
+        assert task.config.get("retry_delay") == 30
+        assert task.config.get("timeout") == 600
 
     def test_sync_task_on_queue_chaining(self) -> None:
         # Arrange
@@ -200,7 +203,7 @@ class TestSyncTaskConfiguration:
 
         # Assert
         assert result is task  # Method chaining returns self
-        assert task.config.queue == "files"
+        assert task.config.get("queue") == "files"
 
     def test_sync_task_delay_chaining(self) -> None:
         # Arrange
@@ -222,7 +225,7 @@ class TestSyncTaskConfiguration:
 
         # Assert
         assert result is task
-        assert task.config.retry_delay == 15
+        assert task.config.get("retry_delay") == 15
 
     def test_sync_task_method_chaining_multiple(self) -> None:
         # Arrange
@@ -233,9 +236,9 @@ class TestSyncTaskConfiguration:
 
         # Assert
         assert result is task
-        assert task.config.queue == "low-priority"
+        assert task.config.get("queue") == "low-priority"
         assert task._delay_seconds == 120
-        assert task.config.retry_delay == 60
+        assert task.config.get("retry_delay") == 60
 
 
 @pytest.mark.unit
@@ -293,10 +296,10 @@ class TestSyncTaskDispatch:
         mock_dispatcher.dispatch.assert_called_once_with(task)
 
     @pytest.mark.asyncio
-    async def test_sync_task_dispatch_with_driver_override(self) -> None:
+    async def test_sync_task_dispatch_with_driver(self) -> None:
         # Arrange
         task = SimpleSyncTask()
-        task.config = replace(task.config, driver_override="postgres")
+        task.config = {**task.config, "driver": "postgres"}
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch.return_value = "task-sync-456"
 

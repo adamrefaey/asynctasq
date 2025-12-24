@@ -61,12 +61,12 @@ class TaskExecutor:
 
         Args:
             task: Task instance to execute
-            timeout: Optional timeout override (uses task.config.timeout if None)
+            timeout: Optional timeout override (uses task.config.get("timeout") if None)
 
         Raises:
             Exception: Any exception from task.run()
         """
-        effective_timeout = timeout or task.config.timeout
+        effective_timeout = timeout or task.config.get("timeout")
 
         if effective_timeout:
             await asyncio.wait_for(task.run(), timeout=effective_timeout)
@@ -85,7 +85,9 @@ class TaskExecutor:
         Returns:
             True to retry, False if permanently failed
         """
-        return task._current_attempt < task.config.max_attempts and task.should_retry(exception)
+        return task._current_attempt < task.config.get("max_attempts", 3) and task.should_retry(
+            exception
+        )
 
     async def handle_failed(self, task: BaseTask, exception: Exception) -> None:
         """Call task.failed() hook when retries exhausted (best-effort).

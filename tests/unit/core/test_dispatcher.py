@@ -9,7 +9,7 @@ Testing Strategy:
 - 100% code coverage
 """
 
-from dataclasses import replace
+# from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
@@ -99,7 +99,7 @@ class TestDispatcherGetDriver:
         override_driver = MagicMock(spec=BaseDriver)
         dispatcher = Dispatcher(driver=default_driver)
         task = ConcreteTask()
-        task.config = replace(task.config, driver_override=override_driver)  # type: ignore[call-overload]
+        task.config = {**task.config, "driver": override_driver}  # type: ignore[call-overload]
 
         # Act
         result = dispatcher._get_driver(task)
@@ -113,7 +113,7 @@ class TestDispatcherGetDriver:
         default_driver = MagicMock(spec=BaseDriver)
         dispatcher = Dispatcher(driver=default_driver)
         task = ConcreteTask()
-        task.config = replace(task.config, driver_override="redis")  # type: ignore[call-overload]
+        task.config = {**task.config, "driver": "redis"}  # type: ignore[call-overload]
 
         with (
             patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
@@ -138,9 +138,9 @@ class TestDispatcherGetDriver:
         default_driver = MagicMock(spec=BaseDriver)
         dispatcher = Dispatcher(driver=default_driver)
         task1 = ConcreteTask()
-        task1.config = replace(task1.config, driver_override="redis")  # type: ignore[call-overload]
+        task1.config = {**task1.config, "driver": "redis"}
         task2 = ConcreteTask()
-        task2.config = replace(task2.config, driver_override="redis")  # type: ignore[call-overload]
+        task2.config = {**task2.config, "driver": "redis"}
 
         with (
             patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
@@ -167,7 +167,7 @@ class TestDispatcherGetDriver:
         mock_driver = MagicMock(spec=BaseDriver)
         dispatcher = Dispatcher(driver=mock_driver)
         task = ConcreteTask()
-        task.config = replace(task.config, driver_override=None)  # type: ignore[call-overload]
+        task.config = {**task.config, "driver": None}  # type: ignore[call-overload]
 
         # Act
         result = dispatcher._get_driver(task)
@@ -180,7 +180,7 @@ class TestDispatcherGetDriver:
         mock_driver = MagicMock(spec=BaseDriver)
         dispatcher = Dispatcher(driver=mock_driver)
         task = ConcreteTask()
-        # Don't set _driver_override at all
+        # Don't set _driver at all
 
         # Act
         result = dispatcher._get_driver(task)
@@ -189,13 +189,13 @@ class TestDispatcherGetDriver:
         assert result == mock_driver
 
     def test_get_driver_with_unexpected_override_type_returns_default(self) -> None:
-        # Arrange - test fallback when driver_override is unexpected type
+        # Arrange - test fallback when driver is unexpected type
         # This covers line 67 (fallback return)
         mock_driver = MagicMock(spec=BaseDriver)
         dispatcher = Dispatcher(driver=mock_driver)
         task = ConcreteTask()
-        # Set driver_override to something unexpected (not None, not BaseDriver, not string)
-        task.config = replace(task.config, driver_override=123)  # type: ignore[call-overload]
+        # Set driver to something unexpected (not None, not BaseDriver, not string)
+        task.config = {**task.config, "driver": 123}  # type: ignore[call-overload]
 
         # Act
         result = dispatcher._get_driver(task)
@@ -242,7 +242,7 @@ class TestDispatcherDispatch:
         mock_serializer.serialize.return_value = b"serialized_data"
         dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
         task = ConcreteTask()
-        task.config = replace(task.config, queue="custom_queue")
+        task.config = {**task.config, "queue": "custom_queue"}
         # Ensure _delay_seconds is not None to avoid comparison issues
         if not hasattr(task, "_delay_seconds") or task._delay_seconds is None:
             task._delay_seconds = 0  # type: ignore[attr-defined]
@@ -327,7 +327,7 @@ class TestDispatcherDispatch:
         default_driver.enqueue.assert_called_once()
 
     @mark.asyncio
-    async def test_dispatch_uses_correct_driver_override_instance(self) -> None:
+    async def test_dispatch_uses_correct_driver_instance(self) -> None:
         # Arrange
         default_driver = AsyncMock(spec=BaseDriver)
         override_driver = AsyncMock(spec=BaseDriver)
@@ -335,7 +335,7 @@ class TestDispatcherDispatch:
         mock_serializer.serialize.return_value = b"serialized_data"
         dispatcher = Dispatcher(driver=default_driver, serializer=mock_serializer)
         task = ConcreteTask()
-        task.config = replace(task.config, driver_override=override_driver)  # type: ignore[call-overload]
+        task.config = {**task.config, "driver": override_driver}  # type: ignore[call-overload]
         # Ensure _delay_seconds is not None to avoid comparison issues
         if not hasattr(task, "_delay_seconds") or task._delay_seconds is None:
             task._delay_seconds = 0  # type: ignore[attr-defined]
@@ -348,7 +348,7 @@ class TestDispatcherDispatch:
         default_driver.enqueue.assert_not_called()
 
     @mark.asyncio
-    async def test_dispatch_uses_correct_driver_override_string(self) -> None:
+    async def test_dispatch_uses_correct_driver_string(self) -> None:
         # Arrange
         default_driver = AsyncMock(spec=BaseDriver)
         override_driver = AsyncMock(spec=BaseDriver)
@@ -356,7 +356,7 @@ class TestDispatcherDispatch:
         mock_serializer.serialize.return_value = b"serialized_data"
         dispatcher = Dispatcher(driver=default_driver, serializer=mock_serializer)
         task = ConcreteTask()
-        task.config = replace(task.config, driver_override="redis")  # type: ignore[call-overload]
+        task.config = {**task.config, "driver": "redis"}  # type: ignore[call-overload]
         # Ensure _delay_seconds is not None to avoid comparison issues
         if not hasattr(task, "_delay_seconds") or task._delay_seconds is None:
             task._delay_seconds = 0  # type: ignore[attr-defined]
@@ -433,7 +433,7 @@ class TestDispatcherSerializeTask:
         task._task_id = "test-task-id"
         task._current_attempt = 2
         task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
-        task.config = replace(task.config, max_attempts=5, retry_delay=120, timeout=300)
+        task.config = {**task.config, "max_attempts": 5, "retry_delay": 120, "timeout": 300}
 
         # Act
         dispatcher._task_serializer.serialize(task)

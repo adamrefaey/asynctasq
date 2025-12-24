@@ -78,16 +78,16 @@ class FunctionTask[T](BaseTask[T]):
 
         # Override config with decorator values
         # FunctionTask config always comes from @task decorator, not class attributes
-        from dataclasses import replace
-
-        self.config = replace(
-            self.config,
-            queue=getattr(func, "_task_queue", self.config.queue),
-            max_attempts=getattr(func, "_task_max_attempts", self.config.max_attempts),
-            retry_delay=getattr(func, "_task_retry_delay", self.config.retry_delay),
-            timeout=getattr(func, "_task_timeout", self.config.timeout),
-            driver_override=getattr(func, "_task_driver", self.config.driver_override),
-        )
+        self.config = {
+            **self.config,
+            "queue": getattr(func, "_task_queue", self.config.get("queue")) or "default",
+            "max_attempts": getattr(func, "_task_max_attempts", self.config.get("max_attempts"))
+            or 3,
+            "retry_delay": getattr(func, "_task_retry_delay", self.config.get("retry_delay")) or 60,
+            "timeout": getattr(func, "_task_timeout", self.config.get("timeout")),
+            "driver": getattr(func, "_task_driver", self.config.get("driver")),
+            "correlation_id": self.config.get("correlation_id"),
+        }
 
     async def run(self) -> T:
         """Execute via appropriate executor (async/sync × thread/process)."""
