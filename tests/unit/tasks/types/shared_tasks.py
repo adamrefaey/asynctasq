@@ -1,7 +1,6 @@
-"""Shared test fixtures and utilities for task testing.
+"""Shared test fixtures and utilities for process task testing.
 
-This module provides reusable utilities to eliminate code duplication
-across test files, particularly for common task patterns.
+This module provides reusable utilities for testing AsyncProcessTask and SyncProcessTask.
 """
 
 import asyncio
