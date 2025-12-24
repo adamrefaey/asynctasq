@@ -263,6 +263,184 @@ task_id = await ProcessPayment(user_id=123, amount=99.99) \
     .dispatch()
 ```
 
+---
+
+## Task Configuration
+
+AsyncTasQ provides flexible task configuration through **class attributes** (for defaults) and **method chaining** (for runtime configuration). All configuration lives in `task.config`.
+
+### Configuration Attributes
+
+All tasks have access to these configuration attributes via `task.config`:
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `queue` | `str` | `"default"` | Target queue name for task execution |
+| `max_attempts` | `int` | `3` | Maximum execution attempts (including initial attempt) |
+| `retry_delay` | `int` | `60` | Delay in seconds between retry attempts |
+| `timeout` | `int \| None` | `None` | Task execution timeout in seconds (None = no timeout) |
+| `driver_override` | `DriverType \| None` | `None` | Override default queue driver for this task |
+
+### Pattern 1: Class Attributes (Defaults)
+
+Define configuration as class attributes for default values:
+
+```python
+class SendEmail(AsyncTask[str]):
+    # Configuration via class attributes
+    queue = "emails"
+    max_attempts = 5
+    retry_delay = 120
+    timeout = 30
+
+    to: str
+    subject: str
+
+    async def execute(self) -> str:
+        # Send email logic
+        return f"Email sent to {self.to}"
+
+# Uses defaults from class attributes
+task_id = await SendEmail(to="user@example.com", subject="Welcome").dispatch()
+```
+
+### Pattern 2: Method Chaining (Runtime)
+
+Override configuration at runtime using fluent method chaining. All methods return `Self` for chaining:
+
+```python
+class ProcessOrder(AsyncTask[dict]):
+    order_id: int
+
+    async def execute(self) -> dict:
+        return {"order_id": self.order_id, "status": "processed"}
+
+# Override configuration via method chaining
+task_id = await ProcessOrder(order_id=123) \
+    .on_queue("high-priority") \
+    .max_attempts(10) \
+    .timeout(300) \
+    .retry_after(60) \
+    .delay(30) \
+    .dispatch()
+```
+
+### Available Chainable Methods
+
+All tasks (function-based and class-based) support these chainable methods:
+
+#### `on_queue(queue_name: str) -> Self`
+
+Set the target queue for task dispatch.
+
+```python
+task_id = await my_task().on_queue("high-priority").dispatch()
+```
+
+#### `delay(seconds: int) -> Self`
+
+Delay task execution by N seconds after dispatch (scheduled execution).
+
+```python
+# Execute 1 hour from now
+task_id = await my_task().delay(3600).dispatch()
+```
+
+#### `retry_after(seconds: int) -> Self`
+
+Set delay between retry attempts (overrides `retry_delay`).
+
+```python
+# Wait 5 minutes between retries
+task_id = await my_task().retry_after(300).dispatch()
+```
+
+#### `max_attempts(attempts: int) -> Self`
+
+Set maximum number of execution attempts (including initial attempt).
+
+```python
+# Retry up to 10 times
+task_id = await my_task().max_attempts(10).dispatch()
+```
+
+#### `timeout(seconds: int | None) -> Self`
+
+Set task execution timeout in seconds (None = no timeout).
+
+```python
+# Timeout after 5 minutes
+task_id = await my_task().timeout(300).dispatch()
+
+# Disable timeout
+task_id = await my_task().timeout(None).dispatch()
+```
+
+### Combining Both Patterns
+
+You can set defaults via class attributes and override them via method chaining:
+
+```python
+class SendNotification(AsyncTask[bool]):
+    # Defaults for most notifications
+    queue = "notifications"
+    max_attempts = 3
+    timeout = 30
+
+    user_id: int
+    message: str
+
+    async def execute(self) -> bool:
+        # Send notification logic
+        return True
+
+# Use defaults
+await SendNotification(user_id=123, message="Hello").dispatch()
+
+# Override for critical notifications
+await SendNotification(user_id=456, message="URGENT") \
+    .on_queue("critical") \
+    .max_attempts(10) \
+    .timeout(60) \
+    .dispatch()
+```
+
+### Configuration with Function-Based Tasks
+
+Function-based tasks support the same configuration patterns:
+
+```python
+# Via decorator
+@task(queue="emails", max_attempts=5, timeout=30)
+async def send_email(to: str, subject: str):
+    # Email logic
+    pass
+
+# Via method chaining
+task_id = await send_email(to="user@example.com", subject="Hi") \
+    .max_attempts(10) \
+    .timeout(60) \
+    .retry_after(120) \
+    .dispatch()
+```
+
+### Accessing Configuration
+
+Configuration is stored in `task.config` (a `TaskConfig` object):
+
+```python
+task = SendEmail(to="user@example.com", subject="Welcome")
+print(task.config.queue)          # "emails"
+print(task.config.max_attempts)   # 5
+print(task.config.timeout)        # 30
+
+# After chaining
+task = task.max_attempts(10)
+print(task.config.max_attempts)   # 10
+```
+
+---
+
 ## Choosing the Right Task Type
 
 AsyncTasQ provides **4 task execution modes** optimized for different workloads. Choosing the right mode is critical for optimal performance:

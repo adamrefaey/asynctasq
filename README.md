@@ -56,13 +56,19 @@ async def send_email(to: str, subject: str, body: str):
     return f"Email sent to {to}"
 
 
-# 3. Dispatch the task
+# 3. Dispatch tasks with optional configuration chaining
 async def main():
     for i in range(10):
         task_id = await send_email(
             to=f"user{i}@example.com", subject=f"Welcome {i}!", body="Welcome to our platform!"
         ).dispatch()
         print(f"Task dispatched: {task_id}")
+
+    # With configuration chaining
+    critical_task_id = await send_email(
+        to="admin@example.com", subject="Critical Alert", body="System issue!"
+    ).on_queue("high-priority").max_attempts(10).timeout(60).dispatch()
+    print(f"Critical task dispatched: {critical_task_id}")
 
 
 if __name__ == "__main__":
@@ -156,7 +162,7 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 - **Full type safety** – Complete type hints, mypy/pyright compatible, Generic `Task[T]` for return type checking
 - **Simple configuration** – Use `asynctasq.init()` and `Config.get()` for all configuration needs
 - **Two task styles** – Choose function-based `@task` decorators or class-based tasks with lifecycle hooks
-- **Fluent method chaining** – Configure tasks expressively: `.delay(60).on_queue("high").retry_after(120).dispatch()`
+- **Fluent method chaining** – Configure tasks expressively: `.delay(60).on_queue("high").max_attempts(10).timeout(300).dispatch()`
 - **First-class FastAPI integration** – Lifespan management, automatic connection pooling, native async support
 
 ### Multi-Driver Flexibility Without Vendor Lock-In
