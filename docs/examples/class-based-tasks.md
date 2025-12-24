@@ -17,10 +17,10 @@ See [Async vs Sync vs Process Tasks](#async-vs-sync-vs-process-tasks) for detail
 
 Class-based tasks use the `AsyncTask`, `SyncTask`, `AsyncProcessTask`, or `SyncProcessTask` base classes to create reusable, testable tasks with lifecycle hooks, custom retry logic, and advanced configuration options.
 
-Note: Example snippets in this guide use the project's uvloop-based runner helper. For runnable examples, import it as:
+Note: Example snippets in this guide use the project's event loop runner helper. For runnable examples, import it as:
 
 ```python
-from asynctasq.utils.loop import run as uv_run
+from asynctasq.utils.loop import run
 ```
 
 **Core Capabilities:**
@@ -89,9 +89,9 @@ async def main():
     # Note: Task will be executed by a worker process
 
 if __name__ == "__main__":
-    from asynctasq.utils.loop import run as uv_run
+    from asynctasq.utils.loop import run
 
-    uv_run(main())
+    run(main())
 ```
 
 **Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md) for details.
@@ -123,9 +123,9 @@ async def main():
     print(f"Task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    from asynctasq.utils.loop import run as uv_run
+    from asynctasq.utils.loop import run
 
-    uv_run(main())
+    run(main())
 ```
 
 **Important:** Always call `super().__init__(**kwargs)` in your `__init__` to ensure proper task initialization. This allows the framework to properly set up task metadata and configuration.

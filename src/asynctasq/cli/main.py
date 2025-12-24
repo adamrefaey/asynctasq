@@ -29,10 +29,10 @@ def run_command(args: argparse.Namespace) -> None:
     handler = command_handlers.get(args.command)
     if handler is None:
         raise ValueError(f"Unknown command: {args.command}")
-    from asynctasq.utils.loop import run as uv_run
+    from asynctasq.utils.loop import run
 
-    # Use uvloop-based runner by default for best performance.
-    uv_run(handler(args, config))
+    # Use optimized event loop runner (uvloop if available, asyncio otherwise)
+    run(handler(args, config))
 
 
 def main() -> None:

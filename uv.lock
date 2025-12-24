@@ -313,7 +313,6 @@ version = "0.9.17"
 source = { editable = "." }
 dependencies = [
     { name = "msgpack" },
-    { name = "uvloop" },
 ]
 
 [package.optional-dependencies]
@@ -332,6 +331,7 @@ all = [
     { name = "sqlalchemy" },
     { name = "tortoise-orm" },
     { name = "types-aioboto3", extra = ["sqs"] },
+    { name = "uvloop" },
 ]
 django = [
     { name = "django" },
@@ -368,6 +368,9 @@ sqs = [
 tortoise = [
     { name = "tortoise-orm" },
 ]
+uvloop = [
+    { name = "uvloop" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -394,7 +397,7 @@ requires-dist = [
     { name = "asyncmy", marker = "extra == 'mysql'", specifier = ">=0.2.10" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.30.0" },
     { name = "asyncpg-stubs", marker = "extra == 'postgres'", specifier = ">=0.30.0" },
-    { name = "asynctasq", extras = ["redis", "sqs", "postgres", "mysql", "rabbitmq", "sqlalchemy", "django", "tortoise", "fastapi", "monitor"], marker = "extra == 'all'" },
+    { name = "asynctasq", extras = ["uvloop", "redis", "sqs", "postgres", "mysql", "rabbitmq", "sqlalchemy", "django", "tortoise", "fastapi", "monitor"], marker = "extra == 'all'" },
     { name = "cryptography", marker = "extra == 'mysql'", specifier = ">=46.0.0" },
     { name = "django", marker = "extra == 'django'", specifier = ">=5.2.8" },
     { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.115.0" },
@@ -406,9 +409,9 @@ requires-dist = [
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=2.0.44" },
     { name = "tortoise-orm", marker = "extra == 'tortoise'", specifier = ">=0.25.1" },
     { name = "types-aioboto3", extras = ["sqs"], marker = "extra == 'sqs'", specifier = ">=15.5.0" },
-    { name = "uvloop", specifier = ">=0.22.1" },
+    { name = "uvloop", marker = "extra == 'uvloop'", specifier = ">=0.22.1" },
 ]
-provides-extras = ["redis", "sqs", "postgres", "mysql", "rabbitmq", "sqlalchemy", "django", "tortoise", "fastapi", "monitor", "all"]
+provides-extras = ["uvloop", "redis", "sqs", "postgres", "mysql", "rabbitmq", "sqlalchemy", "django", "tortoise", "fastapi", "monitor", "all"]
 
 [package.metadata.requires-dev]
 dev = [

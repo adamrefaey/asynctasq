@@ -36,6 +36,7 @@ class DriverFactory:
             redis_max_connections=config.redis_max_connections,
             sqs_region=config.sqs_region,
             sqs_queue_url_prefix=config.sqs_queue_url_prefix,
+            sqs_endpoint_url=config.sqs_endpoint_url,
             aws_access_key_id=config.aws_access_key_id,
             aws_secret_access_key=config.aws_secret_access_key,
             postgres_dsn=config.postgres_dsn,
