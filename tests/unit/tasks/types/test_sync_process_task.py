@@ -9,7 +9,7 @@ from pytest import main
 from asynctasq.tasks import SyncProcessTask
 from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
 
-from .conftest import SharedSyncFactorialTask
+from .shared_tasks import SharedSyncFactorialTask
 
 
 @pytest.fixture
