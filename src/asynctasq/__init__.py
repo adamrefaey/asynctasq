@@ -49,11 +49,13 @@ def _register_cleanup_hooks() -> None:
         register(async_cleanup, loop=loop)
         logger.debug(f"Registered cleanup hook for running event loop {id(loop)}")
         _cleanup_registered = True
-
     except RuntimeError:
         # No running loop yet - will register when first async function is called
         # This is handled by ensure_cleanup_registered() below
         logger.debug("No running event loop - cleanup will be registered on first async call")
+    except Exception as e:
+        logger.debug(f"Could not register cleanup hooks: {e}")
+        _cleanup_registered = True
 
 
 async def ensure_cleanup_registered():
