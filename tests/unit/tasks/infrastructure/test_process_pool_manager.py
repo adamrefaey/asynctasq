@@ -32,9 +32,9 @@ class TestProcessPoolManagerHealthMonitoring:
         manager.get_sync_pool()  # Trigger auto-initialization
         assert manager.is_initialized()
 
-        from asynctasq.utils.loop import run as uv_run
+        from asynctasq.utils.loop import run
 
-        uv_run(manager.shutdown(wait=True))
+        run(manager.shutdown(wait=True))
         assert not manager.is_initialized()
 
     def test_get_stats_not_initialized(self, manager: ProcessPoolManager) -> None:

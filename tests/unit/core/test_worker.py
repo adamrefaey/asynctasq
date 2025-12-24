@@ -22,6 +22,7 @@ from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.monitoring import EventRegistry, EventType
 from asynctasq.serializers import BaseSerializer, MsgpackSerializer
 from asynctasq.tasks import AsyncTask, BaseTask, FunctionTask
+from asynctasq.utils.loop import run
 
 
 # Test implementations for abstract Task
@@ -2336,9 +2337,7 @@ class TestWorkerHealthStatus:
         finally:
             # Cleanup
 
-            from asynctasq.utils.loop import run as uv_run
-
-            uv_run(manager.shutdown(wait=True))
+            run(manager.shutdown(wait=True))
 
     def test_get_health_status_pool_not_initialized(self) -> None:
         """Test health status when process pool not initialized."""
@@ -2350,9 +2349,7 @@ class TestWorkerHealthStatus:
         # Create a new manager that's not initialized and set as default
         manager = ProcessPoolManager()
 
-        from asynctasq.utils.loop import run as uv_run
-
-        uv_run(manager.shutdown(wait=True))  # Ensure not initialized
+        run(manager.shutdown(wait=True))  # Ensure not initialized
         set_default_manager(manager)
 
         mock_driver = MagicMock()

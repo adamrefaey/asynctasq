@@ -1021,6 +1021,7 @@ async def main():
 ```python
 import asyncio
 from asynctasq.tasks import task
+from asynctasq.utils.loop import run
 from typing import Optional
 
 @task(queue='emails', max_attempts=5, retry_delay=60, timeout=30)
@@ -1054,7 +1055,7 @@ async def main():
     ).delay(3600).dispatch()
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Payment Processing
@@ -1062,6 +1063,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 from asynctasq.tasks import task
+from asynctasq.utils.loop import run
 from decimal import Decimal
 
 @task(
@@ -1096,7 +1098,7 @@ async def main():
     print(f"Payment task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Report Generation
@@ -1104,6 +1106,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 from asynctasq.tasks import task
+from asynctasq.utils.loop import run
 from datetime import datetime, timedelta
 
 @task(queue='reports', timeout=3600)  # 1 hour timeout
@@ -1139,7 +1142,7 @@ async def main():
     print(f"Report generation task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Image Processing
@@ -1147,6 +1150,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 from asynctasq.tasks import task
+from asynctasq.utils.loop import run
 from pathlib import Path
 
 @task(queue='images', max_attempts=3, timeout=300)
@@ -1175,7 +1179,7 @@ async def main():
     print(f"Image processing task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Webhook Delivery
@@ -1183,6 +1187,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 from asynctasq.tasks import task
+from asynctasq.utils.loop import run
 import httpx
 
 @task(
@@ -1217,7 +1222,7 @@ async def main():
     print(f"Webhook task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Data Synchronization
@@ -1225,6 +1230,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 from asynctasq.tasks import task
+from asynctasq.utils.loop import run
 
 @task(queue='sync', max_attempts=3, retry_delay=300)
 async def sync_user_data(
@@ -1251,7 +1257,7 @@ async def main():
     print(f"Sync task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Batch Processing
@@ -1261,6 +1267,7 @@ Process multiple items in a single task:
 ```python
 import asyncio
 from asynctasq.tasks import task
+from asynctasq.utils.loop import run
 from typing import List
 
 @task(queue='batch', timeout=1800)  # 30 minutes timeout
@@ -1297,7 +1304,7 @@ async def main():
     print(f"Batch processing task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 **Tip:** For very large batches, consider splitting into smaller batches or processing items individually as separate tasks for better parallelism and error isolation.
@@ -1318,9 +1325,9 @@ Here's a complete, runnable example demonstrating multiple function-based task p
 
 ```python
 import asyncio
-import uvloop
 import asynctasq
 from asynctasq.tasks import task
+from asynctasq.utils.loop import run
 
 # Configure (use 'redis' or 'postgres' for production)
 asynctasq.init({'driver': 'redis'})
@@ -1403,7 +1410,7 @@ async def main():
     print("Note: Run workers to process these tasks. See running-workers.md for details.")
 
 if __name__ == "__main__":
-    uvloop.run(main())
+    run(main())
 ```
 
 ---
