@@ -67,14 +67,35 @@ class TestDjangoOrmHook:
         assert result == 42
 
     @patch("asynctasq.serializers.hooks.orm.django.DJANGO_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.django", MagicMock())
     def test_can_encode_with_django_exception(self) -> None:
         """Test can_encode handles Django exceptions gracefully."""
         hook = DjangoOrmHook()
         obj = MagicMock()
-        # Make django.db.models.Model None to cause exception
-        with patch("asynctasq.serializers.hooks.orm.django", None):
+        # Make isinstance raise an exception
+        with patch(
+            "builtins.isinstance",
+            side_effect=Exception("Test exception"),
+        ):
             result = hook.can_encode(obj)
             assert result is False
+
+    @patch("asynctasq.serializers.hooks.orm.django.DJANGO_AVAILABLE", False)
+    def test_can_encode_returns_false_when_django_not_available(self) -> None:
+        """Test can_encode returns False when DJANGO_AVAILABLE is False."""
+        hook = DjangoOrmHook()
+        obj = MockDjangoModel()
+        result = hook.can_encode(obj)
+        assert result is False
+
+    @patch("asynctasq.serializers.hooks.orm.django.DJANGO_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.django", None)
+    def test_can_encode_returns_false_when_django_is_none(self) -> None:
+        """Test can_encode returns False when django is None."""
+        hook = DjangoOrmHook()
+        obj = MockDjangoModel()
+        result = hook.can_encode(obj)
+        assert result is False
 
     @mark.asyncio
     @patch("asynctasq.serializers.hooks.orm.django.DJANGO_AVAILABLE", False)
