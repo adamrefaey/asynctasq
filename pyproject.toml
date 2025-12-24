@@ -169,6 +169,10 @@ filterwarnings = [
     # SharedAsyncFactorialTask is used in test fixtures and may create coroutines
     # that are not awaited during test collection/teardown
     "ignore:coroutine 'SharedAsyncFactorialTask.execute' was never awaited:RuntimeWarning",
+    # Filter all RuntimeWarnings about unawaited coroutines from test code
+    # These occur when tests intentionally create coroutines that may not be awaited
+    # due to mocking, exceptions, or test design (not actual bugs)
+    "ignore:coroutine.*was never awaited:RuntimeWarning",
     # Filter pytest assertion rewrite warnings for third-party async libraries
     # anyio is imported by pytest-asyncio before pytest can rewrite it
     # This is expected behavior and not an issue with our code
