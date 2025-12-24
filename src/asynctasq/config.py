@@ -15,6 +15,7 @@ class ConfigOverrides(TypedDict, total=False):
     redis_max_connections: int
     sqs_region: str
     sqs_queue_url_prefix: str | None
+    sqs_endpoint_url: str | None
     aws_access_key_id: str | None
     aws_secret_access_key: str | None
     postgres_dsn: str
@@ -68,6 +69,7 @@ class Config:
     # SQS configuration
     sqs_region: str = "us-east-1"
     sqs_queue_url_prefix: str | None = None
+    sqs_endpoint_url: str | None = None
     aws_access_key_id: str | None = None
     aws_secret_access_key: str | None = None
 

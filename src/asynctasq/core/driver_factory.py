@@ -93,6 +93,7 @@ class DriverFactory:
                     queue_url_prefix=kwargs.get("sqs_queue_url_prefix"),
                     aws_access_key_id=kwargs.get("aws_access_key_id"),
                     aws_secret_access_key=kwargs.get("aws_secret_access_key"),
+                    endpoint_url=kwargs.get("sqs_endpoint_url"),
                 )
             case "postgres":
                 from asynctasq.drivers.postgres_driver import PostgresDriver
