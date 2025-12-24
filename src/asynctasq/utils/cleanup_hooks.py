@@ -87,8 +87,9 @@ class _RegistryEntry:
                     if not self.loop.is_closed():
                         self.loop.run_until_complete(callback())
                     else:
+                        callback_name = getattr(callback, "__name__", str(callback))
                         logger.warning(
-                            f"Cannot run async cleanup callback {callback.__name__} "
+                            f"Cannot run async cleanup callback {callback_name} "
                             f"- loop already closed"
                         )
                 else:
@@ -148,7 +149,8 @@ def register(callback: Callable[[], Any], *, loop: asyncio.AbstractEventLoop | N
 
     # Add the callback
     entry.add_callback(callback)
-    logger.debug(f"Registered cleanup callback {callback.__name__} for event loop {id(loop)}")
+    callback_name = getattr(callback, "__name__", str(callback))
+    logger.debug(f"Registered cleanup callback {callback_name} for event loop {id(loop)}")
 
 
 def unregister(
@@ -173,9 +175,8 @@ def unregister(
     entry = _registry.get(loop)
     if entry is not None:
         entry.remove_callback(callback)
-        logger.debug(
-            f"Unregistered cleanup callback {callback.__name__} from event loop {id(loop)}"
-        )
+        callback_name = getattr(callback, "__name__", str(callback))
+        logger.debug(f"Unregistered cleanup callback {callback_name} from event loop {id(loop)}")
 
 
 def _get_registry_entry(loop: asyncio.AbstractEventLoop | None = None) -> _RegistryEntry | None:
