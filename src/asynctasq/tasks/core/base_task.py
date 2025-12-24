@@ -159,11 +159,16 @@ class BaseTask[T](ABC):
         dict[str, Any]
             Dictionary with queue, max_attempts, retry_delay, timeout from class attributes
         """
+        # Use __dict__ to get class attributes only (not inherited methods)
+        # This allows subclasses to set: class MyTask: max_attempts = 5
+        # while avoiding the max_attempts() method from BaseTask
+        class_dict = cls.__dict__
+
         return {
-            "queue": getattr(cls, "queue", "default"),
-            "max_attempts": getattr(cls, "max_attempts", 3),
-            "retry_delay": getattr(cls, "retry_delay", 60),
-            "timeout": getattr(cls, "timeout", None),
+            "queue": class_dict.get("queue", "default"),
+            "max_attempts": class_dict.get("max_attempts", 3),
+            "retry_delay": class_dict.get("retry_delay", 60),
+            "timeout": class_dict.get("timeout", None),
         }
 
     def __init__(self, **kwargs: Any) -> None:
