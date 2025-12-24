@@ -4,10 +4,10 @@ This guide provides concrete, ready-to-use code examples demonstrating all scena
 
 Function-based tasks allow you to convert any Python function (async or sync) into a background task by simply adding the `@task` decorator. Tasks are automatically serialized, queued, and executed by workers.
 
-Note: Example snippets in this guide use the project's uvloop-based runner helper. For runnable examples, import it as:
+Note: Example snippets in this guide use the project's event loop runner helper. For runnable examples, import it as:
 
 ```python
-from asynctasq.utils.loop import run as uv_run
+from asynctasq.utils.loop import run
 ```
 
 ## Four Execution Modes
@@ -112,9 +112,9 @@ async def main():
     # Note: Task will be executed by a worker process
 
 if __name__ == "__main__":
-    from asynctasq.utils.loop import run as uv_run
+    from asynctasq.utils.loop import run
 
-    uv_run(main())
+    run(main())
 ```
 
 **Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md) for details.
@@ -143,9 +143,9 @@ async def main():
     print(f"Task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    from asynctasq.utils.loop import run as uv_run
+    from asynctasq.utils.loop import run
 
-    uv_run(main())
+    run(main())
 ```
 
 **Note:** For CPU-intensive work (>80% CPU utilization), add `process=True` to run in process pool:

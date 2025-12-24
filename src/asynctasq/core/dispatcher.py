@@ -92,6 +92,12 @@ class Dispatcher:
         Returns:
             Task ID (UUID string)
         """
+        # Ensure cleanup hooks are registered for the current event loop
+        # This handles the case where asynctasq.init() was called before the loop started
+        from asynctasq import ensure_cleanup_registered
+
+        await ensure_cleanup_registered()
+
         # Generate task ID
         task_id = str(uuid.uuid4())
         task._task_id = task_id

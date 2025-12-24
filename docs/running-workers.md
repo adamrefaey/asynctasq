@@ -100,9 +100,9 @@ async def main():
         await driver.disconnect()
 
 if __name__ == "__main__":
-    from asynctasq.utils.loop import run as uv_run
+    from asynctasq.utils.loop import run
 
-    uv_run(main())
+    run(main())
 ```
 
 **Worker Parameters:**

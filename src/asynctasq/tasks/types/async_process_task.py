@@ -47,11 +47,11 @@ class AsyncProcessTask[T](BaseTask[T]):
             future = asyncio.run_coroutine_threadsafe(self.execute(), process_loop)
             return future.result()
         else:
-            # Fallback to uvloop-based runner if warm loop not initialized
+            # Fallback to event loop runner if warm loop not initialized
             current_count = increment_fallback_count()
 
             logger.warning(
-                "Warm event loop not available, falling back to uvloop runner",
+                "Warm event loop not available, falling back to event loop runner",
                 extra={
                     "task_class": self.__class__.__name__,
                     "fallback_count": current_count,
@@ -59,10 +59,10 @@ class AsyncProcessTask[T](BaseTask[T]):
                     "recommendation": "Call manager.initialize() during worker startup",
                 },
             )
-            # Use the uvloop-based runner directly in subprocess fallback.
-            from asynctasq.utils.loop import run as uv_run
+            # Use the event loop runner directly in subprocess fallback.
+            from asynctasq.utils.loop import run
 
-            return uv_run(self.execute())
+            return run(self.execute())
 
     @abstractmethod
     async def execute(self) -> T:

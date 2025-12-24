@@ -20,8 +20,10 @@ def _is_async_callable(func: Callable[..., Any]) -> TypeGuard[Callable[..., Awai
 def _run_async_in_subprocess(
     func: Callable[..., Awaitable[Any]], args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
-    """Helper to run async function in subprocess using the project's
-    uvloop-based runner helper.
+    """Helper to run async function in subprocess.
+
+    Uses the project's event loop runner which automatically detects
+    and uses uvloop if available, otherwise falls back to asyncio.
 
     Must be module-level for ProcessPoolExecutor compatibility.
     """
@@ -29,9 +31,9 @@ def _run_async_in_subprocess(
     async def async_wrapper():
         return await func(*args, **kwargs)
 
-    from asynctasq.utils.loop import run as uv_run
+    from asynctasq.utils.loop import run
 
-    return uv_run(async_wrapper())
+    return run(async_wrapper())
 
 
 @final

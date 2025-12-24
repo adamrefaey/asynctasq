@@ -66,10 +66,19 @@ async def main():
 
 
 if __name__ == "__main__":
-    # Note: this uses uvloop (via asynctasq.utils.loop.run) for best performance
-    from asynctasq.utils.loop import run as uv_run
+    # AsyncTasQ works with any event loop - choose what works best for you:
 
-    uv_run(main())
+    # Option 1: Use AsyncTasQ's runner (automatic uvloop support)
+    from asynctasq.utils.loop import run
+    run(main())
+
+    # Option 2: Use standard asyncio
+    # import asyncio
+    # asyncio.run(main())
+
+    # Option 3: Use uvloop directly
+    # import uvloop
+    # uvloop.run(main())
 
 ```
 
@@ -78,7 +87,7 @@ if __name__ == "__main__":
 python -m asynctasq worker
 ```
 
-**That's it!** Your first AsyncTasQ is ready. Now let's explore the powerful features.
+**That's it!** Your first AsyncTasQ application is ready. AsyncTasQ works seamlessly with `asyncio.run()`, uvloop, FastAPI, Jupyter notebooks, or any other async framework - cleanup happens automatically when the event loop closes.
 
 ---
 
@@ -119,7 +128,7 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 - **High-performance concurrency** – Process hundreds of tasks concurrently with minimal overhead using asyncio's efficient task scheduling
 - **Smart connection pooling** – All drivers use connection pools optimized for async operations
 - **Non-blocking by design** – Worker polling, task execution, and all I/O operations are truly non-blocking
-- **uvloop-powered event loop** – AsyncTasQ prefers `uvloop` for production workloads; the project provides a small helper (`asynctasq.utils.loop.run`) that creates and runs a uvloop-based event loop for CLI and short-lived run paths.
+- **Universal event loop compatibility** – AsyncTasQ works seamlessly with any event loop (asyncio, uvloop, or custom implementations). Cleanup hooks automatically attach to running loops, so you can use `asyncio.run()`, uvloop, FastAPI, Jupyter notebooks, or any other async framework. The optional `asynctasq.utils.loop.run` helper provides uvloop support with automatic fallback to asyncio.
 
 ### Intelligent Serialization & ORM Integration
 
