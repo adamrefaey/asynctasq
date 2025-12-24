@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar, TypedDict, Unpack
+from typing import Any, ClassVar, TypedDict, Unpack
 
 from asynctasq.drivers import DriverType
 
@@ -45,6 +45,7 @@ class ConfigOverrides(TypedDict, total=False):
     process_pool_max_tasks_per_child: int | None
     task_scan_limit: int
     keep_completed_tasks: bool
+    sqlalchemy_engine: Any
 
 
 @dataclass
@@ -121,6 +122,9 @@ class Config:
     # If True, completed tasks are kept for history/audit purposes
     # Note: Not applicable for SQS driver (SQS always deletes acknowledged messages)
     keep_completed_tasks: bool = False
+
+    # SQLAlchemy engine for ORM cleanup
+    sqlalchemy_engine: Any = None
 
     def __post_init__(self):
         """Validate configuration after initialization."""
