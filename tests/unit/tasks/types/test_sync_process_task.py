@@ -8,6 +8,7 @@ from pytest import main
 
 from asynctasq.tasks import SyncProcessTask
 from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
+from asynctasq.utils.loop import run
 
 from .shared_tasks import SharedSyncFactorialTask
 
@@ -250,9 +251,7 @@ def cleanup_process_pool():
     # Cleanup after all tests in module
     manager = ProcessPoolManager()
 
-    from asynctasq.utils.loop import run as uv_run
-
-    uv_run(manager.shutdown(wait=True))
+    run(manager.shutdown(wait=True))
 
 
 if __name__ == "__main__":

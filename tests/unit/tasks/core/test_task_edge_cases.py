@@ -25,6 +25,7 @@ from asynctasq.tasks.core.base_task import RESERVED_NAMES
 from asynctasq.tasks.core.task_config import TaskConfig
 from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
 from asynctasq.tasks.types.function_task import FunctionTask
+from asynctasq.utils.loop import run
 
 # ============================================================================
 # 1. TaskConfig Edge Cases
@@ -222,9 +223,7 @@ class TestProcessPoolEdgeCases:
         yield manager_instance
         # Cleanup after test
         if manager_instance.is_initialized():
-            from asynctasq.utils.loop import run as uv_run
-
-            uv_run(manager_instance.shutdown(wait=True))
+            run(manager_instance.shutdown(wait=True))
 
     def test_pool_initialization_with_custom_mp_context(self, manager: ProcessPoolManager) -> None:
         """Test pool initialization with custom multiprocessing context."""
@@ -252,9 +251,7 @@ class TestProcessPoolEdgeCases:
         assert manager.is_initialized()
 
         # Shutdown
-        from asynctasq.utils.loop import run as uv_run
-
-        uv_run(manager.shutdown(wait=True))
+        run(manager.shutdown(wait=True))
         assert not manager.is_initialized()
 
         # Re-initialize - create new manager with different settings
@@ -266,9 +263,7 @@ class TestProcessPoolEdgeCases:
         assert stats["sync"]["pool_size"] == 4
 
         # Cleanup
-        from asynctasq.utils.loop import run as uv_run
-
-        uv_run(new_manager.shutdown(wait=True))
+        run(new_manager.shutdown(wait=True))
 
     def test_multiple_shutdown_calls_safe(self, manager: ProcessPoolManager) -> None:
         """Test that multiple shutdown calls don't raise errors."""
@@ -277,21 +272,15 @@ class TestProcessPoolEdgeCases:
         assert manager.is_initialized()
 
         # First shutdown
-        from asynctasq.utils.loop import run as uv_run
-
-        uv_run(manager.shutdown(wait=True))
+        run(manager.shutdown(wait=True))
         assert not manager.is_initialized()
 
         # Second shutdown should be safe (no-op)
-        from asynctasq.utils.loop import run as uv_run
-
-        uv_run(manager.shutdown(wait=True))
+        run(manager.shutdown(wait=True))
         assert not manager.is_initialized()
 
         # Third shutdown
-        from asynctasq.utils.loop import run as uv_run
-
-        uv_run(manager.shutdown(wait=True))
+        run(manager.shutdown(wait=True))
         assert not manager.is_initialized()
 
     def test_concurrent_initialize_pool_calls(self, manager: ProcessPoolManager) -> None:
@@ -330,9 +319,7 @@ class TestProcessPoolEdgeCases:
         assert manager.is_initialized()
 
         # Shutdown
-        from asynctasq.utils.loop import run as uv_run
-
-        uv_run(manager.shutdown(wait=True))
+        run(manager.shutdown(wait=True))
 
         stats = manager.get_stats()
         assert stats["sync"]["status"] == "not_initialized"

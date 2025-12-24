@@ -1610,6 +1610,7 @@ class SmartRetryTask(AsyncTask[None]):
 ```python
 import asyncio
 from asynctasq.tasks import AsyncTask
+from asynctasq.utils.loop import run
 from typing import Optional
 
 class SendEmail(AsyncTask[dict]):
@@ -1661,7 +1662,7 @@ async def main():
     ).delay(3600).dispatch()
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Payment Processing
@@ -1723,7 +1724,7 @@ async def main():
     print(f"Payment task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Report Generation
@@ -1731,6 +1732,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 from asynctasq.tasks import SyncTask
+from asynctasq.utils.loop import run
 from datetime import datetime, timedelta
 
 class GenerateReport(SyncTask[dict]):
@@ -1778,7 +1780,7 @@ async def main():
     print(f"Report generation task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Image Processing
@@ -1786,6 +1788,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 from asynctasq.tasks import AsyncTask
+from asynctasq.utils.loop import run
 from pathlib import Path
 
 class ProcessImage(AsyncTask[dict]):
@@ -1826,7 +1829,7 @@ async def main():
     print(f"Image processing task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Webhook Delivery
@@ -1834,6 +1837,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 from asynctasq.tasks import AsyncTask
+from asynctasq.utils.loop import run
 import httpx
 
 class DeliverWebhook(AsyncTask[dict]):
@@ -1884,7 +1888,7 @@ async def main():
     print(f"Webhook task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Data Synchronization
@@ -1892,6 +1896,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 from asynctasq.tasks import AsyncTask
+from asynctasq.utils.loop import run
 
 class SyncUserData(AsyncTask[dict]):
     queue = "sync"
@@ -1930,7 +1935,7 @@ async def main():
     print(f"Sync task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ### Batch Processing
@@ -1940,6 +1945,7 @@ Process multiple items in a single task:
 ```python
 import asyncio
 from asynctasq.tasks import AsyncTask
+from asynctasq.utils.loop import run
 from typing import List
 
 class ProcessBatch(AsyncTask[dict]):
@@ -1986,7 +1992,7 @@ async def main():
     print(f"Batch processing task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 **Best Practices for Batch Processing:**
@@ -2015,6 +2021,7 @@ Here's a complete, runnable example demonstrating multiple class-based task patt
 import asyncio
 import asynctasq
 from asynctasq.tasks import AsyncTask
+from asynctasq.utils.loop import run
 
 # Configure (use 'redis' or 'postgres' for production)
 asynctasq.init({'driver': 'redis'})
@@ -2138,7 +2145,7 @@ async def main():
     print("Note: Run workers to process these tasks. See running-workers.md for details.")
 
 if __name__ == "__main__":
-    uv_run(main())
+    run(main())
 ```
 
 ---
