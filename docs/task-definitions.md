@@ -279,19 +279,23 @@ All tasks have access to these configuration attributes via `task.config`:
 | `max_attempts` | `int` | `3` | Maximum execution attempts (including initial attempt) |
 | `retry_delay` | `int` | `60` | Delay in seconds between retry attempts |
 | `timeout` | `int \| None` | `None` | Task execution timeout in seconds (None = no timeout) |
-| `driver_override` | `DriverType \| None` | `None` | Override default queue driver for this task |
+| `driver` | `DriverType \| None` | `None` | Override default queue driver for this task |
 
-### Pattern 1: Class Attributes (Defaults)
+### Pattern 1: Using `config` Dict with `TaskConfigDict`
 
-Define configuration as class attributes for default values:
+Define configuration using a class-level `config` dictionary with the `TaskConfigDict` TypedDict for full type safety:
 
 ```python
+from asynctasq.tasks import AsyncTask, TaskConfigDict
+
 class SendEmail(AsyncTask[str]):
-    # Configuration via class attributes
-    queue = "emails"
-    max_attempts = 5
-    retry_delay = 120
-    timeout = 30
+    # Configuration via config dict (type-safe with TaskConfigDict)
+    config: TaskConfigDict = {
+        "queue": "emails",
+        "max_attempts": 5,
+        "retry_delay": 120,
+        "timeout": 30,
+    }
 
     to: str
     subject: str
@@ -300,9 +304,22 @@ class SendEmail(AsyncTask[str]):
         # Send email logic
         return f"Email sent to {self.to}"
 
-# Uses defaults from class attributes
+# Uses defaults from config dict
 task_id = await SendEmail(to="user@example.com", subject="Welcome").dispatch()
+
+# Override with method chaining
+task_id = await SendEmail(to="admin@example.com", subject="Alert") \
+    .max_attempts(10) \
+    .timeout(60) \
+    .dispatch()
 ```
+
+**Benefits:**
+- ✅ Full type safety with `TaskConfigDict` TypedDict
+- ✅ IDE autocomplete for config keys
+- ✅ Works with method chaining
+- ✅ Clear separation between config and task parameters
+- ✅ No type checker warnings
 
 ### Pattern 2: Method Chaining (Runtime)
 
@@ -376,16 +393,20 @@ task_id = await my_task().timeout(300).dispatch()
 task_id = await my_task().timeout(None).dispatch()
 ```
 
-### Combining Both Patterns
+### Combining Config Dict with Method Chaining
 
-You can set defaults via class attributes and override them via method chaining:
+You can set defaults via `config` dict (with `TaskConfigDict` for type safety) and override them with method chaining:
 
 ```python
+from asynctasq.tasks import AsyncTask, TaskConfigDict
+
 class SendNotification(AsyncTask[bool]):
-    # Defaults for most notifications
-    queue = "notifications"
-    max_attempts = 3
-    timeout = 30
+    # Defaults via config dict (type-safe)
+    config: TaskConfigDict = {
+        "queue": "notifications",
+        "max_attempts": 3,
+        "timeout": 30,
+    }
 
     user_id: int
     message: str
@@ -394,10 +415,10 @@ class SendNotification(AsyncTask[bool]):
         # Send notification logic
         return True
 
-# Use defaults
+# Use defaults from config
 await SendNotification(user_id=123, message="Hello").dispatch()
 
-# Override for critical notifications
+# Override with method chaining
 await SendNotification(user_id=456, message="URGENT") \
     .on_queue("critical") \
     .max_attempts(10) \

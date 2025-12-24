@@ -253,10 +253,10 @@ async def test_async_process_task_default_configuration():
     task = SharedAsyncFactorialTask(n=5)
 
     # Assert - check default values
-    assert task.config.queue == "default"
-    assert task.config.max_attempts == 3
-    assert task.config.retry_delay == 60
-    assert task.config.timeout is None
+    assert task.config.get("queue") == "default"
+    assert task.config.get("max_attempts") == 3
+    assert task.config.get("retry_delay") == 60
+    assert task.config.get("timeout") is None
 
 
 @pytest.mark.asyncio
@@ -265,10 +265,12 @@ async def test_async_process_task_custom_configuration():
 
     # Arrange
     class CustomAsyncTask(AsyncProcessTask[int]):
-        queue = "custom-queue"
-        max_attempts = 5
-        retry_delay = 120
-        timeout = 300
+        config = {
+            "queue": "custom-queue",
+            "max_attempts": 5,
+            "retry_delay": 120,
+            "timeout": 300,
+        }
 
         async def execute(self) -> int:
             return 42
@@ -276,10 +278,10 @@ async def test_async_process_task_custom_configuration():
     task = CustomAsyncTask()
 
     # Assert
-    assert task.config.queue == "custom-queue"
-    assert task.config.max_attempts == 5
-    assert task.config.retry_delay == 120
-    assert task.config.timeout == 300
+    assert task.config.get("queue") == "custom-queue"
+    assert task.config.get("max_attempts") == 5
+    assert task.config.get("retry_delay") == 120
+    assert task.config.get("timeout") == 300
 
 
 @pytest.mark.asyncio
@@ -293,8 +295,8 @@ async def test_async_process_task_method_chaining():
 
     # Assert
     assert result_task is task  # Returns self
-    assert task.config.queue == "priority"
-    assert task.config.retry_delay == 30
+    assert task.config.get("queue") == "priority"
+    assert task.config.get("retry_delay") == 30
     assert task._delay_seconds == 10
 
 
@@ -366,7 +368,7 @@ async def test_async_process_task_fallback_path():
             "asynctasq.tasks.types.async_process_task.increment_fallback_count",
             return_value=1,
         ),
-        patch("asynctasq.utils.loop.run", return_value=6) as mock_asyncio_run,
+        patch("asynctasq.tasks.types.async_process_task.run", return_value=6) as mock_asyncio_run,
         patch("asynctasq.tasks.types.async_process_task.logger.warning") as mock_warning,
     ):
         # Act
@@ -396,7 +398,7 @@ async def test_async_process_task_fallback_counter_increments():
             "asynctasq.tasks.types.async_process_task.increment_fallback_count",
             return_value=5,  # Simulate 5th fallback
         ) as mock_increment,
-        patch("asynctasq.utils.loop.run", return_value=2),
+        patch("asynctasq.tasks.types.async_process_task.run", return_value=2),
         patch("asynctasq.tasks.types.async_process_task.logger.warning"),
     ):
         # Act

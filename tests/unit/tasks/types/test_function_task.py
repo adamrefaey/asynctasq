@@ -55,11 +55,11 @@ class TestFunctionTask:
         task_instance = FunctionTask(test_func)
 
         # Assert
-        assert task_instance.config.queue == "default"
-        assert task_instance.config.max_attempts == 3
-        assert task_instance.config.retry_delay == 60
-        assert task_instance.config.timeout is None
-        assert task_instance.config.driver_override is None
+        assert task_instance.config.get("queue") == "default"
+        assert task_instance.config.get("max_attempts") == 3
+        assert task_instance.config.get("retry_delay") == 60
+        assert task_instance.config.get("timeout") is None
+        assert task_instance.config.get("driver") is None
 
     def test_function_task_init_extracts_decorator_config(self) -> None:
         # Arrange
@@ -71,12 +71,12 @@ class TestFunctionTask:
         task_instance = FunctionTask(test_func)
 
         # Assert
-        assert task_instance.config.queue == "custom"
-        assert task_instance.config.max_attempts == 5
-        assert task_instance.config.retry_delay == 120
-        assert task_instance.config.timeout == 300
+        assert task_instance.config.get("queue") == "custom"
+        assert task_instance.config.get("max_attempts") == 5
+        assert task_instance.config.get("retry_delay") == 120
+        assert task_instance.config.get("timeout") == 300
 
-    def test_function_task_init_extracts_driver_override(self) -> None:
+    def test_function_task_init_extracts_driver(self) -> None:
         # Arrange
         @task(driver="redis")
         def test_func() -> None:
@@ -86,7 +86,7 @@ class TestFunctionTask:
         task_instance = FunctionTask(test_func)
 
         # Assert
-        assert task_instance.config.driver_override == "redis"
+        assert task_instance.config.get("driver") == "redis"
 
     @mark.asyncio
     async def test_function_task_handle_async_function(self) -> None:
@@ -193,8 +193,8 @@ class TestFunctionTask:
 
         # Assert
         # Should use defaults when attributes don't exist
-        assert task_instance.config.queue == "default"
-        assert task_instance.config.max_attempts == 3
+        assert task_instance.config.get("queue") == "default"
+        assert task_instance.config.get("max_attempts") == 3
 
 
 @mark.unit
@@ -322,7 +322,7 @@ class TestTaskDecorator:
             assert call_args._delay_seconds == 60
 
     @mark.asyncio
-    async def test_task_decorator_dispatch_with_driver_override(self) -> None:
+    async def test_task_decorator_dispatch_with_driver(self) -> None:
         # Arrange
         @task(driver="redis")
         def test_func() -> None:

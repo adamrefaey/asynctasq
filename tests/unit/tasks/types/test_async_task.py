@@ -8,7 +8,7 @@ Testing Strategy:
 - Fast, isolated tests
 """
 
-from dataclasses import replace
+# from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -145,18 +145,20 @@ class TestAsyncTaskConfiguration:
         task = SimpleAsyncTask()
 
         # Assert
-        assert task.config.queue == "default"
-        assert task.config.max_attempts == 3
-        assert task.config.retry_delay == 60
-        assert task.config.timeout is None
+        assert task.config.get("queue") == "default"
+        assert task.config.get("max_attempts") == 3
+        assert task.config.get("retry_delay") == 60
+        assert task.config.get("timeout") is None
 
     def test_async_task_custom_configuration(self) -> None:
         # Arrange
         class CustomAsyncTask(AsyncTask[str]):
-            queue = "high-priority"
-            max_attempts = 5
-            retry_delay = 120
-            timeout = 300
+            config = {
+                "queue": "high-priority",
+                "max_attempts": 5,
+                "retry_delay": 120,
+                "timeout": 300,
+            }
 
             async def execute(self) -> str:
                 return "custom"
@@ -165,10 +167,10 @@ class TestAsyncTaskConfiguration:
         task = CustomAsyncTask()
 
         # Assert
-        assert task.config.queue == "high-priority"
-        assert task.config.max_attempts == 5
-        assert task.config.retry_delay == 120
-        assert task.config.timeout == 300
+        assert task.config.get("queue") == "high-priority"
+        assert task.config.get("max_attempts") == 5
+        assert task.config.get("retry_delay") == 120
+        assert task.config.get("timeout") == 300
 
     def test_async_task_on_queue_chaining(self) -> None:
         # Arrange
@@ -179,7 +181,7 @@ class TestAsyncTaskConfiguration:
 
         # Assert
         assert result is task  # Method chaining returns self
-        assert task.config.queue == "emails"
+        assert task.config.get("queue") == "emails"
 
     def test_async_task_delay_chaining(self) -> None:
         # Arrange
@@ -201,7 +203,7 @@ class TestAsyncTaskConfiguration:
 
         # Assert
         assert result is task
-        assert task.config.retry_delay == 30
+        assert task.config.get("retry_delay") == 30
 
     def test_async_task_method_chaining_multiple(self) -> None:
         # Arrange
@@ -212,9 +214,9 @@ class TestAsyncTaskConfiguration:
 
         # Assert
         assert result is task
-        assert task.config.queue == "priority"
+        assert task.config.get("queue") == "priority"
         assert task._delay_seconds == 60
-        assert task.config.retry_delay == 45
+        assert task.config.get("retry_delay") == 45
 
 
 @pytest.mark.unit
@@ -273,10 +275,10 @@ class TestAsyncTaskDispatch:
         mock_dispatcher.dispatch.assert_called_once_with(task)
 
     @pytest.mark.asyncio
-    async def test_async_task_dispatch_with_driver_override(self) -> None:
+    async def test_async_task_dispatch_with_driver(self) -> None:
         # Arrange
         task = SimpleAsyncTask()
-        task.config = replace(task.config, driver_override="redis")
+        task.config = {**task.config, "driver": "redis"}
         mock_dispatcher = AsyncMock()
         mock_dispatcher.dispatch.return_value = "task-456"
 

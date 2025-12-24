@@ -14,13 +14,13 @@ def get_task_context(task: BaseTask) -> dict[str, Any]:
     context = {
         "task_id": task._task_id,
         "task_class": task.__class__.__name__,
-        "queue": task.config.queue,
+        "queue": task.config.get("queue"),
         "current_attempt": task._current_attempt,
-        "max_attempts": task.config.max_attempts,
+        "max_attempts": task.config.get("max_attempts"),
     }
     # Add correlation_id if present for distributed tracing
-    if task.config.correlation_id is not None:
-        context["correlation_id"] = task.config.correlation_id
+    if task.config.get("correlation_id") is not None:
+        context["correlation_id"] = task.config.get("correlation_id")
     return context
 
 

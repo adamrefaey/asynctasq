@@ -66,10 +66,10 @@ class TaskSerializer:
             "task_id": task._task_id,
             "current_attempt": task._current_attempt,
             "dispatched_at": task._dispatched_at.isoformat() if task._dispatched_at else None,
-            "queue": task.config.queue,
-            "max_attempts": task.config.max_attempts,
-            "retry_delay": task.config.retry_delay,
-            "timeout": task.config.timeout,
+            "queue": task.config.get("queue"),
+            "max_attempts": task.config.get("max_attempts"),
+            "retry_delay": task.config.get("retry_delay"),
+            "timeout": task.config.get("timeout"),
         }
 
         # Add FunctionTask-specific metadata

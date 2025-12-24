@@ -48,29 +48,27 @@ class Dispatcher:
         """Get the appropriate driver for this task.
 
         Resolution order:
-        1. Task's config.driver_override attribute (BaseDriver instance or string)
+        1. Task's config["driver"] (BaseDriver instance or string)
         2. Global default driver
         """
-        driver_override = task.config.driver_override
+        driver = task.config.get("driver")
 
-        if driver_override is None:
+        if driver is None:
             return self.driver
 
-        # If driver_override is already a BaseDriver instance
-        if isinstance(driver_override, BaseDriver):
+        # If driver is already a BaseDriver instance
+        if isinstance(driver, BaseDriver):
             logger.debug(f"Using task-specific driver instance for {task.__class__.__name__}")
-            return driver_override
+            return driver
 
-        # If driver_override is a string, create driver from config
-        if isinstance(driver_override, str):
-            cache_key = driver_override
+        # If driver is a string, create driver from config
+        if isinstance(driver, str):
+            cache_key = driver
             if cache_key not in self._driver_cache:
-                logger.debug(
-                    f"Creating driver override '{driver_override}' for {task.__class__.__name__}"
-                )
+                logger.debug(f"Creating driver override '{driver}' for {task.__class__.__name__}")
                 config = Config.get()
                 self._driver_cache[cache_key] = DriverFactory.create_from_config(
-                    config, driver_type=cast(DriverType, driver_override)
+                    config, driver_type=cast(DriverType, driver)
                 )
             return self._driver_cache[cache_key]
 
@@ -86,7 +84,7 @@ class Dispatcher:
 
         Args:
             task: BaseTask instance to dispatch
-            queue: Queue name (overrides task.config.queue if set)
+            queue: Queue name (overrides task.config.get("queue") if set)
             delay: Delay in seconds (overrides task._delay_seconds if set)
 
         Returns:
@@ -104,7 +102,7 @@ class Dispatcher:
         task._dispatched_at = datetime.now(UTC)
 
         # Determine queue and delay
-        target_queue = queue or task.config.queue
+        target_queue = queue or task.config.get("queue") or "default"
         if delay is not None:
             delay_seconds = delay
         else:
