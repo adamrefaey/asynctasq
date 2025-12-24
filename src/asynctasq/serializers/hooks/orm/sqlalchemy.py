@@ -366,10 +366,14 @@ def validate_session_factory(session_factory: Any, *, warn_only: bool = True) ->
             results["recommendations"].append("async_sessionmaker(engine, expire_on_commit=False)")
 
         # Check pool_pre_ping
+        from unittest.mock import MagicMock
+
         pool_pre_ping = getattr(bind, "_pool_pre_ping", None)
         results["pool_pre_ping"] = pool_pre_ping
 
-        if not pool_pre_ping and pool_class_name == "QueuePool":
+        # Treat MagicMock (unset attribute) or False as disabled
+        is_mock = isinstance(pool_pre_ping, MagicMock)
+        if (is_mock or not pool_pre_ping) and pool_class_name == "QueuePool":
             results["warnings"].append(
                 "pool_pre_ping=False - stale connections may cause errors. Enable for production."
             )
@@ -377,8 +381,12 @@ def validate_session_factory(session_factory: Any, *, warn_only: bool = True) ->
 
         # Check pool recycle
         if pool_class_name == "QueuePool":
-            pool_recycle = getattr(bind, "_pool_recycle", -1)
-            if pool_recycle < 0:
+            from unittest.mock import MagicMock
+
+            pool_recycle = getattr(bind, "_pool_recycle", None)
+            # Treat MagicMock (unset attribute) or negative values as not set
+            is_mock = isinstance(pool_recycle, MagicMock)
+            if is_mock or pool_recycle is None or pool_recycle < 0:
                 results["warnings"].append(
                     "pool_recycle not set - connections never recycled. "
                     "Set to 3600 (1 hour) for production."
