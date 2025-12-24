@@ -74,6 +74,7 @@ class TestDriverFactoryCreateFromConfig:
             queue_url_prefix="https://sqs.us-west-2.amazonaws.com/123456789/",
             aws_access_key_id="test_key_id",
             aws_secret_access_key="test_secret_key",
+            endpoint_url=None,
         )
         assert result == mock_instance
 
@@ -292,6 +293,7 @@ class TestDriverFactoryCreate:
             queue_url_prefix=None,
             aws_access_key_id=None,
             aws_secret_access_key=None,
+            endpoint_url=None,
         )
         assert result == mock_instance
 
@@ -316,6 +318,7 @@ class TestDriverFactoryCreate:
             queue_url_prefix="https://sqs.eu-west-1.amazonaws.com/987654321/",
             aws_access_key_id="custom_key",
             aws_secret_access_key="custom_secret",
+            endpoint_url=None,
         )
         assert result == mock_instance
 
@@ -502,6 +505,7 @@ class TestDriverFactoryParameterPassing:
             queue_url_prefix=None,  # Default
             aws_access_key_id="only_key",
             aws_secret_access_key="only_secret",
+            endpoint_url=None,
         )
         assert result == mock_instance
 
@@ -633,6 +637,7 @@ class TestDriverFactoryConfigIntegration:
             queue_url_prefix="https://sqs.ap-south-1.amazonaws.com/111222333/",
             aws_access_key_id="test_access_key",
             aws_secret_access_key="test_secret_access_key",
+            endpoint_url=None,
         )
         assert result == mock_instance
 
@@ -742,6 +747,7 @@ class TestDriverFactoryEdgeCases:
             queue_url_prefix="",  # Should be passed as-is
             aws_access_key_id=None,
             aws_secret_access_key=None,
+            endpoint_url=None,
         )
         assert result == mock_instance
 
