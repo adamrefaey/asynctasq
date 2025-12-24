@@ -443,3 +443,253 @@ class TestEmitForkSafetyWarning:
             emit_fork_safety_warning("StaticPool")
 
             assert len(w) == 0
+
+
+@mark.unit
+class TestValidateSessionFactoryExtended:
+    """Extended tests for validate_session_factory function."""
+
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.isinstance")
+    def test_validate_session_factory_no_bind(self, mock_isinstance) -> None:
+        """Test validate_session_factory with no engine bound."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import validate_session_factory
+
+        mock_factory = MagicMock()
+        mock_factory.kw = {}  # No bind
+        mock_isinstance.return_value = True
+
+        result = validate_session_factory(mock_factory)
+
+        assert result["valid"] is True
+        assert "No engine bound to session factory" in result["warnings"]
+
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.isinstance")
+    def test_validate_session_factory_queuepool_warnings(self, mock_isinstance) -> None:
+        """Test validate_session_factory with QueuePool warnings."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import validate_session_factory
+
+        mock_factory = MagicMock()
+        mock_bind = MagicMock()
+        mock_pool = MagicMock()
+        mock_pool.__class__.__name__ = "QueuePool"
+        mock_bind.pool = mock_pool
+        mock_factory.kw = {"bind": mock_bind}
+        mock_isinstance.return_value = True
+
+        result = validate_session_factory(mock_factory)
+
+        assert result["valid"] is True
+        assert any("QueuePool" in w for w in result["warnings"])
+        assert any("NullPool" in r for r in result["recommendations"])
+
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.isinstance")
+    def test_validate_session_factory_expire_on_commit_true(self, mock_isinstance) -> None:
+        """Test validate_session_factory with expire_on_commit=True."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import validate_session_factory
+
+        mock_factory = MagicMock()
+        mock_bind = MagicMock()
+        mock_pool = MagicMock()
+        mock_pool.__class__.__name__ = "NullPool"
+        mock_bind.pool = mock_pool
+        mock_factory.kw = {"bind": mock_bind, "expire_on_commit": True}
+        mock_isinstance.return_value = True
+
+        result = validate_session_factory(mock_factory)
+
+        assert result["valid"] is True
+        assert any("expire_on_commit=True" in w for w in result["warnings"])
+        assert result["expire_on_commit"] is True
+
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.isinstance")
+    def test_validate_session_factory_pool_pre_ping_false(self, mock_isinstance) -> None:
+        """Test validate_session_factory with pool_pre_ping=False."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import validate_session_factory
+
+        mock_factory = MagicMock()
+        mock_bind = MagicMock()
+        mock_bind._pool_pre_ping = False
+        mock_bind._pool_recycle = -1
+        mock_pool = MagicMock()
+        mock_pool.__class__.__name__ = "QueuePool"
+        mock_bind.pool = mock_pool
+        mock_factory.kw = {"bind": mock_bind}
+        mock_isinstance.return_value = True
+
+        result = validate_session_factory(mock_factory)
+
+        assert result["valid"] is True
+        assert any("pool_pre_ping=False" in w for w in result["warnings"])
+
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.isinstance")
+    def test_validate_session_factory_pool_recycle_not_set(self, mock_isinstance) -> None:
+        """Test validate_session_factory with pool_recycle not set."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import validate_session_factory
+
+        mock_factory = MagicMock()
+        mock_bind = MagicMock()
+        mock_bind._pool_recycle = -1
+        mock_pool = MagicMock()
+        mock_pool.__class__.__name__ = "QueuePool"
+        mock_bind.pool = mock_pool
+        mock_factory.kw = {"bind": mock_bind}
+        mock_isinstance.return_value = True
+
+        result = validate_session_factory(mock_factory)
+
+        assert result["valid"] is True
+        assert any("pool_recycle not set" in w for w in result["warnings"])
+
+
+@mark.unit
+class TestCheckPoolHealthExtended:
+    """Extended tests for check_pool_health function."""
+
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.isinstance")
+    def test_check_pool_health_with_queuepool_stats(self, mock_isinstance) -> None:
+        """Test check_pool_health extracts pool statistics."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import check_pool_health
+
+        mock_factory = MagicMock()
+        mock_bind = MagicMock()
+        mock_pool = MagicMock()
+        mock_pool.__class__.__name__ = "QueuePool"
+        mock_pool.size.return_value = 10
+        mock_pool.checkedout.return_value = 3
+        mock_pool.overflow.return_value = 2
+        mock_bind.pool = mock_pool
+        mock_factory.kw = {"bind": mock_bind}
+        mock_isinstance.return_value = True
+
+        result = check_pool_health(mock_factory)
+
+        assert result["pool_class"] == "QueuePool"
+        assert result["size"] == 10
+        assert result["checked_out"] == 3
+        assert result["overflow"] == 2
+        assert result["available"] == 7
+        assert "error" not in result
+
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.isinstance")
+    def test_check_pool_health_no_bind(self, mock_isinstance) -> None:
+        """Test check_pool_health with no engine bound."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import check_pool_health
+
+        mock_factory = MagicMock()
+        mock_factory.kw = {}  # No bind
+        mock_isinstance.return_value = True
+
+        result = check_pool_health(mock_factory)
+
+        assert "error" in result
+        assert "No engine bound to session factory" in result["error"]
+
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.SQLALCHEMY_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.isinstance")
+    def test_check_pool_health_exception_handling(self, mock_isinstance) -> None:
+        """Test check_pool_health handles exceptions gracefully."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import check_pool_health
+
+        mock_factory = MagicMock()
+        mock_factory.kw.get.side_effect = Exception("Unexpected error")
+        mock_isinstance.return_value = True
+
+        result = check_pool_health(mock_factory)
+
+        assert "error" in result
+        assert "Unexpected error" in result["error"]
+
+
+@mark.unit
+class TestSqlalchemyOrmHookExtended:
+    """Extended tests for SqlalchemyOrmHook methods."""
+
+    @fixture
+    def hook(self) -> SqlalchemyOrmHook:
+        return SqlalchemyOrmHook()
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.SQLALCHEMY_AVAILABLE", True)
+    async def test_fetch_model_forked_process_logging(self, hook: SqlalchemyOrmHook) -> None:
+        """Test _fetch_model logs when in forked process."""
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        # Mock forked process (different PID)
+        with (
+            patch("os.getpid", return_value=99999),
+            patch("asynctasq.serializers.hooks.orm.sqlalchemy._PARENT_PID", 12345),
+        ):
+            mock_session = AsyncMock()
+            mock_model = MagicMock()
+            mock_session.get = AsyncMock(return_value=mock_model)
+
+            mock_factory = MagicMock(spec=async_sessionmaker)
+            mock_factory.kw = {"bind": None}
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            model_class = MagicMock()
+            model_class.__name__ = "TestModel"
+            model_class._asynctasq_session_factory = mock_factory
+            model_class.__mro__ = (model_class, object)
+
+            with patch("asynctasq.serializers.hooks.orm.sqlalchemy.logger") as mock_logger:
+                result = await hook._fetch_model(model_class, 1)
+
+                assert result == mock_model
+                mock_logger.debug.assert_called()
+                # Check that the debug call includes forked process info
+                debug_calls = [
+                    call
+                    for call in mock_logger.debug.call_args_list
+                    if "forked process" in str(call)
+                ]
+                assert len(debug_calls) > 0
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.sqlalchemy.SQLALCHEMY_AVAILABLE", True)
+    async def test_fetch_model_pool_warning_in_forked_process(
+        self, hook: SqlalchemyOrmHook
+    ) -> None:
+        """Test _fetch_model warns about unsafe pool in forked process."""
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        # Mock forked process
+        with (
+            patch("os.getpid", return_value=99999),
+            patch("asynctasq.serializers.hooks.orm.sqlalchemy._PARENT_PID", 12345),
+        ):
+            mock_session = AsyncMock()
+            mock_model = MagicMock()
+            mock_session.get = AsyncMock(return_value=mock_model)
+
+            # Mock unsafe pool (QueuePool)
+            mock_bind = MagicMock()
+            mock_pool = MagicMock()
+            mock_pool.__class__.__name__ = "QueuePool"
+            mock_bind.pool = mock_pool
+
+            mock_factory = MagicMock(spec=async_sessionmaker)
+            mock_factory.kw = {"bind": mock_bind}
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            model_class = MagicMock()
+            model_class.__name__ = "TestModel"
+            model_class._asynctasq_session_factory = mock_factory
+            model_class.__mro__ = (model_class, object)
+
+            with patch("asynctasq.serializers.hooks.orm.sqlalchemy.logger") as mock_logger:
+                result = await hook._fetch_model(model_class, 1)
+
+                assert result == mock_model
+                mock_logger.warning.assert_called()
+                warning_call = str(mock_logger.warning.call_args)
+                assert "connection pool in forked process" in warning_call
