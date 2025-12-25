@@ -20,9 +20,13 @@ REDIS_URL = os.getenv("ASYNCTASQ_REDIS_URL", "redis://localhost:6379")
 class FactorialTask(SyncProcessTask[int]):
     """Compute factorial in separate process."""
 
-    queue = "test-process"
-    max_attempts = 2
-    timeout = 10
+    from asynctasq.tasks.core.task_config import TaskConfig
+
+    config: TaskConfig = {
+        "queue": "test-process",
+        "max_attempts": 2,
+        "timeout": 10,
+    }
 
     n: int
 
@@ -37,7 +41,9 @@ class FactorialTask(SyncProcessTask[int]):
 class CPUIntensiveTask(SyncProcessTask[dict]):
     """Simulate CPU-intensive work."""
 
-    queue = "test-process"
+    from asynctasq.tasks.core.task_config import TaskConfig
+
+    config: TaskConfig = {"queue": "test-process"}
 
     iterations: int
 
@@ -55,7 +61,9 @@ class CPUIntensiveTask(SyncProcessTask[dict]):
 class AttributeSerializationTask(SyncProcessTask[dict]):
     """Test attribute serialization to subprocess."""
 
-    queue = "test-process"
+    from asynctasq.tasks.core.task_config import TaskConfig
+
+    config: TaskConfig = {"queue": "test-process"}
 
     int_val: int
     str_val: str

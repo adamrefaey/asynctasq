@@ -60,7 +60,7 @@ class TestTaskConfigEdgeCases:
         """Test behavior when driver conflicts at class and instance level."""
 
         class TaskWithClassDriver(AsyncTask[str]):
-            driver = "redis"  # type: ignore[assignment]
+            config: TaskConfig = {"driver": "redis"}
 
             async def execute(self) -> str:
                 return "test"
