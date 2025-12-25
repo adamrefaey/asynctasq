@@ -361,9 +361,28 @@ class TestTaskRetryAfter:
         # Assert
         assert task_instance.config.get("retry_delay") == 0
 
+    def test_timeout_method_chaining(self) -> None:
+        # Arrange
+        task_instance = ConcreteTask()
 
-@mark.unit
-class TestTaskDispatch:
+        # Act
+        result = task_instance.timeout(30).timeout(60)
+
+        # Assert
+        assert task_instance.config.get("timeout") == 60
+        assert result is task_instance  # Returns self for chaining
+
+    def test_timeout_with_none(self) -> None:
+        # Arrange
+        task_instance = ConcreteTask()
+        task_instance.config = {**task_instance.config, "timeout": 30}
+
+        # Act
+        task_instance.timeout(None)
+
+        # Assert
+        assert task_instance.config.get("timeout") is None
+
     """Test Task.dispatch() method."""
 
     @mark.asyncio
