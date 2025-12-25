@@ -13,7 +13,16 @@ from unittest.mock import MagicMock, patch
 
 from pytest import main, mark, raises
 
-from asynctasq.config import Config
+from asynctasq.config import (
+    Config,
+    MySQLConfig,
+    PostgresConfig,
+    RabbitMQConfig,
+    RedisConfig,
+    RepositoryConfig,
+    SQSConfig,
+    TaskDefaultsConfig,
+)
 from asynctasq.core.driver_factory import DriverFactory
 from asynctasq.drivers import DriverType
 from asynctasq.drivers.mysql_driver import MySQLDriver
@@ -32,10 +41,12 @@ class TestDriverFactoryCreateFromConfig:
         # Arrange
         config = Config(
             driver="redis",
-            redis_url="redis://test:6379",
-            redis_password="secret123",
-            redis_db=5,
-            redis_max_connections=20,
+            redis=RedisConfig(
+                url="redis://test:6379",
+                password="secret123",
+                db=5,
+                max_connections=20,
+            ),
         )
         mock_instance = MagicMock(spec=RedisDriver)
         mock_redis.return_value = mock_instance
@@ -58,10 +69,12 @@ class TestDriverFactoryCreateFromConfig:
         # Arrange
         config = Config(
             driver="sqs",
-            sqs_region="us-west-2",
-            sqs_queue_url_prefix="https://sqs.us-west-2.amazonaws.com/123456789/",
-            aws_access_key_id="test_key_id",
-            aws_secret_access_key="test_secret_key",
+            sqs=SQSConfig(
+                region="us-west-2",
+                queue_url_prefix="https://sqs.us-west-2.amazonaws.com/123456789/",
+                aws_access_key_id="test_key_id",
+                aws_secret_access_key="test_secret_key",
+            ),
         )
         mock_instance = MagicMock(spec=SQSDriver)
         mock_sqs.return_value = mock_instance
@@ -84,15 +97,19 @@ class TestDriverFactoryCreateFromConfig:
         # Arrange
         config = Config(
             driver="postgres",
-            postgres_dsn="postgresql://user:pass@testdb:5432/taskdb",
-            postgres_queue_table="custom_queue",
-            postgres_dead_letter_table="custom_dlq",
-            postgres_max_attempts=5,
-            default_retry_strategy="exponential",
-            default_retry_delay=120,
-            default_visibility_timeout=600,
-            postgres_min_pool_size=5,
-            postgres_max_pool_size=20,
+            postgres=PostgresConfig(
+                dsn="postgresql://user:pass@testdb:5432/taskdb",
+                queue_table="custom_queue",
+                dead_letter_table="custom_dlq",
+                max_attempts=5,
+                min_pool_size=5,
+                max_pool_size=20,
+            ),
+            task_defaults=TaskDefaultsConfig(
+                retry_strategy="exponential",
+                retry_delay=120,
+                visibility_timeout=600,
+            ),
         )
         mock_instance = MagicMock(spec=PostgresDriver)
         mock_postgres.return_value = mock_instance
@@ -119,15 +136,19 @@ class TestDriverFactoryCreateFromConfig:
         # Arrange
         config = Config(
             driver="mysql",
-            mysql_dsn="mysql://user:pass@testdb:3306/taskdb",
-            mysql_queue_table="custom_queue",
-            mysql_dead_letter_table="custom_dlq",
-            mysql_max_attempts=5,
-            default_retry_strategy="exponential",
-            default_retry_delay=120,
-            default_visibility_timeout=600,
-            mysql_min_pool_size=5,
-            mysql_max_pool_size=20,
+            mysql=MySQLConfig(
+                dsn="mysql://user:pass@testdb:3306/taskdb",
+                queue_table="custom_queue",
+                dead_letter_table="custom_dlq",
+                max_attempts=5,
+                min_pool_size=5,
+                max_pool_size=20,
+            ),
+            task_defaults=TaskDefaultsConfig(
+                retry_strategy="exponential",
+                retry_delay=120,
+                visibility_timeout=600,
+            ),
         )
         mock_instance = MagicMock(spec=MySQLDriver)
         mock_mysql.return_value = mock_instance
@@ -155,7 +176,10 @@ class TestDriverFactoryCreateFromConfig:
         self, mock_redis: MagicMock, mock_postgres: MagicMock
     ) -> None:
         # Arrange
-        config = Config(driver="redis")  # Config says redis
+        config = Config(
+            driver="redis",
+            redis=RedisConfig(),
+        )  # Config says redis
         mock_instance = MagicMock(spec=PostgresDriver)
         mock_postgres.return_value = mock_instance
 
@@ -175,7 +199,10 @@ class TestDriverFactoryCreateFromConfig:
         # Arrange
         config = Config(
             driver="sqs",
-            postgres_dsn="postgresql://override:pass@localhost/db",
+            sqs=SQSConfig(),
+            postgres=PostgresConfig(
+                dsn="postgresql://override:pass@localhost/db",
+            ),
         )
         mock_instance = MagicMock(spec=PostgresDriver)
         mock_postgres.return_value = mock_instance
@@ -196,7 +223,10 @@ class TestDriverFactoryCreateFromConfig:
         # Arrange
         config = Config(
             driver="postgres",
-            mysql_dsn="mysql://override:pass@localhost:3306/db",
+            postgres=PostgresConfig(),
+            mysql=MySQLConfig(
+                dsn="mysql://override:pass@localhost:3306/db",
+            ),
         )
         mock_instance = MagicMock(spec=MySQLDriver)
         mock_mysql.return_value = mock_instance
@@ -217,7 +247,10 @@ class TestDriverFactoryCreateFromConfig:
         # Arrange
         config = Config(
             driver="mysql",
-            redis_url="redis://override:6379",
+            mysql=MySQLConfig(),
+            redis=RedisConfig(
+                url="redis://override:6379",
+            ),
         )
         mock_instance = MagicMock(spec=RedisDriver)
         mock_redis.return_value = mock_instance
@@ -235,9 +268,11 @@ class TestDriverFactoryCreateFromConfig:
         # Arrange
         config = Config(
             driver="rabbitmq",
-            rabbitmq_url="amqp://user:pass@rabbitmq:5672/vhost",
-            rabbitmq_exchange_name="test_exchange",
-            rabbitmq_prefetch_count=10,
+            rabbitmq=RabbitMQConfig(
+                url="amqp://user:pass@rabbitmq:5672/vhost",
+                exchange_name="test_exchange",
+                prefetch_count=10,
+            ),
         )
         mock_instance = MagicMock(spec=RabbitMQDriver)
         mock_rabbitmq.return_value = mock_instance
@@ -661,7 +696,9 @@ class TestDriverFactoryConfigIntegration:
     @patch("asynctasq.drivers.redis_driver.RedisDriver")
     def test_config_defaults_are_used(self, mock_redis: MagicMock) -> None:
         # Arrange
-        config = Config()  # Use all defaults
+        config = Config(
+            redis=RedisConfig(),
+        )  # Use all defaults
         mock_instance = MagicMock(spec=RedisDriver)
         mock_redis.return_value = mock_instance
 
@@ -677,15 +714,22 @@ class TestDriverFactoryConfigIntegration:
         # Arrange - create config with all postgres fields customized
         config = Config(
             driver="postgres",
-            postgres_dsn="postgresql://test:test@testhost:5432/testdb",
-            postgres_queue_table="test_queue",
-            postgres_dead_letter_table="test_dlq",
-            postgres_max_attempts=7,
-            default_retry_strategy="exponential",
-            default_retry_delay=180,
-            default_visibility_timeout=900,
-            postgres_min_pool_size=15,
-            postgres_max_pool_size=50,
+            postgres=PostgresConfig(
+                dsn="postgresql://test:test@testhost:5432/testdb",
+                queue_table="test_queue",
+                dead_letter_table="test_dlq",
+                max_attempts=7,
+                min_pool_size=15,
+                max_pool_size=50,
+            ),
+            task_defaults=TaskDefaultsConfig(
+                retry_strategy="exponential",
+                retry_delay=180,
+                visibility_timeout=900,
+            ),
+            repository=RepositoryConfig(
+                keep_completed_tasks=False,
+            ),
         )
         mock_instance = MagicMock(spec=PostgresDriver)
         mock_postgres.return_value = mock_instance
@@ -712,10 +756,12 @@ class TestDriverFactoryConfigIntegration:
         # Arrange - create config with all SQS fields customized
         config = Config(
             driver="sqs",
-            sqs_region="ap-south-1",
-            sqs_queue_url_prefix="https://sqs.ap-south-1.amazonaws.com/111222333/",
-            aws_access_key_id="test_access_key",
-            aws_secret_access_key="test_secret_access_key",
+            sqs=SQSConfig(
+                region="ap-south-1",
+                queue_url_prefix="https://sqs.ap-south-1.amazonaws.com/111222333/",
+                aws_access_key_id="test_access_key",
+                aws_secret_access_key="test_secret_access_key",
+            ),
         )
         mock_instance = MagicMock(spec=SQSDriver)
         mock_sqs.return_value = mock_instance
@@ -738,10 +784,12 @@ class TestDriverFactoryConfigIntegration:
         # Arrange - create config with all Redis fields customized
         config = Config(
             driver="redis",
-            redis_url="redis://prod.redis.example.com:6380",
-            redis_password="super_secret_password",
-            redis_db=15,
-            redis_max_connections=100,
+            redis=RedisConfig(
+                url="redis://prod.redis.example.com:6380",
+                password="super_secret_password",
+                db=15,
+                max_connections=100,
+            ),
         )
         mock_instance = MagicMock(spec=RedisDriver)
         mock_redis.return_value = mock_instance
@@ -764,15 +812,22 @@ class TestDriverFactoryConfigIntegration:
         # Arrange - create config with all mysql fields customized
         config = Config(
             driver="mysql",
-            mysql_dsn="mysql://test:test@testhost:3306/testdb",
-            mysql_queue_table="test_queue",
-            mysql_dead_letter_table="test_dlq",
-            mysql_max_attempts=7,
-            default_retry_strategy="exponential",
-            default_retry_delay=180,
-            default_visibility_timeout=900,
-            mysql_min_pool_size=15,
-            mysql_max_pool_size=50,
+            mysql=MySQLConfig(
+                dsn="mysql://test:test@testhost:3306/testdb",
+                queue_table="test_queue",
+                dead_letter_table="test_dlq",
+                max_attempts=7,
+                min_pool_size=15,
+                max_pool_size=50,
+            ),
+            task_defaults=TaskDefaultsConfig(
+                retry_strategy="exponential",
+                retry_delay=180,
+                visibility_timeout=900,
+            ),
+            repository=RepositoryConfig(
+                keep_completed_tasks=False,
+            ),
         )
         mock_instance = MagicMock(spec=MySQLDriver)
         mock_mysql.return_value = mock_instance

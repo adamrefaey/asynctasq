@@ -102,8 +102,8 @@ class RedisEventEmitter(EventEmitter):
         """
         config = Config.get()
         # Use events_redis_url if set, otherwise fall back to redis_url
-        self.redis_url = redis_url or config.events_redis_url or config.redis_url
-        self.channel = channel or config.events_channel
+        self.redis_url = redis_url or config.events.redis_url or config.redis.url
+        self.channel = channel or config.events.channel
         self._client: Redis | None = None
 
     async def _ensure_connected(self) -> None:

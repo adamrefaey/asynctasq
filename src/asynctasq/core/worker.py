@@ -457,12 +457,12 @@ class Worker:
             config = Config.get()
             # Use the attempt that just ran (existing_attempt) for delay calculation.
             # Validate and cast to RetryStrategy for type safety
-            retry_strategy = config.default_retry_strategy
+            retry_strategy = config.task_defaults.retry_strategy
             if retry_strategy not in ("fixed", "exponential"):
                 retry_strategy = "exponential"  # fallback to default
             retry_delay = calculate_retry_delay(
                 retry_strategy,
-                config.default_retry_delay,
+                config.task_defaults.retry_delay,
                 existing_attempt,  # type: ignore[arg-type]
             )
             await self.queue_driver.enqueue(

@@ -57,5 +57,5 @@ class EventRegistry:
         EventRegistry._emitters.add(LoggingEventEmitter())
 
         # Add Redis emitter only if enabled in config
-        if config.enable_event_emitter_redis:
+        if config.events.enable_event_emitter_redis:
             EventRegistry._emitters.add(RedisEventEmitter())

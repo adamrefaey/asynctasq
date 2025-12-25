@@ -9,7 +9,7 @@ import pytest
 
 import asynctasq
 from asynctasq import init
-from asynctasq.config import ConfigOverrides
+from asynctasq.config import ConfigOverrides, RedisConfig
 from asynctasq.monitoring.emitters import EventEmitter
 
 
@@ -150,7 +150,7 @@ class TestInit:
     ):
         """Test init with config overrides."""
         overrides = cast(
-            ConfigOverrides, {"driver": "redis", "redis_url": "redis://localhost:6379"}
+            ConfigOverrides, {"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")}
         )
         emitters = cast(list[EventEmitter], [MagicMock()])
 
