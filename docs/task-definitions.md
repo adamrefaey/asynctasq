@@ -297,16 +297,16 @@ All tasks have access to these configuration attributes via `task.config`:
 | `timeout` | `int \| None` | `None` | Task execution timeout in seconds (None = no timeout) |
 | `driver` | `DriverType \| None` | `None` | Override default queue driver for this task |
 
-### Pattern 1: Using `config` Dict with `TaskConfigDict`
+### Pattern 1: Using `config` Dict with `TaskConfig`
 
-Define configuration using a class-level `config` dictionary with the `TaskConfigDict` TypedDict for full type safety:
+Define configuration using a class-level `config` dictionary with the `TaskConfig` TypedDict for full type safety:
 
 ```python
-from asynctasq.tasks import AsyncTask, TaskConfigDict
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class SendEmail(AsyncTask[str]):
-    # Configuration via config dict (type-safe with TaskConfigDict)
-    config: TaskConfigDict = {
+    # Configuration via config dict (type-safe with TaskConfig)
+    config: TaskConfig = {
         "queue": "emails",
         "max_attempts": 5,
         "retry_delay": 120,
@@ -331,7 +331,7 @@ task_id = await SendEmail(to="admin@example.com", subject="Alert") \
 ```
 
 **Benefits:**
-- ✅ Full type safety with `TaskConfigDict` TypedDict
+- ✅ Full type safety with `TaskConfig` TypedDict
 - ✅ IDE autocomplete for config keys
 - ✅ Works with method chaining
 - ✅ Clear separation between config and task parameters
@@ -411,14 +411,14 @@ task_id = await my_task().timeout(None).dispatch()
 
 ### Combining Config Dict with Method Chaining
 
-You can set defaults via `config` dict (with `TaskConfigDict` for type safety) and override them with method chaining:
+You can set defaults via `config` dict (with `TaskConfig` for type safety) and override them with method chaining:
 
 ```python
-from asynctasq.tasks import AsyncTask, TaskConfigDict
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class SendNotification(AsyncTask[bool]):
     # Defaults via config dict (type-safe)
-    config: TaskConfigDict = {
+    config: TaskConfig = {
         "queue": "notifications",
         "max_attempts": 3,
         "timeout": 30,

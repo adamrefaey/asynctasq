@@ -44,7 +44,7 @@ class SyncProcessTask[T](BaseTask[T]):
     >>>
     >>> class ComputeMatrix(SyncProcessTask[np.ndarray]):
     ...     size: int
-    ...     config: TaskConfigDict = {
+    ...     config: TaskConfig = {
     ...         "queue": "cpu_intensive",
     ...         "timeout": 600,
     ...     }

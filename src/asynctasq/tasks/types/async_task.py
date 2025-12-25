@@ -51,7 +51,7 @@ class AsyncTask[T](BaseTask[T]):
     With configuration:
 
     >>> class SendEmail(AsyncTask[str]):
-    ...     config: TaskConfigDict = {
+    ...     config: TaskConfig = {
     ...         "queue": "emails",
     ...         "max_attempts": 5,
     ...         "timeout": 30,
