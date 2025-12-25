@@ -453,6 +453,18 @@ class TestTaskDecorator:
         # Assert
         assert test_func._task_timeout is None  # type: ignore[attr-defined]
 
+    def test_task_function_wrapper_str_method(self) -> None:
+        # Arrange
+        @task
+        def my_test_func(x: int) -> int:
+            return x * 2
+
+        # Act
+        str_repr = str(my_test_func)
+
+        # Assert
+        assert str_repr == "TaskFunction(my_test_func)"
+
 
 @mark.unit
 class TestFunctionTaskProcessExecution:
