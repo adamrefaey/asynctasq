@@ -7,10 +7,12 @@ operations that need to run in separate processes to bypass Python's GIL.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import override
+from typing import TYPE_CHECKING, override
 
 from asynctasq.tasks.core.base_task import BaseTask
-from asynctasq.tasks.utils.execution_helpers import execute_in_process_sync
+
+if TYPE_CHECKING:
+    pass
 
 
 class SyncProcessTask[T](BaseTask[T]):
@@ -86,7 +88,22 @@ class SyncProcessTask[T](BaseTask[T]):
         T
             Result from the execute() method executed in a subprocess
         """
-        return await execute_in_process_sync(self.execute)
+        import asyncio
+
+        from asynctasq.tasks.infrastructure.process_pool_manager import get_default_manager
+        from asynctasq.tasks.services.serializer import TaskSerializer
+        from asynctasq.tasks.utils.execution_helpers import _sync_process_task_worker
+
+        # Serialize this task instance using msgpack
+        serializer = TaskSerializer()
+        serialized_task = serializer.serialize(self)
+
+        # Get the process pool
+        pool = get_default_manager().get_sync_pool()
+
+        # Execute the worker function with the serialized task
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(pool, _sync_process_task_worker, serialized_task)
 
     @abstractmethod
     def execute(self) -> T:

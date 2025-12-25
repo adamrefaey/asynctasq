@@ -80,21 +80,36 @@ class TaskSerializer:
             if func_file:
                 metadata["func_file"] = func_file
 
+        # Determine class path for serialization
+        # For __main__ modules (including dynamically loaded ones), normalize to __main__
+        module_name = task.__class__.__module__
+        if module_name.startswith("__asynctasq_main_"):
+            # This was loaded from a __main__ file, use __main__ for serialization
+            module_name = "__main__"
+
         # Build serialization dict
         task_dict = {
-            "class": f"{task.__class__.__module__}.{task.__class__.__name__}",
+            "class": f"{module_name}.{task.__class__.__name__}",
             "params": params,
             "metadata": metadata,
         }
 
-        # For class-based tasks from __main__, store the file path
-        if task.__class__.__module__ == "__main__":
-            try:
-                class_file = inspect.getfile(task.__class__)
-                task_dict["class_file"] = class_file
-            except (TypeError, OSError):
-                # If we can't get the file, we'll fail at deserialization
-                pass
+        # For class-based tasks from __main__ or dynamically loaded __main__ modules, store the file path
+        if task.__class__.__module__ == "__main__" or task.__class__.__module__.startswith(
+            "__asynctasq_main_"
+        ):
+            # First try to use the stored original class file (for re-serialization)
+            original_file = getattr(task, "_original_class_file", None)
+            if original_file:
+                task_dict["class_file"] = original_file
+            else:
+                # Otherwise try to get it from inspect (for first-time serialization)
+                try:
+                    class_file = inspect.getfile(task.__class__)
+                    task_dict["class_file"] = class_file
+                except (TypeError, OSError):
+                    # If we can't get the file, we'll fail at deserialization
+                    pass
 
         # Serialize to bytes
         return self.serializer.serialize(task_dict)
@@ -169,6 +184,10 @@ class TaskSerializer:
             retry_delay=metadata["retry_delay"],
             timeout=metadata["timeout"],
         )
+
+        # Store the original class_file for re-serialization if it was a __main__ module
+        if class_file:
+            task._original_class_file = class_file
 
         return task
 
