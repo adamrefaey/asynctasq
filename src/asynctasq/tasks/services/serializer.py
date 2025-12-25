@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import inspect
 from typing import TYPE_CHECKING
 
 from asynctasq.serializers.base_serializer import BaseSerializer
@@ -88,8 +89,6 @@ class TaskSerializer:
 
         # For class-based tasks from __main__, store the file path
         if task.__class__.__module__ == "__main__":
-            import inspect
-
             try:
                 class_file = inspect.getfile(task.__class__)
                 task_dict["class_file"] = class_file
