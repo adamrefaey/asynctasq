@@ -50,33 +50,68 @@ Create a new file named `quick_start.py` and add the following code:
 import asyncio
 
 import asynctasq
-from asynctasq.tasks import task
+from asynctasq.tasks import task, AsyncTask, TaskConfig
 
 # 1. Configure AsyncTasQ
 asynctasq.init({"driver": "redis", "redis_url": "redis://localhost:6379"})
 
 
-# 2. Define a task
+# 2. Define tasks (function-based or class-based)
+
+# Function-based task
 @task
 async def send_email(to: str, subject: str, body: str):
     print(f"Sending email to {to}: {subject}")
     await asyncio.sleep(1)  # Simulate email sending
     return f"Email sent to {to}"
 
+# Class-based task with TaskConfig
+class ProcessPayment(AsyncTask[bool]):
+    config: TaskConfig = {
+        "queue": "payments",
+        "max_attempts": 3,
+        "retry_delay": 60,
+        "timeout": 30,
+        "correlation_id": None,
+    }
+
+    def __init__(self, user_id: int, amount: float, **kwargs):
+        super().__init__(**kwargs)
+        self.user_id = user_id
+        self.amount = amount
+
+    async def execute(self) -> bool:
+        print(f"Processing ${self.amount} for user {self.user_id}")
+        await asyncio.sleep(2)  # Simulate payment processing
+        return True
+
 
 # 3. Dispatch tasks with optional configuration chaining
 async def main():
+    # Function-based task dispatch
     for i in range(10):
         task_id = await send_email(
             to=f"user{i}@example.com", subject=f"Welcome {i}!", body="Welcome to our platform!"
         ).dispatch()
         print(f"Task dispatched: {task_id}")
 
-    # With configuration chaining
+    # Class-based task dispatch with TaskConfig defaults
+    payment_task_id = await ProcessPayment(user_id=123, amount=99.99).dispatch()
+    print(f"Payment task dispatched: {payment_task_id}")
+
+    # With configuration chaining (overrides TaskConfig)
     critical_task_id = await send_email(
         to="admin@example.com", subject="Critical Alert", body="System issue!"
     ).on_queue("high-priority").max_attempts(10).timeout(60).dispatch()
     print(f"Critical task dispatched: {critical_task_id}")
+
+    # Class-based with method chaining
+    urgent_payment_id = await ProcessPayment(user_id=456, amount=199.99) \
+        .on_queue("urgent") \
+        .max_attempts(5) \
+        .timeout(120) \
+        .dispatch()
+    print(f"Urgent payment dispatched: {urgent_payment_id}")
 
 
 if __name__ == "__main__":
