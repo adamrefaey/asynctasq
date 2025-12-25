@@ -702,6 +702,54 @@ class TestDispatcherSerializeTask:
         assert "args" in params
         assert "kwargs" in params
 
+    @patch("asynctasq.tasks.services.serializer.inspect.getfile")
+    def test_serialize_task_handles_main_module_file_path_error(
+        self, mock_getfile: MagicMock
+    ) -> None:
+        # Arrange
+        mock_driver = MagicMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
+        task = ConcreteTask()
+        task._task_id = "test-id"
+        task._current_attempt = 1
+        # Mock the task's class to have __main__ module
+        task.__class__.__module__ = "__main__"
+        # Mock inspect.getfile to raise TypeError (covers lines 94-95)
+        mock_getfile.side_effect = TypeError("Mock TypeError")
+
+        # Act
+        dispatcher._task_serializer.serialize(task)
+
+        # Assert
+        call_arg = mock_serializer.serialize.call_args[0][0]
+        # Should not include class_file when inspect.getfile fails
+        assert "class_file" not in call_arg
+
+    @patch("asynctasq.tasks.services.serializer.inspect.getfile")
+    def test_serialize_task_handles_main_module_file_path_oserror(
+        self, mock_getfile: MagicMock
+    ) -> None:
+        # Arrange
+        mock_driver = MagicMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        dispatcher = Dispatcher(driver=mock_driver, serializer=mock_serializer)
+        task = ConcreteTask()
+        task._task_id = "test-id"
+        task._current_attempt = 1
+        # Mock the task's class to have __main__ module
+        task.__class__.__module__ = "__main__"
+        # Mock inspect.getfile to raise OSError (covers lines 94-95)
+        mock_getfile.side_effect = OSError("Mock OSError")
+
+        # Act
+        dispatcher._task_serializer.serialize(task)
+
+        # Assert
+        call_arg = mock_serializer.serialize.call_args[0][0]
+        # Should not include class_file when inspect.getfile fails
+        assert "class_file" not in call_arg
+
 
 @mark.unit
 class TestGetDispatcher:
