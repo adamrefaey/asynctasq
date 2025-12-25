@@ -18,6 +18,7 @@ from asynctasq.core.driver_factory import DriverFactory
 from asynctasq.drivers import DriverType
 from asynctasq.drivers.mysql_driver import MySQLDriver
 from asynctasq.drivers.postgres_driver import PostgresDriver
+from asynctasq.drivers.rabbitmq_driver import RabbitMQDriver
 from asynctasq.drivers.redis_driver import RedisDriver
 from asynctasq.drivers.sqs_driver import SQSDriver
 
@@ -229,6 +230,30 @@ class TestDriverFactoryCreateFromConfig:
         mock_mysql.assert_not_called()
         assert result == mock_instance
 
+    @patch("asynctasq.drivers.rabbitmq_driver.RabbitMQDriver")
+    def test_create_from_config_with_rabbitmq_driver(self, mock_rabbitmq: MagicMock) -> None:
+        # Arrange
+        config = Config(
+            driver="rabbitmq",
+            rabbitmq_url="amqp://user:pass@rabbitmq:5672/vhost",
+            rabbitmq_exchange_name="test_exchange",
+            rabbitmq_prefetch_count=10,
+        )
+        mock_instance = MagicMock(spec=RabbitMQDriver)
+        mock_rabbitmq.return_value = mock_instance
+
+        # Act
+        result = DriverFactory.create_from_config(config)
+
+        # Assert
+        mock_rabbitmq.assert_called_once_with(
+            url="amqp://user:pass@rabbitmq:5672/vhost",
+            exchange_name="test_exchange",
+            prefetch_count=10,
+            keep_completed_tasks=False,
+        )
+        assert result == mock_instance
+
 
 @mark.unit
 class TestDriverFactoryCreate:
@@ -436,6 +461,52 @@ class TestDriverFactoryCreate:
 
 
 @mark.unit
+class TestDriverFactoryCreateRabbitMQ:
+    """Test DriverFactory.create() method for RabbitMQ driver."""
+
+    @patch("asynctasq.drivers.rabbitmq_driver.RabbitMQDriver")
+    def test_create_rabbitmq_driver_with_defaults(self, mock_rabbitmq: MagicMock) -> None:
+        # Arrange
+        mock_instance = MagicMock(spec=RabbitMQDriver)
+        mock_rabbitmq.return_value = mock_instance
+
+        # Act
+        result = DriverFactory.create("rabbitmq")
+
+        # Assert
+        mock_rabbitmq.assert_called_once_with(
+            url="amqp://guest:guest@localhost:5672/",
+            exchange_name="asynctasq",
+            prefetch_count=1,
+            keep_completed_tasks=False,
+        )
+        assert result == mock_instance
+
+    @patch("asynctasq.drivers.rabbitmq_driver.RabbitMQDriver")
+    def test_create_rabbitmq_driver_with_custom_params(self, mock_rabbitmq: MagicMock) -> None:
+        # Arrange
+        mock_instance = MagicMock(spec=RabbitMQDriver)
+        mock_rabbitmq.return_value = mock_instance
+
+        # Act
+        result = DriverFactory.create(
+            "rabbitmq",
+            rabbitmq_url="amqp://user:pass@rabbitmq.example.com:5672/vhost",
+            rabbitmq_exchange_name="my_exchange",
+            rabbitmq_prefetch_count=5,
+        )
+
+        # Assert
+        mock_rabbitmq.assert_called_once_with(
+            url="amqp://user:pass@rabbitmq.example.com:5672/vhost",
+            exchange_name="my_exchange",
+            prefetch_count=5,
+            keep_completed_tasks=False,
+        )
+        assert result == mock_instance
+
+
+@mark.unit
 class TestDriverFactoryErrorHandling:
     """Test error handling for unknown driver types."""
 
@@ -557,6 +628,27 @@ class TestDriverFactoryParameterPassing:
             visibility_timeout_seconds=300,  # Default
             min_pool_size=10,  # Default
             max_pool_size=10,  # Default
+            keep_completed_tasks=False,
+        )
+        assert result == mock_instance
+
+    @patch("asynctasq.drivers.rabbitmq_driver.RabbitMQDriver")
+    def test_create_rabbitmq_with_minimal_params(self, mock_rabbitmq: MagicMock) -> None:
+        # Arrange
+        mock_instance = MagicMock(spec=RabbitMQDriver)
+        mock_rabbitmq.return_value = mock_instance
+
+        # Act
+        result = DriverFactory.create(
+            "rabbitmq",
+            rabbitmq_url="amqp://minimal:pass@localhost:5672/",
+        )
+
+        # Assert
+        mock_rabbitmq.assert_called_once_with(
+            url="amqp://minimal:pass@localhost:5672/",
+            exchange_name="asynctasq",  # Default
+            prefetch_count=1,  # Default
             keep_completed_tasks=False,
         )
         assert result == mock_instance
