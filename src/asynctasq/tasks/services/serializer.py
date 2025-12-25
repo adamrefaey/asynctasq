@@ -94,22 +94,22 @@ class TaskSerializer:
             "metadata": metadata,
         }
 
-        # For class-based tasks from __main__ or dynamically loaded __main__ modules, store the file path
-        if task.__class__.__module__ == "__main__" or task.__class__.__module__.startswith(
-            "__asynctasq_main_"
-        ):
-            # First try to use the stored original class file (for re-serialization)
-            original_file = getattr(task, "_original_class_file", None)
-            if original_file:
-                task_dict["class_file"] = original_file
-            else:
-                # Otherwise try to get it from inspect (for first-time serialization)
-                try:
-                    class_file = inspect.getfile(task.__class__)
+        # Store the class file path for reliable deserialization
+        # This helps when modules aren't in the worker's Python path
+        # First try to use the stored original class file (for re-serialization)
+        original_file = getattr(task, "_original_class_file", None)
+        if original_file:
+            task_dict["class_file"] = original_file
+        else:
+            # Otherwise try to get it from inspect
+            try:
+                class_file = inspect.getfile(task.__class__)
+                # Only store if it's a real file (not built-in or C extension)
+                if class_file and not class_file.startswith("<"):
                     task_dict["class_file"] = class_file
-                except (TypeError, OSError):
-                    # If we can't get the file, we'll fail at deserialization
-                    pass
+            except (TypeError, OSError):
+                # If we can't get the file, that's okay for standard library/installed packages
+                pass
 
         # Serialize to bytes
         return self.serializer.serialize(task_dict)
