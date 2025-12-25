@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from concurrent.futures import Executor
@@ -48,6 +48,35 @@ async def execute_in_thread[T](sync_callable: Callable[[], T]) -> T:
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, sync_callable)
+
+
+def _sync_process_task_worker(serialized_task: bytes) -> Any:
+    """Worker function for executing SyncProcessTask in subprocess.
+
+    This function is defined at module level so it can be pickled by multiprocessing.
+    It deserializes the task using msgpack and executes it in the subprocess.
+
+    Parameters
+    ----------
+    serialized_task : bytes
+        The msgpack-serialized task data
+
+    Returns
+    -------
+    Any
+        The result from the task's execute() method
+    """
+    import asyncio
+
+    from asynctasq.tasks.services.serializer import TaskSerializer
+
+    # Deserialize the task using asyncio.run since deserialize is async
+    serializer = TaskSerializer()
+    task = asyncio.run(serializer.deserialize(serialized_task))
+
+    # Execute the task's execute() method (which is synchronous for SyncProcessTask)
+    # Type ignore because we know this is a SyncProcessTask at runtime
+    return task.execute()  # type: ignore[attr-defined]
 
 
 async def execute_in_process_sync[T](sync_callable: Callable[[], T]) -> T:
