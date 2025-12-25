@@ -500,13 +500,24 @@ def check_pool_health(session_factory: Any) -> dict[str, Any]:
     return health
 
 
-def emit_fork_safety_warning(pool_class_name: str) -> None:
+def emit_fork_safety_warning(pool_class_name: str | None) -> None:
     """Emit a warning if using non-fork-safe pool in multiprocessing context.
 
     Args:
-        pool_class_name: Name of the pool class being used
+        pool_class_name: Name of the pool class being used, or None
     """
-    if pool_class_name not in ("NullPool", "StaticPool"):
+    if pool_class_name is None:
+        warnings.warn(
+            "Using None with multiprocessing workers can cause "
+            "connection sharing issues. Consider using NullPool for workers:\n\n"
+            "from sqlalchemy.pool import NullPool\n"
+            "engine = create_async_engine(dsn, poolclass=NullPool)\n\n"
+            "See: https://docs.sqlalchemy.org/en/20/core/pooling.html"
+            "#using-connection-pools-with-multiprocessing",
+            UserWarning,
+            stacklevel=3,
+        )
+    elif pool_class_name not in ("NullPool", "StaticPool"):
         warnings.warn(
             f"Using {pool_class_name} with multiprocessing workers can cause "
             "connection sharing issues. Consider using NullPool for workers:\n\n"
