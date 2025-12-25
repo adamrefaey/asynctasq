@@ -8,7 +8,7 @@ Testing Strategy:
 - Fast, isolated tests
 """
 
-from typing import get_args
+from typing import Any, get_args
 from unittest.mock import MagicMock, patch
 
 from pytest import main, mark, raises
@@ -935,6 +935,150 @@ class TestDriverFactoryEdgeCases:
             keep_completed_tasks=False,
         )
         assert result == mock_instance
+
+
+@mark.unit
+class TestDriverFactoryParameterized:
+    """Parameterized tests for DriverFactory to increase coverage of edge cases."""
+
+    @mark.parametrize(
+        "driver_type,driver_class_name,config_kwargs,expected_call_kwargs",
+        [
+            # Redis with boundary values
+            (
+                "redis",
+                "RedisDriver",
+                {"redis_db": 0, "redis_max_connections": 1},
+                {
+                    "url": "redis://localhost:6379",
+                    "password": None,
+                    "db": 0,
+                    "max_connections": 1,
+                    "keep_completed_tasks": False,
+                },
+            ),
+            (
+                "redis",
+                "RedisDriver",
+                {"redis_db": 15, "redis_max_connections": 1000},
+                {
+                    "url": "redis://localhost:6379",
+                    "password": None,
+                    "db": 15,
+                    "max_connections": 1000,
+                    "keep_completed_tasks": False,
+                },
+            ),
+            # SQS with minimal config
+            (
+                "sqs",
+                "SQSDriver",
+                {"sqs_region": "eu-west-1"},
+                {
+                    "region_name": "eu-west-1",
+                    "queue_url_prefix": None,
+                    "aws_access_key_id": None,
+                    "aws_secret_access_key": None,
+                    "endpoint_url": None,
+                },
+            ),
+            # Postgres with pool size boundaries
+            (
+                "postgres",
+                "PostgresDriver",
+                {"postgres_min_pool_size": 1, "postgres_max_pool_size": 1},
+                {
+                    "dsn": "postgresql://user:pass@localhost/dbname",
+                    "queue_table": "task_queue",
+                    "dead_letter_table": "dead_letter_queue",
+                    "max_attempts": 3,
+                    "retry_delay_seconds": 60,
+                    "visibility_timeout_seconds": 300,
+                    "min_pool_size": 1,
+                    "max_pool_size": 1,
+                    "keep_completed_tasks": False,
+                },
+            ),
+            # MySQL with pool size boundaries
+            (
+                "mysql",
+                "MySQLDriver",
+                {"mysql_min_pool_size": 1, "mysql_max_pool_size": 1},
+                {
+                    "dsn": "mysql://user:pass@localhost:3306/dbname",
+                    "queue_table": "task_queue",
+                    "dead_letter_table": "dead_letter_queue",
+                    "max_attempts": 3,
+                    "retry_delay_seconds": 60,
+                    "visibility_timeout_seconds": 300,
+                    "min_pool_size": 1,
+                    "max_pool_size": 1,
+                    "keep_completed_tasks": False,
+                },
+            ),
+            # RabbitMQ with prefetch boundaries
+            (
+                "rabbitmq",
+                "RabbitMQDriver",
+                {"rabbitmq_prefetch_count": 1},
+                {
+                    "url": "amqp://guest:guest@localhost:5672/",
+                    "exchange_name": "asynctasq",
+                    "prefetch_count": 1,
+                    "keep_completed_tasks": False,
+                },
+            ),
+        ],
+    )
+    def test_create_with_boundary_values(
+        self,
+        driver_type: str,
+        driver_class_name: str,
+        config_kwargs: dict[str, Any],
+        expected_call_kwargs: dict[str, Any],
+    ) -> None:
+        """Test DriverFactory.create() with boundary and edge case values."""
+        # Arrange
+        with patch(f"asynctasq.drivers.{driver_type}_driver.{driver_class_name}") as mock_driver:
+            mock_instance = MagicMock()
+            mock_driver.return_value = mock_instance
+
+            # Act
+            result = DriverFactory.create(driver_type, **config_kwargs)  # type: ignore
+
+            # Assert
+            mock_driver.assert_called_once_with(**expected_call_kwargs)
+            assert result == mock_instance
+
+    @mark.parametrize(
+        "driver_type,driver_class_name,missing_kwargs",
+        [
+            ("redis", "RedisDriver", {}),  # All defaults
+            ("sqs", "SQSDriver", {"sqs_region": "us-east-1"}),  # Minimal SQS
+            (
+                "postgres",
+                "PostgresDriver",
+                {"postgres_dsn": "postgresql://test"},
+            ),  # Minimal Postgres
+            ("mysql", "MySQLDriver", {"mysql_dsn": "mysql://test"}),  # Minimal MySQL
+            ("rabbitmq", "RabbitMQDriver", {}),  # All defaults
+        ],
+    )
+    def test_create_with_minimal_kwargs(
+        self, driver_type: str, driver_class_name: str, missing_kwargs: dict[str, Any]
+    ) -> None:
+        """Test DriverFactory.create() with minimal required kwargs."""
+        # Arrange
+        with patch(f"asynctasq.drivers.{driver_type}_driver.{driver_class_name}") as mock_driver:
+            mock_instance = MagicMock()
+            mock_driver.return_value = mock_instance
+
+            # Act
+            result = DriverFactory.create(driver_type, **missing_kwargs)  # type: ignore
+
+            # Assert
+            mock_driver.assert_called_once()
+            assert result == mock_instance
 
 
 if __name__ == "__main__":

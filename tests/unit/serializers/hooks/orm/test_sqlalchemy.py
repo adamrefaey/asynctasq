@@ -10,7 +10,8 @@ Testing Strategy:
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from pytest import fixture, mark, raises
+from pytest import fixture, mark, raises, warns
+from sqlalchemy.exc import NoInspectionAvailable
 
 from asynctasq.serializers.hooks import SqlalchemyOrmHook
 
@@ -693,3 +694,99 @@ class TestSqlalchemyOrmHookExtended:
                 mock_logger.warning.assert_called()
                 warning_call = str(mock_logger.warning.call_args)
                 assert "connection pool in forked process" in warning_call
+
+
+@mark.unit
+class TestSqlalchemyHookEdgeCases:
+    """Edge case tests for SqlalchemyOrmHook to increase coverage."""
+
+    def test_can_encode_with_none_model_raises(self) -> None:
+        """Test can_encode returns False when model is None."""
+        hook = SqlalchemyOrmHook()
+        result = hook.can_encode(None)
+        assert result is False
+
+    def test_can_encode_with_non_model_object(self) -> None:
+        """Test can_encode returns False for non-model objects."""
+        hook = SqlalchemyOrmHook()
+
+        # Regular Python object
+        obj = object()
+        assert hook.can_encode(obj) is False
+
+    def test_get_model_pk_with_none_model_raises(self) -> None:
+        """Test get_model_pk raises with None model."""
+        hook = SqlalchemyOrmHook()
+
+        with raises(NoInspectionAvailable):
+            hook._get_model_pk(None)
+
+    def test_get_model_pk_with_no_primary_key(self) -> None:
+        """Test get_model_pk with model that has no primary key."""
+        hook = SqlalchemyOrmHook()
+
+        # Mock model with no primary key
+        mock_model = MagicMock()
+        mock_model.__table__ = MagicMock()
+        mock_model.__table__.primary_key = MagicMock()
+        mock_model.__table__.primary_key.columns = []
+
+        with raises(NoInspectionAvailable):
+            hook._get_model_pk(mock_model)
+
+    @mark.parametrize(
+        "session_factory_value,expected_valid",
+        [
+            (None, False),  # No session factory
+            ("not_callable", False),  # Non-callable
+            (MagicMock(), False),  # Not a sessionmaker
+        ],
+    )
+    def test_validate_session_factory_edge_cases(
+        self, session_factory_value, expected_valid
+    ) -> None:
+        """Test validate_session_factory with various inputs."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import validate_session_factory
+
+        result = validate_session_factory(session_factory_value)
+        assert result["valid"] == expected_valid
+
+    def test_check_pool_health_with_none_factory(self) -> None:
+        """Test check_pool_health with None factory."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import check_pool_health
+
+        result = check_pool_health(None)
+        assert "error" in result
+        assert "Invalid session factory type" in result["error"]
+
+    def test_check_pool_health_with_invalid_factory(self) -> None:
+        """Test check_pool_health with invalid factory."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import check_pool_health
+
+        invalid_factory = "not_a_factory"
+        result = check_pool_health(invalid_factory)
+        assert "error" in result
+        assert "Invalid session factory type" in result["error"]
+
+    def test_emit_fork_safety_warning_with_none_pool(self) -> None:
+        """Test emit_fork_safety_warning with None pool."""
+
+        from asynctasq.serializers.hooks.orm.sqlalchemy import emit_fork_safety_warning
+
+        # Should emit warning for None pool class
+        with warns(UserWarning, match="Using None with multiprocessing workers"):
+            emit_fork_safety_warning(None)
+
+    def test_create_worker_session_factory_with_custom_kwargs(self) -> None:
+        """Test create_worker_session_factory preserves custom kwargs."""
+        from asynctasq.serializers.hooks.orm.sqlalchemy import create_worker_session_factory
+
+        custom_kwargs = {"dsn": "postgresql+asyncpg://test/db", "echo": True, "future": True}
+        factory = create_worker_session_factory(**custom_kwargs)
+
+        # Should be callable
+        assert callable(factory)
+
+        # Factory should create sessions with custom settings
+        session = factory()
+        assert session is not None

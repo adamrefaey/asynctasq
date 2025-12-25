@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
-from pytest import fixture, main, mark
+from pytest import fixture, main, mark, raises
 
 from asynctasq.config import Config
 from asynctasq.monitoring import (
@@ -359,6 +359,109 @@ class TestEventsRedisUrlConfig:
             emitter = RedisEventEmitter(channel="param:channel")
 
         assert emitter.channel == "param:channel"
+
+
+@mark.unit
+class TestEmitterEdgeCases:
+    """Edge case tests for emitters to increase coverage."""
+
+    @mark.asyncio
+    async def test_logging_emitter_close_is_idempotent(self) -> None:
+        """Test LoggingEventEmitter.close is idempotent (can be called multiple times)."""
+        emitter = LoggingEventEmitter()
+
+        # Should not raise errors
+        await emitter.close()
+        await emitter.close()
+        await emitter.close()
+
+    @mark.asyncio
+    async def test_redis_emitter_close_handles_none_client(self) -> None:
+        """Test RedisEventEmitter.close handles None client gracefully."""
+        emitter = RedisEventEmitter()
+
+        # _client is None initially
+        assert emitter._client is None
+
+        # Should not raise error
+        await emitter.close()
+
+    @mark.asyncio
+    async def test_redis_emitter_close_handles_client_exception(self) -> None:
+        """Test RedisEventEmitter.close raises exception when client close fails."""
+        emitter = RedisEventEmitter()
+        mock_client = AsyncMock()
+        mock_client.aclose.side_effect = Exception("Close error")
+        emitter._client = mock_client
+
+        # Should raise the exception
+        with raises(Exception, match="Close error"):
+            await emitter.close()
+
+    @mark.asyncio
+    async def test_redis_emitter_emit_handles_connection_error(self) -> None:
+        """Test RedisEventEmitter.emit handles connection errors during publish."""
+        emitter = RedisEventEmitter()
+        mock_client = AsyncMock()
+        mock_client.publish.side_effect = ConnectionError("Connection failed")
+        emitter._client = mock_client
+
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test-123",
+            task_name="test_task",
+            queue="default",
+            worker_id="worker-123",
+            timestamp=datetime.now(UTC),
+        )
+
+        # Should not raise error
+        await emitter.emit(event)
+
+    @mark.asyncio
+    async def test_redis_emitter_emit_handles_json_error(self) -> None:
+        """Test RedisEventEmitter.emit handles JSON serialization errors."""
+        emitter = RedisEventEmitter()
+        mock_client = AsyncMock()
+        emitter._client = mock_client
+
+        # Create an event with non-serializable data
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test-123",
+            task_name="test_task",
+            queue="default",
+            worker_id="worker-123",
+            timestamp=datetime.now(UTC),
+            error=set(),  # sets are not JSON serializable  # type: ignore
+        )
+
+        # Should not raise error
+        await emitter.emit(event)
+
+    def test_redis_emitter_serialize_event_with_complex_data(self) -> None:
+        """Test RedisEventEmitter.serialize_event with various data types."""
+        emitter = RedisEventEmitter()
+
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test-123",
+            task_name="test_task",
+            queue="default",
+            worker_id="worker-123",
+            timestamp=datetime.now(UTC),
+            result={"key": "value", "number": 42, "list": [1, 2, 3]},
+        )
+
+        result = emitter._serialize_event(event)
+
+        # Should be valid msgpack
+        import msgpack
+
+        parsed = msgpack.unpackb(result)
+        assert parsed["event_type"] == "task_started"
+        assert parsed["task_id"] == "test-123"
+        assert parsed["result"]["key"] == "value"
 
 
 if __name__ == "__main__":

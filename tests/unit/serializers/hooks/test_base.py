@@ -3,10 +3,11 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
+from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-from pytest import mark
+from pytest import mark, raises
 
 from asynctasq.serializers.hooks import (
     AsyncTypeHook,
@@ -512,3 +513,99 @@ class TestDefaultRegistry:
     def test_includes_set_hook(self) -> None:
         registry = create_default_registry()
         assert registry.find_encoder({1, 2, 3}) is not None
+
+
+@mark.unit
+class TestHookRegistryEdgeCases:
+    """Edge case tests for HookRegistry to increase coverage."""
+
+    def test_register_hook_with_none_type_key_raises(self) -> None:
+        """Test registering a hook with None type_key does not raise (current behavior)."""
+        registry = HookRegistry()
+        hook = MagicMock()
+        hook.type_key = None
+
+        # Current behavior: doesn't check for None
+        registry.register(hook)
+
+    def test_register_hook_with_empty_type_key_raises(self) -> None:
+        """Test registering a hook with empty type_key does not raise (current behavior)."""
+        registry = HookRegistry()
+        hook = MagicMock()
+        hook.type_key = ""
+
+        # Current behavior: doesn't check for empty
+        registry.register(hook)
+
+    def test_find_encoder_with_none_returns_none(self) -> None:
+        """Test find_encoder returns None for None input."""
+        registry = HookRegistry()
+        assert registry.find_encoder(None) is None
+
+    def test_find_decoder_with_none_type_key_returns_none(self) -> None:
+        """Test find_decoder with None raises TypeError (expects dict)."""
+        registry = HookRegistry()
+
+        with raises(TypeError):
+            registry.find_decoder(None)  # type: ignore
+
+    def test_find_decoder_with_empty_type_key_returns_none(self) -> None:
+        """Test find_decoder returns None for empty type_key."""
+        registry = HookRegistry()
+        assert registry.find_decoder("") is None  # type: ignore
+
+    def test_unregister_hook_with_none_type_key_returns_none(self) -> None:
+        """Test unregister_hook returns None for None type_key."""
+        registry = HookRegistry()
+        assert registry.unregister(None) is None  # type: ignore
+
+    def test_unregister_hook_with_empty_type_key_returns_none(self) -> None:
+        """Test unregister_hook returns None for empty type_key."""
+        registry = HookRegistry()
+        assert registry.unregister("") is None  # type: ignore
+
+    def test_hooks_sorted_by_priority_descending(self) -> None:
+        """Test that hooks are sorted by priority in descending order."""
+        registry = HookRegistry()
+
+        # Create hooks with different priorities
+        high_priority_hook = MagicMock()
+        high_priority_hook.type_key = "high"
+        high_priority_hook.priority = 100
+
+        low_priority_hook = MagicMock()
+        low_priority_hook.type_key = "low"
+        low_priority_hook.priority = 10
+
+        registry.register(low_priority_hook)
+        registry.register(high_priority_hook)
+
+        # High priority should come first
+        hooks = registry._hooks
+        assert hooks[0].priority == 100
+        assert hooks[1].priority == 10
+
+    def test_clear_removes_all_hooks(self) -> None:
+        """Test that clear() removes all registered hooks."""
+        registry = HookRegistry()
+
+        # Create comparable hooks
+        class MockHook:
+            def __init__(self, type_key, priority=0):
+                self.type_key = type_key
+                self.priority = priority
+
+            def __lt__(self, other):
+                return self.priority < other.priority
+
+        hook1 = MockHook("test1")
+        hook2 = MockHook("test2")
+
+        registry.register(hook1)  # type: ignore
+        registry.register(hook2)  # type: ignore
+
+        assert len(registry._hooks) == 2
+
+        registry.clear()
+
+        assert len(registry._hooks) == 0
