@@ -64,13 +64,28 @@ class TestGetTaskContext:
         task = SampleTask()
         task._task_id = "test-task-456"
         task._current_attempt = 1
+        task.config = {"correlation_id": "trace-123"}
 
         # Act
         context = get_task_context(task)
 
         # Assert
         assert context["task_id"] == "test-task-456"
-        # correlation_id would only be in context if set on config
+        assert context["correlation_id"] == "trace-123"
+
+    def test_excludes_correlation_id_when_none(self) -> None:
+        # Arrange
+        task = SampleTask()
+        task._task_id = "test-task-789"
+        task._current_attempt = 1
+        task.config = {"correlation_id": None}  # Explicitly set to None
+
+        # Act
+        context = get_task_context(task)
+
+        # Assert
+        assert context["task_id"] == "test-task-789"
+        assert "correlation_id" not in context  # None values are excluded
 
 
 @mark.unit
