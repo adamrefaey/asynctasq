@@ -206,6 +206,18 @@ class TestHookRegistry:
         result = registry.find_decoder({"__unknown__": "value"})
         assert result is None
 
+    def test_get_async_hooks_returns_registered_async_hooks(self) -> None:
+        registry = HookRegistry()
+        sync_hook = DatetimeHook()
+        async_hook = AsyncCustomHook()
+
+        registry.register(sync_hook)
+        registry.register(async_hook)
+
+        async_hooks = registry.get_async_hooks()
+        assert len(async_hooks) == 1
+        assert async_hooks[0] is async_hook
+
     def test_clear_removes_all_hooks(self) -> None:
         registry = HookRegistry()
         registry.register(DatetimeHook())
@@ -400,6 +412,31 @@ class TestSerializationPipeline:
         data = {"timestamp": {"__datetime__": "2025-01-01T12:00:00"}}
         result = pipeline.decode(data)
         assert result == {"timestamp": datetime(2025, 1, 1, 12, 0, 0)}
+
+    def test_decode_nested_dicts(self) -> None:
+        """Test decode handles nested dictionaries recursively."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        data = {
+            "user": {
+                "name": "John",
+                "created": {"__datetime__": "2025-01-01T12:00:00"},
+                "profile": {"age": 30, "balance": {"__decimal__": "123.45"}},
+            },
+            "items": [{"price": {"__decimal__": "99.99"}}, "plain_string"],
+        }
+        result = pipeline.decode(data)
+
+        expected = {
+            "user": {
+                "name": "John",
+                "created": datetime(2025, 1, 1, 12, 0, 0),
+                "profile": {"age": 30, "balance": Decimal("123.45")},
+            },
+            "items": [{"price": Decimal("99.99")}, "plain_string"],
+        }
+        assert result == expected
 
     @mark.asyncio
     async def test_decode_async_with_sync_hooks(self) -> None:
