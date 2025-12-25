@@ -1,5 +1,10 @@
 # CLI Reference
 
+## Table of Contents
+
+- [Worker Command](#worker-command)
+- [Migrate Command](#migrate-command)
+
 ## Worker Command
 
 Start a worker to process tasks from queues.

@@ -1,5 +1,13 @@
 # ORM Integrations
 
+## Table of Contents
+
+- [How It Works](#how-it-works)
+- [SQLAlchemy](#sqlalchemy)
+- [Django ORM](#django-orm)
+- [Tortoise ORM](#tortoise-orm)
+- [Custom Type Support](#custom-type-support)
+
 AsyncTasQ automatically handles ORM model serialization and deserialization, reducing queue payload size and ensuring fresh data.
 
 ## How It Works

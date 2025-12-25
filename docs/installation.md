@@ -1,5 +1,11 @@
 # Installation
 
+## Table of Contents
+
+- [Requirements](#requirements)
+- [Using uv (Recommended)](#using-uv-recommended)
+- [Using pip](#using-pip)
+
 ## Requirements
 
 - **Python 3.12+** (required)

@@ -1,5 +1,13 @@
 # Best Practices
 
+## Table of Contents
+
+- [Task Design](#task-design)
+- [Queue Organization](#queue-organization)
+- [Error Handling](#error-handling)
+- [Performance](#performance)
+- [Production Deployment](#production-deployment)
+
 ## Task Design
 
 ✅ **Do:**

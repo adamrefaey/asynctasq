@@ -1,5 +1,23 @@
 # Class-Based Tasks: Complete Examples Guide
 
+## Table of Contents
+
+- [Four Execution Modes](#four-execution-modes)
+- [Key Features](#key-features)
+- [Basic Usage](#basic-usage)
+- [Class Definition Syntax](#class-definition-syntax)
+- [Configuration Options](#configuration-options)
+- [Lifecycle Hooks](#lifecycle-hooks)
+- [Dispatching Tasks](#dispatching-tasks)
+- [Async vs Sync vs Process Tasks](#async-vs-sync-vs-process-tasks)
+- [Driver Overrides](#driver-overrides)
+- [ORM Integration](#orm-integration)
+- [Method Chaining](#method-chaining)
+- [Task Metadata](#task-metadata)
+- [Real-World Examples](#real-world-examples)
+- [Complete Working Example](#complete-working-example)
+- [Common Patterns and Best Practices](#common-patterns-and-best-practices)
+
 This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of class-based tasks in AsyncTasQ.
 
 ## Four Execution Modes

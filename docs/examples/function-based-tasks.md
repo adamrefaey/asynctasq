@@ -1,5 +1,21 @@
 # Function-Based Tasks: Complete Examples Guide
 
+## Table of Contents
+
+- [Four Execution Modes](#four-execution-modes)
+- [Key Features](#key-features)
+- [Basic Usage](#basic-usage)
+- [Decorator Syntax](#decorator-syntax)
+- [Configuration Options](#configuration-options)
+- [Dispatching Tasks](#dispatching-tasks)
+- [Async vs Sync Functions](#async-vs-sync-functions)
+- [Driver Overrides](#driver-overrides)
+- [ORM Integration](#orm-integration)
+- [Method Chaining](#method-chaining)
+- [Real-World Examples](#real-world-examples)
+- [Complete Working Example](#complete-working-example)
+- [Common Patterns and Best Practices](#common-patterns-and-best-practices)
+
 This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of function-based tasks in AsyncTasQ.
 
 Function-based tasks allow you to convert any Python function (async or sync) into a background task by simply adding the `@task` decorator. Tasks are automatically serialized, queued, and executed by workers.
