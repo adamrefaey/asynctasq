@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock
 from pytest import main, mark, raises
 
 from asynctasq.tasks import AsyncTask, SyncTask
+from asynctasq.tasks.core.task_config import TaskConfig
 from asynctasq.tasks.services.executor import (
     TaskExecutor,
     get_failed_hook_error_count,
@@ -149,7 +150,7 @@ class TestTaskExecutor:
         executor = TaskExecutor()
 
         class TimeoutTask(AsyncTask[str]):
-            timeout = 10  # int, not float
+            config: TaskConfig = {"timeout": 10}
 
             async def execute(self) -> str:
                 return "done"
@@ -184,7 +185,7 @@ class TestTaskExecutor:
         executor = TaskExecutor()
 
         class RetryableTask(AsyncTask[str]):
-            max_attempts = 3
+            config: TaskConfig = {"max_attempts": 3}
 
             async def execute(self) -> str:
                 return "done"
@@ -205,7 +206,7 @@ class TestTaskExecutor:
         executor = TaskExecutor()
 
         class FailedTask(AsyncTask[str]):
-            max_attempts = 3
+            config: TaskConfig = {"max_attempts": 3}
 
             async def execute(self) -> str:
                 return "done"
@@ -226,7 +227,7 @@ class TestTaskExecutor:
         executor = TaskExecutor()
 
         class CustomRetryTask(AsyncTask[str]):
-            max_attempts = 3
+            config: TaskConfig = {"max_attempts": 3}
 
             async def execute(self) -> str:
                 return "done"
