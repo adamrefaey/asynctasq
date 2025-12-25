@@ -210,7 +210,7 @@ def receive_checkout(dbapi_conn, connection_record, connection_proxy):
 
 **Engine Cleanup:**
 
-To ensure SQLAlchemy engines are properly disposed when your AsyncTasQ application shuts down, pass your engine to `asynctasq.init()`:
+If you want AsyncTasQ to handle disposing (cleaning up) the SQLAlchemy engine for you, pass your engine to `asynctasq.init()`:
 
 ```python
 import asynctasq
