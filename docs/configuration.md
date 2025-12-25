@@ -2,28 +2,29 @@
 
 AsyncTasQ uses the `asynctasq.init()` function as the primary configuration interface. This function initializes both configuration and event emitters.
 
-## Configuration Functions
-
 ## Table of Contents
 
 - [Configuration](#configuration)
-  - [Configuration Functions](#configuration-functions)
   - [Table of Contents](#table-of-contents)
+  - [Configuration Functions](#configuration-functions)
     - [`asynctasq.init()`](#asynctasqinit)
     - [`Config.get()`](#configget)
+  - [Configuration Structure](#configuration-structure)
   - [Configuration Options](#configuration-options)
     - [Driver Selection](#driver-selection)
-    - [Task Defaults](#task-defaults)
+    - [Redis Configuration](#redis-configuration)
+    - [SQS Configuration](#sqs-configuration)
+    - [PostgreSQL Configuration](#postgresql-configuration)
+    - [MySQL Configuration](#mysql-configuration)
+    - [RabbitMQ Configuration](#rabbitmq-configuration)
+    - [Events Configuration](#events-configuration)
+    - [Task Defaults Configuration](#task-defaults-configuration)
+      - [Understanding Visibility Timeout (Crash Recovery)](#understanding-visibility-timeout-crash-recovery)
     - [Process Pool Configuration](#process-pool-configuration)
-    - [Redis Driver Configuration](#redis-driver-configuration)
-    - [PostgreSQL Driver Configuration](#postgresql-driver-configuration)
-    - [MySQL Driver Configuration](#mysql-driver-configuration)
-    - [RabbitMQ Driver Configuration](#rabbitmq-driver-configuration)
-    - [AWS SQS Driver Configuration](#aws-sqs-driver-configuration)
-    - [Task Repository Configuration](#task-repository-configuration)
-  - [Complete Example](#complete-example)
-  - [Best Practices](#best-practices)
-  - [Environment-specific configuration example](#environment-specific-configuration-example)
+      - [Warm Event Loops for AsyncProcessTask](#warm-event-loops-for-asyncprocesstask)
+    - [Repository Configuration](#repository-configuration)
+
+## Configuration Functions
 
 ### `asynctasq.init()`
 
@@ -31,11 +32,12 @@ Initialize AsyncTasQ with configuration and event emitters. **This function must
 
 ```python
 import asynctasq
+from asynctasq.config import RedisConfig
 
 # Initialize with Redis driver
 asynctasq.init({
     'driver': 'redis',
-    'redis_url': 'redis://localhost:6379'
+    'redis': RedisConfig(url='redis://localhost:6379')
 })
 ```
 
@@ -47,6 +49,7 @@ asynctasq.init({
 ```python
 import asynctasq
 from asynctasq.core.events import LoggingEventEmitter
+from asynctasq.config import RedisConfig
 
 # Create custom emitter
 custom_emitter = LoggingEventEmitter()
@@ -55,7 +58,7 @@ custom_emitter = LoggingEventEmitter()
 asynctasq.init(
     config_overrides={
         'driver': 'redis',
-        'redis_url': 'redis://localhost:6379'
+        'redis': RedisConfig(url='redis://localhost:6379')
     },
     event_emitters=[custom_emitter]
 )
@@ -70,7 +73,27 @@ from asynctasq.config import Config
 
 config = Config.get()
 print(config.driver)  # 'redis'
+print(config.redis.url)  # 'redis://localhost:6379'
 ```
+
+---
+
+## Configuration Structure
+
+AsyncTasQ uses a grouped configuration structure where related settings are organized into dataclasses. This provides better organization and type safety.
+
+**Configuration Groups:**
+- `driver`: Driver selection (top-level string)
+- `redis`: Redis driver configuration (RedisConfig)
+- `sqs`: AWS SQS driver configuration (SQSConfig)
+- `postgres`: PostgreSQL driver configuration (PostgresConfig)
+- `mysql`: MySQL driver configuration (MySQLConfig)
+- `rabbitmq`: RabbitMQ driver configuration (RabbitMQConfig)
+- `events`: Events and monitoring configuration (EventsConfig)
+- `task_defaults`: Default task settings (TaskDefaultsConfig)
+- `process_pool`: Process pool settings (ProcessPoolConfig)
+- `repository`: Task repository settings (RepositoryConfig)
+- `sqlalchemy_engine`: SQLAlchemy engine for cleanup (top-level, optional)
 
 ---
 
@@ -92,28 +115,217 @@ asynctasq.init({'driver': 'postgres'})
 
 ---
 
-### Task Defaults
+### Redis Configuration
 
-| Option                       |        Type | Description                                                                        | Choices                | Default       |
-| ---------------------------- | ----------: | ---------------------------------------------------------------------------------- | ---------------------- | ------------- |
-| `default_queue`              |         str | Default queue name for tasks                                                       | —                      | `default`     |
-| `default_max_attempts`       |         int | Default maximum retry attempts                                                     | —                      | `3`           |
-| `default_retry_strategy`     |         str | Retry delay strategy                                                               | `fixed`, `exponential` | `exponential` |
-| `default_retry_delay`        |         int | Base retry delay in seconds                                                        | —                      | `60`          |
-| `default_timeout`            | int \| None | Default task timeout in seconds (None = no timeout)                                | —                      | `None`        |
-| `default_visibility_timeout` |         int | Crash recovery timeout - how long a task is invisible before auto-recovery (PostgreSQL/MySQL/SQS only) | —                      | `300`         |
-| `correlation_id`             | str \| None | Optional correlation ID for distributed tracing (can be set per-task in TaskConfig) | —                      | `None`        |
+Configuration group: `redis` (type: `RedisConfig`)
+
+| Option            |        Type | Description                       | Default                  |
+| ----------------- | ----------: | --------------------------------- | ------------------------ |
+| `url`             |         str | Redis connection URL              | `redis://localhost:6379` |
+| `password`        | str \| None | Redis password                    | `None`                   |
+| `db`              |         int | Redis database number (0–15)      | `0`                      |
+| `max_connections` |         int | Maximum connections in Redis pool | `100`                    |
 
 ```python
 import asynctasq
+from asynctasq.config import RedisConfig
 
 asynctasq.init({
-    'default_queue': 'high-priority',
-    'default_max_attempts': 5,
-    'default_retry_strategy': 'exponential',
-    'default_retry_delay': 120,
-    'default_timeout': 600,
-    'default_visibility_timeout': 300  # 5 minutes
+    'driver': 'redis',
+    'redis': RedisConfig(
+        url='redis://prod.example.com:6379',
+        password='secure_password',
+        db=1,
+        max_connections=200
+    )
+})
+```
+
+---
+
+### SQS Configuration
+
+Configuration group: `sqs` (type: `SQSConfig`)
+
+| Option                  |        Type | Description                                        | Default     |
+| ----------------------- | ----------: | -------------------------------------------------- | ----------- |
+| `region`                |         str | AWS SQS region                                     | `us-east-1` |
+| `queue_url_prefix`      | str \| None | SQS queue URL prefix                               | `None`      |
+| `endpoint_url`          | str \| None | Custom SQS endpoint URL (for LocalStack, etc.)     | `None`      |
+| `aws_access_key_id`     | str \| None | AWS access key ID (None uses credential chain)     | `None`      |
+| `aws_secret_access_key` | str \| None | AWS secret access key (None uses credential chain) | `None`      |
+
+```python
+import asynctasq
+from asynctasq.config import SQSConfig
+
+asynctasq.init({
+    'driver': 'sqs',
+    'sqs': SQSConfig(
+        region='us-west-2',
+        queue_url_prefix='https://sqs.us-west-2.amazonaws.com/123456789/',
+        aws_access_key_id='your_key',
+        aws_secret_access_key='your_secret'
+    )
+})
+```
+
+---
+
+### PostgreSQL Configuration
+
+Configuration group: `postgres` (type: `PostgresConfig`)
+
+| Option              | Type | Description                            | Default                                         |
+| ------------------- | ---: | -------------------------------------- | ----------------------------------------------- |
+| `dsn`               |  str | PostgreSQL connection DSN              | `postgresql://test:test@localhost:5432/test_db` |
+| `queue_table`       |  str | Queue table name                       | `task_queue`                                    |
+| `dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`                             |
+| `max_attempts`      |  int | Maximum attempts before dead-lettering | `3`                                             |
+| `min_pool_size`     |  int | Minimum connection pool size           | `10`                                            |
+| `max_pool_size`     |  int | Maximum connection pool size           | `10`                                            |
+
+```python
+import asynctasq
+from asynctasq.config import PostgresConfig
+
+asynctasq.init({
+    'driver': 'postgres',
+    'postgres': PostgresConfig(
+        dsn='postgresql://user:pass@localhost:5432/mydb',
+        queue_table='task_queue',
+        dead_letter_table='dead_letter_queue',
+        max_attempts=5,
+        min_pool_size=10,
+        max_pool_size=50
+    )
+})
+```
+
+---
+
+### MySQL Configuration
+
+Configuration group: `mysql` (type: `MySQLConfig`)
+
+| Option              | Type | Description                            | Default                                    |
+| ------------------- | ---: | -------------------------------------- | ------------------------------------------ |
+| `dsn`               |  str | MySQL connection DSN                   | `mysql://test:test@localhost:3306/test_db` |
+| `queue_table`       |  str | Queue table name                       | `task_queue`                               |
+| `dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`                        |
+| `max_attempts`      |  int | Maximum attempts before dead-lettering | `3`                                        |
+| `min_pool_size`     |  int | Minimum connection pool size           | `10`                                       |
+| `max_pool_size`     |  int | Maximum connection pool size           | `10`                                       |
+
+```python
+import asynctasq
+from asynctasq.config import MySQLConfig
+
+asynctasq.init({
+    'driver': 'mysql',
+    'mysql': MySQLConfig(
+        dsn='mysql://user:pass@localhost:3306/mydb',
+        queue_table='task_queue',
+        dead_letter_table='dead_letter_queue',
+        max_attempts=5,
+        min_pool_size=10,
+        max_pool_size=50
+    )
+})
+```
+
+---
+
+### RabbitMQ Configuration
+
+Configuration group: `rabbitmq` (type: `RabbitMQConfig`)
+
+| Option            | Type | Description             | Default                              |
+| ----------------- | ---: | ----------------------- | ------------------------------------ |
+| `url`             |  str | RabbitMQ connection URL | `amqp://guest:guest@localhost:5672/` |
+| `exchange_name`   |  str | RabbitMQ exchange name  | `asynctasq`                          |
+| `prefetch_count`  |  int | Consumer prefetch count | `1`                                  |
+
+```python
+import asynctasq
+from asynctasq.config import RabbitMQConfig
+
+asynctasq.init({
+    'driver': 'rabbitmq',
+    'rabbitmq': RabbitMQConfig(
+        url='amqp://user:pass@localhost:5672/',
+        exchange_name='my_exchange',
+        prefetch_count=10
+    )
+})
+```
+
+---
+
+### Events Configuration
+
+Configuration group: `events` (type: `EventsConfig`)
+
+Controls monitoring and event emission for task lifecycle events.
+
+| Option                       |        Type | Description                                                                 | Default              |
+| ---------------------------- | ----------: | --------------------------------------------------------------------------- | -------------------- |
+| `redis_url`                  | str \| None | Redis URL for event pub/sub (None uses main redis.url)                     | `None`               |
+| `channel`                    |         str | Redis Pub/Sub channel name for events                                      | `asynctasq:events`   |
+| `enable_event_emitter_redis` |        bool | Enable Redis Pub/Sub event emitter for monitoring (task_enqueued, etc.)    | `False`              |
+
+```python
+import asynctasq
+from asynctasq.config import EventsConfig, RedisConfig
+
+asynctasq.init({
+    'driver': 'redis',
+    'redis': RedisConfig(url='redis://queue-redis:6379'),
+    'events': EventsConfig(
+        enable_event_emitter_redis=True,
+        redis_url='redis://events-redis:6379',  # Separate Redis for events
+        channel='asynctasq:prod:events'
+    )
+})
+```
+
+**Event Types Emitted:**
+- `task_enqueued`: Task added to queue
+- `task_started`: Worker started processing task
+- `task_completed`: Task completed successfully
+- `task_failed`: Task failed with error
+- `task_retrying`: Task being retried after failure
+
+---
+
+### Task Defaults Configuration
+
+Configuration group: `task_defaults` (type: `TaskDefaultsConfig`)
+
+Default settings for all tasks (can be overridden per task).
+
+| Option               |        Type | Description                                                                                   | Choices                | Default       |
+| -------------------- | ----------: | --------------------------------------------------------------------------------------------- | ---------------------- | ------------- |
+| `queue`              |         str | Default queue name for tasks                                                                  | —                      | `default`     |
+| `max_attempts`       |         int | Default maximum retry attempts                                                                | —                      | `3`           |
+| `retry_strategy`     |         str | Retry delay strategy                                                                          | `fixed`, `exponential` | `exponential` |
+| `retry_delay`        |         int | Base retry delay in seconds                                                                   | —                      | `60`          |
+| `timeout`            | int \| None | Default task timeout in seconds (None = no timeout)                                           | —                      | `None`        |
+| `visibility_timeout` |         int | Crash recovery timeout - seconds a task is invisible before auto-recovery (PostgreSQL/MySQL/SQS only) | —                      | `300`         |
+
+```python
+import asynctasq
+from asynctasq.config import TaskDefaultsConfig
+
+asynctasq.init({
+    'task_defaults': TaskDefaultsConfig(
+        queue='high-priority',
+        max_attempts=5,
+        retry_strategy='exponential',
+        retry_delay=120,
+        timeout=600,
+        visibility_timeout=300  # 5 minutes
+    )
 })
 ```
 
@@ -137,7 +349,7 @@ Visibility timeout is AsyncTasQ's **automatic crash recovery mechanism**. When a
 # Configuration
 asynctasq.init({
     'driver': 'postgres',
-    'default_visibility_timeout': 300  # 5 minutes
+    'task_defaults': TaskDefaultsConfig(visibility_timeout=300)  # 5 minutes
 })
 
 # Timeline:
@@ -160,7 +372,7 @@ asynctasq.init({
 ```python
 # Task typically takes 60 seconds
 asynctasq.init({
-    'default_visibility_timeout': 180  # (60 × 2) + 60 = 3 minutes
+    'task_defaults': TaskDefaultsConfig(visibility_timeout=180)  # (60 × 2) + 60 = 3 minutes
 })
 ```
 
@@ -172,7 +384,7 @@ asynctasq.init({
 - ❌ **RabbitMQ**: Uses acknowledgment-based recovery (different mechanism)
 
 **Important notes:**
-- This is different from `task.timeout` (execution timeout per attempt)
+- This is different from `task_defaults.timeout` (execution timeout per attempt)
 - Only applies to PostgreSQL, MySQL, and SQS drivers
 - Critical for production reliability and fault tolerance
 - Prevents task loss when workers crash unexpectedly
@@ -181,19 +393,24 @@ asynctasq.init({
 
 ### Process Pool Configuration
 
+Configuration group: `process_pool` (type: `ProcessPoolConfig`)
+
 For CPU-bound tasks using `AsyncProcessTask` or `SyncProcessTask`.
 
-| Option                             |        Type | Description                                                    | Default |
-| ---------------------------------- | ----------: | -------------------------------------------------------------- | ------- |
-| `process_pool_size`                | int \| None | Number of worker processes (None = auto-detect CPU count)      | `None`  |
-| `process_pool_max_tasks_per_child` | int \| None | Recycle worker processes after N tasks (recommended: 100–1000) | `None`  |
+| Option                |        Type | Description                                                    | Default |
+| --------------------- | ----------: | -------------------------------------------------------------- | ------- |
+| `size`                | int \| None | Number of worker processes (None = auto-detect CPU count)      | `None`  |
+| `max_tasks_per_child` | int \| None | Recycle worker processes after N tasks (recommended: 100–1000) | `None`  |
 
 ```python
 import asynctasq
+from asynctasq.config import ProcessPoolConfig
 
 asynctasq.init({
-    'process_pool_size': 4,
-    'process_pool_max_tasks_per_child': 100
+    'process_pool': ProcessPoolConfig(
+        size=4,
+        max_tasks_per_child=100
+    )
 })
 ```
 
@@ -237,128 +454,9 @@ asyncio.run(init_worker())
 
 ---
 
-### Redis Driver Configuration
+### Repository Configuration
 
-| Option                  |        Type | Description                       | Default                  |
-| ----------------------- | ----------: | --------------------------------- | ------------------------ |
-| `redis_url`             |         str | Redis connection URL              | `redis://localhost:6379` |
-| `redis_password`        | str \| None | Redis password                    | `None`                   |
-| `redis_db`              |         int | Redis database number (0–15)      | `0`                      |
-| `redis_max_connections` |         int | Maximum connections in Redis pool | `100`                    |
-
-```python
-import asynctasq
-
-asynctasq.init({
-    'driver': 'redis',
-    'redis_url': 'redis://prod.example.com:6379',
-    'redis_password': 'secure_password',
-    'redis_db': 1,
-    'redis_max_connections': 200
-})
-```
-
----
-
-### PostgreSQL Driver Configuration
-
-| Option                       | Type | Description                            | Default                                         |
-| ---------------------------- | ---: | -------------------------------------- | ----------------------------------------------- |
-| `postgres_dsn`               |  str | PostgreSQL connection DSN              | `postgresql://test:test@localhost:5432/test_db` |
-| `postgres_queue_table`       |  str | Queue table name                       | `task_queue`                                    |
-| `postgres_dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`                             |
-| `postgres_max_attempts`      |  int | Maximum attempts before dead-lettering | `3`                                             |
-| `postgres_min_pool_size`     |  int | Minimum connection pool size           | `10`                                            |
-| `postgres_max_pool_size`     |  int | Maximum connection pool size           | `10`                                            |
-
-```python
-import asynctasq
-
-asynctasq.init({
-    'driver': 'postgres',
-    'postgres_dsn': 'postgresql://user:pass@localhost:5432/mydb',
-    'postgres_queue_table': 'task_queue',
-    'postgres_dead_letter_table': 'dead_letter_queue',
-    'postgres_max_attempts': 5,
-    'postgres_min_pool_size': 10,
-    'postgres_max_pool_size': 50
-})
-```
-
----
-
-### MySQL Driver Configuration
-
-| Option                    | Type | Description                            | Default                                    |
-| ------------------------- | ---: | -------------------------------------- | ------------------------------------------ |
-| `mysql_dsn`               |  str | MySQL connection DSN                   | `mysql://test:test@localhost:3306/test_db` |
-| `mysql_queue_table`       |  str | Queue table name                       | `task_queue`                               |
-| `mysql_dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`                        |
-| `mysql_max_attempts`      |  int | Maximum attempts before dead-lettering | `3`                                        |
-| `mysql_min_pool_size`     |  int | Minimum connection pool size           | `10`                                       |
-| `mysql_max_pool_size`     |  int | Maximum connection pool size           | `10`                                       |
-
-```python
-from asynctasq.config import Config
-
-asynctasq.init({
-    'driver': 'mysql',
-    'mysql_dsn': 'mysql://user:pass@localhost:3306/mydb',
-    'mysql_queue_table': 'task_queue',
-    'mysql_dead_letter_table': 'dead_letter_queue',
-    'mysql_max_attempts': 5,
-    'mysql_min_pool_size': 10,
-    'mysql_max_pool_size': 50
-})
-```
-
----
-
-### RabbitMQ Driver Configuration
-
-| Option                    | Type | Description             | Default                              |
-| ------------------------- | ---: | ----------------------- | ------------------------------------ |
-| `rabbitmq_url`            |  str | RabbitMQ connection URL | `amqp://guest:guest@localhost:5672/` |
-| `rabbitmq_exchange_name`  |  str | RabbitMQ exchange name  | `asynctasq`                          |
-| `rabbitmq_prefetch_count` |  int | Consumer prefetch count | `1`                                  |
-
-```python
-from asynctasq.config import Config
-
-asynctasq.init({
-    'driver': 'rabbitmq',
-    'rabbitmq_url': 'amqp://user:pass@localhost:5672/',
-    'rabbitmq_exchange_name': 'my_exchange',
-    'rabbitmq_prefetch_count': 10
-})
-```
-
----
-
-### AWS SQS Driver Configuration
-
-| Option                  |        Type | Description                                        | Default     |
-| ----------------------- | ----------: | -------------------------------------------------- | ----------- |
-| `sqs_region`            |         str | AWS SQS region                                     | `us-east-1` |
-| `sqs_queue_url_prefix`  | str \| None | SQS queue URL prefix                               | `None`      |
-| `aws_access_key_id`     | str \| None | AWS access key ID (None uses credential chain)     | `None`      |
-| `aws_secret_access_key` | str \| None | AWS secret access key (None uses credential chain) | `None`      |
-
-```python
-import asynctasq
-
-asynctasq.init({
-    'driver': 'sqs',
-    'sqs_region': 'us-west-2',
-    'sqs_queue_url_prefix': 'https://sqs.us-west-2.amazonaws.com/123456789/',
-    'aws_access_key_id': 'your_key',
-    'aws_secret_access_key': 'your_secret'
-})
-```
-
----
-
-### Task Repository Configuration
+Configuration group: `repository` (type: `RepositoryConfig`)
 
 | Option                 | Type | Description                                                     | Default |
 | ---------------------- | ---: | --------------------------------------------------------------- | ------- |
@@ -366,132 +464,13 @@ asynctasq.init({
 | `keep_completed_tasks` | bool | Keep completed tasks for history/audit (not applicable for SQS) | `False` |
 
 ```python
-from asynctasq.config import Config
-
-asynctasq.init({
-    'task_scan_limit': 50000,
-    'keep_completed_tasks': True
-})
-```
-
----
-
-## Complete Example
-
-```python
 import asynctasq
+from asynctasq.config import RepositoryConfig
 
-# Production PostgreSQL configuration
 asynctasq.init({
-    # Driver selection
-    'driver': 'postgres',
-
-    # PostgreSQL connection
-    'postgres_dsn': 'postgresql://worker:secure_pass@db.prod.example.com:5432/asynctasq',
-    'postgres_queue_table': 'task_queue',
-    'postgres_dead_letter_table': 'dead_letter_queue',
-    'postgres_max_attempts': 3,
-    'postgres_min_pool_size': 10,
-    'postgres_max_pool_size': 50,
-
-    # Task defaults
-    'default_queue': 'default',
-    'default_max_attempts': 3,
-    'default_retry_strategy': 'exponential',
-    'default_retry_delay': 60,
-    'default_timeout': 300,
-    'default_visibility_timeout': 300,
-
-    # Process pool for CPU-bound tasks
-    'process_pool_size': 4,
-    'process_pool_max_tasks_per_child': 100,
-
-    # Events monitoring
-    'enable_event_emitter_redis': True,
-    'events_redis_url': 'redis://events.prod.example.com:6379',
-    'events_channel': 'asynctasq:prod:events',
-
-    # Task retention for audit
-    'keep_completed_tasks': True,
-    'task_scan_limit': 50000
+    'repository': RepositoryConfig(
+        task_scan_limit=50000,
+        keep_completed_tasks=True
+    )
 })
-```
-
-
----
-
-## Best Practices
-
-1. **Call `asynctasq.init()` once** at application startup before creating tasks or workers
-2. **Use different configurations** for different environments (dev, staging, production)
-3. **Store sensitive credentials** securely (secret managers, configuration files, etc.)
-4. **Configure appropriate pool sizes** for database drivers based on your workload
-5. **Set reasonable timeouts** to prevent hung tasks from blocking workers
-6. **Use `keep_completed_tasks=True`** if you need task history for audit/compliance
-
----
-
-## Environment-specific configuration example
-
-This example shows how to configure AsyncTasQ differently for development, staging, and production environments. You can load configuration from any source (files, databases, secret managers, etc.).
-
-```python
-import os
-from asynctasq.config import Config
-
-# Determine environment
-environment = os.getenv("APP_ENV", "development")
-
-# Base configuration
-base_config = {
-    "default_max_attempts": 3,
-    "default_retry_delay": 60,
-    "default_timeout": 300,
-    "process_pool_size": 4,
-    "process_pool_max_tasks_per_child": 100,
-}
-
-# Environment-specific overrides
-if environment == "development":
-    config = {
-        **base_config,
-        "driver": "redis",
-        "redis_url": "redis://localhost:6379",
-        "enable_event_emitter_redis": False,
-        "keep_completed_tasks": True,  # Keep tasks for debugging
-    }
-elif environment == "staging":
-    config = {
-        **base_config,
-        "driver": "redis",
-        "redis_url": "redis://staging-redis:6379",
-        "redis_password": "staging-password",  # Load from secrets manager
-        "enable_event_emitter_redis": True,
-        "events_redis_url": "redis://staging-events:6379",
-        "events_channel": "asynctasq:staging:events",
-    }
-elif environment == "production":
-    config = {
-        **base_config,
-        "driver": "redis",
-        "redis_url": "redis://prod-redis-cluster:6379",
-        "redis_password": "prod-password",  # Load from secrets manager
-        "default_max_attempts": 5,
-        "default_retry_delay": 120,
-        "enable_event_emitter_redis": True,
-        "events_redis_url": "redis://prod-events-cluster:6379",
-        "events_channel": "asynctasq:prod:events",
-        "keep_completed_tasks": False,  # Don't keep completed tasks in prod
-    }
-else:
-    raise ValueError(f"Unknown environment: {environment}")
-
-# Apply configuration
-asynctasq.init(config)
-
-# Notes:
-# - Use secret managers (AWS Secrets Manager, HashiCorp Vault, etc.) for credentials
-# - Consider using configuration files (YAML, JSON, TOML) for complex setups
-# - Validate configuration at startup to catch issues early
-# - Use different Redis instances for events vs queues in production for better isolation
 ```

@@ -2,7 +2,18 @@
 
 import pytest
 
-from asynctasq.config import Config
+from asynctasq.config import (
+    Config,
+    EventsConfig,
+    MySQLConfig,
+    PostgresConfig,
+    ProcessPoolConfig,
+    RabbitMQConfig,
+    RedisConfig,
+    RepositoryConfig,
+    SQSConfig,
+    TaskDefaultsConfig,
+)
 
 
 class TestConfigValidation:
@@ -12,101 +23,95 @@ class TestConfigValidation:
         """Test that valid config passes validation."""
         config = Config()
         # Should not raise any exception
-        assert config.default_max_attempts == 3
+        assert config.task_defaults.max_attempts == 3
 
     @pytest.mark.parametrize("invalid_value", [-1, -5])
     def test_default_max_attempts_validation(self, invalid_value):
         """Test default_max_attempts validation."""
-        with pytest.raises(ValueError, match="default_max_attempts must be non-negative"):
-            Config(default_max_attempts=invalid_value)
+        with pytest.raises(ValueError, match="max_attempts must be non-negative"):
+            TaskDefaultsConfig(max_attempts=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [-1, -0.5])
     def test_default_retry_delay_validation(self, invalid_value):
         """Test default_retry_delay validation."""
-        with pytest.raises(ValueError, match="default_retry_delay must be non-negative"):
-            Config(default_retry_delay=invalid_value)
+        with pytest.raises(ValueError, match="retry_delay must be non-negative"):
+            TaskDefaultsConfig(retry_delay=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", ["linear", "random", ""])
     def test_default_retry_strategy_validation(self, invalid_value):
         """Test default_retry_strategy validation."""
-        with pytest.raises(
-            ValueError, match="default_retry_strategy must be 'fixed' or 'exponential'"
-        ):
-            Config(default_retry_strategy=invalid_value)
+        with pytest.raises(ValueError, match="retry_strategy must be 'fixed' or 'exponential'"):
+            TaskDefaultsConfig(retry_strategy=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_default_visibility_timeout_validation(self, invalid_value):
         """Test default_visibility_timeout validation."""
-        with pytest.raises(ValueError, match="default_visibility_timeout must be positive"):
-            Config(default_visibility_timeout=invalid_value)
+        with pytest.raises(ValueError, match="visibility_timeout must be positive"):
+            TaskDefaultsConfig(visibility_timeout=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [-1, 16, 100])
     def test_redis_db_validation(self, invalid_value):
         """Test redis_db validation."""
-        with pytest.raises(ValueError, match="redis_db must be between 0 and 15"):
-            Config(redis_db=invalid_value)
+        with pytest.raises(ValueError, match="db must be between 0 and 15"):
+            RedisConfig(db=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_redis_max_connections_validation(self, invalid_value):
         """Test redis_max_connections validation."""
-        with pytest.raises(ValueError, match="redis_max_connections must be positive"):
-            Config(redis_max_connections=invalid_value)
+        with pytest.raises(ValueError, match="max_connections must be positive"):
+            RedisConfig(max_connections=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_postgres_max_attempts_validation(self, invalid_value):
         """Test postgres_max_attempts validation."""
-        with pytest.raises(ValueError, match="postgres_max_attempts must be positive"):
-            Config(postgres_max_attempts=invalid_value)
+        with pytest.raises(ValueError, match="max_attempts must be positive"):
+            PostgresConfig(max_attempts=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_postgres_min_pool_size_validation(self, invalid_value):
         """Test postgres_min_pool_size validation."""
-        with pytest.raises(ValueError, match="postgres_min_pool_size must be positive"):
-            Config(postgres_min_pool_size=invalid_value)
+        with pytest.raises(ValueError, match="min_pool_size must be positive"):
+            PostgresConfig(min_pool_size=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_postgres_max_pool_size_validation(self, invalid_value):
         """Test postgres_max_pool_size validation."""
-        with pytest.raises(ValueError, match="postgres_max_pool_size must be positive"):
-            Config(postgres_max_pool_size=invalid_value)
+        with pytest.raises(ValueError, match="max_pool_size must be positive"):
+            PostgresConfig(max_pool_size=invalid_value)
 
     def test_postgres_pool_size_ordering_validation(self):
         """Test postgres pool size ordering validation."""
-        with pytest.raises(
-            ValueError, match="postgres_min_pool_size cannot be greater than postgres_max_pool_size"
-        ):
-            Config(postgres_min_pool_size=10, postgres_max_pool_size=5)
+        with pytest.raises(ValueError, match="min_pool_size cannot be greater than max_pool_size"):
+            PostgresConfig(min_pool_size=10, max_pool_size=5)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_mysql_max_attempts_validation(self, invalid_value):
         """Test mysql_max_attempts validation."""
-        with pytest.raises(ValueError, match="mysql_max_attempts must be positive"):
-            Config(mysql_max_attempts=invalid_value)
+        with pytest.raises(ValueError, match="max_attempts must be positive"):
+            MySQLConfig(max_attempts=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_mysql_min_pool_size_validation(self, invalid_value):
         """Test mysql_min_pool_size validation."""
-        with pytest.raises(ValueError, match="mysql_min_pool_size must be positive"):
-            Config(mysql_min_pool_size=invalid_value)
+        with pytest.raises(ValueError, match="min_pool_size must be positive"):
+            MySQLConfig(min_pool_size=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_mysql_max_pool_size_validation(self, invalid_value):
         """Test mysql_max_pool_size validation."""
-        with pytest.raises(ValueError, match="mysql_max_pool_size must be positive"):
-            Config(mysql_max_pool_size=invalid_value)
+        with pytest.raises(ValueError, match="max_pool_size must be positive"):
+            MySQLConfig(max_pool_size=invalid_value)
 
     def test_mysql_pool_size_ordering_validation(self):
         """Test mysql pool size ordering validation."""
-        with pytest.raises(
-            ValueError, match="mysql_min_pool_size cannot be greater than mysql_max_pool_size"
-        ):
-            Config(mysql_min_pool_size=10, mysql_max_pool_size=5)
+        with pytest.raises(ValueError, match="min_pool_size cannot be greater than max_pool_size"):
+            MySQLConfig(min_pool_size=10, max_pool_size=5)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_task_scan_limit_validation(self, invalid_value):
         """Test task_scan_limit validation."""
         with pytest.raises(ValueError, match="task_scan_limit must be positive"):
-            Config(task_scan_limit=invalid_value)
+            RepositoryConfig(task_scan_limit=invalid_value)
 
 
 class TestConfigSingleton:
@@ -136,11 +141,11 @@ class TestConfigSingleton:
         # Reset instance
         Config._instance = None
 
-        Config.set(driver="redis", redis_url="redis://test:6379")
+        Config.set(driver="redis", redis=RedisConfig(url="redis://test:6379"))
 
         config = Config.get()
         assert config.driver == "redis"
-        assert config.redis_url == "redis://test:6379"
+        assert config.redis.url == "redis://test:6379"
 
     def test_set_overrides_existing(self):
         """Test set() overrides existing configuration."""
@@ -148,8 +153,48 @@ class TestConfigSingleton:
         Config.set(driver="postgres")
 
         # Override
-        Config.set(driver="redis", redis_url="redis://test:6379")
+        Config.set(driver="redis", redis=RedisConfig(url="redis://test:6379"))
 
         config = Config.get()
         assert config.driver == "redis"
-        assert config.redis_url == "redis://test:6379"
+        assert config.redis.url == "redis://test:6379"
+
+
+class TestConfigGroupDefaults:
+    """Test that config groups are initialized with defaults."""
+
+    def test_config_initializes_all_groups(self):
+        """Test that all config groups are initialized with defaults."""
+        config = Config()
+
+        assert isinstance(config.redis, RedisConfig)
+        assert isinstance(config.sqs, SQSConfig)
+        assert isinstance(config.postgres, PostgresConfig)
+        assert isinstance(config.mysql, MySQLConfig)
+        assert isinstance(config.rabbitmq, RabbitMQConfig)
+        assert isinstance(config.events, EventsConfig)
+        assert isinstance(config.task_defaults, TaskDefaultsConfig)
+        assert isinstance(config.process_pool, ProcessPoolConfig)
+        assert isinstance(config.repository, RepositoryConfig)
+
+    def test_config_groups_have_correct_defaults(self):
+        """Test that config groups have the correct default values."""
+        config = Config()
+
+        # RedisConfig defaults
+        assert config.redis.url == "redis://localhost:6379"
+        assert config.redis.password is None
+        assert config.redis.db == 0
+        assert config.redis.max_connections == 100
+
+        # TaskDefaultsConfig defaults
+        assert config.task_defaults.queue == "default"
+        assert config.task_defaults.max_attempts == 3
+        assert config.task_defaults.retry_strategy == "exponential"
+        assert config.task_defaults.retry_delay == 60
+        assert config.task_defaults.timeout is None
+        assert config.task_defaults.visibility_timeout == 300
+
+        # RepositoryConfig defaults
+        assert config.repository.task_scan_limit == 10000
+        assert config.repository.keep_completed_tasks is False

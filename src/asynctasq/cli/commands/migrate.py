@@ -27,9 +27,9 @@ async def run_migrate(args: argparse.Namespace, config: Config) -> None:
     """
     if config.driver == "postgres":
         logger.info("Initializing PostgreSQL schema...")
-        logger.info(f"  DSN: {config.postgres_dsn}")
-        logger.info(f"  Queue table: {config.postgres_queue_table}")
-        logger.info(f"  Dead letter table: {config.postgres_dead_letter_table}")
+        logger.info(f"  DSN: {config.postgres.dsn}")
+        logger.info(f"  Queue table: {config.postgres.queue_table}")
+        logger.info(f"  Dead letter table: {config.postgres.dead_letter_table}")
 
         driver = DriverFactory.create_from_config(config, driver_type="postgres")
 
@@ -43,17 +43,17 @@ async def run_migrate(args: argparse.Namespace, config: Config) -> None:
             await driver.init_schema()
 
             logger.info("✓ Schema initialized successfully!")
-            logger.info(f"  - Created table: {config.postgres_queue_table}")
-            logger.info(f"  - Created index: idx_{config.postgres_queue_table}_lookup")
-            logger.info(f"  - Created table: {config.postgres_dead_letter_table}")
+            logger.info(f"  - Created table: {config.postgres.queue_table}")
+            logger.info(f"  - Created index: idx_{config.postgres.queue_table}_lookup")
+            logger.info(f"  - Created table: {config.postgres.dead_letter_table}")
         finally:
             await driver.disconnect()
 
     elif config.driver == "mysql":
         logger.info("Initializing MySQL schema...")
-        logger.info(f"  DSN: {config.mysql_dsn}")
-        logger.info(f"  Queue table: {config.mysql_queue_table}")
-        logger.info(f"  Dead letter table: {config.mysql_dead_letter_table}")
+        logger.info(f"  DSN: {config.mysql.dsn}")
+        logger.info(f"  Queue table: {config.mysql.queue_table}")
+        logger.info(f"  Dead letter table: {config.mysql.dead_letter_table}")
 
         driver = DriverFactory.create_from_config(config, driver_type="mysql")
 
@@ -67,9 +67,9 @@ async def run_migrate(args: argparse.Namespace, config: Config) -> None:
             await driver.init_schema()
 
             logger.info("✓ Schema initialized successfully!")
-            logger.info(f"  - Created table: {config.mysql_queue_table}")
-            logger.info(f"  - Created index: idx_{config.mysql_queue_table}_lookup")
-            logger.info(f"  - Created table: {config.mysql_dead_letter_table}")
+            logger.info(f"  - Created table: {config.mysql.queue_table}")
+            logger.info(f"  - Created index: idx_{config.mysql.queue_table}_lookup")
+            logger.info(f"  - Created table: {config.mysql.dead_letter_table}")
         finally:
             await driver.disconnect()
 

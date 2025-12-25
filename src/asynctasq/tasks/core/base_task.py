@@ -107,10 +107,12 @@ class BaseTask[T](ABC):
 
         # Merge class config with global defaults
         self.config: TaskConfig = {
-            "queue": class_config.get("queue", global_config.default_queue),
-            "max_attempts": class_config.get("max_attempts", global_config.default_max_attempts),
-            "retry_delay": class_config.get("retry_delay", global_config.default_retry_delay),
-            "timeout": class_config.get("timeout", global_config.default_timeout),
+            "queue": class_config.get("queue", global_config.task_defaults.queue),
+            "max_attempts": class_config.get(
+                "max_attempts", global_config.task_defaults.max_attempts
+            ),
+            "retry_delay": class_config.get("retry_delay", global_config.task_defaults.retry_delay),
+            "timeout": class_config.get("timeout", global_config.task_defaults.timeout),
             "driver": class_config.get("driver"),
             "correlation_id": class_config.get("correlation_id"),
         }

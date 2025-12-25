@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 from pytest import fixture, main, mark, raises
 
-from asynctasq.config import Config
+from asynctasq.config import Config, EventsConfig, RedisConfig
 from asynctasq.monitoring import (
     EventType,
     LoggingEventEmitter,
@@ -87,9 +87,13 @@ class TestRedisEventEmitter:
     def test_init_uses_config_events_redis_url(self) -> None:
         """Test that events_redis_url from config is used first."""
         mock_config = Config(
-            events_redis_url="redis://events:6379",
-            redis_url="redis://queue:6379",
-            events_channel="custom:events",
+            events=EventsConfig(
+                redis_url="redis://events:6379",
+                channel="custom:events",
+            ),
+            redis=RedisConfig(
+                url="redis://queue:6379",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -101,9 +105,13 @@ class TestRedisEventEmitter:
     def test_init_falls_back_to_redis_url(self) -> None:
         """Test fallback to redis_url when events_redis_url is None."""
         mock_config = Config(
-            events_redis_url=None,
-            redis_url="redis://queue:6379",
-            events_channel="asynctasq:events",
+            events=EventsConfig(
+                redis_url=None,
+                channel="asynctasq:events",
+            ),
+            redis=RedisConfig(
+                url="redis://queue:6379",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -114,9 +122,13 @@ class TestRedisEventEmitter:
     def test_init_with_explicit_params_overrides_config(self) -> None:
         """Test that explicit parameters override config values."""
         mock_config = Config(
-            events_redis_url="redis://events:6379",
-            redis_url="redis://queue:6379",
-            events_channel="config:events",
+            events=EventsConfig(
+                redis_url="redis://events:6379",
+                channel="config:events",
+            ),
+            redis=RedisConfig(
+                url="redis://queue:6379",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -131,8 +143,10 @@ class TestRedisEventEmitter:
     async def test_emit_task_event_publishes_to_redis(self, sample_task_event: TaskEvent) -> None:
         """Test that task events are published to Redis."""
         mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="test:events",
+            events=EventsConfig(
+                redis_url="redis://localhost:6379",
+                channel="test:events",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -155,8 +169,10 @@ class TestRedisEventEmitter:
     ) -> None:
         """Test that worker events are published to Redis."""
         mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="test:events",
+            events=EventsConfig(
+                redis_url="redis://localhost:6379",
+                channel="test:events",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -173,8 +189,10 @@ class TestRedisEventEmitter:
     async def test_emit_initializes_connection_lazy(self, sample_task_event: TaskEvent) -> None:
         """Test that emit lazily initializes Redis connection."""
         mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="test:events",
+            events=EventsConfig(
+                redis_url="redis://localhost:6379",
+                channel="test:events",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -203,8 +221,10 @@ class TestRedisEventEmitter:
     ) -> None:
         """Test that publish errors are caught and logged."""
         mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="test:events",
+            events=EventsConfig(
+                redis_url="redis://localhost:6379",
+                channel="test:events",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -223,8 +243,10 @@ class TestRedisEventEmitter:
     async def test_close_closes_client(self) -> None:
         """Test that close properly closes the Redis client."""
         mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="test:events",
+            events=EventsConfig(
+                redis_url="redis://localhost:6379",
+                channel="test:events",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -242,8 +264,10 @@ class TestRedisEventEmitter:
     async def test_close_without_client_is_safe(self) -> None:
         """Test that close works even if client was never connected."""
         mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="test:events",
+            events=EventsConfig(
+                redis_url="redis://localhost:6379",
+                channel="test:events",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -254,8 +278,10 @@ class TestRedisEventEmitter:
     def test_serialize_event_converts_types(self, sample_task_event: TaskEvent) -> None:
         """Test that event serialization handles type conversions."""
         mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="test:events",
+            events=EventsConfig(
+                redis_url="redis://localhost:6379",
+                channel="test:events",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -277,8 +303,10 @@ class TestRedisEventEmitter:
     ) -> None:
         """Test that queues tuple is converted to list for msgpack."""
         mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="test:events",
+            events=EventsConfig(
+                redis_url="redis://localhost:6379",
+                channel="test:events",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -300,9 +328,13 @@ class TestEventsRedisUrlConfig:
     def test_events_redis_url_takes_priority(self) -> None:
         """Test that events_redis_url is used over redis_url."""
         mock_config = Config(
-            events_redis_url="redis://events-server:6379",
-            redis_url="redis://queue-server:6379",
-            events_channel="custom:channel",
+            events=EventsConfig(
+                redis_url="redis://events-server:6379",
+                channel="custom:channel",
+            ),
+            redis=RedisConfig(
+                url="redis://queue-server:6379",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -313,9 +345,13 @@ class TestEventsRedisUrlConfig:
     def test_falls_back_to_redis_url_when_events_url_none(self) -> None:
         """Test fallback to redis_url when events_redis_url is None."""
         mock_config = Config(
-            events_redis_url=None,
-            redis_url="redis://queue-server:6379",
-            events_channel="asynctasq:events",
+            events=EventsConfig(
+                redis_url=None,
+                channel="asynctasq:events",
+            ),
+            redis=RedisConfig(
+                url="redis://queue-server:6379",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -326,9 +362,13 @@ class TestEventsRedisUrlConfig:
     def test_explicit_param_overrides_all_config(self) -> None:
         """Test that explicit redis_url param overrides both config values."""
         mock_config = Config(
-            events_redis_url="redis://events-server:6379",
-            redis_url="redis://queue-server:6379",
-            events_channel="config:channel",
+            events=EventsConfig(
+                redis_url="redis://events-server:6379",
+                channel="config:channel",
+            ),
+            redis=RedisConfig(
+                url="redis://queue-server:6379",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -339,8 +379,10 @@ class TestEventsRedisUrlConfig:
     def test_events_channel_from_config(self) -> None:
         """Test that events_channel is read from config."""
         mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="my-app:events",
+            events=EventsConfig(
+                redis_url="redis://localhost:6379",
+                channel="my-app:events",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
@@ -351,8 +393,10 @@ class TestEventsRedisUrlConfig:
     def test_channel_param_overrides_config(self) -> None:
         """Test that explicit channel param overrides config."""
         mock_config = Config(
-            events_redis_url="redis://localhost:6379",
-            events_channel="config:channel",
+            events=EventsConfig(
+                redis_url="redis://localhost:6379",
+                channel="config:channel",
+            ),
         )
 
         with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):

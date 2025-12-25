@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from pytest import main, mark, raises
 
 from asynctasq.cli.commands.migrate import MigrationError, run_migrate
-from asynctasq.config import Config
+from asynctasq.config import Config, MySQLConfig, PostgresConfig
 
 
 @mark.unit
@@ -89,9 +89,11 @@ class TestRunMigrate:
         args = argparse.Namespace()
         config = Config(
             driver="postgres",
-            postgres_dsn="postgresql://user:pass@localhost/db",
-            postgres_queue_table="task_queue",
-            postgres_dead_letter_table="dead_letter_queue",
+            postgres=PostgresConfig(
+                dsn="postgresql://user:pass@localhost/db",
+                queue_table="task_queue",
+                dead_letter_table="dead_letter_queue",
+            ),
         )
         mock_driver = AsyncMock()
         mock_driver_factory.create_from_config.return_value = mock_driver
@@ -143,9 +145,11 @@ class TestRunMigrate:
         args = argparse.Namespace()
         config = Config(
             driver="postgres",
-            postgres_dsn="postgresql://test:pass@db:5432/testdb",
-            postgres_queue_table="custom_queue",
-            postgres_dead_letter_table="custom_dlq",
+            postgres=PostgresConfig(
+                dsn="postgresql://test:pass@db:5432/testdb",
+                queue_table="custom_queue",
+                dead_letter_table="custom_dlq",
+            ),
         )
         mock_driver = AsyncMock()
         mock_driver_factory.create_from_config.return_value = mock_driver
@@ -179,9 +183,11 @@ class TestRunMigrate:
         args = argparse.Namespace()
         config = Config(
             driver="postgres",
-            postgres_dsn="postgresql://user:pass@localhost/db",
-            postgres_queue_table="task_queue",
-            postgres_dead_letter_table="dead_letter_queue",
+            postgres=PostgresConfig(
+                dsn="postgresql://user:pass@localhost/db",
+                queue_table="task_queue",
+                dead_letter_table="dead_letter_queue",
+            ),
         )
         mock_driver = AsyncMock()
         mock_driver_factory.create_from_config.return_value = mock_driver
@@ -259,9 +265,11 @@ class TestRunMigrate:
         args = argparse.Namespace()
         config = Config(
             driver="postgres",
-            postgres_dsn="postgresql://user:pass@localhost/db",
-            postgres_queue_table="my_queue",
-            postgres_dead_letter_table="my_dlq",
+            postgres=PostgresConfig(
+                dsn="postgresql://user:pass@localhost/db",
+                queue_table="my_queue",
+                dead_letter_table="my_dlq",
+            ),
         )
         mock_driver = AsyncMock()
         mock_driver_factory.create_from_config.return_value = mock_driver
@@ -288,9 +296,11 @@ class TestRunMigrate:
         args = argparse.Namespace()
         config = Config(
             driver="mysql",
-            mysql_dsn="mysql://user:pass@localhost/db",
-            mysql_queue_table="task_queue",
-            mysql_dead_letter_table="dead_letter_queue",
+            mysql=MySQLConfig(
+                dsn="mysql://user:pass@localhost/db",
+                queue_table="task_queue",
+                dead_letter_table="dead_letter_queue",
+            ),
         )
         mock_driver = AsyncMock()
         mock_driver_factory.create_from_config.return_value = mock_driver
@@ -338,9 +348,11 @@ class TestRunMigrate:
         args = argparse.Namespace()
         config = Config(
             driver="mysql",
-            mysql_dsn="mysql://test:pass@db:3306/testdb",
-            mysql_queue_table="custom_queue",
-            mysql_dead_letter_table="custom_dlq",
+            mysql=MySQLConfig(
+                dsn="mysql://test:pass@db:3306/testdb",
+                queue_table="custom_queue",
+                dead_letter_table="custom_dlq",
+            ),
         )
         mock_driver = AsyncMock()
         mock_driver_factory.create_from_config.return_value = mock_driver
@@ -373,9 +385,11 @@ class TestRunMigrate:
         args = argparse.Namespace()
         config = Config(
             driver="mysql",
-            mysql_dsn="mysql://user:pass@localhost/db",
-            mysql_queue_table="task_queue",
-            mysql_dead_letter_table="dead_letter_queue",
+            mysql=MySQLConfig(
+                dsn="mysql://user:pass@localhost/db",
+                queue_table="task_queue",
+                dead_letter_table="dead_letter_queue",
+            ),
         )
         mock_driver = AsyncMock()
         mock_driver_factory.create_from_config.return_value = mock_driver
@@ -453,9 +467,11 @@ class TestRunMigrate:
         args = argparse.Namespace()
         config = Config(
             driver="mysql",
-            mysql_dsn="mysql://user:pass@localhost/db",
-            mysql_queue_table="my_queue",
-            mysql_dead_letter_table="my_dlq",
+            mysql=MySQLConfig(
+                dsn="mysql://user:pass@localhost/db",
+                queue_table="my_queue",
+                dead_letter_table="my_dlq",
+            ),
         )
         mock_driver = AsyncMock()
         mock_driver_factory.create_from_config.return_value = mock_driver
