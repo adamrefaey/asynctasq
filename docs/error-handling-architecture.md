@@ -1,5 +1,39 @@
 # Error Handling Architecture
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Architecture Diagram](#architecture-diagram)
+- [Layer Responsibilities](#layer-responsibilities)
+  - [1. Framework Layer (TaskExecutor)](#1-framework-layer-taskexecutor)
+  - [2. User Layer (BaseTask)](#2-user-layer-basetask)
+- [Error Flow Examples](#error-flow-examples)
+  - [Example 1: Successful Execution (No Error)](#example-1-successful-execution-no-error)
+  - [Example 2: Transient Error with Retry](#example-2-transient-error-with-retry)
+  - [Example 3: Permanent Failure (Retries Exhausted)](#example-3-permanent-failure-retries-exhausted)
+  - [Example 4: Custom Retry Logic (Fail Fast)](#example-4-custom-retry-logic-fail-fast)
+  - [Example 5: Custom Failure Handling](#example-5-custom-failure-handling)
+- [Common Patterns](#common-patterns)
+  - [Pattern 1: Retry Only on Specific Errors](#pattern-1-retry-only-on-specific-errors)
+  - [Pattern 2: Exponential Backoff (Framework Handles)](#pattern-2-exponential-backoff-framework-handles)
+  - [Pattern 3: Compensation Logic on Failure](#pattern-3-compensation-logic-on-failure)
+  - [Pattern 4: No Retry for Business Logic Errors](#pattern-4-no-retry-for-business-logic-errors)
+- [Exception Types](#exception-types)
+  - [Framework-Raised Exceptions](#framework-raised-exceptions)
+  - [User-Raised Exceptions](#user-raised-exceptions)
+- [Best Practices](#best-practices)
+  - [✅ DO](#-do)
+  - [❌ DON'T](#-dont)
+- [Configuration](#configuration)
+  - [Task-Level Configuration](#task-level-configuration)
+  - [Runtime Configuration](#runtime-configuration)
+- [Observability](#observability)
+  - [Logging](#logging)
+  - [Events (if enabled)](#events-if-enabled)
+- [Testing Error Handling](#testing-error-handling)
+  - [Unit Test Example](#unit-test-example)
+- [Summary](#summary)
+
 ## Overview
 
 The asynctasq error handling system is designed with clear separation of concerns between framework-level error management and user-level error hooks. This document outlines the error handling flow, responsibilities, and extension points.

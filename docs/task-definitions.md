@@ -1,5 +1,45 @@
 # Task Definitions
 
+## Table of Contents
+
+- [Task Definitions](#task-definitions)
+  - [Table of Contents](#table-of-contents)
+  - [Function-Based Tasks](#function-based-tasks)
+  - [Class-Based Tasks](#class-based-tasks)
+    - [Quick Selection Guide](#quick-selection-guide)
+    - [AsyncTask - Async I/O-Bound (Default Choice)](#asynctask---async-io-bound-default-choice)
+    - [SyncTask - Sync I/O-Bound via Thread Pool](#synctask---sync-io-bound-via-thread-pool)
+    - [AsyncProcessTask - Async CPU-Bound via Process Pool](#asyncprocesstask---async-cpu-bound-via-process-pool)
+    - [SyncProcessTask - Sync CPU-Bound via Process Pool](#syncprocesstask---sync-cpu-bound-via-process-pool)
+  - [Task Configuration](#task-configuration)
+    - [Configuration Attributes](#configuration-attributes)
+    - [Pattern 1: Using `config` Dict with `TaskConfig`](#pattern-1-using-config-dict-with-taskconfig)
+    - [Pattern 2: Method Chaining (Runtime)](#pattern-2-method-chaining-runtime)
+    - [Available Chainable Methods](#available-chainable-methods)
+      - [`on_queue(queue_name: str) -> Self`](#on_queuequeue_name-str---self)
+      - [`delay(seconds: int) -> Self`](#delayseconds-int---self)
+      - [`retry_after(seconds: int) -> Self`](#retry_afterseconds-int---self)
+      - [`max_attempts(attempts: int) -> Self`](#max_attemptsattempts-int---self)
+      - [`timeout(seconds: int | None) -> Self`](#timeoutseconds-int--none---self)
+    - [Combining Config Dict with Method Chaining](#combining-config-dict-with-method-chaining)
+    - [Configuration with Function-Based Tasks](#configuration-with-function-based-tasks)
+    - [Accessing Configuration](#accessing-configuration)
+  - [Choosing the Right Task Type](#choosing-the-right-task-type)
+    - [The Four Execution Modes](#the-four-execution-modes)
+    - [Comparison Table](#comparison-table)
+    - [Quick Decision Matrix](#quick-decision-matrix)
+    - [Performance Characteristics](#performance-characteristics)
+    - [When to Use Each Type](#when-to-use-each-type)
+  - [Task Configuration Options](#task-configuration-options)
+  - [Configuration Approaches: Function vs Class Tasks](#configuration-approaches-function-vs-class-tasks)
+    - [Overview](#overview)
+    - [Function-Based Task Configuration](#function-based-task-configuration)
+    - [Class-Based Task Configuration](#class-based-task-configuration)
+    - [Configuration Priority Order](#configuration-priority-order)
+    - [Best Practices](#best-practices)
+    - [Common Pitfalls](#common-pitfalls)
+  - [Additional Configuration Methods](#additional-configuration-methods)
+
 AsyncTasQ supports two task definition styles: **function-based** (simple, inline) and **class-based** (reusable, testable).
 
 ## Function-Based Tasks

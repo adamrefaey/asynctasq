@@ -1,5 +1,30 @@
 # Monitoring
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Event System](#event-system)
+  - [Event Types](#event-types)
+    - [Task Events](#task-events)
+    - [Worker Events](#worker-events)
+  - [Event Data Structures](#event-data-structures)
+  - [Event Emitters](#event-emitters)
+    - [Logging Emitter (Default)](#logging-emitter-default)
+    - [Redis Emitter](#redis-emitter)
+  - [Event Registry](#event-registry)
+- [Configuration](#configuration)
+  - [Configuration Options](#configuration-options)
+- [Consuming Events](#consuming-events)
+  - [Using EventSubscriber](#using-eventsubscriber)
+  - [WebSocket Integration](#websocket-integration)
+- [Queue Statistics](#queue-statistics)
+- [Integration with asynctasq-monitor](#integration-with-asynctasq-monitor)
+- [Best Practices](#best-practices)
+  - [Production Monitoring](#production-monitoring)
+  - [Performance Considerations](#performance-considerations)
+  - [Security](#security)
+- [Troubleshooting](#troubleshooting)
+
 AsyncTasQ provides comprehensive monitoring capabilities through real-time event streaming and queue statistics. This enables observability, alerting, and dashboards for production task queue operations.
 
 ## Overview

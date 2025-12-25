@@ -1,5 +1,12 @@
 # Running Workers
 
+## Table of Contents
+
+- [CLI Workers (Recommended)](#cli-workers-recommended)
+- [Programmatic Workers](#programmatic-workers)
+- [Multiple Workers for Different Queues](#multiple-workers-for-different-queues)
+- [Graceful Shutdown](#graceful-shutdown)
+
 Workers continuously poll queues and execute tasks. Run workers via CLI (recommended) or programmatically.
 
 ## CLI Workers (Recommended)

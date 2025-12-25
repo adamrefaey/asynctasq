@@ -1,5 +1,31 @@
 # Event Loop Integration
 
+## Table of Contents
+
+- [Overview](#overview)
+- [How It Works](#how-it-works)
+- [Usage Patterns](#usage-patterns)
+  - [Pattern 1: Standard Scripts with asyncio.run()](#pattern-1-standard-scripts-with-asynciorun)
+  - [Pattern 2: Using AsyncTasQ's Runner (with uvloop support)](#pattern-2-using-asynctasqs-runner-with-uvloop-support)
+  - [Pattern 3: FastAPI Integration](#pattern-3-fastapi-integration)
+  - [Pattern 4: uvloop Direct Usage](#pattern-4-uvloop-direct-usage)
+  - [Pattern 5: Jupyter Notebooks](#pattern-5-jupyter-notebooks)
+  - [Pattern 6: Custom Event Loop Policy](#pattern-6-custom-event-loop-policy)
+- [Cleanup Behavior](#cleanup-behavior)
+  - [Automatic Cleanup](#automatic-cleanup)
+  - [Manual Cleanup](#manual-cleanup)
+  - [What Gets Cleaned Up](#what-gets-cleaned-up)
+- [Event Loop Detection](#event-loop-detection)
+- [Best Practices](#best-practices)
+  - [✅ Do's](#-dos)
+  - [❌ Don'ts](#-donts)
+- [Troubleshooting](#troubleshooting)
+- [Technical Details](#technical-details)
+  - [Cleanup Hook Implementation](#cleanup-hook-implementation)
+  - [Compatibility](#compatibility)
+- [Related Documentation](#related-documentation)
+- [Sources](#sources)
+
 AsyncTasQ is designed to work seamlessly with any async event loop implementation. This guide explains how AsyncTasQ integrates with different event loop contexts and provides examples for various use cases.
 
 ## Overview
