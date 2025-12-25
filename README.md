@@ -44,6 +44,8 @@ Note: This example requires a Redis server running on localhost:6379. If you don
 docker run -d --name redis-test -p 127.0.0.1:6379:6379 redis:8.0-alpine
 ```
 
+Create a new file named `quick_start.py` and add the following code:
+
 ```python
 import asyncio
 
@@ -93,6 +95,14 @@ if __name__ == "__main__":
     # uvloop.run(main())
 
 ```
+
+Run the script to dispatch tasks:
+
+```bash
+uv run python quick_start.py
+```
+
+In a separate terminal, run the worker to process the tasks:
 
 ```bash
 # Run the worker (in a separate terminal)
