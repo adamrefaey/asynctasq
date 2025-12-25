@@ -51,7 +51,7 @@ class SyncTask[T](BaseTask[T]):
     Database operation with synchronous driver:
 
     >>> class QueryDatabase(SyncTask[list[dict]]):
-    ...     config: TaskConfigDict = {
+    ...     config: TaskConfig = {
     ...         "queue": "database",
     ...         "timeout": 60,
     ...     }

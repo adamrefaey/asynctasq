@@ -51,7 +51,7 @@ class AsyncProcessTask[T](BaseTask[T]):
     >>>
     >>> class ProcessLargeDataset(AsyncProcessTask[dict]):
     ...     data_url: str
-    ...     config: TaskConfigDict = {
+    ...     config: TaskConfig = {
     ...         "queue": "cpu_intensive",
     ...         "timeout": 300,
     ...     }
