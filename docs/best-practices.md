@@ -107,24 +107,33 @@ class ProcessPayment(AsyncTask[bool]):
 
 ```python
 import asynctasq
+from asynctasq.config import RedisConfig, TaskDefaultsConfig, EventsConfig, ProcessPoolConfig
 from asynctasq.core.worker import Worker
 from asynctasq.core.driver_factory import DriverFactory
 
 # Initialize AsyncTasQ with configuration
 asynctasq.init({
     'driver': 'redis',
-    'redis_url': 'redis://redis-master:6379',
-    'redis_password': 'your-redis-password',
-    'default_max_attempts': 5,
-    'default_retry_delay': 120,  # 2 minutes
-    'default_timeout': 300,      # 5 minutes
+    'redis': RedisConfig(
+        url='redis://redis-master:6379',
+        password='your-redis-password'
+    ),
+    'task_defaults': TaskDefaultsConfig(
+        max_attempts=5,
+        retry_delay=120,  # 2 minutes
+        timeout=300       # 5 minutes
+    ),
     # Event streaming for monitoring (asynctasq-monitor)
-    'enable_event_emitter_redis': True,
-    'events_redis_url': 'redis://redis-master:6379',
-    'events_channel': 'asynctasq:events',
+    'events': EventsConfig(
+        enable_event_emitter_redis=True,
+        redis_url='redis://redis-master:6379',
+        channel='asynctasq:events'
+    ),
     # Process pool configuration (for CPU-bound tasks)
-    'process_pool_size': 4,
-    'process_pool_max_tasks_per_child': 100
+    'process_pool': ProcessPoolConfig(
+        size=4,
+        max_tasks_per_child=100
+    )
 })
 
 # Create and start multiple worker processes for different priorities

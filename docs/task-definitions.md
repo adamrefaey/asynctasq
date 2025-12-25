@@ -121,13 +121,16 @@ AsyncTasQ provides **4 base classes** for different execution patterns:
 Use for async operations like API calls, database queries, file I/O:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class ProcessPayment(AsyncTask[bool]):
-    queue = "payments"
-    max_attempts = 3
-    retry_delay = 60
-    timeout = 30
+    # Configuration via config dict (type-safe with TaskConfig)
+    config: TaskConfig = {
+        "queue": "payments",
+        "max_attempts": 3,
+        "retry_delay": 60,
+        "timeout": 30,
+    }
 
     def __init__(self, user_id: int, amount: float, **kwargs):
         super().__init__(**kwargs)
@@ -215,10 +218,15 @@ class ProcessLargeDataset(SyncProcessTask[dict]):
 **With Lifecycle Hooks:**
 
 ```python
+from asynctasq.tasks import AsyncTask, TaskConfig
+
 class ProcessPayment(AsyncTask[bool]):
-    queue = "payments"
-    max_attempts = 3
-    retry_delay = 60
+    # Configuration via config dict (type-safe with TaskConfig)
+    config: TaskConfig = {
+        "queue": "payments",
+        "max_attempts": 3,
+        "retry_delay": 60,
+    }
 
     def __init__(self, user_id: int, amount: float, **kwargs):
         super().__init__(**kwargs)
@@ -592,12 +600,14 @@ class ProcessDataset(SyncProcessTask[dict]):
 
 **Available Configuration:**
 
-| Option        | Type          | Default     | Description                                 |
-| ------------- | ------------- | ----------- | ------------------------------------------- |
-| `queue`       | `str`         | `"default"` | Queue name for task                         |
-| `max_attempts` | `int`         | `3`         | Maximum retry attempts                      |
-| `retry_delay` | `int`         | `60`        | Seconds to wait between retries             |
-| `timeout`     | `int \| None` | `None`      | Task timeout in seconds (None = no timeout) |
+| Option        | Type                     | Default     | Description                                 |
+| ------------- | ------------------------ | ----------- | ------------------------------------------- |
+| `queue`       | `str`                    | `"default"` | Queue name for task                         |
+| `max_attempts` | `int`                    | `3`         | Maximum retry attempts                      |
+| `retry_delay` | `int`                    | `60`        | Seconds to wait between retries             |
+| `timeout`     | `int \| None`            | `None`      | Task timeout in seconds (None = no timeout) |
+| `driver`      | `DriverType \| BaseDriver \| None` | `None` | Driver override for this task               |
+| `correlation_id` | `str \| None`         | `None`      | Correlation ID for distributed tracing      |
 
 ---
 
@@ -653,13 +663,17 @@ task_id = await send_notification(user_id=123, message="Hello") \
 **Class tasks use class attributes for default configuration.**
 
 ```python
-# ✅ CORRECT: Use class attributes
+# ✅ CORRECT: Use TaskConfig dict for type safety
+from asynctasq.tasks import AsyncTask, TaskConfig
+
 class ProcessPayment(AsyncTask[bool]):
-    # Configuration via class attributes
-    queue = "payments"
-    max_attempts = 3
-    retry_delay = 60
-    timeout = 30
+    # Configuration via config dict (type-safe with TaskConfig)
+    config: TaskConfig = {
+        "queue": "payments",
+        "max_attempts": 3,
+        "retry_delay": 60,
+        "timeout": 30,
+    }
 
     def __init__(self, user_id: int, amount: float, **kwargs):
         super().__init__(**kwargs)
@@ -735,9 +749,14 @@ task_id = await send_notification(user_id=123) \
 # Result: Uses queue="urgent", max_attempts=3
 
 # Class task priority order
+from asynctasq.tasks import AsyncTask, TaskConfig
+
 class ProcessOrder(AsyncTask[bool]):
-    queue = "orders"      # 2. Class attribute
-    max_attempts = 3
+    # Configuration via config dict (type-safe with TaskConfig)
+    config: TaskConfig = {
+        "queue": "orders",
+        "max_attempts": 3,
+    }
 
     def __init__(self, order_id: int, **kwargs):
         super().__init__(**kwargs)
@@ -758,7 +777,7 @@ task_id = await ProcessOrder(order_id=456) \
 **✅ DO:**
 
 - Use decorator arguments for function tasks: `@task(queue='emails')`
-- Use class attributes for class tasks: `class MyTask: queue = 'emails'`
+- Use `TaskConfig` dict for class tasks: `config: TaskConfig = {"queue": "emails"}`
 - Use method chaining for runtime overrides: `.on_queue("high").delay(60)`
 - Be consistent within your codebase (pick function or class style and stick to it)
 
@@ -813,11 +832,16 @@ async def send_email(to: str, subject: str):
     pass
 
 # 2. Class attributes (class tasks)
+from asynctasq.tasks import AsyncTask, TaskConfig
+
 class ProcessPayment(AsyncTask[bool]):
-    queue = "payments"
-    max_attempts = 3
-    retry_delay = 60
-    timeout = 30
+    # Configuration via config dict (type-safe with TaskConfig)
+    config: TaskConfig = {
+        "queue": "payments",
+        "max_attempts": 3,
+        "retry_delay": 60,
+        "timeout": 30,
+    }
 
 # 3. Method chaining (runtime configuration for both)
 await task_instance.on_queue("high").retry_after(120).delay(60).dispatch()

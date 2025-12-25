@@ -29,7 +29,12 @@ from asynctasq.drivers.base_driver import BaseDriver
 
 # Configure AsyncTasQ
 import asynctasq
-asynctasq.init({'driver': 'redis', 'redis_url': 'redis://localhost:6379'})
+from asynctasq.config import RedisConfig
+
+asynctasq.init({
+    'driver': 'redis',
+    'redis': RedisConfig(url='redis://localhost:6379')
+})
 
 asynctasq_integration = AsyncTaskIntegration()
 
@@ -52,12 +57,14 @@ async def send_email_route(to: str, subject: str, body: str):
 **Explicit Configuration:**
 
 ```python
-from asynctasq.config import Config
+from asynctasq.config import Config, RedisConfig
 
 config = Config(
     driver="redis",
-    redis_url="redis://localhost:6379",
-    redis_db=1
+    redis=RedisConfig(
+        url="redis://localhost:6379",
+        db=1
+    )
 )
 asynctasq = AsyncTaskIntegration(config=config)
 app = FastAPI(lifespan=asynctasq.lifespan)

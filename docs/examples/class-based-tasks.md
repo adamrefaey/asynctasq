@@ -237,16 +237,18 @@ class SimpleTask(AsyncTask[None]):
 ### Task with Class-Level Configuration
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class SendEmail(AsyncTask[bool]):
     """Send email with custom configuration."""
 
-    # Class-level configuration
-    queue = "emails"
-    max_attempts = 5
-    retry_delay = 120  # seconds
-    timeout = 30  # seconds
+    # Class-level configuration (type-safe with TaskConfig)
+    config: TaskConfig = {
+        "queue": "emails",
+        "max_attempts": 5,
+        "retry_delay": 120,  # seconds
+        "timeout": 30,  # seconds
+    }
 
     def __init__(self, to: str, subject: str, body: str, **kwargs):
         super().__init__(**kwargs)
@@ -263,13 +265,16 @@ class SendEmail(AsyncTask[bool]):
 ### Task with Type Hints
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 from typing import Dict, Any
 
 class ProcessOrder(AsyncTask[Dict[str, Any]]):
     """Process an order and return status."""
 
-    queue = "orders"
+    # Configuration via config dict (type-safe with TaskConfig)
+    config: TaskConfig = {
+        "queue": "orders",
+    }
 
     def __init__(self, order_id: int, user_id: int, **kwargs):
         super().__init__(**kwargs)
@@ -300,30 +305,31 @@ All configuration options can be set as class attributes. These settings apply t
 | `max_attempts`      | `int`                       | `3`         | Maximum retry attempts on failure                                |
 | `retry_delay`      | `int`                       | `60`        | Seconds to wait between retry attempts                           |
 | `timeout`          | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                    |
-| `_driver` | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config) |
+| `driver`           | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config) |
+| `correlation_id`   | `str \| None`               | `None`      | Correlation ID for distributed tracing                           |
 
 ### Queue Configuration
 
 Use different queues to organize tasks by priority, type, or processing requirements:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 # Different queues for different task types
 class SendEmail(AsyncTask[None]):
-    queue = "emails"
+    config: TaskConfig = {"queue": "emails"}
 
     async def execute(self) -> None:
         pass
 
 class ProcessPayment(AsyncTask[None]):
-    queue = "payments"
+    config: TaskConfig = {"queue": "payments"}
 
     async def execute(self) -> None:
         pass
 
 class SendPushNotification(AsyncTask[None]):
-    queue = "notifications"
+    config: TaskConfig = {"queue": "notifications"}
 
     async def execute(self) -> None:
         pass
@@ -338,13 +344,15 @@ class SendPushNotification(AsyncTask[None]):
 ### Retry Configuration
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 # High retry count for critical operations
 class ChargeCreditCard(AsyncTask[bool]):
-    queue = "payments"
-    max_attempts = 10
-    retry_delay = 30
+    config: TaskConfig = {
+        "queue": "payments",
+        "max_attempts": 10,
+        "retry_delay": 30,
+    }
 
     async def execute(self) -> bool:
         # Payment processing logic
@@ -352,8 +360,10 @@ class ChargeCreditCard(AsyncTask[bool]):
 
 # No retries for validation tasks
 class ValidateData(AsyncTask[bool]):
-    queue = "validation"
-    max_attempts = 0
+    config: TaskConfig = {
+        "queue": "validation",
+        "max_attempts": 0,
+    }
 
     async def execute(self) -> bool:
         # Validation logic
@@ -361,9 +371,11 @@ class ValidateData(AsyncTask[bool]):
 
 # Custom retry delay
 class CallExternalAPI(AsyncTask[dict]):
-    queue = "api-calls"
-    max_attempts = 5
-    retry_delay = 300  # 5 minutes (for rate-limited APIs)
+    config: TaskConfig = {
+        "queue": "api-calls",
+        "max_attempts": 5,
+        "retry_delay": 300,  # 5 minutes (for rate-limited APIs)
+    }
 
     async def execute(self) -> dict:
         # API call logic
@@ -373,12 +385,14 @@ class CallExternalAPI(AsyncTask[dict]):
 ### Timeout Configuration
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 # Short timeout for quick operations
 class QuickOperation(AsyncTask[None]):
-    queue = "quick"
-    timeout = 5
+    config: TaskConfig = {
+        "queue": "quick",
+        "timeout": 5,
+    }
 
     async def execute(self) -> None:
         # Fast operation
@@ -386,8 +400,10 @@ class QuickOperation(AsyncTask[None]):
 
 # Long timeout for heavy operations
 class GenerateReport(AsyncTask[str]):
-    queue = "reports"
-    timeout = 3600  # 1 hour
+    config: TaskConfig = {
+        "queue": "reports",
+        "timeout": 3600,  # 1 hour
+    }
 
     async def execute(self) -> str:
         # Report generation logic
@@ -395,8 +411,10 @@ class GenerateReport(AsyncTask[str]):
 
 # No timeout (default)
 class BackgroundCleanup(AsyncTask[None]):
-    queue = "background"
-    timeout = None
+    config: TaskConfig = {
+        "queue": "background",
+        "timeout": None,
+    }
 
     async def execute(self) -> None:
         # Cleanup logic
@@ -411,10 +429,12 @@ from asynctasq.tasks import AsyncTask
 class CriticalOperation(AsyncTask[dict]):
     """Fully configured critical task."""
 
-    queue = "critical"
-    max_attempts = 10
-    retry_delay = 60
-    timeout = 300
+    config: TaskConfig = {
+        "queue": "critical",
+        "max_attempts": 10,
+        "retry_delay": 60,
+        "timeout": 300,
+    }
 
     def __init__(self, data: dict, **kwargs):
         super().__init__(**kwargs)
@@ -440,10 +460,12 @@ Class-based tasks provide three lifecycle hooks for complete control over task e
 The `execute()` method is where your main task logic goes. It's the only required method:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class ProcessOrder(AsyncTask[bool]):
-    queue = "orders"
+    config: TaskConfig = {
+        "queue": "orders",
+    }
 
     def __init__(self, order_id: int, **kwargs):
         super().__init__(**kwargs)
@@ -476,14 +498,16 @@ class ProcessOrder(AsyncTask[bool]):
 The `failed()` method is called when a task fails after exhausting all retry attempts. Use it for cleanup, logging, alerting, or compensation:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 import logging
 
 logger = logging.getLogger(__name__)
 
 class ProcessPayment(AsyncTask[bool]):
-    queue = "payments"
-    max_attempts = 3
+    config: TaskConfig = {
+        "queue": "payments",
+        "max_attempts": 3,
+    }
 
     def __init__(self, user_id: int, amount: float, **kwargs):
         super().__init__(**kwargs)
@@ -539,12 +563,14 @@ class ProcessPayment(AsyncTask[bool]):
 The `should_retry()` method allows you to implement custom retry logic based on the exception type. Return `True` to retry, `False` to fail immediately:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 import httpx
 
 class CallExternalAPI(AsyncTask[dict]):
-    queue = "api"
-    max_attempts = 5
+    config: TaskConfig = {
+        "queue": "api",
+        "max_attempts": 5,
+    }
 
     def __init__(self, url: str, **kwargs):
         super().__init__(**kwargs)
@@ -613,7 +639,7 @@ class SmartRetryTask(AsyncTask[None]):
 ### Complete Lifecycle Example
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 import logging
 
 logger = logging.getLogger(__name__)
@@ -621,9 +647,11 @@ logger = logging.getLogger(__name__)
 class ProcessOrder(AsyncTask[dict]):
     """Complete example with all lifecycle hooks."""
 
-    queue = "orders"
-    max_attempts = 3
-    retry_delay = 60
+    config: TaskConfig = {
+        "queue": "orders",
+        "max_attempts": 3,
+        "retry_delay": 60,
+    }
 
     def __init__(self, order_id: int, user_id: int, **kwargs):
         super().__init__(**kwargs)
@@ -723,10 +751,12 @@ Tasks are dispatched by creating an instance and calling `.dispatch()`. The meth
 The simplest way to dispatch a task:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class SendEmail(AsyncTask[bool]):
-    queue = "emails"
+    config: TaskConfig = {
+        "queue": "emails",
+    }
 
     def __init__(self, to: str, subject: str, body: str, **kwargs):
         super().__init__(**kwargs)
@@ -753,10 +783,12 @@ async def main():
 You can delay task execution using method chaining:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class SendReminder(AsyncTask[None]):
-    queue = "reminders"
+    config: TaskConfig = {
+        "queue": "reminders",
+    }
 
     def __init__(self, user_id: int, message: str, **kwargs):
         super().__init__(**kwargs)
@@ -825,13 +857,15 @@ AsyncTasQ supports **four task execution modes** optimized for different workloa
 Use `AsyncTask` for async I/O-bound operations (API calls, async database queries, async file operations):
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 import asyncio
 import httpx
 
 class FetchUserData(AsyncTask[dict]):
     """AsyncTask - runs directly in event loop."""
-    queue = "api"
+    config: TaskConfig = {
+        "queue": "api",
+    }
 
     def __init__(self, user_id: int, **kwargs):
         super().__init__(**kwargs)
@@ -856,12 +890,14 @@ class FetchUserData(AsyncTask[dict]):
 Use `SyncTask` for sync/blocking I/O operations:
 
 ```python
-from asynctasq.tasks import SyncTask
+from asynctasq.tasks import SyncTask, TaskConfig
 import requests
 
 class FetchWebPage(SyncTask[str]):
     """SyncTask - automatically runs in thread pool."""
-    queue = "web-scraping"
+    config: TaskConfig = {
+        "queue": "web-scraping",
+    }
 
     def __init__(self, url: str, **kwargs):
         super().__init__(**kwargs)
@@ -887,13 +923,15 @@ class FetchWebPage(SyncTask[str]):
 Use `AsyncProcessTask` for CPU-intensive operations that also need async I/O:
 
 ```python
-from asynctasq.tasks import AsyncProcessTask
+from asynctasq.tasks import AsyncProcessTask, TaskConfig
 import aiofiles
 
 class ProcessVideoAsync(AsyncProcessTask[dict]):
     """AsyncProcessTask - runs in subprocess with async support."""
-    queue = "video-processing"
-    timeout = 600  # 10 minutes
+    config: TaskConfig = {
+        "queue": "video-processing",
+        "timeout": 600,  # 10 minutes
+    }
 
     def __init__(self, video_path: str, **kwargs):
         super().__init__(**kwargs)
@@ -933,13 +971,15 @@ class ProcessVideoAsync(AsyncProcessTask[dict]):
 Use `SyncProcessTask` for heavy CPU-intensive sync operations:
 
 ```python
-from asynctasq.tasks import SyncProcessTask
+from asynctasq.tasks import SyncProcessTask, TaskConfig
 import numpy as np
 
 class ProcessLargeDataset(SyncProcessTask[dict]):
     """SyncProcessTask - runs in separate process with independent GIL."""
-    queue = "data-processing"
-    timeout = 600  # 10 minutes
+    config: TaskConfig = {
+        "queue": "data-processing",
+        "timeout": 600,  # 10 minutes
+    }
 
     def __init__(self, data: list[float], **kwargs):
         super().__init__(**kwargs)
@@ -989,10 +1029,14 @@ await worker.start()
 
 ```python
 # Example 1: ML Model Inference (Sync)
+from asynctasq.tasks import SyncProcessTask, TaskConfig
+
 class RunInference(SyncProcessTask[dict]):
     """Run ML model inference in isolated process."""
-    queue = "ml-inference"
-    timeout = 300
+    config: TaskConfig = {
+        "queue": "ml-inference",
+        "timeout": 300,
+    }
 
     def __init__(self, model_path: str, input_data: list[float], **kwargs):
         super().__init__(**kwargs)
@@ -1015,9 +1059,13 @@ class RunInference(SyncProcessTask[dict]):
         }
 
 # Example 2: Image Processing with PIL (Sync)
+from asynctasq.tasks import SyncProcessTask, TaskConfig
+
 class ProcessImageBatch(SyncProcessTask[list[str]]):
     """Process batch of images in separate process."""
-    queue = "image-processing"
+    config: TaskConfig = {
+        "queue": "image-processing",
+    }
 
     def __init__(self, image_paths: list[str], **kwargs):
         super().__init__(**kwargs)
@@ -1039,9 +1087,13 @@ class ProcessImageBatch(SyncProcessTask[list[str]]):
         return output_paths
 
 # Example 3: Data Encryption (Sync)
+from asynctasq.tasks import SyncProcessTask, TaskConfig
+
 class EncryptData(SyncProcessTask[bytes]):
     """Encrypt large data in separate process."""
-    queue = "encryption"
+    config: TaskConfig = {
+        "queue": "encryption",
+    }
 
     def __init__(self, data: bytes, key: bytes, **kwargs):
         super().__init__(**kwargs)
@@ -1126,13 +1178,15 @@ class TrainModel(SyncProcessTask[float]):
 ### Mixed Async/Sync/Process in Same Application
 
 ```python
-from asynctasq.tasks import AsyncTask, SyncTask, SyncProcessTask
+from asynctasq.tasks import AsyncTask, SyncTask, SyncProcessTask, TaskConfig
 import asyncio
 import time
 
 # Async task for I/O
 class AsyncOperation(AsyncTask[str]):
-    queue = "io-tasks"
+    config: TaskConfig = {
+        "queue": "io-tasks",
+    }
 
     def __init__(self, data: str, **kwargs):
         super().__init__(**kwargs)
@@ -1144,7 +1198,9 @@ class AsyncOperation(AsyncTask[str]):
 
 # Sync task for moderate CPU
 class SyncOperation(SyncTask[str]):
-    queue = "sync-tasks"
+    config: TaskConfig = {
+        "queue": "sync-tasks",
+    }
 
     def __init__(self, data: str, **kwargs):
         super().__init__(**kwargs)
@@ -1156,7 +1212,9 @@ class SyncOperation(SyncTask[str]):
 
 # Process task for heavy CPU
 class ProcessOperation(SyncProcessTask[str]):
-    queue = "cpu-tasks"
+    config: TaskConfig = {
+        "queue": "cpu-tasks",
+    }
 
     def __init__(self, data: str, **kwargs):
         super().__init__(**kwargs)
@@ -1190,24 +1248,22 @@ asynctasq.init({'driver': 'redis'})
 
 # This task uses Redis regardless of global config
 class CriticalTask(AsyncTask[None]):
-    queue = "critical"
-    _driver = "redis"
+    config = {"queue": "critical", "driver": "redis"}
 
     async def execute(self) -> None:
         print("Processing critical task")
 
 # This task uses SQS
 class AWSTask(AsyncTask[None]):
-    queue = "aws-tasks"
-    _driver = "sqs"
+    config = {"queue": "aws-tasks", "driver": "sqs"}
 
     async def execute(self) -> None:
         print("Processing AWS task")
 
 # This task uses global config (redis)
 class NormalTask(AsyncTask[None]):
-    queue = "normal"
-    # No _driver - uses global config
+    config = {"queue": "normal"}
+    # No driver - uses global config
 
     async def execute(self) -> None:
         print("Processing normal task")
@@ -1231,8 +1287,7 @@ custom_redis = RedisDriver(
 
 # Use the custom driver instance
 class CustomDriverTask(AsyncTask[dict]):
-    queue = "custom"
-    _driver = custom_redis
+    config = {"queue": "custom", "driver": custom_redis}
 
     def __init__(self, data: dict, **kwargs):
         super().__init__(**kwargs)
@@ -1267,29 +1322,26 @@ asynctasq.init({'driver': 'redis'})
 
 # Tasks using different drivers
 class RedisTask(AsyncTask[None]):
-    queue = "redis-queue"
-    _driver = "redis"
+    config = {"queue": "redis-queue", "driver": "redis"}
 
     async def execute(self) -> None:
         pass
 
 class PostgresTask(AsyncTask[None]):
-    queue = "postgres-queue"
-    _driver = "postgres"
+    config = {"queue": "postgres-queue", "driver": "postgres"}
 
     async def execute(self) -> None:
         pass
 
 class SQSTask(AsyncTask[None]):
-    queue = "sqs-queue"
-    _driver = "sqs"
+    config = {"queue": "sqs-queue", "driver": "sqs"}
 
     async def execute(self) -> None:
         pass
 
-class RedisTask(AsyncTask[None]):
-    queue = "default-queue"
-    # No _driver - uses global config (redis)
+class DefaultTask(AsyncTask[None]):
+    config = {"queue": "default-queue"}
+    # No driver - uses global config (redis)
 
     async def execute(self) -> None:
         pass
@@ -1344,8 +1396,12 @@ Base._asynctasq_session_factory = async_session
 # Base._asynctasq_session_factory = async_session
 
 # Task with ORM model parameter
+from asynctasq.tasks import AsyncTask, TaskConfig
+
 class SendWelcomeEmail(AsyncTask[None]):
-    queue = "emails"
+    config: TaskConfig = {
+        "queue": "emails",
+    }
 
     def __init__(self, user: User, **kwargs):
         super().__init__(**kwargs)
@@ -1357,7 +1413,9 @@ class SendWelcomeEmail(AsyncTask[None]):
         # User data is fresh from database when task executes
 
 class ProcessOrder(AsyncTask[None]):
-    queue = "orders"
+    config: TaskConfig = {
+        "queue": "orders",
+    }
 
     def __init__(self, order: Order, user: User, **kwargs):
         super().__init__(**kwargs)
@@ -1408,8 +1466,12 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
 # Task with Django model
+from asynctasq.tasks import AsyncTask, TaskConfig
+
 class SendWelcomeEmail(AsyncTask[None]):
-    queue = "emails"
+    config: TaskConfig = {
+        "queue": "emails",
+    }
 
     def __init__(self, user: User, **kwargs):
         super().__init__(**kwargs)
@@ -1420,7 +1482,9 @@ class SendWelcomeEmail(AsyncTask[None]):
         print(f"Sending welcome email to {self.user.email}")
 
 class UpdateProductPrice(AsyncTask[None]):
-    queue = "products"
+    config: TaskConfig = {
+        "queue": "products",
+    }
 
     def __init__(self, product: Product, new_price: float, **kwargs):
         super().__init__(**kwargs)
@@ -1461,7 +1525,9 @@ class Post(Model):
 
 # Task with Tortoise model
 class NotifyNewPost(AsyncTask[None]):
-    queue = "notifications"
+    config: TaskConfig = {
+        "queue": "notifications",
+    }
 
     def __init__(self, post: Post, author: User, **kwargs):
         super().__init__(**kwargs)
@@ -1507,10 +1573,12 @@ await TaskClass(param=value).on_queue("queue").delay(60).dispatch()
 ### Basic Method Chaining
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class ProcessData(AsyncTask[None]):
-    queue = "default"
+    config: TaskConfig = {
+        "queue": "default",
+    }
 
     def __init__(self, data: str, **kwargs):
         super().__init__(**kwargs)
@@ -1529,10 +1597,12 @@ async def main():
 ### Queue Override with Chaining
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class SendNotification(AsyncTask[None]):
-    queue = "default"
+    config: TaskConfig = {
+        "queue": "default",
+    }
 
     def __init__(self, message: str, **kwargs):
         super().__init__(**kwargs)
@@ -1555,12 +1625,14 @@ async def main():
 Override the retry delay for specific dispatches:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class CallAPI(AsyncTask[dict]):
-    queue = "api"
-    max_attempts = 3
-    retry_delay = 60
+    config: TaskConfig = {
+        "queue": "api",
+        "max_attempts": 3,
+        "retry_delay": 60,
+    }
 
     def __init__(self, endpoint: str, **kwargs):
         super().__init__(**kwargs)
@@ -1586,10 +1658,12 @@ async def main():
 ### Complex Chaining
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class ComplexTask(AsyncTask[None]):
-    queue = "default"
+    config: TaskConfig = {
+        "queue": "default",
+    }
 
     def __init__(self, data: dict, **kwargs):
         super().__init__(**kwargs)
@@ -1656,13 +1730,15 @@ This means when you check `_current_attempt` in your task methods (`execute()`, 
 ### Using Metadata for Logging
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 import logging
 
 logger = logging.getLogger(__name__)
 
 class LoggedTask(AsyncTask[dict]):
-    queue = "default"
+    config: TaskConfig = {
+        "queue": "default",
+    }
 
     async def execute(self) -> dict:
         logger.info(
@@ -1679,10 +1755,12 @@ class LoggedTask(AsyncTask[dict]):
 ### Using Metadata for Conditional Logic
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class SmartRetryTask(AsyncTask[None]):
-    max_attempts = 5
+    config: TaskConfig = {
+        "max_attempts": 5,
+    }
 
     async def execute(self) -> None:
         # Adjust behavior based on attempt count (1-indexed)
@@ -1711,12 +1789,14 @@ class SmartRetryTask(AsyncTask[None]):
 Correlation IDs allow you to track related tasks across distributed systems. Set a correlation ID to group related tasks together for monitoring and debugging:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class ProcessOrder(AsyncTask[dict]):
     """Process order with correlation tracking."""
 
-    queue = "orders"
+    config: TaskConfig = {
+        "queue": "orders",
+    }
 
     async def execute(self) -> dict:
         # Access correlation ID for logging
@@ -1727,9 +1807,9 @@ class ProcessOrder(AsyncTask[dict]):
 
 # Pattern 1: Set correlation ID at class level (all instances share)
 class OrderNotification(AsyncTask[None]):
-    config = {
+    config: TaskConfig = {
         "queue": "notifications",
-        "correlation_id": "order-pipeline-v1"  # All instances share this ID
+        "correlation_id": "order-pipeline-v1",  # All instances share this ID
     }
 
     async def execute(self) -> None:
@@ -1768,10 +1848,12 @@ from asynctasq.utils.loop import run
 from typing import Optional
 
 class SendEmail(AsyncTask[dict]):
-    queue = "emails"
-    max_attempts = 5
-    retry_delay = 60
-    timeout = 30
+    config: TaskConfig = {
+        "queue": "emails",
+        "max_attempts": 5,
+        "retry_delay": 60,
+        "timeout": 30,
+    }
 
     def __init__(
         self,
@@ -1827,10 +1909,12 @@ from asynctasq.tasks import AsyncTask
 from decimal import Decimal
 
 class ProcessPayment(AsyncTask[dict]):
-    queue = "payments"
-    max_attempts = 10
-    retry_delay = 30
-    timeout = 60
+    config: TaskConfig = {
+        "queue": "payments",
+        "max_attempts": 10,
+        "retry_delay": 30,
+        "timeout": 60,
+    }
 
     def __init__(
         self,
@@ -1885,13 +1969,15 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.tasks import SyncTask
+from asynctasq.tasks import SyncTask, TaskConfig
 from asynctasq.utils.loop import run
 from datetime import datetime, timedelta
 
 class GenerateReport(SyncTask[dict]):
-    queue = "reports"
-    timeout = 3600  # 1 hour timeout
+    config: TaskConfig = {
+        "queue": "reports",
+        "timeout": 3600,  # 1 hour timeout
+    }
 
     def __init__(
         self,
@@ -1941,14 +2027,16 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 from asynctasq.utils.loop import run
 from pathlib import Path
 
 class ProcessImage(AsyncTask[dict]):
-    queue = "images"
-    max_attempts = 3
-    timeout = 300
+    config: TaskConfig = {
+        "queue": "images",
+        "max_attempts": 3,
+        "timeout": 300,
+    }
 
     def __init__(
         self,
@@ -1990,15 +2078,17 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 from asynctasq.utils.loop import run
 import httpx
 
 class DeliverWebhook(AsyncTask[dict]):
-    queue = "webhooks"
-    max_attempts = 5
-    retry_delay = 120
-    timeout = 10
+    config: TaskConfig = {
+        "queue": "webhooks",
+        "max_attempts": 5,
+        "retry_delay": 120,
+        "timeout": 10,
+    }
 
     def __init__(
         self,
@@ -2049,13 +2139,15 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 from asynctasq.utils.loop import run
 
 class SyncUserData(AsyncTask[dict]):
-    queue = "sync"
-    max_attempts = 3
-    retry_delay = 300
+    config: TaskConfig = {
+        "queue": "sync",
+        "max_attempts": 3,
+        "retry_delay": 300,
+    }
 
     def __init__(
         self,
@@ -2098,13 +2190,15 @@ Process multiple items in a single task:
 
 ```python
 import asyncio
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 from asynctasq.utils.loop import run
 from typing import List
 
 class ProcessBatch(AsyncTask[dict]):
-    queue = "batch"
-    timeout = 1800  # 30 minutes timeout
+    config: TaskConfig = {
+        "queue": "batch",
+        "timeout": 1800,  # 30 minutes timeout
+    }
 
     def __init__(
         self,
@@ -2182,9 +2276,11 @@ asynctasq.init({'driver': 'redis'})
 
 # Define tasks with different configurations
 class SendEmail(AsyncTask[str]):
-    queue = "emails"
-    max_attempts = 3
-    retry_delay = 60
+    config: TaskConfig = {
+        "queue": "emails",
+        "max_attempts": 3,
+        "retry_delay": 60,
+    }
 
     def __init__(self, to: str, subject: str, body: str, **kwargs):
         super().__init__(**kwargs)
@@ -2199,10 +2295,12 @@ class SendEmail(AsyncTask[str]):
         return f"Email sent to {self.to}"
 
 class ProcessPayment(AsyncTask[dict]):
-    queue = "payments"
-    max_attempts = 10
-    retry_delay = 30
-    timeout = 60
+    config: TaskConfig = {
+        "queue": "payments",
+        "max_attempts": 10,
+        "retry_delay": 30,
+        "timeout": 60,
+    }
 
     def __init__(self, user_id: int, amount: float, **kwargs):
         super().__init__(**kwargs)
@@ -2220,8 +2318,10 @@ class ProcessPayment(AsyncTask[dict]):
         print(f"❌ Payment failed for user {self.user_id}: {exception}")
 
 class GenerateReport(SyncTask[str]):
-    queue = "reports"
-    timeout = 300
+    config: TaskConfig = {
+        "queue": "reports",
+        "timeout": 300,
+    }
 
     def __init__(self, report_id: int, **kwargs):
         super().__init__(**kwargs)
@@ -2235,8 +2335,7 @@ class GenerateReport(SyncTask[str]):
         return f"Report {self.report_id} generated"
 
 class CriticalTask(AsyncTask[None]):
-    queue = "critical"
-    _driver = "redis"  # Override driver (requires Redis configured)
+    config = {"queue": "critical", "driver": "redis"}  # Override driver (requires Redis configured)
 
     def __init__(self, data: dict, **kwargs):
         super().__init__(**kwargs)
@@ -2334,10 +2433,12 @@ Class-based tasks in AsyncTasQ provide a powerful, flexible way to create reusab
 2. **Define a task class:**
 
    ```python
-   from asynctasq.tasks import AsyncTask
+   from asynctasq.tasks import AsyncTask, TaskConfig
 
    class SendEmail(AsyncTask[bool]):
-       queue = "emails"
+       config: TaskConfig = {
+           "queue": "emails",
+       }
 
        def __init__(self, to: str, subject: str, **kwargs):
            super().__init__(**kwargs)
@@ -2378,13 +2479,15 @@ All examples above are ready to use - just configure your driver and start dispa
 Tasks should handle their own errors gracefully. The framework will retry failed tasks according to the `max_attempts` configuration and `should_retry()` logic:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 import httpx
 
 class CallExternalAPI(AsyncTask[dict]):
-    queue = "api"
-    max_attempts = 3
-    retry_delay = 60
+    config: TaskConfig = {
+        "queue": "api",
+        "max_attempts": 3,
+        "retry_delay": 60,
+    }
 
     def __init__(self, url: str, **kwargs):
         super().__init__(**kwargs)
@@ -2416,10 +2519,12 @@ class CallExternalAPI(AsyncTask[dict]):
 Store task IDs for monitoring and debugging. Task IDs are UUID strings that uniquely identify each dispatched task:
 
 ```python
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class SendWelcomeEmail(AsyncTask[None]):
-    queue = "emails"
+    config: TaskConfig = {
+        "queue": "emails",
+    }
 
     def __init__(self, user_id: int, **kwargs):
         super().__init__(**kwargs)
@@ -2475,10 +2580,12 @@ Class-based tasks are easier to test than function-based tasks because you can i
 
 ```python
 import pytest
-from asynctasq.tasks import AsyncTask
+from asynctasq.tasks import AsyncTask, TaskConfig
 
 class SendEmail(AsyncTask[bool]):
-    queue = "emails"
+    config: TaskConfig = {
+        "queue": "emails",
+    }
 
     def __init__(self, to: str, subject: str, **kwargs):
         super().__init__(**kwargs)

@@ -33,12 +33,13 @@ The most straightforward approach for simple scripts:
 ```python
 import asyncio
 import asynctasq
+from asynctasq.config import RedisConfig
 from asynctasq.tasks import task
 
 # Initialize AsyncTasQ
 asynctasq.init({
     'driver': 'redis',
-    'redis_url': 'redis://localhost:6379'
+    'redis': RedisConfig(url='redis://localhost:6379')
 })
 
 @task()
@@ -100,6 +101,7 @@ AsyncTasQ works perfectly with FastAPI's managed event loop:
 ```python
 from fastapi import FastAPI
 import asynctasq
+from asynctasq.config import RedisConfig
 from asynctasq.tasks import task
 
 app = FastAPI()
@@ -110,7 +112,7 @@ async def startup():
     # This is called from within FastAPI's running event loop
     asynctasq.init({
         'driver': 'redis',
-        'redis_url': 'redis://localhost:6379'
+        'redis': RedisConfig(url='redis://localhost:6379')
     })
     # Cleanup is automatically registered to run when the event loop closes
 

@@ -214,11 +214,12 @@ If you want AsyncTasQ to handle disposing (cleaning up) the SQLAlchemy engine fo
 
 ```python
 import asynctasq
+from asynctasq.config import RedisConfig
 
 # Pass your SQLAlchemy engine to AsyncTasQ for automatic cleanup
 asynctasq.init({
     "driver": "redis",
-    "redis_url": "redis://localhost:6379",
+    "redis": RedisConfig(url="redis://localhost:6379"),
     "sqlalchemy_engine": engine  # AsyncTasQ will dispose this on shutdown
 })
 ```

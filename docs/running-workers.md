@@ -73,13 +73,16 @@ For custom worker implementations or embedding workers in applications:
 
 ```python
 import asyncio
-from asynctasq.config import Config
+from asynctasq.config import Config, RedisConfig
 from asynctasq.core.driver_factory import DriverFactory
 from asynctasq.core.worker import Worker
 
 async def main():
     # Create configuration
-    config = Config(driver='redis', redis_url='redis://localhost:6379')
+    config = Config(
+        driver='redis',
+        redis=RedisConfig(url='redis://localhost:6379')
+    )
 
     # Create driver and connect
     driver = DriverFactory.create_from_config(config)
