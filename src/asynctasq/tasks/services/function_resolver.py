@@ -96,7 +96,53 @@ class FunctionResolver:
                 logger.exception(f"Failed to execute module {main_file}: {e}")
                 raise
         else:
-            return __import__(module_name, fromlist=["__name__"])
+            # For non-__main__ modules, first try standard import
+            # If that fails and we have a module_file, load from file
+            try:
+                return __import__(module_name, fromlist=["__name__"])
+            except ModuleNotFoundError:
+                if module_file:
+                    # Module not in path, but we have a file - load it directly
+                    logger.debug(
+                        f"Module {module_name} not in Python path, loading from {module_file}"
+                    )
+                    module_path = Path(module_file)
+                    if not module_path.exists():
+                        raise FileNotFoundError(
+                            f"Cannot import module {module_name} ({module_path} does not exist)"
+                        ) from None
+
+                    # Use absolute path as cache key
+                    cache_key = str(module_path.resolve())
+                    if cache_key in cls._module_cache:
+                        return cls._module_cache[cache_key]
+
+                    # Load module from file with its original module name
+                    # Check if already loaded
+                    if module_name in sys.modules:
+                        loaded_module = sys.modules[module_name]
+                        cls._module_cache[cache_key] = loaded_module
+                        return loaded_module
+
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    if spec is None or spec.loader is None:
+                        raise ImportError(f"Failed to load spec for {module_path}") from None
+
+                    loaded_module = importlib.util.module_from_spec(spec)
+                    sys.modules[module_name] = loaded_module
+
+                    try:
+                        spec.loader.exec_module(loaded_module)
+                        cls._module_cache[cache_key] = loaded_module
+                        logger.debug(f"Loaded module {module_name} from {module_path}")
+                        return loaded_module
+                    except Exception as e:
+                        sys.modules.pop(module_name, None)
+                        logger.exception(f"Failed to execute module {module_path}: {e}")
+                        raise
+                else:
+                    # No file path provided, re-raise the original error
+                    raise
 
     @classmethod
     def get_function_reference(
