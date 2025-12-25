@@ -38,6 +38,12 @@ Get started in 60 seconds:
 uv add asynctasq[redis]
 ```
 
+Note: This example requires a Redis server running on localhost:6379. If you don't have Redis installed, you can start one using Docker:
+
+```bash
+docker run -d --name redis-test -p 127.0.0.1:6379:6379 redis:8.0-alpine
+```
+
 ```python
 import asyncio
 
@@ -45,7 +51,7 @@ import asynctasq
 from asynctasq.tasks import task
 
 # 1. Configure AsyncTasQ
-asynctasq.init(driver="redis", redis_url="redis://localhost:6379")
+asynctasq.init({"driver": "redis", "redis_url": "redis://localhost:6379"})
 
 
 # 2. Define a task
@@ -90,10 +96,16 @@ if __name__ == "__main__":
 
 ```bash
 # Run the worker (in a separate terminal)
-python -m asynctasq worker
+uv run asynctasq worker
 ```
 
 **That's it!** Your first AsyncTasQ application is ready. AsyncTasQ works seamlessly with `asyncio.run()`, uvloop, FastAPI, Jupyter notebooks, or any other async framework - cleanup happens automatically when the event loop closes.
+
+To stop and remove the Redis container when done:
+
+```bash
+docker stop redis-test && docker rm redis-test
+```
 
 ---
 
