@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 from pytest import main
 
@@ -266,6 +268,61 @@ class TestProcessPoolManagerAdvanced:
 
         # Assert
         assert not manager.is_initialized()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_handles_sync_pool_exception(self) -> None:
+        """Test shutdown handles exceptions from sync pool shutdown."""
+        # Arrange
+        manager = ProcessPoolManager(sync_max_workers=2)
+        manager.get_sync_pool()
+
+        # Mock the sync pool to raise exception during shutdown
+        mock_pool = manager._sync_pool
+        assert mock_pool is not None  # Pool should be initialized
+        mock_pool.shutdown = MagicMock(side_effect=RuntimeError("Mock shutdown error"))
+
+        # Act & Assert - should raise the exception
+        with pytest.raises(RuntimeError, match="Mock shutdown error"):
+            await manager.shutdown(wait=True)
+
+    @pytest.mark.asyncio
+    async def test_shutdown_handles_async_pool_exception(self) -> None:
+        """Test shutdown handles exceptions from async pool shutdown."""
+        # Arrange
+        manager = ProcessPoolManager(async_max_workers=2)
+        manager.get_async_pool()
+
+        # Mock the async pool to raise exception during shutdown
+        mock_pool = manager._async_pool
+        assert mock_pool is not None  # Pool should be initialized
+        mock_pool.shutdown = MagicMock(side_effect=RuntimeError("Mock async shutdown error"))
+
+        # Act & Assert - should raise the exception
+        with pytest.raises(RuntimeError, match="Mock async shutdown error"):
+            await manager.shutdown(wait=True)
+
+    @pytest.mark.asyncio
+    async def test_shutdown_handles_multiple_exceptions(self) -> None:
+        """Test shutdown handles multiple pool exceptions and raises ExceptionGroup."""
+        # Arrange
+        manager = ProcessPoolManager(sync_max_workers=2, async_max_workers=2)
+        manager.get_sync_pool()
+        manager.get_async_pool()
+
+        # Mock both pools to raise exceptions
+        assert manager._sync_pool is not None
+        assert manager._async_pool is not None
+        manager._sync_pool.shutdown = MagicMock(side_effect=RuntimeError("Sync error"))
+        manager._async_pool.shutdown = MagicMock(side_effect=ValueError("Async error"))
+
+        # Act & Assert
+        with pytest.raises(ExceptionGroup) as exc_info:
+            await manager.shutdown(wait=True)
+
+        # Should contain both exceptions
+        assert len(exc_info.value.exceptions) == 2
+        assert isinstance(exc_info.value.exceptions[0], RuntimeError)
+        assert isinstance(exc_info.value.exceptions[1], ValueError)
 
     @pytest.mark.asyncio
     async def test_fallback_count_functions(self) -> None:
