@@ -100,13 +100,9 @@ class TestTortoiseOrmHook:
             await hook._fetch_model(model_class, 42)
 
     @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
-    def test_can_encode_with_tortoise_exception(self) -> None:
-        """Test can_encode returns False on exception."""
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TortoiseModel", None)
+    def test_can_encode_when_tortoise_model_is_none(self) -> None:
+        """Test can_encode returns False when TortoiseModel is None."""
         hook = TortoiseOrmHook()
-        obj = MagicMock()
-        # Make isinstance raise an exception
-        with patch("asynctasq.serializers.hooks.orm.tortoise.TortoiseModel", None):
-            # This will cause isinstance to raise TypeError
-            result = hook.can_encode(obj)
-            # Should handle exception gracefully
-            assert isinstance(result, bool)
+        obj = MockTortoiseModel()
+        assert hook.can_encode(obj) is False
