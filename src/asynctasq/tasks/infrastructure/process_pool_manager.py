@@ -343,9 +343,9 @@ class ProcessPoolManager:
                 except Exception as e:
                     logger.exception("Error during sync process pool shutdown")
                     errors.append(e)
-                else:
+                finally:
                     self._sync_pool = None
-                    logger.info("Sync process pool shutdown complete")
+                    logger.info("Sync process pool reference cleared")
 
             if self._async_pool is not None:
                 logger.info(
@@ -357,9 +357,9 @@ class ProcessPoolManager:
                 except Exception as e:
                     logger.exception("Error during async process pool shutdown")
                     errors.append(e)
-                else:
+                finally:
                     self._async_pool = None
-                    logger.info("Async process pool shutdown complete")
+                    logger.info("Async process pool reference cleared")
 
             self._initialized = False
 
