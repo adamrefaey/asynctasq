@@ -98,7 +98,11 @@ if __name__ == "__main__":
 
 ### Task with Parameters
 
-Tasks accept parameters via `__init__`, which are automatically stored as instance attributes. All parameters passed to `__init__` (except `**kwargs`) should be explicitly assigned to instance attributes:
+AsyncTasQ provides **two patterns** for passing parameters to tasks:
+
+#### Pattern 1: Automatic Parameter Passing (Recommended for Simple Tasks)
+
+The simplest approach is to let AsyncTasQ automatically handle parameter assignment. Any keyword arguments passed during instantiation become instance attributes:
 
 ```python
 import asynctasq
@@ -107,17 +111,13 @@ from asynctasq.tasks import AsyncTask
 asynctasq.init({'driver': 'redis'})
 
 class ProcessData(AsyncTask[int]):
-    """Process data and return sum."""
-
-    def __init__(self, data: list[int], **kwargs):
-        super().__init__(**kwargs)
-        self.data = data
+    """Process data and return sum - no __init__ needed!"""
 
     async def execute(self) -> int:
-        """Process the data."""
+        """Access parameters as instance attributes."""
         return sum(self.data)
 
-# Dispatch
+# Dispatch - parameters automatically become attributes
 async def main():
     task_id = await ProcessData(data=[1, 2, 3, 4, 5]).dispatch()
     print(f"Task dispatched: {task_id}")
@@ -128,7 +128,95 @@ if __name__ == "__main__":
     run(main())
 ```
 
-**Important:** Always call `super().__init__(**kwargs)` in your `__init__` to ensure proper task initialization. This allows the framework to properly set up task metadata and configuration.
+**How it works:** `BaseTask.__init__()` accepts any keyword arguments and automatically sets them as instance attributes. No custom `__init__` needed!
+
+#### Pattern 2: Custom `__init__` (For Validation or Transformation)
+
+Use a custom `__init__` when you need to validate, transform, or provide default values for parameters:
+
+```python
+import asynctasq
+from asynctasq.tasks import AsyncTask
+
+asynctasq.init({'driver': 'redis'})
+
+class ProcessData(AsyncTask[int]):
+    """Process data with validation."""
+
+    def __init__(self, data: list[int], multiplier: int = 1, **kwargs):
+        super().__init__(**kwargs)
+        # Validation
+        if not data:
+            raise ValueError("Data cannot be empty")
+        # Transformation
+        self.data = [x * multiplier for x in data]
+
+    async def execute(self) -> int:
+        """Process the validated/transformed data."""
+        return sum(self.data)
+
+# Dispatch
+async def main():
+    task_id = await ProcessData(data=[1, 2, 3, 4, 5], multiplier=2).dispatch()
+    print(f"Task dispatched: {task_id}")
+
+if __name__ == "__main__":
+    from asynctasq.utils.loop import run
+
+    run(main())
+```
+
+**Important:** When using custom `__init__`:
+- Always call `super().__init__(**kwargs)` to ensure proper task initialization
+- This sets up task metadata and configuration
+- Explicitly assign parameters as instance attributes (e.g., `self.data = data`)
+
+**Which Pattern to Use:**
+- ✅ **Pattern 1 (Automatic)**: Simple tasks, no validation needed, straightforward parameter passing
+- ✅ **Pattern 2 (Custom __init__)**: Need validation, transformation, default values, or complex initialization logic
+
+#### Reserved Parameter Names
+
+AsyncTasQ reserves certain parameter names that cannot be used as task parameters because they would shadow built-in methods and attributes. Using these names will raise a `ValueError`:
+
+**Reserved Names:**
+- `config` - Task configuration object
+- `run` - Framework execution method
+- `execute` - User-defined task logic method
+- `dispatch` - Method to queue tasks
+- `failed` - Failure hook method
+- `should_retry` - Retry decision hook method
+- `on_queue` - Method chaining for queue override
+- `delay` - Method chaining for delayed execution
+- `retry_after` - Method chaining for retry delay
+- `max_attempts` - Method chaining for max attempts
+- `timeout` - Method chaining for timeout
+
+**Example of Error:**
+
+```python
+from asynctasq.tasks import AsyncTask
+
+# ❌ WRONG: Using reserved name 'config' as parameter
+class BadTask(AsyncTask[None]):
+    async def execute(self) -> None:
+        print(self.config)
+
+# This will raise: ValueError: Parameter name 'config' is reserved
+await BadTask(config="some_value").dispatch()
+
+# ✅ CORRECT: Use a different parameter name
+class GoodTask(AsyncTask[None]):
+    async def execute(self) -> None:
+        print(self.task_config)
+
+await GoodTask(task_config="some_value").dispatch()
+```
+
+**Best Practices:**
+- Use descriptive parameter names that don't conflict with framework methods
+- If you need configuration-like parameters, use names like `task_config`, `settings`, `options`, etc.
+- The framework will raise a clear error message if you accidentally use a reserved name
 
 ---
 
@@ -1529,6 +1617,7 @@ Tasks automatically track metadata that you can access in your task methods:
 - `_task_id`: UUID string for task identification (set during dispatch)
 - `_current_attempt`: Current retry attempt count (0-indexed: 0 = first attempt, 1 = first retry, etc.)
 - `_dispatched_at`: Datetime when task was first queued (may be `None` in some edge cases)
+- `correlation_id`: Optional correlation ID for distributed tracing (set via `config`)
 
 **Note:** Metadata is set by the framework during task dispatch and execution. Access these attributes in your `execute()`, `failed()`, or `should_retry()` methods.
 
@@ -1541,12 +1630,28 @@ from datetime import datetime
 class MyTask(AsyncTask[None]):
     async def execute(self) -> None:
         print(f"Task ID: {self._task_id}")
-        print(f"Attempt: {self._current_attempt}")  # 0-indexed (0 = first attempt)
+        print(f"Attempt: {self._current_attempt}")  # 1-indexed (1 = first attempt, 2 = first retry)
         if self._dispatched_at:
             print(f"Dispatched at: {self._dispatched_at}")
         else:
             print("Dispatched at: Unknown")
 ```
+
+**Important - Attempt Counting Behavior:**
+
+The `_current_attempt` counter is **1-indexed** during execution:
+- `_current_attempt = 1` - First execution (not a retry)
+- `_current_attempt = 2` - First retry
+- `_current_attempt = 3` - Second retry
+- And so on...
+
+**How it works internally:**
+1. Task is created with `_current_attempt = 0`
+2. Framework calls `mark_attempt_started()` before execution, which increments to `1`
+3. Inside your `execute()` method, `_current_attempt` is `1` (first attempt)
+4. If task fails and retries, `_current_attempt` is incremented to `2`, `3`, etc.
+
+This means when you check `_current_attempt` in your task methods (`execute()`, `should_retry()`, `failed()`), it represents the **current execution number** starting from 1.
 
 ### Using Metadata for Logging
 
@@ -1580,15 +1685,15 @@ class SmartRetryTask(AsyncTask[None]):
     max_attempts = 5
 
     async def execute(self) -> None:
-        # Adjust behavior based on attempt count
+        # Adjust behavior based on attempt count (1-indexed)
         if self._current_attempt == 1:
-            # (attempt 1) - use fast method
+            # First attempt - use fast method
             await self._fast_method()
-        elif self._current_attempt < 3:
-            #(attempts 2-3) - use standard method
+        elif self._current_attempt <= 3:
+            # Attempts 2-3 (retries 1-2) - use standard method
             await self._standard_method()
         else:
-            # (attempts 4+) - use fallback method
+            # Attempts 4+ (retries 3+) - use fallback method
             await self._fallback_method()
 
     async def _fast_method(self):
@@ -1600,6 +1705,55 @@ class SmartRetryTask(AsyncTask[None]):
     async def _fallback_method(self):
         pass
 ```
+
+### Using Correlation IDs for Distributed Tracing
+
+Correlation IDs allow you to track related tasks across distributed systems. Set a correlation ID to group related tasks together for monitoring and debugging:
+
+```python
+from asynctasq.tasks import AsyncTask
+
+class ProcessOrder(AsyncTask[dict]):
+    """Process order with correlation tracking."""
+
+    queue = "orders"
+
+    async def execute(self) -> dict:
+        # Access correlation ID for logging
+        correlation_id = self.config.get("correlation_id")
+        if correlation_id:
+            print(f"Processing order {self.order_id} (trace: {correlation_id})")
+        return {"order_id": self.order_id, "status": "processed"}
+
+# Pattern 1: Set correlation ID at class level (all instances share)
+class OrderNotification(AsyncTask[None]):
+    config = {
+        "queue": "notifications",
+        "correlation_id": "order-pipeline-v1"  # All instances share this ID
+    }
+
+    async def execute(self) -> None:
+        print(f"Trace ID: {self.config['correlation_id']}")
+
+# Pattern 2: Set correlation ID per-task instance for request tracing
+async def handle_user_request(user_id: int, request_id: str):
+    """Process user request with unique trace ID."""
+    # Create task with unique correlation ID
+    task = ProcessOrder(order_id=123)
+    task.config["correlation_id"] = f"req-{request_id}"
+    await task.dispatch()
+
+    # All related tasks can share the same correlation ID
+    task2 = OrderNotification()
+    task2.config["correlation_id"] = f"req-{request_id}"
+    await task2.dispatch()
+```
+
+**Use Cases for Correlation IDs:**
+- **Request Tracing**: Track all tasks spawned from a single user request
+- **Pipeline Tracking**: Group tasks that are part of the same data processing pipeline
+- **Debugging**: Filter logs and metrics by correlation ID to debug specific workflows
+- **Monitoring**: Track task execution across multiple services and queues
 
 ---
 

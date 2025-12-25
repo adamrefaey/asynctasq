@@ -24,12 +24,12 @@ async def send_email(to: str, subject: str, body: str):
     await asyncio.sleep(1)  # Simulate email sending
     return f"Email sent to {to}"
 
-# Dispatch
-task_id = await send_email.dispatch(
+# Dispatch - call the function first, then call .dispatch()
+task_id = await send_email(
     to="user@example.com",
     subject="Welcome!",
     body="Welcome to our platform!"
-)
+).dispatch()
 ```
 
 **With Configuration:**
@@ -69,16 +69,32 @@ def heavy_computation(data: list[float]):
 
 **Dispatching Function Tasks:**
 
+Function-based tasks use a **two-step dispatch pattern**: first call the decorated function with its arguments to create a task instance, then call `.dispatch()` on that instance.
+
 ```python
-# Direct dispatch
-task_id = await send_email(to="user@example.com", subject="Hello", body="Hi!").dispatch()
+# Direct dispatch - call function first, then .dispatch()
+task_id = await send_email(
+    to="user@example.com",
+    subject="Hello",
+    body="Hi!"
+).dispatch()
 
 # With delay (execute after 60 seconds)
-task_id = await send_email(to="user@example.com", subject="Hello", body="Hi!").delay(60).dispatch()
+task_id = await send_email(
+    to="user@example.com",
+    subject="Hello",
+    body="Hi!"
+).delay(60).dispatch()
 
 # Method chaining with queue override
-task_id = await send_email(to="user@example.com", subject="Hello", body="Hi!").on_queue("high").dispatch()
+task_id = await send_email(
+    to="user@example.com",
+    subject="Hello",
+    body="Hi!"
+).on_queue("high").dispatch()
 ```
+
+**Important:** The decorated function must be called first (with parentheses and arguments) to create a task instance. Then `.dispatch()` is called on that instance with NO arguments.
 
 ---
 
