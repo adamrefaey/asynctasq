@@ -170,6 +170,34 @@ class TestRedisEventEmitter:
         mock_client.publish.assert_called_once()
 
     @mark.asyncio
+    async def test_emit_initializes_connection_lazy(self, sample_task_event: TaskEvent) -> None:
+        """Test that emit lazily initializes Redis connection."""
+        mock_config = Config(
+            events_redis_url="redis://localhost:6379",
+            events_channel="test:events",
+        )
+
+        with patch("asynctasq.monitoring.emitters.Config.get", return_value=mock_config):
+            emitter = RedisEventEmitter()
+
+        # _client should be None initially
+        assert emitter._client is None
+
+        # Mock Redis.from_url
+        with patch("redis.asyncio.Redis.from_url") as mock_redis_from_url:
+            mock_client = AsyncMock()
+            mock_redis_from_url.return_value = mock_client
+
+            await emitter.emit(sample_task_event)
+
+            # Should initialize connection
+            mock_redis_from_url.assert_called_once_with(
+                "redis://localhost:6379", decode_responses=False
+            )
+            assert emitter._client == mock_client
+            mock_client.publish.assert_called_once()
+
+    @mark.asyncio
     async def test_emit_handles_publish_error_gracefully(
         self, sample_task_event: TaskEvent, caplog
     ) -> None:
