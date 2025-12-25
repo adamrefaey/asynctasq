@@ -286,11 +286,15 @@ class ProcessOrderTask(AsyncTask[None]):
 ### Task-Level Configuration
 
 ```python
+from asynctasq.tasks.core.task_config import TaskConfig
+
 class MyTask(AsyncTask[None]):
-    queue = "high-priority"
-    max_attempts = 5          # Retry up to 5 times
-    retry_delay = 120        # 2 minutes between retries
-    timeout = 300            # 5-minute timeout per attempt
+    config: TaskConfig = {
+        "queue": "high-priority",
+        "max_attempts": 5,          # Retry up to 5 times
+        "retry_delay": 120,        # 2 minutes between retries
+        "timeout": 300,            # 5-minute timeout per attempt
+    }
 ```
 
 ### Runtime Configuration

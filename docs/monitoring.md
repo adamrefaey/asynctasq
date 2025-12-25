@@ -118,21 +118,27 @@ Enable Redis event emission in your AsyncTasQ configuration:
 
 ```python
 import asynctasq
+from asynctasq.config import EventsConfig
 
 asynctasq.init({
-    'enable_event_emitter_redis': True,  # Enable Redis event emission
-    'events_redis_url': 'redis://events.example.com:6379',  # Optional: separate Redis for events
-    'events_channel': 'asynctasq:prod:events'  # Pub/Sub channel name
+    'driver': 'redis',
+    'events': EventsConfig(
+        enable_event_emitter_redis=True,  # Enable Redis event emission
+        redis_url='redis://events.example.com:6379',  # Optional: separate Redis for events
+        channel='asynctasq:prod:events'  # Pub/Sub channel name
+    )
 })
 ```
 
 ### Configuration Options
 
+Configuration group: `events` (type: `EventsConfig`)
+
 | Option                       | Type        | Description                                      | Default            |
 | ---------------------------- | ----------- | ------------------------------------------------ | ------------------ |
 | `enable_event_emitter_redis` | bool        | Enable/disable Redis event emission              | `False`            |
-| `events_redis_url`           | str \| None | Redis URL for events (falls back to `redis_url`) | `None`             |
-| `events_channel`             | str         | Redis Pub/Sub channel name                       | `asynctasq:events` |
+| `redis_url`                  | str \| None | Redis URL for events (falls back to `redis.url`) | `None`             |
+| `channel`                    | str         | Redis Pub/Sub channel name                       | `asynctasq:events` |
 
 **Note:** Events are always logged at INFO level for development and debugging.
 
