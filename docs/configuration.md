@@ -94,14 +94,15 @@ asynctasq.init({'driver': 'postgres'})
 
 ### Task Defaults
 
-| Option                       |        Type | Description                                         | Choices                | Default       |
-| ---------------------------- | ----------: | --------------------------------------------------- | ---------------------- | ------------- |
-| `default_queue`              |         str | Default queue name for tasks                        | —                      | `default`     |
-| `default_max_attempts`       |         int | Default maximum retry attempts                      | —                      | `3`           |
-| `default_retry_strategy`     |         str | Retry delay strategy                                | `fixed`, `exponential` | `exponential` |
-| `default_retry_delay`        |         int | Base retry delay in seconds                         | —                      | `60`          |
-| `default_timeout`            | int \| None | Default task timeout in seconds (None = no timeout) | —                      | `None`        |
-| `default_visibility_timeout` |         int | Visibility timeout for crash recovery in seconds    | —                      | `300`         |
+| Option                       |        Type | Description                                                                        | Choices                | Default       |
+| ---------------------------- | ----------: | ---------------------------------------------------------------------------------- | ---------------------- | ------------- |
+| `default_queue`              |         str | Default queue name for tasks                                                       | —                      | `default`     |
+| `default_max_attempts`       |         int | Default maximum retry attempts                                                     | —                      | `3`           |
+| `default_retry_strategy`     |         str | Retry delay strategy                                                               | `fixed`, `exponential` | `exponential` |
+| `default_retry_delay`        |         int | Base retry delay in seconds                                                        | —                      | `60`          |
+| `default_timeout`            | int \| None | Default task timeout in seconds (None = no timeout)                                | —                      | `None`        |
+| `default_visibility_timeout` |         int | Crash recovery timeout - how long a task is invisible before auto-recovery (PostgreSQL/MySQL/SQS only) | —                      | `300`         |
+| `correlation_id`             | str \| None | Optional correlation ID for distributed tracing (can be set per-task in TaskConfig) | —                      | `None`        |
 
 ```python
 import asynctasq
@@ -112,9 +113,69 @@ asynctasq.init({
     'default_retry_strategy': 'exponential',
     'default_retry_delay': 120,
     'default_timeout': 600,
-    'default_visibility_timeout': 300
+    'default_visibility_timeout': 300  # 5 minutes
 })
 ```
+
+#### Understanding Visibility Timeout (Crash Recovery)
+
+**What is visibility timeout?**
+
+Visibility timeout is AsyncTasQ's **automatic crash recovery mechanism**. When a worker dequeues a task, the task becomes invisible to other workers for the specified duration. If the worker crashes and never acknowledges the task, it automatically becomes visible again after the timeout expires.
+
+**How it works:**
+
+1. **Worker A dequeues task** → Task marked as `processing`, locked until `NOW() + visibility_timeout`
+2. **Task becomes invisible** → Other workers cannot see this task for `visibility_timeout` seconds
+3. **Two possible outcomes:**
+   - ✅ **Success**: Worker completes task and calls `ack()` → Task removed/completed permanently
+   - ❌ **Crash**: Worker crashes without calling `ack()` → After timeout expires, task becomes visible again for another worker to retry
+
+**Example scenario:**
+
+```python
+# Configuration
+asynctasq.init({
+    'driver': 'postgres',
+    'default_visibility_timeout': 300  # 5 minutes
+})
+
+# Timeline:
+# 11:00:00 - Worker A dequeues payment task (locked until 11:05:00)
+# 11:00:45 - Worker A crashes (server dies, OOM, network failure)
+# 11:00:46 - Task is invisible, other workers can't see it
+# 11:05:00 - Visibility timeout expires
+# 11:05:01 - Task automatically becomes visible again
+# 11:05:02 - Worker B picks up the task and processes it successfully
+# Result: No manual intervention needed, task recovered automatically!
+```
+
+**Choosing the right value:**
+
+- **Too short** (e.g., 30s): Tasks taking longer than timeout will be processed by multiple workers (duplicate processing)
+- **Too long** (e.g., 1 hour): Crashed tasks wait too long before retry, poor user experience
+- **Recommended**: `visibility_timeout = (expected_task_duration × 2) + buffer`
+
+**Example:**
+```python
+# Task typically takes 60 seconds
+asynctasq.init({
+    'default_visibility_timeout': 180  # (60 × 2) + 60 = 3 minutes
+})
+```
+
+**Driver support:**
+- ✅ **PostgreSQL**: Uses `locked_until` timestamp column
+- ✅ **MySQL**: Uses `locked_until` timestamp column
+- ✅ **SQS**: Built-in visibility timeout feature
+- ❌ **Redis**: Uses consumer groups (different mechanism)
+- ❌ **RabbitMQ**: Uses acknowledgment-based recovery (different mechanism)
+
+**Important notes:**
+- This is different from `task.timeout` (execution timeout per attempt)
+- Only applies to PostgreSQL, MySQL, and SQS drivers
+- Critical for production reliability and fault tolerance
+- Prevents task loss when workers crash unexpectedly
 
 ---
 
@@ -135,6 +196,44 @@ asynctasq.init({
     'process_pool_max_tasks_per_child': 100
 })
 ```
+
+#### Warm Event Loops for AsyncProcessTask
+
+AsyncProcessTask requires an event loop in each worker process. AsyncTasQ provides two initialization modes:
+
+1. **Warm Event Loops (Recommended)** - Pre-initialize event loops during worker startup for better performance
+2. **On-Demand Event Loops** - Create event loops as needed (fallback, shows warnings)
+
+**Initializing Warm Event Loops:**
+
+```python
+from asynctasq.tasks.infrastructure import ProcessPoolManager
+
+# Initialize the process pool with warm event loops
+async def init_worker():
+    """Call this during worker startup (before processing tasks)."""
+    manager = ProcessPoolManager.get_default_manager()
+    await manager.initialize(
+        pool_size=4,  # Number of worker processes
+        max_tasks_per_child=100  # Recycle after 100 tasks
+    )
+    # Event loops are now pre-initialized in all worker processes
+
+# In your worker startup code
+import asyncio
+asyncio.run(init_worker())
+```
+
+**Benefits of Warm Event Loops:**
+- ⚡ **Faster task execution** - No loop creation overhead per task
+- 🔇 **No warnings** - Eliminates "falling back to on-demand event loop" warnings
+- 📊 **Better performance** - ~50ms saved per AsyncProcessTask execution
+
+**When to Use:**
+- ✅ If you use `AsyncProcessTask` (async CPU-intensive tasks)
+- ✅ In production for optimal performance
+- ❌ Not needed for `SyncProcessTask` (sync CPU-intensive tasks)
+- ❌ Not needed for `AsyncTask` or `SyncTask` (I/O-bound tasks)
 
 ---
 
