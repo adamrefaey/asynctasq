@@ -136,6 +136,14 @@ class FunctionResolver:
                         cls._module_cache[cache_key] = loaded_module
                         logger.debug(f"Loaded module {module_name} from {module_path}")
                         return loaded_module
+                    except ModuleNotFoundError as e:
+                        # Module file exists but has missing dependencies
+                        sys.modules.pop(module_name, None)
+                        raise ImportError(
+                            f"Module {module_name} loaded from {module_path} has missing "
+                            f"dependencies: {e.name}. Ensure all required packages are installed "
+                            f"in the worker environment."
+                        ) from e
                     except Exception as e:
                         sys.modules.pop(module_name, None)
                         logger.exception(f"Failed to execute module {module_path}: {e}")
