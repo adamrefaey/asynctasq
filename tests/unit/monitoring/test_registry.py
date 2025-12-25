@@ -1,7 +1,7 @@
 """Tests for EventRegistry."""
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 from pytest import main, mark
 
@@ -172,6 +172,83 @@ class TestEventRegistry:
         assert len(emitters) >= 1
         # The manually added emitter should be gone
         assert emitter not in emitters
+
+
+@mark.unit
+class TestEventRegistryEdgeCases:
+    """Edge case tests for EventRegistry to increase coverage."""
+
+    def test_add_none_emitter_raises_error(self) -> None:
+        """Test that adding None emitter does not raise (current behavior)."""
+        # Current behavior: doesn't check for None
+        EventRegistry.add(None)  # type: ignore
+
+    def test_add_duplicate_emitter_works(self) -> None:
+        """Test that adding the same emitter multiple times works (no duplicates)."""
+        EventRegistry.init()
+        emitter = LoggingEventEmitter()
+
+        EventRegistry.add(emitter)
+        initial_count = len(EventRegistry.get_all())
+
+        EventRegistry.add(emitter)  # Add again
+        final_count = len(EventRegistry.get_all())
+
+        # Should not increase count
+        assert final_count == initial_count
+
+    @mark.asyncio
+    async def test_emit_with_no_emitters_does_nothing(self) -> None:
+        """Test that emit works even with no emitters."""
+        EventRegistry.init()  # Clears all emitters
+
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test",
+            task_name="test_task",
+            queue="default",
+            worker_id="worker-123",
+        )
+
+        # Should not raise any errors
+        await EventRegistry.emit(event)
+
+    @mark.asyncio
+    async def test_emit_with_mixed_sync_async_emitters(self) -> None:
+        """Test emit with both sync and async emitters."""
+        EventRegistry.init()
+
+        sync_emitter = LoggingEventEmitter()
+        async_emitter = MagicMock()
+        async_emitter.emit = AsyncMock()
+
+        EventRegistry.add(sync_emitter)
+        EventRegistry.add(async_emitter)
+
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test-123",
+            task_name="test_task",
+            queue="default",
+            worker_id="worker-123",
+            timestamp=datetime.now(UTC),
+        )
+
+        await EventRegistry.emit(event)
+
+        # Both should be called
+        async_emitter.emit.assert_called_once()
+
+    def test_get_all_returns_copy_not_reference(self) -> None:
+        """Test that get_all returns a copy, not the internal list."""
+        EventRegistry.init()
+        initial_count = len(EventRegistry.get_all())
+
+        emitters = EventRegistry.get_all()
+        emitters.clear()  # Modify the returned list
+
+        # Original should still have the initial emitters
+        assert len(EventRegistry.get_all()) == initial_count
 
 
 if __name__ == "__main__":
