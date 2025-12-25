@@ -99,6 +99,22 @@ class BaseTask[T](ABC):
         ValueError
             If parameter name starts with underscore or matches reserved names
         """
+        # Initialize config with defaults from global Config
+        from asynctasq.config import Config
+
+        global_config = Config.get()
+        class_config = getattr(self, "config", {})
+
+        # Merge class config with global defaults
+        self.config: TaskConfig = {
+            "queue": class_config.get("queue", global_config.default_queue),
+            "max_attempts": class_config.get("max_attempts", global_config.default_max_attempts),
+            "retry_delay": class_config.get("retry_delay", global_config.default_retry_delay),
+            "timeout": class_config.get("timeout", global_config.default_timeout),
+            "driver": class_config.get("driver"),
+            "correlation_id": class_config.get("correlation_id"),
+        }
+
         # Combine base reserved names with subclass-specific ones
         all_reserved = RESERVED_NAMES | self._get_additional_reserved_names()
 
