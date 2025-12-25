@@ -73,6 +73,44 @@ class TestEventRegistry:
         emitter2.emit.assert_called_once_with(event)
 
     @mark.asyncio
+    async def test_emit_handles_emitter_exceptions(self, caplog) -> None:
+        """Test that emit handles exceptions from individual emitters gracefully."""
+        import logging
+
+        EventRegistry.init()
+
+        emitter1 = LoggingEventEmitter()
+        emitter2 = LoggingEventEmitter()
+
+        # Mock emit methods - one succeeds, one fails
+        emitter1.emit = AsyncMock()
+        emitter2.emit = AsyncMock(side_effect=Exception("Test error"))
+
+        EventRegistry.add(emitter1)
+        EventRegistry.add(emitter2)
+
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test-task-123",
+            task_name="TestTask",
+            queue="default",
+            worker_id="worker-abc123",
+            timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC),
+            attempt=1,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            await EventRegistry.emit(event)
+
+        # Both should be called
+        emitter1.emit.assert_called_once_with(event)
+        emitter2.emit.assert_called_once_with(event)
+
+        # Warning should be logged for the failed emitter
+        assert "Global emit failed" in caplog.text
+        assert "Test error" in caplog.text
+
+    @mark.asyncio
     async def test_close_all_emitters(self) -> None:
         """Test closing all emitters."""
         EventRegistry.init()
@@ -91,6 +129,34 @@ class TestEventRegistry:
 
         emitter1.close.assert_called_once()
         emitter2.close.assert_called_once()
+
+    @mark.asyncio
+    async def test_close_all_handles_emitter_exceptions(self, caplog) -> None:
+        """Test that close_all handles exceptions from individual emitters gracefully."""
+        import logging
+
+        EventRegistry.init()
+
+        emitter1 = LoggingEventEmitter()
+        emitter2 = LoggingEventEmitter()
+
+        # Mock close methods - one succeeds, one fails
+        emitter1.close = AsyncMock()
+        emitter2.close = AsyncMock(side_effect=Exception("Close error"))
+
+        EventRegistry.add(emitter1)
+        EventRegistry.add(emitter2)
+
+        with caplog.at_level(logging.WARNING):
+            await EventRegistry.close_all()
+
+        # Both should be called
+        emitter1.close.assert_called_once()
+        emitter2.close.assert_called_once()
+
+        # Warning should be logged for the failed emitter
+        assert "Failed to close emitter" in caplog.text
+        assert "Close error" in caplog.text
 
     def test_init_clears_and_reinitializes(self) -> None:
         """Test that init clears existing emitters and reinitializes."""
