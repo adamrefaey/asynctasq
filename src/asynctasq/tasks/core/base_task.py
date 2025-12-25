@@ -86,46 +86,6 @@ class BaseTask[T](ABC):
         """
         return frozenset()
 
-    @classmethod
-    def _extract_config_from_class(cls) -> TaskConfig:
-        """Extract TaskConfig values from class attributes or config dict.
-
-        Supports two configuration patterns:
-        1. Config dict (recommended): class MyTask: config = {"timeout": 10}
-        2. Class attributes: class MyTask: timeout = 10
-
-        Returns
-        -------
-        TaskConfig
-            Configuration dictionary with all task settings
-        """
-        # Use __dict__ to get class attributes only (not inherited methods)
-        # This allows subclasses to set: class MyTask: max_attempts = 5
-        # while avoiding conflicts with the max_attempts() method from BaseTask
-        class_dict = cls.__dict__
-
-        # First check for config dict (preferred method)
-        config_dict = class_dict.get("config")
-        if isinstance(config_dict, dict):
-            return TaskConfig(
-                queue=config_dict.get("queue", "default"),
-                max_attempts=config_dict.get("max_attempts", 3),
-                retry_delay=config_dict.get("retry_delay", 60),
-                timeout=config_dict.get("timeout", None),
-                driver=config_dict.get("driver", None),
-                correlation_id=config_dict.get("correlation_id", None),
-            )
-
-        # Fall back to individual class attributes
-        return TaskConfig(
-            queue=class_dict.get("queue", "default"),
-            max_attempts=class_dict.get("max_attempts", 3),
-            retry_delay=class_dict.get("retry_delay", 60),
-            timeout=class_dict.get("timeout", None),
-            driver=class_dict.get("driver", None),
-            correlation_id=class_dict.get("correlation_id", None),
-        )
-
     def __init__(self, **kwargs: Any) -> None:
         """Initialize task instance with custom parameters.
 
@@ -139,9 +99,6 @@ class BaseTask[T](ABC):
         ValueError
             If parameter name starts with underscore or matches reserved names
         """
-        # Initialize configuration from class attributes if present
-        self.config: TaskConfig = self._extract_config_from_class()
-
         # Combine base reserved names with subclass-specific ones
         all_reserved = RESERVED_NAMES | self._get_additional_reserved_names()
 
