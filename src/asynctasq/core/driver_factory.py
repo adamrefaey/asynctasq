@@ -1,6 +1,8 @@
-from typing import Any, get_args
+from typing import get_args
 
-from asynctasq.config import Config
+from asynctasq.config import (
+    Config,
+)
 from asynctasq.drivers import DriverType
 from asynctasq.drivers.base_driver import BaseDriver
 
@@ -30,43 +32,16 @@ class DriverFactory:
         """
         return DriverFactory.create(
             driver_type if driver_type is not None else config.driver,
-            redis_url=config.redis.url,
-            redis_password=config.redis.password,
-            redis_db=config.redis.db,
-            redis_max_connections=config.redis.max_connections,
-            sqs_region=config.sqs.region,
-            sqs_queue_url_prefix=config.sqs.queue_url_prefix,
-            sqs_endpoint_url=config.sqs.endpoint_url,
-            aws_access_key_id=config.sqs.aws_access_key_id,
-            aws_secret_access_key=config.sqs.aws_secret_access_key,
-            postgres_dsn=config.postgres.dsn,
-            postgres_queue_table=config.postgres.queue_table,
-            postgres_dead_letter_table=config.postgres.dead_letter_table,
-            postgres_max_attempts=config.postgres.max_attempts,
-            postgres_min_pool_size=config.postgres.min_pool_size,
-            postgres_max_pool_size=config.postgres.max_pool_size,
-            mysql_dsn=config.mysql.dsn,
-            mysql_queue_table=config.mysql.queue_table,
-            mysql_dead_letter_table=config.mysql.dead_letter_table,
-            mysql_max_attempts=config.mysql.max_attempts,
-            mysql_min_pool_size=config.mysql.min_pool_size,
-            mysql_max_pool_size=config.mysql.max_pool_size,
-            rabbitmq_url=config.rabbitmq.url,
-            rabbitmq_exchange_name=config.rabbitmq.exchange_name,
-            rabbitmq_prefetch_count=config.rabbitmq.prefetch_count,
-            keep_completed_tasks=config.repository.keep_completed_tasks,
-            default_retry_strategy=config.task_defaults.retry_strategy,
-            default_retry_delay=config.task_defaults.retry_delay,
-            default_visibility_timeout=config.task_defaults.visibility_timeout,
+            config,
         )
 
     @staticmethod
-    def create(driver_type: DriverType, **kwargs: Any) -> BaseDriver:
-        """Create driver by type with specific configuration.
+    def create(driver_type: DriverType, config: Config) -> BaseDriver:
+        """Create driver by type with configuration.
 
         Args:
             driver_type: Type of driver
-            **kwargs: Driver-specific configuration
+            config: Configuration object containing all settings
 
         Returns:
             Configured BaseDriver instance
@@ -80,68 +55,58 @@ class DriverFactory:
                 from asynctasq.drivers.redis_driver import RedisDriver
 
                 return RedisDriver(
-                    url=kwargs.get("redis_url", "redis://localhost:6379"),
-                    password=kwargs.get("redis_password"),
-                    db=kwargs.get("redis_db", 0),
-                    max_connections=kwargs.get("redis_max_connections", 100),
-                    keep_completed_tasks=kwargs.get("keep_completed_tasks", False),
+                    url=config.redis.url,
+                    password=config.redis.password,
+                    db=config.redis.db,
+                    max_connections=config.redis.max_connections,
+                    keep_completed_tasks=config.repository.keep_completed_tasks,
                 )
             case "sqs":
                 from asynctasq.drivers.sqs_driver import SQSDriver
 
                 return SQSDriver(
-                    region_name=kwargs.get("sqs_region", "us-east-1"),
-                    queue_url_prefix=kwargs.get("sqs_queue_url_prefix"),
-                    aws_access_key_id=kwargs.get("aws_access_key_id"),
-                    aws_secret_access_key=kwargs.get("aws_secret_access_key"),
-                    endpoint_url=kwargs.get("sqs_endpoint_url"),
+                    region_name=config.sqs.region,
+                    queue_url_prefix=config.sqs.queue_url_prefix,
+                    aws_access_key_id=config.sqs.aws_access_key_id,
+                    aws_secret_access_key=config.sqs.aws_secret_access_key,
+                    endpoint_url=config.sqs.endpoint_url,
                 )
             case "postgres":
                 from asynctasq.drivers.postgres_driver import PostgresDriver
 
                 return PostgresDriver(
-                    dsn=kwargs.get("postgres_dsn", "postgresql://user:pass@localhost/dbname"),
-                    queue_table=kwargs.get("postgres_queue_table", "task_queue"),
-                    dead_letter_table=kwargs.get("postgres_dead_letter_table", "dead_letter_queue"),
-                    max_attempts=kwargs.get("postgres_max_attempts", 3),
-                    retry_delay_seconds=kwargs.get(
-                        "postgres_retry_delay_seconds", kwargs.get("default_retry_delay", 60)
-                    ),
-                    visibility_timeout_seconds=kwargs.get(
-                        "postgres_visibility_timeout_seconds",
-                        kwargs.get("default_visibility_timeout", 300),
-                    ),
-                    min_pool_size=kwargs.get("postgres_min_pool_size", 10),
-                    max_pool_size=kwargs.get("postgres_max_pool_size", 10),
-                    keep_completed_tasks=kwargs.get("keep_completed_tasks", False),
+                    dsn=config.postgres.dsn,
+                    queue_table=config.postgres.queue_table,
+                    dead_letter_table=config.postgres.dead_letter_table,
+                    max_attempts=config.postgres.max_attempts,
+                    retry_delay_seconds=config.task_defaults.retry_delay,
+                    visibility_timeout_seconds=config.task_defaults.visibility_timeout,
+                    min_pool_size=config.postgres.min_pool_size,
+                    max_pool_size=config.postgres.max_pool_size,
+                    keep_completed_tasks=config.repository.keep_completed_tasks,
                 )
             case "mysql":
                 from asynctasq.drivers.mysql_driver import MySQLDriver
 
                 return MySQLDriver(
-                    dsn=kwargs.get("mysql_dsn", "mysql://user:pass@localhost:3306/dbname"),
-                    queue_table=kwargs.get("mysql_queue_table", "task_queue"),
-                    dead_letter_table=kwargs.get("mysql_dead_letter_table", "dead_letter_queue"),
-                    max_attempts=kwargs.get("mysql_max_attempts", 3),
-                    retry_delay_seconds=kwargs.get(
-                        "mysql_retry_delay_seconds", kwargs.get("default_retry_delay", 60)
-                    ),
-                    visibility_timeout_seconds=kwargs.get(
-                        "mysql_visibility_timeout_seconds",
-                        kwargs.get("default_visibility_timeout", 300),
-                    ),
-                    min_pool_size=kwargs.get("mysql_min_pool_size", 10),
-                    max_pool_size=kwargs.get("mysql_max_pool_size", 10),
-                    keep_completed_tasks=kwargs.get("keep_completed_tasks", False),
+                    dsn=config.mysql.dsn,
+                    queue_table=config.mysql.queue_table,
+                    dead_letter_table=config.mysql.dead_letter_table,
+                    max_attempts=config.mysql.max_attempts,
+                    retry_delay_seconds=config.task_defaults.retry_delay,
+                    visibility_timeout_seconds=config.task_defaults.visibility_timeout,
+                    min_pool_size=config.mysql.min_pool_size,
+                    max_pool_size=config.mysql.max_pool_size,
+                    keep_completed_tasks=config.repository.keep_completed_tasks,
                 )
             case "rabbitmq":
                 from asynctasq.drivers.rabbitmq_driver import RabbitMQDriver
 
                 return RabbitMQDriver(
-                    url=kwargs.get("rabbitmq_url", "amqp://guest:guest@localhost:5672/"),
-                    exchange_name=kwargs.get("rabbitmq_exchange_name", "asynctasq"),
-                    prefetch_count=kwargs.get("rabbitmq_prefetch_count", 1),
-                    keep_completed_tasks=kwargs.get("keep_completed_tasks", False),
+                    url=config.rabbitmq.url,
+                    exchange_name=config.rabbitmq.exchange_name,
+                    prefetch_count=config.rabbitmq.prefetch_count,
+                    keep_completed_tasks=config.repository.keep_completed_tasks,
                 )
             case _:
                 raise ValueError(
