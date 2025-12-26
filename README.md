@@ -141,7 +141,7 @@ In a separate terminal, run the worker to process the tasks:
 
 ```bash
 # Run the worker (in a separate terminal)
-uv run asynctasq worker
+uv run asynctasq worker --queues default,payments,high-priority,urgent
 ```
 
 **That's it!** Your first AsyncTasQ application is ready. AsyncTasQ works seamlessly with `asyncio.run()`, uvloop, FastAPI, Jupyter notebooks, or any other async framework - cleanup happens automatically when the event loop closes.
