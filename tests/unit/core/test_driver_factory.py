@@ -299,9 +299,10 @@ class TestDriverFactoryCreate:
         # Arrange
         mock_instance = MagicMock(spec=RedisDriver)
         mock_redis.return_value = mock_instance
+        config = Config()
 
         # Act
-        result = DriverFactory.create("redis")
+        result = DriverFactory.create("redis", config)
 
         # Assert
         mock_redis.assert_called_once_with(
@@ -318,15 +319,17 @@ class TestDriverFactoryCreate:
         # Arrange
         mock_instance = MagicMock(spec=RedisDriver)
         mock_redis.return_value = mock_instance
+        config = Config(
+            redis=RedisConfig(
+                url="redis://custom.host:6380",
+                password="custom_pass",
+                db=3,
+                max_connections=50,
+            )
+        )
 
         # Act
-        result = DriverFactory.create(
-            "redis",
-            redis_url="redis://custom.host:6380",
-            redis_password="custom_pass",
-            redis_db=3,
-            redis_max_connections=50,
-        )
+        result = DriverFactory.create("redis", config)
 
         # Assert
         mock_redis.assert_called_once_with(
@@ -343,9 +346,10 @@ class TestDriverFactoryCreate:
         # Arrange
         mock_instance = MagicMock(spec=SQSDriver)
         mock_sqs.return_value = mock_instance
+        config = Config()
 
         # Act
-        result = DriverFactory.create("sqs")
+        result = DriverFactory.create("sqs", config)
 
         # Assert
         mock_sqs.assert_called_once_with(
@@ -362,15 +366,17 @@ class TestDriverFactoryCreate:
         # Arrange
         mock_instance = MagicMock(spec=SQSDriver)
         mock_sqs.return_value = mock_instance
+        config = Config(
+            sqs=SQSConfig(
+                region="eu-west-1",
+                queue_url_prefix="https://sqs.eu-west-1.amazonaws.com/987654321/",
+                aws_access_key_id="custom_key",
+                aws_secret_access_key="custom_secret",
+            )
+        )
 
         # Act
-        result = DriverFactory.create(
-            "sqs",
-            sqs_region="eu-west-1",
-            sqs_queue_url_prefix="https://sqs.eu-west-1.amazonaws.com/987654321/",
-            aws_access_key_id="custom_key",
-            aws_secret_access_key="custom_secret",
-        )
+        result = DriverFactory.create("sqs", config)
 
         # Assert
         mock_sqs.assert_called_once_with(
@@ -387,13 +393,14 @@ class TestDriverFactoryCreate:
         # Arrange
         mock_instance = MagicMock(spec=PostgresDriver)
         mock_postgres.return_value = mock_instance
+        config = Config()
 
         # Act
-        result = DriverFactory.create("postgres")
+        result = DriverFactory.create("postgres", config)
 
         # Assert
         mock_postgres.assert_called_once_with(
-            dsn="postgresql://user:pass@localhost/dbname",
+            dsn="postgresql://test:test@localhost:5432/test_db",
             queue_table="task_queue",
             dead_letter_table="dead_letter_queue",
             max_attempts=3,
@@ -410,19 +417,23 @@ class TestDriverFactoryCreate:
         # Arrange
         mock_instance = MagicMock(spec=PostgresDriver)
         mock_postgres.return_value = mock_instance
+        config = Config(
+            postgres=PostgresConfig(
+                dsn="postgresql://admin:secret@db.example.com:5432/prod",
+                queue_table="production_queue",
+                dead_letter_table="production_dlq",
+                max_attempts=10,
+                min_pool_size=20,
+                max_pool_size=100,
+            ),
+            task_defaults=TaskDefaultsConfig(
+                retry_delay=300,
+                visibility_timeout=1800,
+            ),
+        )
 
         # Act
-        result = DriverFactory.create(
-            "postgres",
-            postgres_dsn="postgresql://admin:secret@db.example.com:5432/prod",
-            postgres_queue_table="production_queue",
-            postgres_dead_letter_table="production_dlq",
-            postgres_max_attempts=10,
-            postgres_retry_delay_seconds=300,
-            postgres_visibility_timeout_seconds=1800,
-            postgres_min_pool_size=20,
-            postgres_max_pool_size=100,
-        )
+        result = DriverFactory.create("postgres", config)
 
         # Assert
         mock_postgres.assert_called_once_with(
@@ -443,13 +454,14 @@ class TestDriverFactoryCreate:
         # Arrange
         mock_instance = MagicMock(spec=MySQLDriver)
         mock_mysql.return_value = mock_instance
+        config = Config()
 
         # Act
-        result = DriverFactory.create("mysql")
+        result = DriverFactory.create("mysql", config)
 
         # Assert
         mock_mysql.assert_called_once_with(
-            dsn="mysql://user:pass@localhost:3306/dbname",
+            dsn="mysql://test:test@localhost:3306/test_db",
             queue_table="task_queue",
             dead_letter_table="dead_letter_queue",
             max_attempts=3,
@@ -466,19 +478,23 @@ class TestDriverFactoryCreate:
         # Arrange
         mock_instance = MagicMock(spec=MySQLDriver)
         mock_mysql.return_value = mock_instance
+        config = Config(
+            mysql=MySQLConfig(
+                dsn="mysql://admin:secret@db.example.com:3306/prod",
+                queue_table="production_queue",
+                dead_letter_table="production_dlq",
+                max_attempts=10,
+                min_pool_size=20,
+                max_pool_size=100,
+            ),
+            task_defaults=TaskDefaultsConfig(
+                retry_delay=300,
+                visibility_timeout=1800,
+            ),
+        )
 
         # Act
-        result = DriverFactory.create(
-            "mysql",
-            mysql_dsn="mysql://admin:secret@db.example.com:3306/prod",
-            mysql_queue_table="production_queue",
-            mysql_dead_letter_table="production_dlq",
-            mysql_max_attempts=10,
-            mysql_retry_delay_seconds=300,
-            mysql_visibility_timeout_seconds=1800,
-            mysql_min_pool_size=20,
-            mysql_max_pool_size=100,
-        )
+        result = DriverFactory.create("mysql", config)
 
         # Assert
         mock_mysql.assert_called_once_with(
@@ -504,9 +520,10 @@ class TestDriverFactoryCreateRabbitMQ:
         # Arrange
         mock_instance = MagicMock(spec=RabbitMQDriver)
         mock_rabbitmq.return_value = mock_instance
+        config = Config()
 
         # Act
-        result = DriverFactory.create("rabbitmq")
+        result = DriverFactory.create("rabbitmq", config)
 
         # Assert
         mock_rabbitmq.assert_called_once_with(
@@ -522,14 +539,16 @@ class TestDriverFactoryCreateRabbitMQ:
         # Arrange
         mock_instance = MagicMock(spec=RabbitMQDriver)
         mock_rabbitmq.return_value = mock_instance
+        config = Config(
+            rabbitmq=RabbitMQConfig(
+                url="amqp://user:pass@rabbitmq.example.com:5672/vhost",
+                exchange_name="my_exchange",
+                prefetch_count=5,
+            )
+        )
 
         # Act
-        result = DriverFactory.create(
-            "rabbitmq",
-            rabbitmq_url="amqp://user:pass@rabbitmq.example.com:5672/vhost",
-            rabbitmq_exchange_name="my_exchange",
-            rabbitmq_prefetch_count=5,
-        )
+        result = DriverFactory.create("rabbitmq", config)
 
         # Assert
         mock_rabbitmq.assert_called_once_with(
@@ -546,9 +565,12 @@ class TestDriverFactoryErrorHandling:
     """Test error handling for unknown driver types."""
 
     def test_create_with_unknown_driver_type_raises_error(self) -> None:
+        # Arrange
+        config = Config()
+
         # Act & Assert
         with raises(ValueError, match="Unknown driver type: unknown"):
-            DriverFactory.create("unknown")  # type: ignore
+            DriverFactory.create("unknown", config)  # type: ignore
 
     def test_create_from_config_with_unknown_driver_type_raises_error(self) -> None:
         # Arrange
@@ -560,9 +582,12 @@ class TestDriverFactoryErrorHandling:
             DriverFactory.create_from_config(config)
 
     def test_error_message_includes_supported_types(self) -> None:
+        # Arrange
+        config = Config()
+
         # Act & Assert
         with raises(ValueError, match=f"Supported types: {', '.join(list(get_args(DriverType)))}"):
-            DriverFactory.create("invalid")  # type: ignore
+            DriverFactory.create("invalid", config)  # type: ignore
 
 
 @mark.unit
@@ -574,13 +599,15 @@ class TestDriverFactoryParameterPassing:
         # Arrange
         mock_instance = MagicMock(spec=RedisDriver)
         mock_redis.return_value = mock_instance
+        config = Config(
+            redis=RedisConfig(
+                url="redis://partial:6379",
+                db=7,
+            )
+        )
 
         # Act - only provide some parameters
-        result = DriverFactory.create(
-            "redis",
-            redis_url="redis://partial:6379",
-            redis_db=7,
-        )
+        result = DriverFactory.create("redis", config)
 
         # Assert - defaults should be used for unspecified params
         mock_redis.assert_called_once_with(
@@ -597,13 +624,15 @@ class TestDriverFactoryParameterPassing:
         # Arrange
         mock_instance = MagicMock(spec=SQSDriver)
         mock_sqs.return_value = mock_instance
+        config = Config(
+            sqs=SQSConfig(
+                aws_access_key_id="only_key",
+                aws_secret_access_key="only_secret",
+            )
+        )
 
         # Act
-        result = DriverFactory.create(
-            "sqs",
-            aws_access_key_id="only_key",
-            aws_secret_access_key="only_secret",
-        )
+        result = DriverFactory.create("sqs", config)
 
         # Assert
         mock_sqs.assert_called_once_with(
@@ -620,12 +649,14 @@ class TestDriverFactoryParameterPassing:
         # Arrange
         mock_instance = MagicMock(spec=PostgresDriver)
         mock_postgres.return_value = mock_instance
+        config = Config(
+            postgres=PostgresConfig(
+                dsn="postgresql://minimal:pass@localhost/db",
+            )
+        )
 
         # Act
-        result = DriverFactory.create(
-            "postgres",
-            postgres_dsn="postgresql://minimal:pass@localhost/db",
-        )
+        result = DriverFactory.create("postgres", config)
 
         # Assert
         mock_postgres.assert_called_once_with(
@@ -646,12 +677,14 @@ class TestDriverFactoryParameterPassing:
         # Arrange
         mock_instance = MagicMock(spec=MySQLDriver)
         mock_mysql.return_value = mock_instance
+        config = Config(
+            mysql=MySQLConfig(
+                dsn="mysql://minimal:pass@localhost:3306/db",
+            )
+        )
 
         # Act
-        result = DriverFactory.create(
-            "mysql",
-            mysql_dsn="mysql://minimal:pass@localhost:3306/db",
-        )
+        result = DriverFactory.create("mysql", config)
 
         # Assert
         mock_mysql.assert_called_once_with(
@@ -672,12 +705,14 @@ class TestDriverFactoryParameterPassing:
         # Arrange
         mock_instance = MagicMock(spec=RabbitMQDriver)
         mock_rabbitmq.return_value = mock_instance
+        config = Config(
+            rabbitmq=RabbitMQConfig(
+                url="amqp://minimal:pass@localhost:5672/",
+            )
+        )
 
         # Act
-        result = DriverFactory.create(
-            "rabbitmq",
-            rabbitmq_url="amqp://minimal:pass@localhost:5672/",
-        )
+        result = DriverFactory.create("rabbitmq", config)
 
         # Assert
         mock_rabbitmq.assert_called_once_with(
@@ -859,12 +894,14 @@ class TestDriverFactoryEdgeCases:
         # Arrange
         mock_instance = MagicMock(spec=RedisDriver)
         mock_redis.return_value = mock_instance
+        config = Config(
+            redis=RedisConfig(
+                password=None,
+            )
+        )
 
         # Act - explicitly pass None for optional parameters
-        result = DriverFactory.create(
-            "redis",
-            redis_password=None,
-        )
+        result = DriverFactory.create("redis", config)
 
         # Assert
         mock_redis.assert_called_once_with(
@@ -881,12 +918,14 @@ class TestDriverFactoryEdgeCases:
         # Arrange
         mock_instance = MagicMock(spec=SQSDriver)
         mock_sqs.return_value = mock_instance
+        config = Config(
+            sqs=SQSConfig(
+                queue_url_prefix="",  # Empty string (different from None)
+            )
+        )
 
         # Act
-        result = DriverFactory.create(
-            "sqs",
-            sqs_queue_url_prefix="",  # Empty string (different from None)
-        )
+        result = DriverFactory.create("sqs", config)
 
         # Assert
         mock_sqs.assert_called_once_with(
@@ -903,13 +942,15 @@ class TestDriverFactoryEdgeCases:
         # Arrange
         mock_instance = MagicMock(spec=PostgresDriver)
         mock_postgres.return_value = mock_instance
+        config = Config(
+            postgres=PostgresConfig(
+                min_pool_size=1,
+                max_pool_size=1000,
+            )
+        )
 
         # Act - test with same min and max pool size
-        result = DriverFactory.create(
-            "postgres",
-            postgres_min_pool_size=1,
-            postgres_max_pool_size=1000,
-        )
+        result = DriverFactory.create("postgres", config)
 
         # Assert
         mock_postgres.assert_called_once()
@@ -923,72 +964,21 @@ class TestDriverFactoryEdgeCases:
         # Arrange
         mock_instance = MagicMock(spec=MySQLDriver)
         mock_mysql.return_value = mock_instance
+        config = Config(
+            mysql=MySQLConfig(
+                min_pool_size=1,
+                max_pool_size=1000,
+            )
+        )
 
         # Act - test with same min and max pool size
-        result = DriverFactory.create(
-            "mysql",
-            mysql_min_pool_size=1,
-            mysql_max_pool_size=1000,
-        )
+        result = DriverFactory.create("mysql", config)
 
         # Assert
         mock_mysql.assert_called_once()
         call_kwargs = mock_mysql.call_args[1]
         assert call_kwargs["min_pool_size"] == 1
         assert call_kwargs["max_pool_size"] == 1000
-        assert result == mock_instance
-
-    @patch("asynctasq.drivers.redis_driver.RedisDriver")
-    def test_kwargs_get_method_with_fallback(self, mock_redis: MagicMock) -> None:
-        # Arrange
-        mock_instance = MagicMock(spec=RedisDriver)
-        mock_redis.return_value = mock_instance
-
-        # Act - pass unrelated kwargs that shouldn't affect Redis
-        result = DriverFactory.create(
-            "redis",
-            postgres_dsn="should_be_ignored",
-            sqs_region="should_be_ignored",
-            unrelated_param="should_be_ignored",
-        )
-
-        # Assert - only Redis params should be used
-        mock_redis.assert_called_once_with(
-            url="redis://localhost:6379",
-            password=None,
-            db=0,
-            max_connections=100,
-            keep_completed_tasks=False,
-        )
-        assert result == mock_instance
-
-    @patch("asynctasq.drivers.mysql_driver.MySQLDriver")
-    def test_mysql_ignores_unrelated_kwargs(self, mock_mysql: MagicMock) -> None:
-        # Arrange
-        mock_instance = MagicMock(spec=MySQLDriver)
-        mock_mysql.return_value = mock_instance
-
-        # Act - pass unrelated kwargs that shouldn't affect MySQL
-        result = DriverFactory.create(
-            "mysql",
-            redis_url="should_be_ignored",
-            sqs_region="should_be_ignored",
-            postgres_dsn="should_be_ignored",
-            unrelated_param="should_be_ignored",
-        )
-
-        # Assert - only MySQL params should be used
-        mock_mysql.assert_called_once_with(
-            dsn="mysql://user:pass@localhost:3306/dbname",
-            queue_table="task_queue",
-            dead_letter_table="dead_letter_queue",
-            max_attempts=3,
-            retry_delay_seconds=60,
-            visibility_timeout_seconds=300,
-            min_pool_size=10,
-            max_pool_size=10,
-            keep_completed_tasks=False,
-        )
         assert result == mock_instance
 
 
@@ -1043,7 +1033,7 @@ class TestDriverFactoryParameterized:
                 "PostgresDriver",
                 {"postgres_min_pool_size": 1, "postgres_max_pool_size": 1},
                 {
-                    "dsn": "postgresql://user:pass@localhost/dbname",
+                    "dsn": "postgresql://test:test@localhost:5432/test_db",
                     "queue_table": "task_queue",
                     "dead_letter_table": "dead_letter_queue",
                     "max_attempts": 3,
@@ -1060,7 +1050,7 @@ class TestDriverFactoryParameterized:
                 "MySQLDriver",
                 {"mysql_min_pool_size": 1, "mysql_max_pool_size": 1},
                 {
-                    "dsn": "mysql://user:pass@localhost:3306/dbname",
+                    "dsn": "mysql://test:test@localhost:3306/test_db",
                     "queue_table": "task_queue",
                     "dead_letter_table": "dead_letter_queue",
                     "max_attempts": 3,
@@ -1094,12 +1084,32 @@ class TestDriverFactoryParameterized:
     ) -> None:
         """Test DriverFactory.create() with boundary and edge case values."""
         # Arrange
+        config = Config()
+        if driver_type == "redis":
+            config.redis = RedisConfig(
+                **{k.replace("redis_", ""): v for k, v in config_kwargs.items()}
+            )
+        elif driver_type == "sqs":
+            config.sqs = SQSConfig(**{k.replace("sqs_", ""): v for k, v in config_kwargs.items()})
+        elif driver_type == "postgres":
+            config.postgres = PostgresConfig(
+                **{k.replace("postgres_", ""): v for k, v in config_kwargs.items()}
+            )
+        elif driver_type == "mysql":
+            config.mysql = MySQLConfig(
+                **{k.replace("mysql_", ""): v for k, v in config_kwargs.items()}
+            )
+        elif driver_type == "rabbitmq":
+            config.rabbitmq = RabbitMQConfig(
+                **{k.replace("rabbitmq_", ""): v for k, v in config_kwargs.items()}
+            )
+
         with patch(f"asynctasq.drivers.{driver_type}_driver.{driver_class_name}") as mock_driver:
             mock_instance = MagicMock()
             mock_driver.return_value = mock_instance
 
             # Act
-            result = DriverFactory.create(driver_type, **config_kwargs)  # type: ignore
+            result = DriverFactory.create(driver_type, config)  # type: ignore
 
             # Assert
             mock_driver.assert_called_once_with(**expected_call_kwargs)
@@ -1124,12 +1134,32 @@ class TestDriverFactoryParameterized:
     ) -> None:
         """Test DriverFactory.create() with minimal required kwargs."""
         # Arrange
+        config = Config()
+        if driver_type == "redis":
+            config.redis = RedisConfig(
+                **{k.replace("redis_", ""): v for k, v in missing_kwargs.items()}
+            )
+        elif driver_type == "sqs":
+            config.sqs = SQSConfig(**{k.replace("sqs_", ""): v for k, v in missing_kwargs.items()})
+        elif driver_type == "postgres":
+            config.postgres = PostgresConfig(
+                **{k.replace("postgres_", ""): v for k, v in missing_kwargs.items()}
+            )
+        elif driver_type == "mysql":
+            config.mysql = MySQLConfig(
+                **{k.replace("mysql_", ""): v for k, v in missing_kwargs.items()}
+            )
+        elif driver_type == "rabbitmq":
+            config.rabbitmq = RabbitMQConfig(
+                **{k.replace("rabbitmq_", ""): v for k, v in missing_kwargs.items()}
+            )
+
         with patch(f"asynctasq.drivers.{driver_type}_driver.{driver_class_name}") as mock_driver:
             mock_instance = MagicMock()
             mock_driver.return_value = mock_instance
 
             # Act
-            result = DriverFactory.create(driver_type, **missing_kwargs)  # type: ignore
+            result = DriverFactory.create(driver_type, config)  # type: ignore
 
             # Assert
             mock_driver.assert_called_once()
