@@ -96,7 +96,7 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for PostgresDriver check
         mock_isinstance.return_value = True
 
@@ -104,9 +104,7 @@ class TestRunMigrate:
         await run_migrate(args, config)
 
         # Assert
-        mock_driver_factory.create_from_config.assert_called_once_with(
-            config, driver_type="postgres"
-        )
+        mock_driver_factory.create.assert_called_once_with("postgres", config)
         mock_driver.connect.assert_awaited_once()
         mock_driver.init_schema.assert_awaited_once()
         mock_driver.disconnect.assert_awaited_once()
@@ -123,7 +121,7 @@ class TestRunMigrate:
         args = argparse.Namespace()
         config = Config(driver="postgres")
         mock_driver = MagicMock()  # Not a PostgresDriver instance
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return False to simulate wrong driver type
         mock_isinstance.return_value = False
 
@@ -152,7 +150,7 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for PostgresDriver check
         mock_isinstance.return_value = True
 
@@ -190,7 +188,7 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for PostgresDriver check
         mock_isinstance.return_value = True
 
@@ -219,7 +217,7 @@ class TestRunMigrate:
         mock_driver = AsyncMock()
         mock_driver.connect.return_value = None
         mock_driver.init_schema.side_effect = Exception("Schema error")
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for PostgresDriver check
         mock_isinstance.return_value = True
 
@@ -242,7 +240,7 @@ class TestRunMigrate:
         config = Config(driver="postgres")
         mock_driver = AsyncMock()
         mock_driver.connect.side_effect = Exception("Connection error")
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for PostgresDriver check
         mock_isinstance.return_value = True
 
@@ -272,7 +270,7 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for PostgresDriver check
         mock_isinstance.return_value = True
 
@@ -303,7 +301,7 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for MySQLDriver check
         mock_isinstance.return_value = True
 
@@ -311,7 +309,7 @@ class TestRunMigrate:
         await run_migrate(args, config)
 
         # Assert
-        mock_driver_factory.create_from_config.assert_called_once_with(config, driver_type="mysql")
+        mock_driver_factory.create.assert_called_once_with("mysql", config)
         mock_driver.connect.assert_awaited_once()
         mock_driver.init_schema.assert_awaited_once()
         mock_driver.disconnect.assert_awaited_once()
@@ -328,7 +326,7 @@ class TestRunMigrate:
         args = argparse.Namespace()
         config = Config(driver="mysql")
         mock_driver = MagicMock()  # Not a MySQLDriver instance
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return False to simulate wrong driver type
         mock_isinstance.return_value = False
 
@@ -355,7 +353,7 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for MySQLDriver check
         mock_isinstance.return_value = True
 
@@ -392,7 +390,7 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for MySQLDriver check
         mock_isinstance.return_value = True
 
@@ -421,7 +419,7 @@ class TestRunMigrate:
         mock_driver = AsyncMock()
         mock_driver.connect.return_value = None
         mock_driver.init_schema.side_effect = Exception("Schema error")
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for MySQLDriver check
         mock_isinstance.return_value = True
 
@@ -444,7 +442,7 @@ class TestRunMigrate:
         config = Config(driver="mysql")
         mock_driver = AsyncMock()
         mock_driver.connect.side_effect = Exception("Connection error")
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for MySQLDriver check
         mock_isinstance.return_value = True
 
@@ -474,7 +472,7 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         # Make isinstance return True for MySQLDriver check
         mock_isinstance.return_value = True
 

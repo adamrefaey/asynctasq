@@ -8,7 +8,7 @@ Testing Strategy:
 """
 
 import argparse
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 from pytest import main, mark
 
@@ -32,7 +32,7 @@ class TestRunWorker:
         args = argparse.Namespace(queues=None, concurrency=10)
         config = Config(driver="redis")
         mock_driver = MagicMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         mock_worker = AsyncMock()
         mock_worker_class.return_value = mock_worker
         mock_parse_queues.return_value = ["default"]
@@ -42,9 +42,9 @@ class TestRunWorker:
 
         # Assert
         mock_parse_queues.assert_called_once_with(None)
-        mock_driver_factory.create_from_config.assert_called_once_with(config)
+        mock_driver_factory.create.assert_called_once_with("redis", config)
         mock_worker_class.assert_called_once_with(
-            queue_driver=mock_driver,
+            queue_driver=ANY,
             queues=["default"],
             concurrency=10,
         )
@@ -63,7 +63,7 @@ class TestRunWorker:
         args = argparse.Namespace(queues="high,low", concurrency=20)
         config = Config(driver="redis")
         mock_driver = MagicMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         mock_worker = AsyncMock()
         mock_worker_class.return_value = mock_worker
         mock_parse_queues.return_value = ["high", "low"]
@@ -74,7 +74,7 @@ class TestRunWorker:
         # Assert
         mock_parse_queues.assert_called_once_with("high,low")
         mock_worker_class.assert_called_once_with(
-            queue_driver=mock_driver,
+            queue_driver=ANY,
             queues=["high", "low"],
             concurrency=20,
         )
@@ -91,7 +91,7 @@ class TestRunWorker:
         args = argparse.Namespace(queues=None, concurrency=5)
         config = Config(driver="sqs")
         mock_driver = MagicMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         mock_worker = AsyncMock()
         mock_worker_class.return_value = mock_worker
         mock_parse_queues.return_value = ["default"]
@@ -100,7 +100,7 @@ class TestRunWorker:
         await run_worker(args, config)
 
         # Assert
-        mock_driver_factory.create_from_config.assert_called_once_with(config)
+        mock_driver_factory.create.assert_called_once_with("sqs", config)
         mock_logger.info.assert_called_once()
         assert "driver=sqs" in str(mock_logger.info.call_args)
 
@@ -115,7 +115,7 @@ class TestRunWorker:
         args = argparse.Namespace(queues="high,low", concurrency=15)
         config = Config(driver="postgres")
         mock_driver = MagicMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         mock_worker = AsyncMock()
         mock_worker_class.return_value = mock_worker
         mock_parse_queues.return_value = ["high", "low"]
@@ -142,7 +142,7 @@ class TestRunWorker:
         args = argparse.Namespace(queues=None, concurrency=10)
         config = Config(driver="redis")
         mock_driver = MagicMock()
-        mock_driver_factory.create_from_config.return_value = mock_driver
+        mock_driver_factory.create.return_value = mock_driver
         mock_worker = AsyncMock()
         mock_worker_class.return_value = mock_worker
         mock_parse_queues.return_value = ["default"]

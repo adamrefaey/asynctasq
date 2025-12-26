@@ -150,7 +150,7 @@ import multiprocessing
 
 async def run_worker(queues, concurrency):
     config = Config.get()
-    driver = DriverFactory.create_from_config(config)
+    driver = DriverFactory.create(config)
 
     worker = Worker(
         queue_driver=driver,

@@ -1,10 +1,17 @@
-from typing import get_args
+from typing import TYPE_CHECKING, Literal, get_args, overload
 
 from asynctasq.config import (
     Config,
 )
 from asynctasq.drivers import DriverType
 from asynctasq.drivers.base_driver import BaseDriver
+
+if TYPE_CHECKING:
+    from asynctasq.drivers.mysql_driver import MySQLDriver
+    from asynctasq.drivers.postgres_driver import PostgresDriver
+    from asynctasq.drivers.rabbitmq_driver import RabbitMQDriver
+    from asynctasq.drivers.redis_driver import RedisDriver
+    from asynctasq.drivers.sqs_driver import SQSDriver
 
 
 class DriverFactory:
@@ -15,40 +22,43 @@ class DriverFactory:
     drivers by changing configuration only.
     """
 
+    @overload
     @staticmethod
-    def create_from_config(config: Config, driver_type: DriverType | None = None) -> BaseDriver:
+    def create(driver_type: Literal["redis"], config: Config) -> "RedisDriver": ...
+
+    @overload
+    @staticmethod
+    def create(driver_type: Literal["sqs"], config: Config) -> "SQSDriver": ...
+
+    @overload
+    @staticmethod
+    def create(driver_type: Literal["postgres"], config: Config) -> "PostgresDriver": ...
+
+    @overload
+    @staticmethod
+    def create(driver_type: Literal["mysql"], config: Config) -> "MySQLDriver": ...
+
+    @overload
+    @staticmethod
+    def create(driver_type: Literal["rabbitmq"], config: Config) -> "RabbitMQDriver": ...
+
+    @overload
+    @staticmethod
+    def create(driver_type: str, config: Config) -> BaseDriver: ...
+
+    @staticmethod
+    def create(driver_type: str, config: Config) -> BaseDriver:
         """Create driver from configuration object.
 
         Args:
+            driver_type: Type of driver to create ("redis", "sqs", "postgres", "mysql", "rabbitmq")
             config: Config instance
-            driver_type: Optional driver type to override config.driver
-                        Useful for testing or runtime driver switching
 
         Returns:
             Configured BaseDriver instance
 
         Raises:
             ValueError: If driver type is unknown
-        """
-        return DriverFactory.create(
-            driver_type if driver_type is not None else config.driver,
-            config,
-        )
-
-    @staticmethod
-    def create(driver_type: DriverType, config: Config) -> BaseDriver:
-        """Create driver by type with configuration.
-
-        Args:
-            driver_type: Type of driver
-            config: Configuration object containing all settings
-
-        Returns:
-            Configured BaseDriver instance
-
-        Raises:
-            ValueError: If driver type is unknown
-
         """
         match driver_type:
             case "redis":
