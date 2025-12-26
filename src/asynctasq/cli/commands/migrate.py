@@ -5,6 +5,8 @@ import logging
 
 from asynctasq.config import Config
 from asynctasq.core.driver_factory import DriverFactory
+from asynctasq.drivers.mysql_driver import MySQLDriver
+from asynctasq.drivers.postgres_driver import PostgresDriver
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +27,15 @@ async def run_migrate(args: argparse.Namespace, config: Config) -> None:
     Raises:
         MigrationError: If migration fails or driver is not supported.
     """
+    driver: PostgresDriver | MySQLDriver
     if config.driver == "postgres":
         logger.info("Initializing PostgreSQL schema...")
         logger.info(f"  DSN: {config.postgres.dsn}")
         logger.info(f"  Queue table: {config.postgres.queue_table}")
         logger.info(f"  Dead letter table: {config.postgres.dead_letter_table}")
 
-        driver = DriverFactory.create_from_config(config, driver_type="postgres")
-
-        from asynctasq.drivers.postgres_driver import PostgresDriver
+        config.driver = "postgres"
+        driver = DriverFactory.create("postgres", config)
 
         if not isinstance(driver, PostgresDriver):
             raise MigrationError("Driver factory did not return a PostgresDriver instance")
@@ -55,9 +57,8 @@ async def run_migrate(args: argparse.Namespace, config: Config) -> None:
         logger.info(f"  Queue table: {config.mysql.queue_table}")
         logger.info(f"  Dead letter table: {config.mysql.dead_letter_table}")
 
-        driver = DriverFactory.create_from_config(config, driver_type="mysql")
-
-        from asynctasq.drivers.mysql_driver import MySQLDriver
+        config.driver = "mysql"
+        driver = DriverFactory.create("mysql", config)
 
         if not isinstance(driver, MySQLDriver):
             raise MigrationError("Driver factory did not return a MySQLDriver instance")

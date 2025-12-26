@@ -92,16 +92,14 @@ class TestAsyncTaskIntegration:
         config = Config(driver="redis")
         integration = AsyncTaskIntegration(config=config)
 
-        with patch(
-            "asynctasq.integrations.fastapi.DriverFactory.create_from_config"
-        ) as mock_factory:
+        with patch("asynctasq.integrations.fastapi.DriverFactory.create") as mock_factory:
             mock_driver = RedisDriver()
             mock_factory.return_value = mock_driver
 
             async with integration.lifespan(mock_fastapi_app):
                 assert integration._initialized
                 assert integration._dispatcher is not None
-                mock_factory.assert_called_once_with(config)
+                mock_factory.assert_called_once_with("redis", config)
 
     @mark.asyncio
     async def test_lifespan_without_config(self, mock_fastapi_app):
@@ -110,9 +108,7 @@ class TestAsyncTaskIntegration:
 
         with (
             patch("asynctasq.integrations.fastapi.Config.get") as mock_get_config,
-            patch(
-                "asynctasq.integrations.fastapi.DriverFactory.create_from_config"
-            ) as mock_factory,
+            patch("asynctasq.integrations.fastapi.DriverFactory.create") as mock_factory,
         ):
             config = Config(driver="redis")
             mock_get_config.return_value = config
@@ -122,7 +118,7 @@ class TestAsyncTaskIntegration:
             async with integration.lifespan(mock_fastapi_app):
                 assert integration._initialized
                 mock_get_config.assert_called_once()
-                mock_factory.assert_called_once_with(config)
+                mock_factory.assert_called_once_with("redis", config)
 
     @mark.asyncio
     async def test_get_dispatcher_success(self, mock_driver, mock_fastapi_app):

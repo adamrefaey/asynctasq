@@ -231,7 +231,7 @@ from asynctasq.monitoring import MonitoringService
 from asynctasq.core.driver_factory import DriverFactory
 
 async def get_stats():
-    driver = DriverFactory.create_from_config()
+    driver = DriverFactory.create()
     monitoring = MonitoringService(driver)
 
     # Get stats for a specific queue

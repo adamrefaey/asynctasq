@@ -92,7 +92,7 @@ async def main():
     )
 
     # Create driver and connect
-    driver = DriverFactory.create_from_config(config)
+    driver = DriverFactory.create(config)
     await driver.connect()
 
     try:

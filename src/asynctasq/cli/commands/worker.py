@@ -25,7 +25,7 @@ async def run_worker(args: argparse.Namespace, config) -> None:
         f"Starting worker: driver={config.driver}, queues={queues}, concurrency={concurrency}"
     )
 
-    driver = DriverFactory.create_from_config(config)
+    driver = DriverFactory.create(config.driver, config)
 
     # Ensure global event emitters are configured (registers emitters)
     EventRegistry.init()

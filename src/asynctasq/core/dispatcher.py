@@ -67,9 +67,8 @@ class Dispatcher:
             if cache_key not in self._driver_cache:
                 logger.debug(f"Creating driver override '{driver}' for {task.__class__.__name__}")
                 config = Config.get()
-                self._driver_cache[cache_key] = DriverFactory.create_from_config(
-                    config, driver_type=cast(DriverType, driver)
-                )
+                config.driver = cast(DriverType, driver)
+                self._driver_cache[cache_key] = DriverFactory.create(driver, config)
             return self._driver_cache[cache_key]
 
         return self.driver
@@ -169,11 +168,10 @@ def get_dispatcher(driver: str | BaseDriver | None = None) -> Dispatcher:
 
     # Create driver
     if isinstance(driver, str):
-        driver_instance = DriverFactory.create_from_config(
-            config, driver_type=cast(DriverType, driver)
-        )
+        config.driver = cast(DriverType, driver)
+        driver_instance = DriverFactory.create(driver, config)
     elif driver is None:
-        driver_instance = DriverFactory.create_from_config(config)
+        driver_instance = DriverFactory.create(config.driver, config)
     else:
         driver_instance = driver
 

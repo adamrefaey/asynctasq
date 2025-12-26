@@ -98,11 +98,11 @@ class AsyncTaskIntegration:
                 driver = self._driver
             elif self._config is not None:
                 # Use provided config to create driver
-                driver = DriverFactory.create_from_config(self._config)
+                driver = DriverFactory.create(self._config.driver, self._config)
             else:
                 # Use global config or load from environment
                 config = Config.get()
-                driver = DriverFactory.create_from_config(config)
+                driver = DriverFactory.create(config.driver, config)
 
             # Connect driver
             await driver.connect()
