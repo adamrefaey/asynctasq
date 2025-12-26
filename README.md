@@ -50,9 +50,13 @@ import asyncio
 
 import asynctasq
 from asynctasq.tasks import task, AsyncTask, TaskConfig
+from asynctasq.config import RedisConfig
 
 # 1. Configure AsyncTasQ
-asynctasq.init({"driver": "redis", "redis_url": "redis://localhost:6379"})
+asynctasq.init({
+    "driver": "redis",
+    "redis": RedisConfig(url="redis://localhost:6379")
+})
 
 
 # 2. Define tasks (function-based or class-based)
