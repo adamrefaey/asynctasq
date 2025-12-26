@@ -169,17 +169,17 @@ class Config:
     driver: DriverType = "redis"
 
     # Driver-specific configurations
-    redis: RedisConfig = None  # type: ignore
-    sqs: SQSConfig = None  # type: ignore
-    postgres: PostgresConfig = None  # type: ignore
-    mysql: MySQLConfig = None  # type: ignore
-    rabbitmq: RabbitMQConfig = None  # type: ignore
+    redis: RedisConfig = None
+    sqs: SQSConfig = None
+    postgres: PostgresConfig = None
+    mysql: MySQLConfig = None
+    rabbitmq: RabbitMQConfig = None
 
     # Feature configurations
-    events: EventsConfig = None  # type: ignore
-    task_defaults: TaskDefaultsConfig = None  # type: ignore
-    process_pool: ProcessPoolConfig = None  # type: ignore
-    repository: RepositoryConfig = None  # type: ignore
+    events: EventsConfig = None
+    task_defaults: TaskDefaultsConfig = None
+    process_pool: ProcessPoolConfig = None
+    repository: RepositoryConfig = None
 
     # SQLAlchemy engine for ORM cleanup
     sqlalchemy_engine: Any = None
