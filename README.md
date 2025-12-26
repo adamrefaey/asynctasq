@@ -19,7 +19,6 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 - [Examples](#examples)
 - [Why AsyncTasQ?](#why-asynctasq)
 - [Key Features](#key-features)
-- [Monitoring Dashboard](#-monitoring-dashboard)
 - [Comparison with Alternatives](#comparison-with-alternatives)
 - [Quick Reference](#quick-reference)
 - [Contributing](#contributing)
@@ -304,28 +303,6 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
   - ✅ **Method chaining** for fluent task configuration
 
   - ✅ **Flexible configuration** – Use `asynctasq.init()` / `Config.get()` for all settings
-
----
-
-## 📊 Monitoring Dashboard
-
-### [asynctasq-monitor](https://github.com/adamrefaey/asynctasq-monitor)
-
-A beautiful **real-time monitoring dashboard** for AsyncTasQ:
-
-- 📈 **Live Dashboard** – Real-time task metrics, queue depths, and worker status
-- 📊 **Task Analytics** – Execution times, success/failure rates, retry patterns
-- 🔍 **Task Explorer** – Browse, search, and inspect task details
-- 👷 **Worker Management** – Monitor worker health and performance
-- 🚨 **Alerts** – Get notified about failures and queue backlogs
-
-```bash
-# Install the monitoring package
-uv add asynctasq-monitor
-
-# Start the monitoring server
-asynctasq-monitor web
-```
 
 ---
 
