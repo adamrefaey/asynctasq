@@ -32,8 +32,9 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 
 Get started in 60 seconds:
 
+Install AsyncTasQ (Python 3.12+ required)
+
 ```bash
-# Install AsyncTasQ (Python 3.12+ required)
 uv add asynctasq[redis]
 ```
 
@@ -147,7 +148,6 @@ uv run python quick_start.py
 In a separate terminal, run the worker to process the tasks:
 
 ```bash
-# Run the worker (in a separate terminal)
 uv run asynctasq worker --queues default,payments,high-priority,urgent
 ```
 
