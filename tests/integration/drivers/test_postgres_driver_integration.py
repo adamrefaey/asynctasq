@@ -228,7 +228,7 @@ class TestPostgresDriverWithRealPostgres:
         assert result is not None
         assert result["payload"] == task_data
         assert result["status"] == "pending"
-        assert result["current_attempt"] == 1
+        assert result["current_attempt"] == 0  # 0 before first dequeue
 
     @mark.asyncio
     async def test_enqueue_multiple_tasks_preserves_fifo_order(
@@ -549,23 +549,23 @@ class TestPostgresDriverWithRealPostgres:
     async def test_nack_requeues_task(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
-        """nack() should requeue task with incremented current_attempt."""
+        """nack() should requeue task keeping attempt count from dequeue."""
         # Arrange
         task_data = b"failed_task"
-        await postgres_driver.enqueue("default", task_data)
-        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
+        await postgres_driver.enqueue("default", task_data)  # current_attempt = 0
+        receipt = await postgres_driver.dequeue("default", poll_seconds=0)  # increments to 1
         assert receipt is not None
 
         # Act
-        await postgres_driver.nack("default", receipt)
+        await postgres_driver.nack("default", receipt)  # keeps current_attempt = 1
 
-        # Assert - task should be requeued with current_attempt=2
+        # Assert - task should be requeued with current_attempt=1 (dequeue incremented, nack didn't)
         result = await postgres_conn.fetchrow(
             f"SELECT current_attempt, status FROM {TEST_QUEUE_TABLE} WHERE queue_name = $1",
             "default",
         )
         assert result is not None
-        assert result["current_attempt"] == 2
+        assert result["current_attempt"] == 1  # Dequeue incremented to 1, nack didn't change it
         assert result["status"] == "pending"
 
         # Receipt handle should be cleared
@@ -583,7 +583,9 @@ class TestPostgresDriverWithRealPostgres:
         available_times = []
 
         # Act - nack multiple times
-        for expected_attempt in range(2, 4):  # After nack, attempt goes from 1->2, 2->3
+        # Loop 1: dequeue (0->1), nack (keeps 1)
+        # Loop 2: dequeue (1->2), nack (keeps 2)
+        for expected_attempt in range(1, 3):  # Expect attempts 1, 2
             receipt = await postgres_driver.dequeue("default", poll_seconds=0)
             assert receipt is not None
 
@@ -914,12 +916,12 @@ class TestPostgresDriverWithRealPostgres:
         # Act - nack should still work
         await postgres_driver.nack("default", receipt)
 
-        # Assert - task should be requeued with incremented attempts
+        # Assert - task should still have attempt=1 (dequeue incremented, nack didn't)
         result = await postgres_conn.fetchrow(
             f"SELECT current_attempt FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id
         )
         assert result is not None
-        assert result["current_attempt"] == 2
+        assert result["current_attempt"] == 1
 
     @mark.asyncio
     async def test_nack_then_ack_is_safe(self, postgres_driver: PostgresDriver) -> None:
@@ -1191,7 +1193,7 @@ class TestPostgresDriverWithRealPostgres:
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
         """Nack should respect per-task max_attempts from database."""
-        # Arrange - create task with custom max_attempts
+        # Arrange - create task with custom max_attempts=5, starting at attempt=1
         await postgres_conn.execute(
             f"""
             INSERT INTO {TEST_QUEUE_TABLE}
@@ -1203,26 +1205,33 @@ class TestPostgresDriverWithRealPostgres:
             5,  # Custom max_attempts
         )
 
-        # Act - nack multiple times (should allow up to 5 attempts)
-        for attempt in range(4):  # 0->1, 1->2, 2->3, 3->4
+        # Act - nack 3 times (should allow up to attempt=4, which is < 5)
+        # Loop 1: dequeue (1->2), nack (stays 2)
+        # Loop 2: dequeue (2->3), nack (stays 3)
+        # Loop 3: dequeue (3->4), nack (stays 4, still < 5)
+        for attempt in range(3):
             receipt = await postgres_driver.dequeue("default", poll_seconds=0)
             assert receipt is not None
             await postgres_driver.nack("default", receipt)
 
             # Make available for next iteration
-            if attempt < 4:
+            if attempt < 2:
                 await postgres_conn.execute(
                     f"UPDATE {TEST_QUEUE_TABLE} SET available_at = NOW() - INTERVAL '1 second', locked_until = NULL WHERE queue_name = $1",
                     "default",
                 )
 
-        # Assert - task should still be in queue (not in DLQ yet)
+        # Assert - task should still be in queue (current_attempt=4 < max_attempts=5)
         queue_count = await postgres_conn.fetchval(
             f"SELECT COUNT(*) FROM {TEST_QUEUE_TABLE} WHERE queue_name = $1", "default"
         )
         assert queue_count == 1
 
-        # One more nack should move to DLQ
+        # One more dequeue+nack should move to DLQ (4->5, then 5 >= 5)
+        await postgres_conn.execute(
+            f"UPDATE {TEST_QUEUE_TABLE} SET available_at = NOW() - INTERVAL '1 second', locked_until = NULL WHERE queue_name = $1",
+            "default",
+        )
         receipt = await postgres_driver.dequeue("default", poll_seconds=0)
         assert receipt is not None
         await postgres_driver.nack("default", receipt)

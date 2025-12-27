@@ -674,21 +674,21 @@ class TestWorkerProcessTask:
         task_data = b"serialized_task"
         initial_count = worker._tasks_processed
 
-        # Deserialization failure should re-enqueue the task
+        # Deserialization failure should call nack (driver handles retry logic)
         with (
             patch.object(
                 worker, "_deserialize_task", side_effect=ImportError("Cannot import task class")
             ),
-            patch.object(worker.queue_driver, "enqueue", new_callable=AsyncMock) as mock_enqueue,
+            patch.object(worker.queue_driver, "nack", new_callable=AsyncMock) as mock_nack,
         ):
-            # Act - should re-enqueue instead of raising
+            # Act - should nack instead of raising
             await worker._process_task(task_data, "test_queue")
 
         # Assert
         # Task counter should not increment on failure
         assert worker._tasks_processed == initial_count
-        # Task should be re-enqueued with 60 second delay
-        mock_enqueue.assert_called_once_with("test_queue", task_data, delay_seconds=60)
+        # Task should be nacked for driver to handle retry
+        mock_nack.assert_called_once_with("test_queue", task_data)
 
     @mark.asyncio
     async def test_process_task_increments_counter_on_success(self) -> None:
@@ -783,14 +783,14 @@ class TestWorkerProcessTask:
 
         with (
             patch.object(worker, "_deserialize_task", side_effect=attr_error),
-            patch.object(worker.queue_driver, "enqueue", new_callable=AsyncMock) as mock_enqueue,
+            patch.object(worker.queue_driver, "nack", new_callable=AsyncMock) as mock_nack,
         ):
             # Act
             await worker._process_task(task_data, "test_queue")
 
         # Assert
-        # Should re-enqueue with delay
-        mock_enqueue.assert_called_once_with("test_queue", task_data, delay_seconds=60)
+        # Should nack for driver to handle retry
+        mock_nack.assert_called_once_with("test_queue", task_data)
         assert worker._tasks_processed == 0
 
     @mark.asyncio
@@ -805,15 +805,15 @@ class TestWorkerProcessTask:
 
         with (
             patch.object(worker, "_deserialize_task", side_effect=timeout_error),
-            patch.object(worker.queue_driver, "enqueue", new_callable=AsyncMock) as mock_enqueue,
+            patch.object(worker.queue_driver, "nack", new_callable=AsyncMock) as mock_nack,
             patch("asynctasq.core.worker.logger") as mock_logger,
         ):
             # Act
             await worker._process_task(task_data, "test_queue")
 
         # Assert
-        # Should re-enqueue with delay
-        mock_enqueue.assert_called_once_with("test_queue", task_data, delay_seconds=60)
+        # Should nack for driver to handle retry
+        mock_nack.assert_called_once_with("test_queue", task_data)
         assert worker._tasks_processed == 0
         # Should log deserialization timeout
         error_calls = [str(call) for call in mock_logger.error.call_args_list]
@@ -831,14 +831,14 @@ class TestWorkerProcessTask:
 
         with (
             patch.object(worker, "_deserialize_task", side_effect=general_error),
-            patch.object(worker.queue_driver, "enqueue", new_callable=AsyncMock) as mock_enqueue,
+            patch.object(worker.queue_driver, "nack", new_callable=AsyncMock) as mock_nack,
         ):
             # Act
             await worker._process_task(task_data, "test_queue")
 
         # Assert
-        # Should re-enqueue with delay
-        mock_enqueue.assert_called_once_with("test_queue", task_data, delay_seconds=60)
+        # Should nack for driver to handle retry
+        mock_nack.assert_called_once_with("test_queue", task_data)
         assert worker._tasks_processed == 0
 
     @mark.asyncio
@@ -928,7 +928,9 @@ class TestWorkerHandleTaskFailure:
         # Assert - _handle_task_failure should not modify the attempt
         assert task._current_attempt == 1
         # With current_attempt=1, exponential backoff: 60 * 2^(1-1) = 60
-        mock_driver.enqueue.assert_called_once_with("test_queue", b"serialized", delay_seconds=60.0)
+        mock_driver.enqueue.assert_called_once_with(
+            "test_queue", b"serialized", delay_seconds=60.0, current_attempt=1
+        )
 
     @mark.asyncio
     async def test_handle_task_failure_no_retry_when_current_attempt_exceed_max(self) -> None:
@@ -1870,6 +1872,7 @@ class TestWorkerIntegration:
                 "dispatched_at": None,
                 "max_attempts": 3,
                 "retry_delay": 60,
+                "timeout": None,
                 "queue": "test_queue",  # Must be in metadata for deserialization to restore it
             },
         }
@@ -1940,14 +1943,17 @@ class TestWorkerIntegration:
         # Assert
         # Verify that enqueue was called with correct parameters
         # Conditions for retry:
-        # - task._current_attempt (0) < task.max_attempts (3) ✓
+        # - Worker syncs task._current_attempt with += 1 after dequeue (0 -> 1)
+        # - task._current_attempt (1) < task.max_attempts (3) ✓
         # - task.should_retry(exception) returns True (default) ✓
-        # Therefore, enqueue should be called
+        # Therefore, enqueue should be called with current_attempt=1
         assert mock_driver.enqueue.called, (
             f"enqueue was not called. Call count: {mock_driver.enqueue.call_count}. "
             f"This means the retry logic did not execute properly."
         )
-        mock_driver.enqueue.assert_called_once_with("test_queue", serialized, delay_seconds=60)
+        mock_driver.enqueue.assert_called_once_with(
+            "test_queue", serialized, delay_seconds=60, current_attempt=1
+        )
         # Task counter should not increment on failure (only on success)
         assert worker._tasks_processed == 0
 

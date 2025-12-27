@@ -82,17 +82,21 @@ class RedisDriver(BaseDriver):
             await self.client.aclose()
             self.client = None
 
-    async def enqueue(self, queue_name: str, task_data: bytes, delay_seconds: int = 0) -> None:
+    async def enqueue(
+        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+    ) -> None:
         """Add task to queue.
 
         Args:
             queue_name: Name of the queue
             task_data: Serialized task data
             delay_seconds: Seconds to delay task visibility (0 = immediate)
+            current_attempt: Current attempt number (ignored by Redis driver)
 
         Implementation:
             - Immediate: LPUSH to list for O(1) insertion
             - Delayed: ZADD to sorted set with score = current_time + delay_seconds
+            - current_attempt is tracked in serialized task, not in Redis
         """
         if self.client is None:
             await self.connect()

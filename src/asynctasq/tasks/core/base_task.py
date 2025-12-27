@@ -135,8 +135,9 @@ class BaseTask[T](ABC):
 
         # Metadata (managed internally by dispatcher/worker)
         self._task_id: str | None = None
-        # Number of attempts that have already been executed.
-        # Starts at 0; worker will increment to 1 when execution actually starts.
+        # Number of attempts that have been started (0 before first attempt).
+        # Incremented by driver in dequeue(), synced by worker before execution.
+        # After first execution starts, this will be 1; after first retry, 2, etc.
         self._current_attempt: int = 0
         self._dispatched_at: datetime | None = None
 

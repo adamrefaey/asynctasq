@@ -45,7 +45,9 @@ class DummyDriver(BaseDriver):
         """No-op disconnection for in-memory driver."""
         pass
 
-    async def enqueue(self, queue_name: str, task_data: bytes, delay_seconds: int = 0) -> None:
+    async def enqueue(
+        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+    ) -> None:
         """Store serialized payloads for inspection."""
         self.enqueued.append((queue_name, task_data, delay_seconds))
 
@@ -145,10 +147,12 @@ async def test_attempt_lifecycle_reenqueue_and_final_failure(
     # Set up monkeypatches for first failure (should retry)
     start_time = datetime.now(UTC)
     task_data = serialized
-    reenqueue_calls: list[tuple[str, bytes, int]] = []
+    reenqueue_calls: list[tuple[str, bytes, int, int]] = []
 
-    async def fake_enqueue(queue: str, data: bytes, delay_seconds: int = 0) -> None:
-        reenqueue_calls.append((queue, data, delay_seconds))
+    async def fake_enqueue(
+        queue: str, data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+    ) -> None:
+        reenqueue_calls.append((queue, data, delay_seconds, current_attempt))
 
     monkeypatch.setattr(driver, "enqueue", fake_enqueue)
 

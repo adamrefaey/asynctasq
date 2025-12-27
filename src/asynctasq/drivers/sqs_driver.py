@@ -104,7 +104,9 @@ class SQSDriver(BaseDriver):
         self._queue_urls.clear()
         self._receipt_handles.clear()
 
-    async def enqueue(self, queue_name: str, task_data: bytes, delay_seconds: int = 0) -> None:
+    async def enqueue(
+        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+    ) -> None:
         """Add task to queue with optional delay.
 
         Base64-encodes task_data before sending. Auto-creates queue if needed.
@@ -113,10 +115,14 @@ class SQSDriver(BaseDriver):
             queue_name: Queue name (auto-created if not exists)
             task_data: Serialized task data (will be Base64-encoded)
             delay_seconds: Delay in seconds (0-900 max, SQS limit)
+            current_attempt: Current attempt number (ignored by SQS driver)
 
         Raises:
             ValueError: If delay_seconds > 900
             ClientError: If AWS API call fails
+
+        Note:
+            current_attempt is tracked in serialized task, not in SQS.
         """
 
         if self.client is None:
