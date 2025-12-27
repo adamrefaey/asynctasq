@@ -148,13 +148,7 @@ class ProcessPoolConfig:
 class RepositoryConfig:
     """Task repository configuration"""
 
-    task_scan_limit: int = 10000
     keep_completed_tasks: bool = False
-
-    def __post_init__(self):
-        """Validate repository configuration."""
-        if self.task_scan_limit < 1:
-            raise ValueError("task_scan_limit must be positive")
 
 
 @dataclass
