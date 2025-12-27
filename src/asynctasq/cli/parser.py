@@ -59,6 +59,11 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
         help="SQS queue URL prefix (default: None)",
     )
     sqs_group.add_argument(
+        "--sqs-endpoint-url",
+        type=str,
+        help="SQS endpoint URL (default: None)",
+    )
+    sqs_group.add_argument(
         "--aws-access-key-id",
         type=str,
         help="AWS access key ID (default: from AWS_ACCESS_KEY_ID env var)",
@@ -103,6 +108,14 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
         "--mysql-dead-letter-table",
         type=str,
         help="MySQL dead letter table name (default: 'dead_letter_queue')",
+    )
+
+    # RabbitMQ options
+    rabbitmq_group = parser.add_argument_group("RabbitMQ options")
+    rabbitmq_group.add_argument(
+        "--rabbitmq-url",
+        type=str,
+        help="RabbitMQ connection URL (default: 'amqp://guest:guest@localhost:5672/')",
     )
 
 
