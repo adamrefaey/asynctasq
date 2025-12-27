@@ -172,6 +172,7 @@ class SQSDriver(BaseDriver):
             QueueUrl=queue_url,
             MaxNumberOfMessages=1,
             WaitTimeSeconds=min(poll_seconds, 20),
+            VisibilityTimeout=self.visibility_timeout,
             MessageAttributeNames=["All"],
         )
 
