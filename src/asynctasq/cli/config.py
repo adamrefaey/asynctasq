@@ -18,11 +18,15 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
         Dictionary of config overrides to pass to Config()
     """
     from asynctasq.config import (
+        EventsConfig,
         MySQLConfig,
         PostgresConfig,
+        ProcessPoolConfig,
         RabbitMQConfig,
         RedisConfig,
+        RepositoryConfig,
         SQSConfig,
+        TaskDefaultsConfig,
     )
 
     overrides = {}
@@ -67,6 +71,12 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
         postgres_overrides["queue_table"] = args.postgres_queue_table
     if hasattr(args, "postgres_dead_letter_table") and args.postgres_dead_letter_table is not None:
         postgres_overrides["dead_letter_table"] = args.postgres_dead_letter_table
+    if hasattr(args, "postgres_max_attempts") and args.postgres_max_attempts is not None:
+        postgres_overrides["max_attempts"] = args.postgres_max_attempts
+    if hasattr(args, "postgres_min_pool_size") and args.postgres_min_pool_size is not None:
+        postgres_overrides["min_pool_size"] = args.postgres_min_pool_size
+    if hasattr(args, "postgres_max_pool_size") and args.postgres_max_pool_size is not None:
+        postgres_overrides["max_pool_size"] = args.postgres_max_pool_size
     if postgres_overrides:
         overrides["postgres"] = PostgresConfig(**postgres_overrides)
 
@@ -78,6 +88,12 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
         mysql_overrides["queue_table"] = args.mysql_queue_table
     if hasattr(args, "mysql_dead_letter_table") and args.mysql_dead_letter_table is not None:
         mysql_overrides["dead_letter_table"] = args.mysql_dead_letter_table
+    if hasattr(args, "mysql_max_attempts") and args.mysql_max_attempts is not None:
+        mysql_overrides["max_attempts"] = args.mysql_max_attempts
+    if hasattr(args, "mysql_min_pool_size") and args.mysql_min_pool_size is not None:
+        mysql_overrides["min_pool_size"] = args.mysql_min_pool_size
+    if hasattr(args, "mysql_max_pool_size") and args.mysql_max_pool_size is not None:
+        mysql_overrides["max_pool_size"] = args.mysql_max_pool_size
     if mysql_overrides:
         overrides["mysql"] = MySQLConfig(**mysql_overrides)
 
@@ -85,8 +101,91 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
     rabbitmq_overrides = {}
     if hasattr(args, "rabbitmq_url") and args.rabbitmq_url is not None:
         rabbitmq_overrides["url"] = args.rabbitmq_url
+    if hasattr(args, "rabbitmq_exchange_name") and args.rabbitmq_exchange_name is not None:
+        rabbitmq_overrides["exchange_name"] = args.rabbitmq_exchange_name
+    if hasattr(args, "rabbitmq_prefetch_count") and args.rabbitmq_prefetch_count is not None:
+        rabbitmq_overrides["prefetch_count"] = args.rabbitmq_prefetch_count
     if rabbitmq_overrides:
         overrides["rabbitmq"] = RabbitMQConfig(**rabbitmq_overrides)
+
+    # Events
+    events_overrides = {}
+    if hasattr(args, "events_redis_url") and args.events_redis_url is not None:
+        events_overrides["redis_url"] = args.events_redis_url
+    if hasattr(args, "events_channel") and args.events_channel is not None:
+        events_overrides["channel"] = args.events_channel
+    if (
+        hasattr(args, "events_enable_event_emitter_redis")
+        and args.events_enable_event_emitter_redis
+    ):
+        events_overrides["enable_event_emitter_redis"] = args.events_enable_event_emitter_redis
+    if events_overrides:
+        overrides["events"] = EventsConfig(**events_overrides)
+
+    # Task defaults
+    task_defaults_overrides = {}
+    if hasattr(args, "task_defaults_queue") and args.task_defaults_queue is not None:
+        task_defaults_overrides["queue"] = args.task_defaults_queue
+    if hasattr(args, "task_defaults_max_attempts") and args.task_defaults_max_attempts is not None:
+        task_defaults_overrides["max_attempts"] = args.task_defaults_max_attempts
+    if (
+        hasattr(args, "task_defaults_retry_strategy")
+        and args.task_defaults_retry_strategy is not None
+    ):
+        task_defaults_overrides["retry_strategy"] = args.task_defaults_retry_strategy
+    if hasattr(args, "task_defaults_retry_delay") and args.task_defaults_retry_delay is not None:
+        task_defaults_overrides["retry_delay"] = args.task_defaults_retry_delay
+    if hasattr(args, "task_defaults_timeout") and args.task_defaults_timeout is not None:
+        task_defaults_overrides["timeout"] = args.task_defaults_timeout
+    if (
+        hasattr(args, "task_defaults_visibility_timeout")
+        and args.task_defaults_visibility_timeout is not None
+    ):
+        task_defaults_overrides["visibility_timeout"] = args.task_defaults_visibility_timeout
+    if task_defaults_overrides:
+        overrides["task_defaults"] = TaskDefaultsConfig(**task_defaults_overrides)
+
+    # Process pool
+    process_pool_overrides = {}
+    if hasattr(args, "process_pool_size") and args.process_pool_size is not None:
+        process_pool_overrides["size"] = args.process_pool_size
+    if (
+        hasattr(args, "process_pool_max_tasks_per_child")
+        and args.process_pool_max_tasks_per_child is not None
+    ):
+        process_pool_overrides["max_tasks_per_child"] = args.process_pool_max_tasks_per_child
+    if process_pool_overrides:
+        overrides["process_pool"] = ProcessPoolConfig(**process_pool_overrides)
+
+    # Repository
+    repository_overrides = {}
+    if hasattr(args, "repository_keep_completed_tasks") and args.repository_keep_completed_tasks:
+        repository_overrides["keep_completed_tasks"] = args.repository_keep_completed_tasks
+    if repository_overrides:
+        overrides["repository"] = RepositoryConfig(**repository_overrides)
+
+    # Task defaults
+    task_defaults_overrides = {}
+    if hasattr(args, "task_defaults_queue") and args.task_defaults_queue is not None:
+        task_defaults_overrides["queue"] = args.task_defaults_queue
+    if hasattr(args, "task_defaults_max_attempts") and args.task_defaults_max_attempts is not None:
+        task_defaults_overrides["max_attempts"] = args.task_defaults_max_attempts
+    if (
+        hasattr(args, "task_defaults_retry_strategy")
+        and args.task_defaults_retry_strategy is not None
+    ):
+        task_defaults_overrides["retry_strategy"] = args.task_defaults_retry_strategy
+    if hasattr(args, "task_defaults_retry_delay") and args.task_defaults_retry_delay is not None:
+        task_defaults_overrides["retry_delay"] = args.task_defaults_retry_delay
+    if hasattr(args, "task_defaults_timeout") and args.task_defaults_timeout is not None:
+        task_defaults_overrides["timeout"] = args.task_defaults_timeout
+    if (
+        hasattr(args, "task_defaults_visibility_timeout")
+        and args.task_defaults_visibility_timeout is not None
+    ):
+        task_defaults_overrides["visibility_timeout"] = args.task_defaults_visibility_timeout
+    if task_defaults_overrides:
+        overrides["task_defaults"] = TaskDefaultsConfig(**task_defaults_overrides)
 
     return overrides
 

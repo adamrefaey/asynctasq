@@ -91,6 +91,21 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
         type=str,
         help="PostgreSQL dead letter table name (default: 'dead_letter_queue')",
     )
+    postgres_group.add_argument(
+        "--postgres-max-attempts",
+        type=int,
+        help="PostgreSQL maximum attempts before dead-lettering (default: 3)",
+    )
+    postgres_group.add_argument(
+        "--postgres-min-pool-size",
+        type=int,
+        help="PostgreSQL minimum connection pool size (default: 10)",
+    )
+    postgres_group.add_argument(
+        "--postgres-max-pool-size",
+        type=int,
+        help="PostgreSQL maximum connection pool size (default: 10)",
+    )
 
     # MySQL options
     mysql_group = parser.add_argument_group("MySQL options")
@@ -109,6 +124,21 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
         type=str,
         help="MySQL dead letter table name (default: 'dead_letter_queue')",
     )
+    mysql_group.add_argument(
+        "--mysql-max-attempts",
+        type=int,
+        help="MySQL maximum attempts before dead-lettering (default: 3)",
+    )
+    mysql_group.add_argument(
+        "--mysql-min-pool-size",
+        type=int,
+        help="MySQL minimum connection pool size (default: 10)",
+    )
+    mysql_group.add_argument(
+        "--mysql-max-pool-size",
+        type=int,
+        help="MySQL maximum connection pool size (default: 10)",
+    )
 
     # RabbitMQ options
     rabbitmq_group = parser.add_argument_group("RabbitMQ options")
@@ -116,6 +146,89 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
         "--rabbitmq-url",
         type=str,
         help="RabbitMQ connection URL (default: 'amqp://guest:guest@localhost:5672/')",
+    )
+    rabbitmq_group.add_argument(
+        "--rabbitmq-exchange-name",
+        type=str,
+        help="RabbitMQ exchange name (default: 'asynctasq')",
+    )
+    rabbitmq_group.add_argument(
+        "--rabbitmq-prefetch-count",
+        type=int,
+        help="RabbitMQ consumer prefetch count (default: 1)",
+    )
+
+    # Events options
+    events_group = parser.add_argument_group("Events options")
+    events_group.add_argument(
+        "--events-redis-url",
+        type=str,
+        help="Redis URL for event pub/sub (default: None, uses main redis.url)",
+    )
+    events_group.add_argument(
+        "--events-channel",
+        type=str,
+        help="Redis Pub/Sub channel name for events (default: 'asynctasq:events')",
+    )
+    events_group.add_argument(
+        "--events-enable-event-emitter-redis",
+        action="store_true",
+        help="Enable Redis Pub/Sub event emitter (default: False)",
+    )
+
+    # Task defaults options (worker context only)
+    task_defaults_group = parser.add_argument_group("Task defaults options (worker context only)")
+    task_defaults_group.add_argument(
+        "--task-defaults-queue",
+        type=str,
+        help="Default queue name for tasks (default: 'default')",
+    )
+    task_defaults_group.add_argument(
+        "--task-defaults-max-attempts",
+        type=int,
+        help="Default maximum retry attempts (default: 3)",
+    )
+    task_defaults_group.add_argument(
+        "--task-defaults-retry-strategy",
+        type=str,
+        choices=["fixed", "exponential"],
+        help="Retry delay strategy (default: 'exponential')",
+    )
+    task_defaults_group.add_argument(
+        "--task-defaults-retry-delay",
+        type=int,
+        help="Base retry delay in seconds (default: 60)",
+    )
+    task_defaults_group.add_argument(
+        "--task-defaults-timeout",
+        type=int,
+        help="Default task timeout in seconds (default: None)",
+    )
+    task_defaults_group.add_argument(
+        "--task-defaults-visibility-timeout",
+        type=int,
+        help="Visibility timeout for crash recovery in seconds (worker context only, default: 300)",
+    )
+
+    # Process pool options (worker context only)
+    process_pool_group = parser.add_argument_group("Process pool options (worker context only)")
+    process_pool_group.add_argument(
+        "--process-pool-size",
+        type=int,
+        help="Number of worker processes for CPU-bound tasks (default: None, auto-detect CPU count)",
+    )
+    process_pool_group.add_argument(
+        "--process-pool-max-tasks-per-child",
+        type=int,
+        help="Recycle worker processes after N tasks (default: None)",
+    )
+
+    # Repository options (worker context only)
+    repository_group = parser.add_argument_group("Repository options (worker context only)")
+    repository_group.add_argument(
+        "--repository-keep-completed-tasks",
+        action="store_true",
+        help="Keep completed tasks for history/audit (default: False)",
     )
 
 
