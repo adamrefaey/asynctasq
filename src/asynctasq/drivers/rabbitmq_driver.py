@@ -292,13 +292,16 @@ class RabbitMQDriver(BaseDriver):
         self._completed_queues[queue_name] = completed_queue
         return completed_queue
 
-    async def enqueue(self, queue_name: str, task_data: bytes, delay_seconds: int = 0) -> None:
+    async def enqueue(
+        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+    ) -> None:
         """Add task to queue with optional delay.
 
         Args:
             queue_name: Name of the queue
             task_data: Serialized task data
             delay_seconds: Seconds to delay task visibility (0 = immediate)
+            current_attempt: Current attempt number (ignored by RabbitMQ driver)
 
         Implementation:
             - Immediate (delay_seconds <= 0):
@@ -313,6 +316,7 @@ class RabbitMQDriver(BaseDriver):
               - Publishes to delayed queue (auto-created if needed)
               - _process_delayed_tasks() will move to main queue when ready
             - All messages use PERSISTENT delivery mode for durability
+            - current_attempt is tracked in serialized task, not in RabbitMQ
         """
         if self.channel is None:
             await self.connect()

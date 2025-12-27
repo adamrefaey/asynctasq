@@ -36,20 +36,24 @@ class BaseDriver(ABC):
         ...
 
     @abstractmethod
-    async def enqueue(self, queue_name: str, task_data: bytes, delay_seconds: int = 0) -> None:
+    async def enqueue(
+        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+    ) -> None:
         """Add a task to the queue.
 
         Args:
             queue_name: Name of the queue
             task_data: Serialized task data (msgpack bytes)
             delay_seconds: Optional delay before task becomes visible (default: 0)
+            current_attempt: Current attempt number for the task (default: 0)
 
         Raises:
             ValueError: If delay_seconds exceeds driver limits
             ConnectionError: If not connected to backend
 
         Note:
-            Delay implementation is driver-specific
+            Delay implementation is driver-specific.
+            current_attempt is used by drivers with rich schemas (Postgres/MySQL) for monitoring.
         """
         ...
 

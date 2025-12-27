@@ -112,8 +112,8 @@ class Dispatcher:
         driver_type = driver.__class__.__name__
         serialized_task = self._task_serializer.serialize(task)
 
-        # Enqueue
-        await driver.enqueue(target_queue, serialized_task, delay_seconds)
+        # Enqueue with current attempt number
+        await driver.enqueue(target_queue, serialized_task, delay_seconds, task._current_attempt)
 
         # Emit task_enqueued event via global emitters
         await EventRegistry.emit(

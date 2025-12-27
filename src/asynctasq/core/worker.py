@@ -273,9 +273,9 @@ class Worker:
 
             logger.info(f"Processing task {task._task_id}: {task.__class__.__name__}")
 
-            # Mark that this worker is starting an attempt. Use the task API
-            # so attempt tracking is centralized on the task instance.
-            task.mark_attempt_started()
+            # Driver already incremented current_attempt in dequeue()
+            # Sync the task object with the driver's state
+            task._current_attempt += 1
 
             # Emit task_started event
             await EventRegistry.emit(
@@ -328,15 +328,14 @@ class Worker:
 
         except (ImportError, AttributeError, ValueError, TypeError) as e:
             if task is None:
-                # Deserialization failure - re-enqueue raw task_data for retry
-                # This allows the task to be retried later (e.g., after code is fixed)
+                # Deserialization failure - nack to retry with backoff
+                # Driver tracks attempt count and will eventually move to DLQ
                 logger.error(
-                    f"Failed to deserialize task from queue '{queue_name}': {e}. "
-                    f"Re-enqueuing for retry."
+                    f"Failed to deserialize task from queue '{queue_name}': {e}. Nacking for retry."
                 )
                 logger.exception(e)
-                # Re-enqueue with a delay to avoid immediate retry loop
-                await self.queue_driver.enqueue(queue_name, task_data, delay_seconds=60)
+                # Use nack to leverage driver's retry logic
+                await self.queue_driver.nack(queue_name, task_data)
             else:
                 # ValueError/TypeError during task execution - handle as task failure
                 logger.exception(f"Task {task._task_id} failed: {e}")
@@ -347,10 +346,10 @@ class Worker:
                 # TimeoutError during deserialization - treat as deserialization failure
                 logger.error(
                     f"Deserialization timeout for task from queue '{queue_name}': {e}. "
-                    f"Re-enqueuing for retry."
+                    f"Nacking for retry."
                 )
                 logger.exception(e)
-                await self.queue_driver.enqueue(queue_name, task_data, delay_seconds=60)
+                await self.queue_driver.nack(queue_name, task_data)
             else:
                 # TimeoutError during task execution - handle as task failure
                 logger.error(f"Task {task._task_id} timed out")
@@ -363,10 +362,10 @@ class Worker:
                 # Unexpected error during deserialization that we didn't catch above
                 logger.error(
                     f"Unexpected error deserializing task from queue '{queue_name}': {e}. "
-                    f"Re-enqueuing for retry."
+                    f"Nacking for retry."
                 )
                 logger.exception(e)
-                await self.queue_driver.enqueue(queue_name, task_data, delay_seconds=60)
+                await self.queue_driver.nack(queue_name, task_data)
             else:
                 logger.exception(f"Task {task._task_id} failed: {e}")
                 await self._handle_task_failure(task, e, queue_name, start_time, task_data)
@@ -404,10 +403,9 @@ class Worker:
         duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
         task_id = task._task_id or "unknown"  # Fallback for type safety
 
-        # The worker increments the attempt via `mark_attempt_started()` when
-        # starting execution. Use the current value as the attempt that just ran
-        # for delay calculation and event emission. Do not mutate attempts here
-        # to avoid double-counting.
+        # Driver already incremented the attempt in dequeue(), and worker synced it.
+        # Use the current value as the attempt that just ran for delay calculation
+        # and event emission. Do not mutate attempts here to avoid double-counting.
         existing_attempt = task.current_attempt
 
         # Check if we should retry (uses TaskService for the decision logic)
@@ -442,8 +440,7 @@ class Worker:
                 )
 
             # Re-enqueue with delay (this preserves the current attempt count
-            # in the serialized payload; the next worker will call
-            # `mark_attempt_started()` when the task is actually started again)
+            # in the serialized payload; the driver will increment it on next dequeue)
             # Calculate retry delay based on strategy (fixed or exponential)
             config = Config.get()
             # Use the attempt that just ran (existing_attempt) for delay calculation.
@@ -457,11 +454,14 @@ class Worker:
                 existing_attempt,  # type: ignore[arg-type]
             )
             await self.queue_driver.enqueue(
-                task.config.get("queue", "default"), serialized_task, delay_seconds=retry_delay
+                task.config.get("queue", "default"),
+                serialized_task,
+                delay_seconds=retry_delay,
+                current_attempt=task._current_attempt,
             )
         else:
-            # Task has failed permanently. The attempt count was incremented
-            # when the worker started, so `task._current_attempt` already
+            # Task has failed permanently. The attempt count was incremented by
+            # the driver in dequeue() and synced by worker, so `task._current_attempt`
             # reflects the final attempt number.
             logger.error(
                 f"Task {task_id} failed permanently after {task._current_attempt} attempts"

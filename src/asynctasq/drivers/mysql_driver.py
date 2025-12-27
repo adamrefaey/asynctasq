@@ -146,7 +146,7 @@ class MySQLDriver(BaseDriver):
                         available_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                         locked_until DATETIME(6) NULL,
                         status VARCHAR(50) NOT NULL DEFAULT 'pending',
-                        current_attempt INT NOT NULL DEFAULT 1,
+                        current_attempt INT NOT NULL DEFAULT 0,
                         max_attempts INT NOT NULL DEFAULT 3,
                         created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                         updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -166,13 +166,16 @@ class MySQLDriver(BaseDriver):
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """)
 
-    async def enqueue(self, queue_name: str, task_data: bytes, delay_seconds: int = 0) -> None:
+    async def enqueue(
+        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+    ) -> None:
         """Add task to queue with optional delay.
 
         Args:
             queue_name: Name of the queue
             task_data: Serialized task data
             delay_seconds: Seconds to delay task visibility (0 = immediate)
+            current_attempt: Current attempt number (0 for first attempt)
         """
         if self.pool is None:
             await self.connect()
@@ -181,14 +184,15 @@ class MySQLDriver(BaseDriver):
         query = f"""
             INSERT INTO {self.queue_table}
                 (queue_name, payload, available_at, status, current_attempt, max_attempts, created_at)
-            VALUES (%s, %s, DATE_ADD(NOW(6), INTERVAL %s SECOND), 'pending', 1, %s, NOW(6))
+            VALUES (%s, %s, DATE_ADD(NOW(6), INTERVAL %s SECOND), 'pending', %s, %s, NOW(6))
         """
         async with self.pool.acquire() as conn:
             await conn.begin()
             try:
                 async with conn.cursor() as cursor:
                     await cursor.execute(
-                        query, (queue_name, task_data, delay_seconds, self.max_attempts)
+                        query,
+                        (queue_name, task_data, delay_seconds, current_attempt, self.max_attempts),
                     )
                 await conn.commit()
             except Exception:
@@ -222,13 +226,16 @@ class MySQLDriver(BaseDriver):
             deadline = loop.time() + poll_seconds
 
         while True:
-            # Select and lock a pending task
+            # Select and lock a task that's ready to process
+            # Includes: 1) pending tasks that are ready and not locked
+            #           2) processing tasks with expired locks (stuck/crashed workers)
             query = f"""
                 SELECT id, payload FROM {self.queue_table}
                 WHERE queue_name = %s
-                  AND status = 'pending'
-                  AND available_at <= NOW(6)
-                  AND (locked_until IS NULL OR locked_until < NOW(6))
+                  AND (
+                    (status = 'pending' AND available_at <= NOW(6) AND (locked_until IS NULL OR locked_until < NOW(6)))
+                    OR (status = 'processing' AND locked_until < NOW(6))
+                  )
                 ORDER BY created_at
                 LIMIT 1
                 FOR UPDATE SKIP LOCKED
@@ -246,10 +253,14 @@ class MySQLDriver(BaseDriver):
                             task_data = bytes(row[1])
 
                             # Update status and set visibility timeout
+                            # Increment current_attempt ONLY if status was 'pending' (new attempt)
+                            # If status was 'processing', it's a retry of a stuck task (don't increment again)
+                            # NOTE: Use IF() and set current_attempt BEFORE status to evaluate against old status value
                             await cursor.execute(
                                 f"""
                                 UPDATE {self.queue_table}
-                                SET status = 'processing',
+                                SET current_attempt = IF(status = 'pending', current_attempt + 1, current_attempt),
+                                    status = 'processing',
                                     locked_until = DATE_ADD(NOW(6), INTERVAL %s SECOND),
                                     updated_at = NOW(6)
                                 WHERE id = %s
@@ -328,9 +339,18 @@ class MySQLDriver(BaseDriver):
             receipt_handle: Receipt handle from dequeue (UUID bytes)
 
         Implementation:
-            - Increments attempt counter
-            - If current_attempt < max_attempts: requeue with exponential backoff
+            - Checks current_attempt (already incremented by dequeue)
+            - If current_attempt < max_attempts: requeue with backoff, keep attempt count
             - If current_attempt >= max_attempts: move to dead letter queue
+            - Does NOT increment attempt (dequeue already did)
+            - Does NOT update payload (task object's _current_attempt may desync)
+
+        Note:
+            nack() reuses the original payload without updating serialized metadata.
+            This means the task's _current_attempt in the payload may be stale.
+            This is acceptable for permanent failures (deserialization errors) since
+            the task never successfully runs. The DB current_attempt remains authoritative
+            for enforcing max_attempts limits.
         """
         if self.pool is None:
             await self.connect()
@@ -357,9 +377,8 @@ class MySQLDriver(BaseDriver):
                         task_queue_name = row[2]
                         payload = row[3]
 
-                        # If there are retries left, increment and requeue. Otherwise move to DLQ.
+                        # Check if task can be retried (dequeue already incremented the attempt)
                         if existing_attempt < max_attempts:
-                            new_attempt = existing_attempt + 1
                             # Calculate retry delay based on strategy (fixed or exponential)
                             retry_delay = calculate_retry_delay(
                                 self.retry_strategy, self.retry_delay_seconds, existing_attempt
@@ -367,14 +386,13 @@ class MySQLDriver(BaseDriver):
                             await cursor.execute(
                                 f"""
                                 UPDATE {self.queue_table}
-                                SET current_attempt = %s,
-                                    available_at = DATE_ADD(NOW(6), INTERVAL %s SECOND),
+                                SET available_at = DATE_ADD(NOW(6), INTERVAL %s SECOND),
                                     status = 'pending',
                                     locked_until = NULL,
                                     updated_at = NOW(6)
                                 WHERE id = %s
                                 """,
-                                (new_attempt, retry_delay, task_id),
+                                (retry_delay, task_id),
                             )
                         else:
                             await cursor.execute(

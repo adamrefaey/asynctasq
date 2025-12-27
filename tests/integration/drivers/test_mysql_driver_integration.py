@@ -272,7 +272,7 @@ class TestMySQLDriverWithRealMySQL:
             assert result is not None
             assert result[2] == task_data  # payload is at index 2
             assert result[5] == "pending"  # status is at index 5
-            assert result[6] == 1  # current_attempt is at index 6
+            assert result[6] == 0  # current_attempt is at index 6 (0 before first attempt)
 
     @mark.asyncio
     async def test_enqueue_multiple_tasks_preserves_fifo_order(
@@ -457,17 +457,17 @@ class TestMySQLDriverWithRealMySQL:
     async def test_nack_requeues_task(
         self, mysql_driver: MySQLDriver, mysql_conn: asyncmy.Connection
     ) -> None:
-        """nack() should requeue task with incremented current_attempt."""
+        """nack() should requeue task keeping the attempt count from dequeue."""
         # Arrange
         task_data = b"failed_task"
-        await mysql_driver.enqueue("default", task_data)
-        receipt = await mysql_driver.dequeue("default", poll_seconds=0)
+        await mysql_driver.enqueue("default", task_data)  # current_attempt = 0
+        receipt = await mysql_driver.dequeue("default", poll_seconds=0)  # increments to 1
         assert receipt is not None
 
         # Act
-        await mysql_driver.nack("default", receipt)
+        await mysql_driver.nack("default", receipt)  # keeps current_attempt = 1
 
-        # Assert - task should be requeued with current_attempt=2
+        # Assert - task should be requeued with current_attempt=1 (dequeue incremented, nack didn't)
         async with mysql_conn.cursor() as cursor:
             await cursor.execute(
                 f"SELECT current_attempt, status FROM {TEST_QUEUE_TABLE} WHERE queue_name = %s",
@@ -475,7 +475,7 @@ class TestMySQLDriverWithRealMySQL:
             )
             result = await cursor.fetchone()
             assert result is not None
-            assert result[0] == 2
+            assert result[0] == 1  # Dequeue incremented to 1, nack didn't change it
             assert result[1] == "pending"
 
         # Receipt handle should be cleared
@@ -653,59 +653,56 @@ class TestMySQLDriverWithRealMySQL:
         """nack() should apply exponential backoff for retries."""
         # Arrange
         await mysql_driver.enqueue("default", b"retry_task", delay_seconds=0)
-        receipt1 = await mysql_driver.dequeue("default", poll_seconds=0)
-        assert receipt1 is not None
 
-        # Act - first nack
-        await mysql_driver.nack("default", receipt1)
+        # Track available_at times
+        available_times = []
 
-        # Assert - check available_at is set with exponential backoff
-        async with mysql_conn.cursor() as cursor:
-            await cursor.execute(
-                f"""
-                SELECT current_attempt, available_at FROM {TEST_QUEUE_TABLE}
-                WHERE queue_name = %s
-                """,
-                ("default",),
-            )
-            result = await cursor.fetchone()
-            assert result is not None
-            assert result[0] == 2  # current_attempt = 2
-            # available_at should be in the future (retry_delay_seconds * 2^0 = 60 seconds)
-            available_at = result[1]
-            if available_at.tzinfo is None:
-                available_at = available_at.replace(tzinfo=UTC)
-            assert available_at.timestamp() > time()
+        # Act - nack multiple times
+        # Loop 1: dequeue (0->1), nack (keeps 1)
+        # Loop 2: dequeue (1->2), nack (keeps 2)
+        for expected_attempt in [1, 2]:
+            receipt = await mysql_driver.dequeue("default", poll_seconds=0)
+            assert receipt is not None
 
-        # Make task available again for second nack
-        async with mysql_conn.cursor() as cursor:
-            await cursor.execute(
-                f"""
-                UPDATE {TEST_QUEUE_TABLE}
-                SET available_at = DATE_SUB(NOW(6), INTERVAL 1 SECOND),
-                    locked_until = NULL
-                WHERE queue_name = %s
-                """,
-                ("default",),
-            )
+            await mysql_driver.nack("default", receipt)
 
-        # Act - second nack (should have longer delay)
-        receipt2 = await mysql_driver.dequeue("default", poll_seconds=0)
-        assert receipt2 is not None
-        await mysql_driver.nack("default", receipt2)
+            # Check available_at and current_attempt
+            async with mysql_conn.cursor() as cursor:
+                await cursor.execute(
+                    f"""
+                    SELECT current_attempt, available_at FROM {TEST_QUEUE_TABLE}
+                    WHERE queue_name = %s
+                    """,
+                    ("default",),
+                )
+                result = await cursor.fetchone()
+                assert result is not None
+                assert result[0] == expected_attempt  # Attempt stays after nack
+                # available_at should be in the future
+                available_at = result[1]
+                if available_at.tzinfo is None:
+                    available_at = available_at.replace(tzinfo=UTC)
+                available_times.append(available_at.timestamp())
 
-        # Assert - check exponential backoff (retry_delay_seconds * 2^1 = 120 seconds)
-        async with mysql_conn.cursor() as cursor:
-            await cursor.execute(
-                f"""
-                SELECT current_attempt, available_at FROM {TEST_QUEUE_TABLE}
-                WHERE queue_name = %s
-                """,
-                ("default",),
-            )
-            result = await cursor.fetchone()
-            assert result is not None
-            assert result[0] == 3  # current_attempt = 3 (after second nack)
+            # Make task available again for next iteration
+            if expected_attempt < 2:
+                async with mysql_conn.cursor() as cursor:
+                    await cursor.execute(
+                        f"""
+                        UPDATE {TEST_QUEUE_TABLE}
+                        SET available_at = DATE_SUB(NOW(6), INTERVAL 1 SECOND),
+                            locked_until = NULL
+                        WHERE queue_name = %s
+                        """,
+                        ("default",),
+                    )
+
+        # Assert - backoff should increase exponentially
+        # First retry: retry_delay_seconds * 2^0 = 60
+        # Second retry: retry_delay_seconds * 2^1 = 120
+        now = time()
+        assert available_times[0] > now + 50  # At least 50 seconds (60 - tolerance)
+        assert available_times[1] > now + 110  # At least 110 seconds (120 - tolerance)
 
     @mark.asyncio
     async def test_nack_with_invalid_receipt_handle(self, mysql_driver: MySQLDriver) -> None:
