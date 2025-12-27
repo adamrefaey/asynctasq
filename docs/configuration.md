@@ -2,6 +2,38 @@
 
 AsyncTasQ uses the `asynctasq.init()` function as the primary configuration interface. This function initializes both configuration and event emitters.
 
+## Configuration Contexts
+
+AsyncTasQ configuration properties apply to different contexts depending on their usage:
+
+### Dispatch Context
+The **dispatch context** refers to when you're enqueuing/dispatching tasks to the queue (e.g., calling `task.dispatch()` in your application code).
+
+### Worker Context
+The **worker context** refers to when the worker process is running and processing tasks from the queue (e.g., running `asynctasq worker`).
+
+### Context Applicability
+
+| Configuration Group | Context | Description |
+|-------------------|---------|-------------|
+| **Driver Selection** (`driver`) | Both | Required for both dispatching and processing tasks |
+| **Driver Configs** (`redis`, `sqs`, `postgres`, `mysql`, `rabbitmq`) | Both | Queue connections needed in both contexts |
+| **Events** (`events`) | Both | Event emission happens during both dispatch and processing |
+| **Task Defaults** | Mixed | See detailed breakdown below |
+| **Process Pool** (`process_pool`) | Worker only | Only used by workers executing CPU-bound tasks |
+| **Repository** (`repository`) | Worker only | Only used by workers when completing tasks |
+
+#### Task Defaults Context Breakdown
+
+| Property | Context | Usage |
+|---------|---------|-------|
+| `queue` | Both | Used when dispatching (stored in task), worker uses it as default |
+| `max_attempts` | Both | Set during dispatch (stored in task), enforced by worker during retries |
+| `retry_strategy` | Both | Set during dispatch (stored in task), used by worker for retry logic |
+| `retry_delay` | Both | Set during dispatch (stored in task), used by worker for retry delays |
+| `timeout` | **Worker only** | Enforced during task execution by the worker |
+| `visibility_timeout` | **Worker only** | Used when dequeuing tasks for crash recovery |
+
 ## Table of Contents
 
 - [Configuration](#configuration)
@@ -119,6 +151,8 @@ asynctasq.init({'driver': 'postgres'})
 
 Configuration group: `redis` (type: `RedisConfig`)
 
+**Context: Both dispatch and worker contexts** – Used for queue connections in both task dispatching and processing.
+
 | Option            |        Type | Description                       | Default                  |
 | ----------------- | ----------: | --------------------------------- | ------------------------ |
 | `url`             |         str | Redis connection URL              | `redis://localhost:6379` |
@@ -146,6 +180,8 @@ asynctasq.init({
 ### SQS Configuration
 
 Configuration group: `sqs` (type: `SQSConfig`)
+
+**Context: Both dispatch and worker contexts** – Used for queue connections in both task dispatching and processing.
 
 | Option                  |        Type | Description                                        | Default     |
 | ----------------------- | ----------: | -------------------------------------------------- | ----------- |
@@ -175,6 +211,8 @@ asynctasq.init({
 ### PostgreSQL Configuration
 
 Configuration group: `postgres` (type: `PostgresConfig`)
+
+**Context: Both dispatch and worker contexts** – Used for queue connections in both task dispatching and processing.
 
 | Option              | Type | Description                            | Default                                         |
 | ------------------- | ---: | -------------------------------------- | ----------------------------------------------- |
@@ -208,6 +246,8 @@ asynctasq.init({
 
 Configuration group: `mysql` (type: `MySQLConfig`)
 
+**Context: Both dispatch and worker contexts** – Used for queue connections in both task dispatching and processing.
+
 | Option              | Type | Description                            | Default                                    |
 | ------------------- | ---: | -------------------------------------- | ------------------------------------------ |
 | `dsn`               |  str | MySQL connection DSN                   | `mysql://test:test@localhost:3306/test_db` |
@@ -240,6 +280,8 @@ asynctasq.init({
 
 Configuration group: `rabbitmq` (type: `RabbitMQConfig`)
 
+**Context: Both dispatch and worker contexts** – Used for queue connections in both task dispatching and processing.
+
 | Option           | Type | Description             | Default                              |
 | ---------------- | ---: | ----------------------- | ------------------------------------ |
 | `url`            |  str | RabbitMQ connection URL | `amqp://guest:guest@localhost:5672/` |
@@ -265,6 +307,8 @@ asynctasq.init({
 ### Events Configuration
 
 Configuration group: `events` (type: `EventsConfig`)
+
+**Context: Both dispatch and worker contexts** – Event emission happens during both task dispatching and processing contexts.
 
 Controls monitoring and event emission for task lifecycle events.
 
@@ -302,16 +346,18 @@ asynctasq.init({
 
 Configuration group: `task_defaults` (type: `TaskDefaultsConfig`)
 
+**Context: Mixed (see individual properties below)** – Some properties apply to both contexts, while others are worker-only.
+
 Default settings for all tasks (can be overridden per task).
 
-| Option               |        Type | Description                                                                                           | Choices                | Default       |
-| -------------------- | ----------: | ----------------------------------------------------------------------------------------------------- | ---------------------- | ------------- |
-| `queue`              |         str | Default queue name for tasks                                                                          | —                      | `default`     |
-| `max_attempts`       |         int | Default maximum retry attempts                                                                        | —                      | `3`           |
-| `retry_strategy`     |         str | Retry delay strategy                                                                                  | `fixed`, `exponential` | `exponential` |
-| `retry_delay`        |         int | Base retry delay in seconds                                                                           | —                      | `60`          |
-| `timeout`            | int \| None | Default task timeout in seconds (None = no timeout)                                                   | —                      | `None`        |
-| `visibility_timeout` |         int | Crash recovery timeout - seconds a task is invisible before auto-recovery (PostgreSQL/MySQL/SQS only) | —                      | `300`         |
+| Option               |        Type | Context | Description                                                                                           | Choices                | Default       |
+| -------------------- | ----------: | ------- | ----------------------------------------------------------------------------------------------------- | ---------------------- | ------------- |
+| `queue`              |         str | Both | Default queue name for tasks (used when dispatching, stored in task)                                  | —                      | `default`     |
+| `max_attempts`       |         int | Both | Default maximum retry attempts (set during dispatch, enforced by worker)                              | —                      | `3`           |
+| `retry_strategy`     |         str | Both | Retry delay strategy (set during dispatch, used by worker for retry logic)                            | `fixed`, `exponential` | `exponential` |
+| `retry_delay`        |         int | Both | Base retry delay in seconds (set during dispatch, used by worker for retry delays)                    | —                      | `60`          |
+| `timeout`            | int \| None | **Worker only** | Default task timeout in seconds - enforced during task execution (None = no timeout)         | —                      | `None`        |
+| `visibility_timeout` |         int | **Worker only** | Crash recovery timeout - seconds a task is invisible before auto-recovery (PostgreSQL/MySQL/SQS only) | —                      | `300`         |
 
 ```python
 import asynctasq
@@ -395,7 +441,7 @@ asynctasq.init({
 
 Configuration group: `process_pool` (type: `ProcessPoolConfig`)
 
-For CPU-bound tasks using `AsyncProcessTask` or `SyncProcessTask`.
+**Context: Worker context only** – Only used by workers when executing CPU-bound tasks (`AsyncProcessTask` or `SyncProcessTask`).
 
 | Option                |        Type | Description                                                    | Default |
 | --------------------- | ----------: | -------------------------------------------------------------- | ------- |
@@ -457,6 +503,8 @@ asyncio.run(init_worker())
 ### Repository Configuration
 
 Configuration group: `repository` (type: `RepositoryConfig`)
+
+**Context: Worker context only** – Only used by workers when completing tasks to determine if they should be kept or removed.
 
 | Option                 | Type | Description                                                     | Default |
 | ---------------------- | ---: | --------------------------------------------------------------- | ------- |

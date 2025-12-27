@@ -23,7 +23,11 @@ class ConfigOverrides(TypedDict, total=False):
 
 @dataclass
 class RedisConfig:
-    """Redis driver configuration"""
+    """Redis driver configuration.
+
+    Context: Both dispatch and worker contexts.
+    Used for queue connections in both task dispatching and processing.
+    """
 
     url: str = "redis://localhost:6379"
     password: str | None = None
@@ -40,7 +44,11 @@ class RedisConfig:
 
 @dataclass
 class SQSConfig:
-    """AWS SQS driver configuration"""
+    """AWS SQS driver configuration.
+
+    Context: Both dispatch and worker contexts.
+    Used for queue connections in both task dispatching and processing.
+    """
 
     region: str = "us-east-1"
     queue_url_prefix: str | None = None
@@ -51,7 +59,11 @@ class SQSConfig:
 
 @dataclass
 class PostgresConfig:
-    """PostgreSQL driver configuration"""
+    """PostgreSQL driver configuration.
+
+    Context: Both dispatch and worker contexts.
+    Used for queue connections in both task dispatching and processing.
+    """
 
     dsn: str = "postgresql://test:test@localhost:5432/test_db"
     queue_table: str = "task_queue"
@@ -74,7 +86,11 @@ class PostgresConfig:
 
 @dataclass
 class MySQLConfig:
-    """MySQL driver configuration"""
+    """MySQL driver configuration.
+
+    Context: Both dispatch and worker contexts.
+    Used for queue connections in both task dispatching and processing.
+    """
 
     dsn: str = "mysql://test:test@localhost:3306/test_db"
     queue_table: str = "task_queue"
@@ -97,7 +113,11 @@ class MySQLConfig:
 
 @dataclass
 class RabbitMQConfig:
-    """RabbitMQ driver configuration"""
+    """RabbitMQ driver configuration.
+
+    Context: Both dispatch and worker contexts.
+    Used for queue connections in both task dispatching and processing.
+    """
 
     url: str = "amqp://guest:guest@localhost:5672/"
     exchange_name: str = "asynctasq"
@@ -106,7 +126,11 @@ class RabbitMQConfig:
 
 @dataclass
 class EventsConfig:
-    """Events and monitoring configuration"""
+    """Events and monitoring configuration.
+
+    Context: Both dispatch and worker contexts.
+    Event emission happens in both task dispatching and processing contexts.
+    """
 
     redis_url: str | None = None
     channel: str = "asynctasq:events"
@@ -115,7 +139,16 @@ class EventsConfig:
 
 @dataclass
 class TaskDefaultsConfig:
-    """Default task configuration"""
+    """Default task configuration.
+
+    Context specificity:
+    - queue: Both dispatch and worker contexts (used when dispatching, stored in task)
+    - max_attempts: Both contexts (used when dispatching, stored in task; used by worker when retrying)
+    - retry_strategy: Both contexts (used when dispatching, stored in task; used by worker when retrying)
+    - retry_delay: Both contexts (used when dispatching, stored in task; used by worker when retrying)
+    - timeout: Worker context only (enforced during task execution)
+    - visibility_timeout: Worker context only (used when dequeuing tasks for crash recovery)
+    """
 
     queue: str = "default"
     max_attempts: int = 3
@@ -138,7 +171,11 @@ class TaskDefaultsConfig:
 
 @dataclass
 class ProcessPoolConfig:
-    """Process pool configuration for CPU-bound tasks"""
+    """Process pool configuration for CPU-bound tasks.
+
+    Context: Worker context only.
+    Only used by workers when executing AsyncProcessTask or SyncProcessTask tasks.
+    """
 
     size: int | None = None
     max_tasks_per_child: int | None = None
@@ -146,7 +183,11 @@ class ProcessPoolConfig:
 
 @dataclass
 class RepositoryConfig:
-    """Task repository configuration"""
+    """Task repository configuration.
+
+    Context: Worker context only.
+    Only used by workers when completing tasks to determine if they should be kept or removed.
+    """
 
     keep_completed_tasks: bool = False
 
