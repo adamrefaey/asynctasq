@@ -34,7 +34,7 @@ class DummyDriver(BaseDriver):
 
     def __init__(self) -> None:
         """Initialize driver with empty queues."""
-        self.enqueued: list[tuple[str, bytes, int]] = []
+        self.enqueued: list[tuple[str, bytes, int, int, int]] = []
         self.processing: list[bytes] = []
 
     async def connect(self) -> None:
@@ -46,10 +46,17 @@ class DummyDriver(BaseDriver):
         pass
 
     async def enqueue(
-        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+        self,
+        queue_name: str,
+        task_data: bytes,
+        delay_seconds: int = 0,
+        current_attempt: int = 0,
+        visibility_timeout: int = 0,
     ) -> None:
         """Store serialized payloads for inspection."""
-        self.enqueued.append((queue_name, task_data, delay_seconds))
+        self.enqueued.append(
+            (queue_name, task_data, delay_seconds, current_attempt, visibility_timeout)
+        )
 
     async def dequeue(self, queue_name: str, poll_seconds: int = 0) -> bytes | None:
         """Return nothing - test will directly call worker._process_task."""

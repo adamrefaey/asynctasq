@@ -60,8 +60,8 @@ class TestPostgresDriverConnection:
 
         # Should have called connect first
         mock_create_pool.assert_called_once()
-        # Should have executed 3 SQL statements (create table, create index, create dead-letter table)
-        assert mock_conn.execute.call_count == 3
+        # Should have executed 4 SQL statements (create table, migration check, create index, create dead-letter table)
+        assert mock_conn.execute.call_count == 4
 
 
 @mark.unit
@@ -387,6 +387,7 @@ class TestPostgresDriverEnqueueDequeue:
             "payload": b"task_data",
             "current_attempt": 1,
             "max_attempts": 3,
+            "visibility_timeout_seconds": 300,
         }
 
         driver = PostgresDriver(dsn="postgresql://user:pass@localhost/db")
@@ -422,6 +423,7 @@ class TestPostgresDriverEnqueueDequeue:
                 "payload": b"task_data",
                 "current_attempt": 1,
                 "max_attempts": 3,
+                "visibility_timeout_seconds": 300,
             },
         ]
 

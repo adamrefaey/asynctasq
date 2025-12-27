@@ -146,16 +146,15 @@ class TaskDefaultsConfig:
     - max_attempts: Both contexts (used when dispatching, stored in task; used by worker when retrying)
     - retry_strategy: Both contexts (used when dispatching, stored in task; used by worker when retrying)
     - retry_delay: Both contexts (used when dispatching, stored in task; used by worker when retrying)
-    - timeout: Worker context only (enforced during task execution)
-    - visibility_timeout: Worker context only (used when dequeuing tasks for crash recovery)
+
+    Note:
+    - timeout and visibility_timeout are now configured per-task via TaskConfig
     """
 
     queue: str = "default"
     max_attempts: int = 3
     retry_strategy: str = "exponential"
     retry_delay: int = 60
-    timeout: int | None = None
-    visibility_timeout: int = 300
 
     def __post_init__(self):
         """Validate task defaults configuration."""
@@ -165,8 +164,6 @@ class TaskDefaultsConfig:
             raise ValueError("retry_delay must be non-negative")
         if self.retry_strategy not in ("fixed", "exponential"):
             raise ValueError("retry_strategy must be 'fixed' or 'exponential'")
-        if self.visibility_timeout < 1:
-            raise ValueError("visibility_timeout must be positive")
 
 
 @dataclass

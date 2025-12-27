@@ -640,14 +640,85 @@ class ProcessDataset(SyncProcessTask[dict]):
 
 **Available Configuration:**
 
-| Option        | Type                     | Default     | Description                                 |
-| ------------- | ------------------------ | ----------- | ------------------------------------------- |
-| `queue`       | `str`                    | `"default"` | Queue name for task                         |
-| `max_attempts` | `int`                    | `3`         | Maximum retry attempts                      |
-| `retry_delay` | `int`                    | `60`        | Seconds to wait between retries             |
-| `timeout`     | `int \| None`            | `None`      | Task timeout in seconds (None = no timeout) |
-| `driver`      | `DriverType \| BaseDriver \| None` | `None` | Driver override for this task               |
-| `correlation_id` | `str \| None`         | `None`      | Correlation ID for distributed tracing      |
+| Option             | Type                     | Default     | Description                                 |
+| ------------------ | ------------------------ | ----------- | ------------------------------------------- |
+| `queue`            | `str`                    | `"default"` | Queue name for task                         |
+| `max_attempts`     | `int`                    | `3`         | Maximum retry attempts                      |
+| `retry_delay`      | `int`                    | `60`        | Seconds to wait between retries             |
+| `timeout`          | `int \| None`            | `None`      | Task timeout in seconds (None = no timeout) |
+| `visibility_timeout` | `int`                 | `300`       | Visibility timeout for crash recovery in seconds |
+| `driver`           | `DriverType \| BaseDriver \| None` | `None` | Driver override for this task               |
+| `correlation_id`   | `str \| None`         | `None`      | Correlation ID for distributed tracing      |
+
+#### Understanding Visibility Timeout (Crash Recovery)
+
+**What is visibility timeout?**
+
+Visibility timeout is AsyncTasQ's **automatic crash recovery mechanism**. When a worker dequeues a task, the task becomes invisible to other workers for the specified duration (configured per-task). If the worker crashes and never acknowledges the task, it automatically becomes visible again after the timeout expires.
+
+**How it works:**
+
+1. **Worker A dequeues task** → Task marked as `processing`, locked until `NOW() + task.visibility_timeout`
+2. **Task becomes invisible** → Other workers cannot see this task for the configured duration
+3. **Two possible outcomes:**
+   - ✅ **Success**: Worker completes task and calls `ack()` → Task removed/completed permanently
+   - ❌ **Crash**: Worker crashes without calling `ack()` → After timeout expires, task becomes visible again for another worker to retry
+
+**Example scenario:**
+
+```python
+class ProcessPaymentTask(AsyncTask[str]):
+    config: TaskConfig = {
+        "visibility_timeout": 300,  # 5 minutes
+    }
+
+    async def execute(self) -> str:
+        # Payment processing logic
+        return "processed"
+
+# Timeline:
+# 11:00:00 - Worker A dequeues payment task (locked until 11:05:00 based on task's visibility_timeout)
+# 11:00:45 - Worker A crashes (server dies, OOM, network failure)
+# 11:00:46 - Task is invisible, other workers can't see it
+# 11:05:00 - Visibility timeout expires
+# 11:05:01 - Task automatically becomes visible again
+# 11:05:02 - Worker B picks up the task and processes it successfully
+# Result: No manual intervention needed, task recovered automatically!
+```
+
+**Choosing the right value (per-task):**
+
+- **Too short** (e.g., 30s): Tasks taking longer than timeout will be processed by multiple workers (duplicate processing)
+- **Too long** (e.g., 1 hour): Crashed tasks wait too long before retry, poor user experience
+- **Recommended**: `visibility_timeout = (expected_task_duration × 2) + buffer`
+
+**Example:**
+```python
+class QuickEmailTask(AsyncTask[str]):
+    config: TaskConfig = {
+        "timeout": 60,  # Typically takes 60 seconds
+        "visibility_timeout": 180,  # (60 × 2) + 60 = 3 minutes
+    }
+
+class LongVideoTask(AsyncTask[str]):
+    config: TaskConfig = {
+        "timeout": 600,  # 10 minutes
+        "visibility_timeout": 1500,  # (600 × 2) + 300 = 25 minutes
+    }
+```
+
+**Driver support:**
+- ✅ **PostgreSQL**: Uses `locked_until` timestamp column
+- ✅ **MySQL**: Uses `locked_until` timestamp column
+- ✅ **SQS**: Built-in visibility timeout feature
+- ❌ **Redis**: Uses consumer groups (different mechanism)
+- ❌ **RabbitMQ**: Uses acknowledgment-based recovery (different mechanism)
+
+**Important notes:**
+- This is different from `task_defaults.timeout` (execution timeout per attempt)
+- Only applies to PostgreSQL, MySQL, and SQS drivers
+- Critical for production reliability and fault tolerance
+- Prevents task loss when workers crash unexpectedly
 
 ---
 

@@ -83,7 +83,12 @@ class RedisDriver(BaseDriver):
             self.client = None
 
     async def enqueue(
-        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+        self,
+        queue_name: str,
+        task_data: bytes,
+        delay_seconds: int = 0,
+        current_attempt: int = 0,
+        visibility_timeout: int = 300,
     ) -> None:
         """Add task to queue.
 

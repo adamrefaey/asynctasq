@@ -83,7 +83,6 @@ async def mysql_driver(mysql_dsn: str) -> AsyncGenerator[MySQLDriver, None]:
         dead_letter_table=TEST_DLQ_TABLE,
         max_attempts=3,
         retry_delay_seconds=60,
-        visibility_timeout_seconds=300,
         min_pool_size=5,
         max_pool_size=10,
     )

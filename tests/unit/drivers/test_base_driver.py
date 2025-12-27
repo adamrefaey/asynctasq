@@ -27,6 +27,7 @@ class TestBaseDriverDefaultImplementations:
                 task_data: bytes,
                 delay_seconds: int = 0,
                 current_attempt: int = 0,
+                visibility_timeout: int = 0,
             ) -> None:
                 pass
 
@@ -107,6 +108,7 @@ class TestBaseDriverDefaultImplementations:
                 task_data: bytes,
                 delay_seconds: int = 0,
                 current_attempt: int = 0,
+                visibility_timeout: int = 0,
             ) -> None:
                 pass
 

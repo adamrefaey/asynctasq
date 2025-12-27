@@ -89,7 +89,6 @@ class TestDriverFactoryCreate:
             aws_access_key_id="test_key_id",
             aws_secret_access_key="test_secret_key",
             endpoint_url=None,
-            visibility_timeout=300,  # Default from TaskDefaultsConfig
         )
         assert result == mock_instance
 
@@ -109,7 +108,6 @@ class TestDriverFactoryCreate:
             task_defaults=TaskDefaultsConfig(
                 retry_strategy="exponential",
                 retry_delay=120,
-                visibility_timeout=600,
             ),
         )
         mock_instance = MagicMock(spec=PostgresDriver)
@@ -125,7 +123,6 @@ class TestDriverFactoryCreate:
             dead_letter_table="custom_dlq",
             max_attempts=5,
             retry_delay_seconds=120,
-            visibility_timeout_seconds=600,
             min_pool_size=5,
             max_pool_size=20,
             keep_completed_tasks=False,
@@ -148,7 +145,6 @@ class TestDriverFactoryCreate:
             task_defaults=TaskDefaultsConfig(
                 retry_strategy="exponential",
                 retry_delay=120,
-                visibility_timeout=600,
             ),
         )
         mock_instance = MagicMock(spec=MySQLDriver)
@@ -164,7 +160,6 @@ class TestDriverFactoryCreate:
             dead_letter_table="custom_dlq",
             max_attempts=5,
             retry_delay_seconds=120,
-            visibility_timeout_seconds=600,
             min_pool_size=5,
             max_pool_size=20,
             keep_completed_tasks=False,
@@ -421,7 +416,6 @@ class TestDriverFactoryParameterPassing:
             aws_access_key_id="only_key",
             aws_secret_access_key="only_secret",
             endpoint_url=None,
-            visibility_timeout=300,  # Default from TaskDefaultsConfig
         )
         assert result == mock_instance
 
@@ -447,7 +441,6 @@ class TestDriverFactoryParameterPassing:
             dead_letter_table="dead_letter_queue",  # Default
             max_attempts=3,  # Default
             retry_delay_seconds=60,  # Default
-            visibility_timeout_seconds=300,  # Default
             min_pool_size=10,  # Default
             max_pool_size=10,  # Default
             keep_completed_tasks=False,
@@ -476,7 +469,6 @@ class TestDriverFactoryParameterPassing:
             dead_letter_table="dead_letter_queue",  # Default
             max_attempts=3,  # Default
             retry_delay_seconds=60,  # Default
-            visibility_timeout_seconds=300,  # Default
             min_pool_size=10,  # Default
             max_pool_size=10,  # Default
             keep_completed_tasks=False,
@@ -544,7 +536,6 @@ class TestDriverFactoryConfigIntegration:
             task_defaults=TaskDefaultsConfig(
                 retry_strategy="exponential",
                 retry_delay=180,
-                visibility_timeout=900,
             ),
             repository=RepositoryConfig(
                 keep_completed_tasks=False,
@@ -563,7 +554,6 @@ class TestDriverFactoryConfigIntegration:
             dead_letter_table="test_dlq",
             max_attempts=7,
             retry_delay_seconds=180,
-            visibility_timeout_seconds=900,
             min_pool_size=15,
             max_pool_size=50,
             keep_completed_tasks=False,
@@ -595,7 +585,6 @@ class TestDriverFactoryConfigIntegration:
             aws_access_key_id="test_access_key",
             aws_secret_access_key="test_secret_access_key",
             endpoint_url=None,
-            visibility_timeout=300,  # Default from TaskDefaultsConfig
         )
         assert result == mock_instance
 
@@ -643,7 +632,6 @@ class TestDriverFactoryConfigIntegration:
             task_defaults=TaskDefaultsConfig(
                 retry_strategy="exponential",
                 retry_delay=180,
-                visibility_timeout=900,
             ),
             repository=RepositoryConfig(
                 keep_completed_tasks=False,
@@ -662,7 +650,6 @@ class TestDriverFactoryConfigIntegration:
             dead_letter_table="test_dlq",
             max_attempts=7,
             retry_delay_seconds=180,
-            visibility_timeout_seconds=900,
             min_pool_size=15,
             max_pool_size=50,
             keep_completed_tasks=False,
@@ -721,7 +708,6 @@ class TestDriverFactoryEdgeCases:
             aws_access_key_id=None,
             aws_secret_access_key=None,
             endpoint_url=None,
-            visibility_timeout=300,  # Default from TaskDefaultsConfig
         )
         assert result == mock_instance
 
@@ -815,7 +801,6 @@ class TestDriverFactoryParameterized:
                     "aws_access_key_id": None,
                     "aws_secret_access_key": None,
                     "endpoint_url": None,
-                    "visibility_timeout": 300,  # Default from TaskDefaultsConfig
                 },
             ),
             # Postgres with pool size boundaries
@@ -829,7 +814,6 @@ class TestDriverFactoryParameterized:
                     "dead_letter_table": "dead_letter_queue",
                     "max_attempts": 3,
                     "retry_delay_seconds": 60,
-                    "visibility_timeout_seconds": 300,
                     "min_pool_size": 1,
                     "max_pool_size": 1,
                     "keep_completed_tasks": False,
@@ -846,7 +830,6 @@ class TestDriverFactoryParameterized:
                     "dead_letter_table": "dead_letter_queue",
                     "max_attempts": 3,
                     "retry_delay_seconds": 60,
-                    "visibility_timeout_seconds": 300,
                     "min_pool_size": 1,
                     "max_pool_size": 1,
                     "keep_completed_tasks": False,

@@ -40,7 +40,6 @@ class MySQLDriver(BaseDriver):
     max_attempts: int = 3
     retry_strategy: RetryStrategy = "exponential"
     retry_delay_seconds: int = 60
-    visibility_timeout_seconds: int = 300  # 5 minutes
     min_pool_size: int = 10
     max_pool_size: int = 10
     keep_completed_tasks: bool = False
@@ -148,11 +147,26 @@ class MySQLDriver(BaseDriver):
                         status VARCHAR(50) NOT NULL DEFAULT 'pending',
                         current_attempt INT NOT NULL DEFAULT 0,
                         max_attempts INT NOT NULL DEFAULT 3,
+                        visibility_timeout_seconds INT NOT NULL DEFAULT 300,
                         created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                         updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                         INDEX idx_{self.queue_table}_lookup (queue_name, status, available_at, locked_until)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """)
+
+                # Add visibility_timeout_seconds column if it doesn't exist (migration)
+                await cursor.execute(f"""
+                    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = '{self.queue_table}'
+                    AND COLUMN_NAME = 'visibility_timeout_seconds'
+                """)
+                row = await cursor.fetchone()
+                if row and row[0] == 0:
+                    await cursor.execute(f"""
+                        ALTER TABLE {self.queue_table}
+                        ADD COLUMN visibility_timeout_seconds INT NOT NULL DEFAULT 300
+                    """)
 
                 # Create dead-letter table
                 await cursor.execute(f"""
@@ -167,7 +181,12 @@ class MySQLDriver(BaseDriver):
                 """)
 
     async def enqueue(
-        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+        self,
+        queue_name: str,
+        task_data: bytes,
+        delay_seconds: int = 0,
+        current_attempt: int = 0,
+        visibility_timeout: int = 300,
     ) -> None:
         """Add task to queue with optional delay.
 
@@ -176,6 +195,7 @@ class MySQLDriver(BaseDriver):
             task_data: Serialized task data
             delay_seconds: Seconds to delay task visibility (0 = immediate)
             current_attempt: Current attempt number (0 for first attempt)
+            visibility_timeout: Crash recovery timeout in seconds (default: 300)
         """
         if self.pool is None:
             await self.connect()
@@ -183,8 +203,8 @@ class MySQLDriver(BaseDriver):
 
         query = f"""
             INSERT INTO {self.queue_table}
-                (queue_name, payload, available_at, status, current_attempt, max_attempts, created_at)
-            VALUES (%s, %s, DATE_ADD(NOW(6), INTERVAL %s SECOND), 'pending', %s, %s, NOW(6))
+                (queue_name, payload, available_at, status, current_attempt, max_attempts, visibility_timeout_seconds, created_at)
+            VALUES (%s, %s, DATE_ADD(NOW(6), INTERVAL %s SECOND), 'pending', %s, %s, %s, NOW(6))
         """
         async with self.pool.acquire() as conn:
             await conn.begin()
@@ -192,7 +212,14 @@ class MySQLDriver(BaseDriver):
                 async with conn.cursor() as cursor:
                     await cursor.execute(
                         query,
-                        (queue_name, task_data, delay_seconds, current_attempt, self.max_attempts),
+                        (
+                            queue_name,
+                            task_data,
+                            delay_seconds,
+                            current_attempt,
+                            self.max_attempts,
+                            visibility_timeout,
+                        ),
                     )
                 await conn.commit()
             except Exception:
@@ -230,7 +257,7 @@ class MySQLDriver(BaseDriver):
             # Includes: 1) pending tasks that are ready and not locked
             #           2) processing tasks with expired locks (stuck/crashed workers)
             query = f"""
-                SELECT id, payload FROM {self.queue_table}
+                SELECT id, payload, visibility_timeout_seconds FROM {self.queue_table}
                 WHERE queue_name = %s
                   AND (
                     (status = 'pending' AND available_at <= NOW(6) AND (locked_until IS NULL OR locked_until < NOW(6)))
@@ -251,8 +278,9 @@ class MySQLDriver(BaseDriver):
                         if row:
                             task_id = row[0]
                             task_data = bytes(row[1])
+                            visibility_timeout_seconds = row[2]
 
-                            # Update status and set visibility timeout
+                            # Update status and set visibility timeout using the per-task value
                             # Increment current_attempt ONLY if status was 'pending' (new attempt)
                             # If status was 'processing', it's a retry of a stuck task (don't increment again)
                             # NOTE: Use IF() and set current_attempt BEFORE status to evaluate against old status value
@@ -265,7 +293,7 @@ class MySQLDriver(BaseDriver):
                                     updated_at = NOW(6)
                                 WHERE id = %s
                                 """,
-                                (self.visibility_timeout_seconds, task_id),
+                                (visibility_timeout_seconds, task_id),
                             )
 
                             # Store mapping from task_data to task_id for ack/nack
