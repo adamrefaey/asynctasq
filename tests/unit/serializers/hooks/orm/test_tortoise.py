@@ -59,7 +59,25 @@ class TestTortoiseOrmHook:
         obj = MockTortoiseModel()
         assert hook.can_encode(obj) is False
 
-    def test_get_model_pk(self, hook: TortoiseOrmHook) -> None:
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TortoiseModel", None)
+    def test_can_encode_when_tortoise_model_is_none(self) -> None:
+        """Test can_encode returns False when TortoiseModel is None."""
+        hook = TortoiseOrmHook()
+        obj = MockTortoiseModel()
+        assert hook.can_encode(obj) is False
+
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TortoiseModel")
+    def test_can_encode_when_isinstance_raises_exception(self, mock_tortoise_model) -> None:
+        """Test can_encode returns False when isinstance raises exception."""
+        # Make isinstance raise an exception
+        mock_tortoise_model.__class__.__instancecheck__ = MagicMock(
+            side_effect=Exception("isinstance error")
+        )
+        hook = TortoiseOrmHook()
+        obj = MockTortoiseModel()
+        assert hook.can_encode(obj) is False
         """Test _get_model_pk extracts pk from Tortoise model."""
         obj = MockTortoiseModel(pk=42)
         result = hook._get_model_pk(obj)
@@ -98,11 +116,3 @@ class TestTortoiseOrmHook:
 
         with raises(RuntimeError, match="Database error"):
             await hook._fetch_model(model_class, 42)
-
-    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
-    @patch("asynctasq.serializers.hooks.orm.tortoise.TortoiseModel", None)
-    def test_can_encode_when_tortoise_model_is_none(self) -> None:
-        """Test can_encode returns False when TortoiseModel is None."""
-        hook = TortoiseOrmHook()
-        obj = MockTortoiseModel()
-        assert hook.can_encode(obj) is False
