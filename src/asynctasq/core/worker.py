@@ -8,8 +8,6 @@ import traceback
 from typing import Any
 import uuid
 
-import uvloop
-
 from asynctasq.config import Config
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.drivers.retry_utils import calculate_retry_delay
@@ -28,30 +26,18 @@ class Worker:
     Continuously polls configured queues for tasks and executes them concurrently with
     respect to configured limits. Provides graceful shutdown, retry logic with exponential/
     fixed backoff, and event emission for observability.
-
-    Attributes
-    ----------
-    queue_driver : BaseDriver
-        Driver instance for queue backend operations
-    queues : list[str]
-        Queue names to poll in priority order (default: ["default"])
-    concurrency : int
-        Maximum concurrent task executions (default: 10)
-    max_tasks : int | None
-        Total task limit before shutdown (None = unlimited)
-    serializer : BaseSerializer
-        Task serialization handler (default: MsgpackSerializer)
-    event_emitter : EventEmitter | None
-        Optional event emitter for monitoring
-    worker_id : str
-        Unique worker identifier
-    heartbeat_interval : float
-        Seconds between heartbeat emissions (default: 60.0)
-    process_pool_size : int | None
-        Size of process pool for ProcessTask execution
-    process_pool_max_tasks_per_child : int | None
-        Max tasks per worker process before recycling
     """
+
+    queue_driver: BaseDriver
+    queues: list[str]
+    concurrency: int
+    max_tasks: int | None
+    serializer: BaseSerializer
+    event_emitter: None
+    worker_id: str
+    heartbeat_interval: float
+    process_pool_size: int | None
+    process_pool_max_tasks_per_child: int | None
 
     def __init__(
         self,
@@ -100,9 +86,14 @@ class Worker:
         Exception
             Any unhandled exception from the worker loop is propagated after cleanup
         """
-        # Use uvloop as the event loop policy (required)
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-        logger.info("Using uvloop event loop policy")
+        # Use uvloop as the event loop policy if available (optional)
+        try:
+            import uvloop
+
+            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+            logger.info("Using uvloop event loop policy")
+        except ImportError:
+            logger.info("uvloop not available, using default event loop policy")
 
         self._running = True
         self._start_time = datetime.now(UTC)
