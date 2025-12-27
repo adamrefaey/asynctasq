@@ -89,6 +89,7 @@ class TestDriverFactoryCreate:
             aws_access_key_id="test_key_id",
             aws_secret_access_key="test_secret_key",
             endpoint_url=None,
+            visibility_timeout=300,  # Default from TaskDefaultsConfig
         )
         assert result == mock_instance
 
@@ -420,6 +421,7 @@ class TestDriverFactoryParameterPassing:
             aws_access_key_id="only_key",
             aws_secret_access_key="only_secret",
             endpoint_url=None,
+            visibility_timeout=300,  # Default from TaskDefaultsConfig
         )
         assert result == mock_instance
 
@@ -593,6 +595,7 @@ class TestDriverFactoryConfigIntegration:
             aws_access_key_id="test_access_key",
             aws_secret_access_key="test_secret_access_key",
             endpoint_url=None,
+            visibility_timeout=300,  # Default from TaskDefaultsConfig
         )
         assert result == mock_instance
 
@@ -718,6 +721,7 @@ class TestDriverFactoryEdgeCases:
             aws_access_key_id=None,
             aws_secret_access_key=None,
             endpoint_url=None,
+            visibility_timeout=300,  # Default from TaskDefaultsConfig
         )
         assert result == mock_instance
 
@@ -811,6 +815,7 @@ class TestDriverFactoryParameterized:
                     "aws_access_key_id": None,
                     "aws_secret_access_key": None,
                     "endpoint_url": None,
+                    "visibility_timeout": 300,  # Default from TaskDefaultsConfig
                 },
             ),
             # Postgres with pool size boundaries

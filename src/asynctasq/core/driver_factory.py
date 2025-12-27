@@ -92,6 +92,7 @@ class DriverFactory:
                     aws_access_key_id=config.sqs.aws_access_key_id,
                     aws_secret_access_key=config.sqs.aws_secret_access_key,
                     endpoint_url=config.sqs.endpoint_url,
+                    visibility_timeout=config.task_defaults.visibility_timeout,
                 )
             case "postgres":
                 try:
