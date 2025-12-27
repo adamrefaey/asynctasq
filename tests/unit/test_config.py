@@ -107,12 +107,6 @@ class TestConfigValidation:
         with pytest.raises(ValueError, match="min_pool_size cannot be greater than max_pool_size"):
             MySQLConfig(min_pool_size=10, max_pool_size=5)
 
-    @pytest.mark.parametrize("invalid_value", [0, -1])
-    def test_task_scan_limit_validation(self, invalid_value):
-        """Test task_scan_limit validation."""
-        with pytest.raises(ValueError, match="task_scan_limit must be positive"):
-            RepositoryConfig(task_scan_limit=invalid_value)
-
 
 class TestConfigSingleton:
     """Test Config singleton behavior."""
@@ -196,5 +190,4 @@ class TestConfigGroupDefaults:
         assert config.task_defaults.visibility_timeout == 300
 
         # RepositoryConfig defaults
-        assert config.repository.task_scan_limit == 10000
         assert config.repository.keep_completed_tasks is False

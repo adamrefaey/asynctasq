@@ -240,11 +240,11 @@ asynctasq.init({
 
 Configuration group: `rabbitmq` (type: `RabbitMQConfig`)
 
-| Option            | Type | Description             | Default                              |
-| ----------------- | ---: | ----------------------- | ------------------------------------ |
-| `url`             |  str | RabbitMQ connection URL | `amqp://guest:guest@localhost:5672/` |
-| `exchange_name`   |  str | RabbitMQ exchange name  | `asynctasq`                          |
-| `prefetch_count`  |  int | Consumer prefetch count | `1`                                  |
+| Option           | Type | Description             | Default                              |
+| ---------------- | ---: | ----------------------- | ------------------------------------ |
+| `url`            |  str | RabbitMQ connection URL | `amqp://guest:guest@localhost:5672/` |
+| `exchange_name`  |  str | RabbitMQ exchange name  | `asynctasq`                          |
+| `prefetch_count` |  int | Consumer prefetch count | `1`                                  |
 
 ```python
 import asynctasq
@@ -268,11 +268,11 @@ Configuration group: `events` (type: `EventsConfig`)
 
 Controls monitoring and event emission for task lifecycle events.
 
-| Option                       |        Type | Description                                                                 | Default              |
-| ---------------------------- | ----------: | --------------------------------------------------------------------------- | -------------------- |
-| `redis_url`                  | str \| None | Redis URL for event pub/sub (None uses main redis.url)                     | `None`               |
-| `channel`                    |         str | Redis Pub/Sub channel name for events                                      | `asynctasq:events`   |
-| `enable_event_emitter_redis` |        bool | Enable Redis Pub/Sub event emitter for monitoring (task_enqueued, etc.)    | `False`              |
+| Option                       |        Type | Description                                                             | Default            |
+| ---------------------------- | ----------: | ----------------------------------------------------------------------- | ------------------ |
+| `redis_url`                  | str \| None | Redis URL for event pub/sub (None uses main redis.url)                  | `None`             |
+| `channel`                    |         str | Redis Pub/Sub channel name for events                                   | `asynctasq:events` |
+| `enable_event_emitter_redis` |        bool | Enable Redis Pub/Sub event emitter for monitoring (task_enqueued, etc.) | `False`            |
 
 ```python
 import asynctasq
@@ -304,13 +304,13 @@ Configuration group: `task_defaults` (type: `TaskDefaultsConfig`)
 
 Default settings for all tasks (can be overridden per task).
 
-| Option               |        Type | Description                                                                                   | Choices                | Default       |
-| -------------------- | ----------: | --------------------------------------------------------------------------------------------- | ---------------------- | ------------- |
-| `queue`              |         str | Default queue name for tasks                                                                  | —                      | `default`     |
-| `max_attempts`       |         int | Default maximum retry attempts                                                                | —                      | `3`           |
-| `retry_strategy`     |         str | Retry delay strategy                                                                          | `fixed`, `exponential` | `exponential` |
-| `retry_delay`        |         int | Base retry delay in seconds                                                                   | —                      | `60`          |
-| `timeout`            | int \| None | Default task timeout in seconds (None = no timeout)                                           | —                      | `None`        |
+| Option               |        Type | Description                                                                                           | Choices                | Default       |
+| -------------------- | ----------: | ----------------------------------------------------------------------------------------------------- | ---------------------- | ------------- |
+| `queue`              |         str | Default queue name for tasks                                                                          | —                      | `default`     |
+| `max_attempts`       |         int | Default maximum retry attempts                                                                        | —                      | `3`           |
+| `retry_strategy`     |         str | Retry delay strategy                                                                                  | `fixed`, `exponential` | `exponential` |
+| `retry_delay`        |         int | Base retry delay in seconds                                                                           | —                      | `60`          |
+| `timeout`            | int \| None | Default task timeout in seconds (None = no timeout)                                                   | —                      | `None`        |
 | `visibility_timeout` |         int | Crash recovery timeout - seconds a task is invisible before auto-recovery (PostgreSQL/MySQL/SQS only) | —                      | `300`         |
 
 ```python
@@ -460,7 +460,6 @@ Configuration group: `repository` (type: `RepositoryConfig`)
 
 | Option                 | Type | Description                                                     | Default |
 | ---------------------- | ---: | --------------------------------------------------------------- | ------- |
-| `task_scan_limit`      |  int | Maximum tasks to scan in repository queries                     | `10000` |
 | `keep_completed_tasks` | bool | Keep completed tasks for history/audit (not applicable for SQS) | `False` |
 
 ```python
@@ -468,9 +467,6 @@ import asynctasq
 from asynctasq.config import RepositoryConfig
 
 asynctasq.init({
-    'repository': RepositoryConfig(
-        task_scan_limit=50000,
-        keep_completed_tasks=True
-    )
+    'repository': RepositoryConfig(keep_completed_tasks=True)
 })
 ```
