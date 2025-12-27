@@ -62,7 +62,13 @@ class DriverFactory:
         """
         match driver_type:
             case "redis":
-                from asynctasq.drivers.redis_driver import RedisDriver
+                try:
+                    from asynctasq.drivers.redis_driver import RedisDriver
+                except ImportError as e:
+                    raise ImportError(
+                        "Redis driver requires the 'redis' optional dependency. "
+                        "Install it with: pip install asynctasq[redis] or uv add asynctasq[redis]"
+                    ) from e
 
                 return RedisDriver(
                     url=config.redis.url,
@@ -72,7 +78,13 @@ class DriverFactory:
                     keep_completed_tasks=config.repository.keep_completed_tasks,
                 )
             case "sqs":
-                from asynctasq.drivers.sqs_driver import SQSDriver
+                try:
+                    from asynctasq.drivers.sqs_driver import SQSDriver
+                except ImportError as e:
+                    raise ImportError(
+                        "SQS driver requires the 'sqs' optional dependency. "
+                        "Install it with: pip install asynctasq[sqs] or uv add asynctasq[sqs]"
+                    ) from e
 
                 return SQSDriver(
                     region_name=config.sqs.region,
@@ -82,7 +94,13 @@ class DriverFactory:
                     endpoint_url=config.sqs.endpoint_url,
                 )
             case "postgres":
-                from asynctasq.drivers.postgres_driver import PostgresDriver
+                try:
+                    from asynctasq.drivers.postgres_driver import PostgresDriver
+                except ImportError as e:
+                    raise ImportError(
+                        "PostgreSQL driver requires the 'postgres' optional dependency. "
+                        "Install it with: pip install asynctasq[postgres] or uv add asynctasq[postgres]"
+                    ) from e
 
                 return PostgresDriver(
                     dsn=config.postgres.dsn,
@@ -96,7 +114,13 @@ class DriverFactory:
                     keep_completed_tasks=config.repository.keep_completed_tasks,
                 )
             case "mysql":
-                from asynctasq.drivers.mysql_driver import MySQLDriver
+                try:
+                    from asynctasq.drivers.mysql_driver import MySQLDriver
+                except ImportError as e:
+                    raise ImportError(
+                        "MySQL driver requires the 'mysql' optional dependency. "
+                        "Install it with: pip install asynctasq[mysql] or uv add asynctasq[mysql]"
+                    ) from e
 
                 return MySQLDriver(
                     dsn=config.mysql.dsn,
@@ -110,7 +134,13 @@ class DriverFactory:
                     keep_completed_tasks=config.repository.keep_completed_tasks,
                 )
             case "rabbitmq":
-                from asynctasq.drivers.rabbitmq_driver import RabbitMQDriver
+                try:
+                    from asynctasq.drivers.rabbitmq_driver import RabbitMQDriver
+                except ImportError as e:
+                    raise ImportError(
+                        "RabbitMQ driver requires the 'rabbitmq' optional dependency. "
+                        "Install it with: pip install asynctasq[rabbitmq] or uv add asynctasq[rabbitmq]"
+                    ) from e
 
                 return RabbitMQDriver(
                     url=config.rabbitmq.url,
