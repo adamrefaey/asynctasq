@@ -49,24 +49,21 @@ Create a new file named `quick_start.py` and add the following code:
 import asyncio
 
 import asynctasq
-from asynctasq.tasks import task, AsyncTask, TaskConfig
 from asynctasq.config import RedisConfig
+from asynctasq.tasks import AsyncTask, TaskConfig, task
 
 # 1. Configure AsyncTasQ
-asynctasq.init({
-    "driver": "redis",
-    "redis": RedisConfig(url="redis://localhost:6379")
-})
+asynctasq.init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
 
 
 # 2. Define tasks (function-based or class-based)
-
 # Function-based task
 @task
 async def send_email(to: str, subject: str, body: str):
     print(f"Sending email to {to}: {subject}")
     await asyncio.sleep(1)  # Simulate email sending
     return f"Email sent to {to}"
+
 
 # Class-based task with TaskConfig
 class ProcessPayment(AsyncTask[bool]):
@@ -103,17 +100,23 @@ async def main():
     print(f"Payment task dispatched: {payment_task_id}")
 
     # With configuration chaining (overrides TaskConfig)
-    critical_task_id = await send_email(
-        to="admin@example.com", subject="Critical Alert", body="System issue!"
-    ).on_queue("high-priority").max_attempts(10).timeout(60).dispatch()
+    critical_task_id = (
+        await send_email(to="admin@example.com", subject="Critical Alert", body="System issue!")
+        .on_queue("high-priority")
+        .max_attempts(10)
+        .timeout(60)
+        .dispatch()
+    )
     print(f"Critical task dispatched: {critical_task_id}")
 
     # Class-based with method chaining
-    urgent_payment_id = await ProcessPayment(user_id=456, amount=199.99) \
-        .on_queue("urgent") \
-        .max_attempts(5) \
-        .timeout(120) \
+    urgent_payment_id = (
+        await ProcessPayment(user_id=456, amount=199.99)
+        .on_queue("urgent")
+        .max_attempts(5)
+        .timeout(120)
         .dispatch()
+    )
     print(f"Urgent payment dispatched: {urgent_payment_id}")
 
 
@@ -122,6 +125,7 @@ if __name__ == "__main__":
 
     # Option 1: Use AsyncTasQ's runner (automatic uvloop support)
     from asynctasq.utils.loop import run
+
     run(main())
 
     # Option 2: Use standard asyncio

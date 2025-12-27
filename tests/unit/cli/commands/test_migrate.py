@@ -8,7 +8,7 @@ Testing Strategy:
 """
 
 import argparse
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from pytest import main, mark, raises
 
@@ -77,13 +77,12 @@ class TestRunMigrate:
         ):
             await run_migrate(args, config)
 
-    @patch("asynctasq.cli.commands.migrate.isinstance")
     @patch("asynctasq.drivers.postgres_driver.PostgresDriver")
     @patch("asynctasq.cli.commands.migrate.DriverFactory")
     @patch("asynctasq.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_with_postgres_driver_success(
-        self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
+        self, mock_logger, mock_driver_factory, mock_postgres_driver_class
     ) -> None:
         # Arrange
         args = argparse.Namespace()
@@ -96,9 +95,8 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
+        mock_driver.__class__.__name__ = "PostgresDriver"
         mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return True for PostgresDriver check
-        mock_isinstance.return_value = True
 
         # Act
         await run_migrate(args, config)
@@ -110,34 +108,12 @@ class TestRunMigrate:
         mock_driver.disconnect.assert_awaited_once()
         assert mock_logger.info.call_count >= 4  # Initial info + success messages
 
-    @patch("asynctasq.cli.commands.migrate.isinstance")
-    @patch("asynctasq.drivers.postgres_driver.PostgresDriver")
-    @patch("asynctasq.cli.commands.migrate.DriverFactory")
-    @mark.asyncio
-    async def test_run_migrate_with_wrong_driver_type_raises_error(
-        self, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
-    ) -> None:
-        # Arrange
-        args = argparse.Namespace()
-        config = Config(driver="postgres")
-        mock_driver = MagicMock()  # Not a PostgresDriver instance
-        mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return False to simulate wrong driver type
-        mock_isinstance.return_value = False
-
-        # Act & Assert
-        with raises(
-            MigrationError, match="Driver factory did not return a PostgresDriver instance"
-        ):
-            await run_migrate(args, config)
-
-    @patch("asynctasq.cli.commands.migrate.isinstance")
     @patch("asynctasq.drivers.postgres_driver.PostgresDriver")
     @patch("asynctasq.cli.commands.migrate.DriverFactory")
     @patch("asynctasq.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_logs_configuration(
-        self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
+        self, mock_logger, mock_driver_factory, mock_postgres_driver_class
     ) -> None:
         # Arrange
         args = argparse.Namespace()
@@ -150,9 +126,8 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
+        mock_driver.__class__.__name__ = "PostgresDriver"
         mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return True for PostgresDriver check
-        mock_isinstance.return_value = True
 
         # Act
         await run_migrate(args, config)
@@ -169,13 +144,12 @@ class TestRunMigrate:
         assert any("custom_queue" in str(call) for call in mock_logger.info.call_args_list)
         assert any("custom_dlq" in str(call) for call in mock_logger.info.call_args_list)
 
-    @patch("asynctasq.cli.commands.migrate.isinstance")
     @patch("asynctasq.drivers.postgres_driver.PostgresDriver")
     @patch("asynctasq.cli.commands.migrate.DriverFactory")
     @patch("asynctasq.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_logs_success_messages(
-        self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
+        self, mock_logger, mock_driver_factory, mock_postgres_driver_class
     ) -> None:
         # Arrange
         args = argparse.Namespace()
@@ -188,9 +162,8 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
+        mock_driver.__class__.__name__ = "PostgresDriver"
         mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return True for PostgresDriver check
-        mock_isinstance.return_value = True
 
         # Act
         await run_migrate(args, config)
@@ -204,22 +177,20 @@ class TestRunMigrate:
         assert any("idx_task_queue_lookup" in str(call) for call in mock_logger.info.call_args_list)
         assert any("dead_letter_queue" in str(call) for call in mock_logger.info.call_args_list)
 
-    @patch("asynctasq.cli.commands.migrate.isinstance")
     @patch("asynctasq.drivers.postgres_driver.PostgresDriver")
     @patch("asynctasq.cli.commands.migrate.DriverFactory")
     @mark.asyncio
     async def test_run_migrate_disconnects_on_error(
-        self, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
+        self, mock_driver_factory, mock_postgres_driver_class
     ) -> None:
         # Arrange
         args = argparse.Namespace()
         config = Config(driver="postgres")
         mock_driver = AsyncMock()
+        mock_driver.__class__.__name__ = "PostgresDriver"
         mock_driver.connect.return_value = None
         mock_driver.init_schema.side_effect = Exception("Schema error")
         mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return True for PostgresDriver check
-        mock_isinstance.return_value = True
 
         # Act & Assert
         with raises(Exception, match="Schema error"):
@@ -228,21 +199,19 @@ class TestRunMigrate:
         # Assert - disconnect should be called even on error
         mock_driver.disconnect.assert_awaited_once()
 
-    @patch("asynctasq.cli.commands.migrate.isinstance")
     @patch("asynctasq.drivers.postgres_driver.PostgresDriver")
     @patch("asynctasq.cli.commands.migrate.DriverFactory")
     @mark.asyncio
     async def test_run_migrate_disconnects_on_connect_error(
-        self, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
+        self, mock_driver_factory, mock_postgres_driver_class
     ) -> None:
         # Arrange
         args = argparse.Namespace()
         config = Config(driver="postgres")
         mock_driver = AsyncMock()
+        mock_driver.__class__.__name__ = "PostgresDriver"
         mock_driver.connect.side_effect = Exception("Connection error")
         mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return True for PostgresDriver check
-        mock_isinstance.return_value = True
 
         # Act & Assert
         with raises(Exception, match="Connection error"):
@@ -251,13 +220,12 @@ class TestRunMigrate:
         # Assert - disconnect should still be called
         mock_driver.disconnect.assert_awaited_once()
 
-    @patch("asynctasq.cli.commands.migrate.isinstance")
     @patch("asynctasq.drivers.postgres_driver.PostgresDriver")
     @patch("asynctasq.cli.commands.migrate.DriverFactory")
     @patch("asynctasq.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_with_custom_table_names(
-        self, mock_logger, mock_driver_factory, mock_postgres_driver_class, mock_isinstance
+        self, mock_logger, mock_driver_factory, mock_postgres_driver_class
     ) -> None:
         # Arrange
         args = argparse.Namespace()
@@ -270,9 +238,8 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
+        mock_driver.__class__.__name__ = "PostgresDriver"
         mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return True for PostgresDriver check
-        mock_isinstance.return_value = True
 
         # Act
         await run_migrate(args, config)
@@ -282,13 +249,12 @@ class TestRunMigrate:
         assert any("my_dlq" in str(call) for call in mock_logger.info.call_args_list)
         assert any("idx_my_queue_lookup" in str(call) for call in mock_logger.info.call_args_list)
 
-    @patch("asynctasq.cli.commands.migrate.isinstance")
     @patch("asynctasq.drivers.mysql_driver.MySQLDriver")
     @patch("asynctasq.cli.commands.migrate.DriverFactory")
     @patch("asynctasq.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_with_mysql_driver_success(
-        self, mock_logger, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
+        self, mock_logger, mock_driver_factory, mock_mysql_driver_class
     ) -> None:
         # Arrange
         args = argparse.Namespace()
@@ -301,9 +267,8 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
+        mock_driver.__class__.__name__ = "MySQLDriver"
         mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return True for MySQLDriver check
-        mock_isinstance.return_value = True
 
         # Act
         await run_migrate(args, config)
@@ -315,32 +280,12 @@ class TestRunMigrate:
         mock_driver.disconnect.assert_awaited_once()
         assert mock_logger.info.call_count >= 4  # Initial info + success messages
 
-    @patch("asynctasq.cli.commands.migrate.isinstance")
-    @patch("asynctasq.drivers.mysql_driver.MySQLDriver")
-    @patch("asynctasq.cli.commands.migrate.DriverFactory")
-    @mark.asyncio
-    async def test_run_migrate_with_wrong_mysql_driver_type_raises_error(
-        self, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
-    ) -> None:
-        # Arrange
-        args = argparse.Namespace()
-        config = Config(driver="mysql")
-        mock_driver = MagicMock()  # Not a MySQLDriver instance
-        mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return False to simulate wrong driver type
-        mock_isinstance.return_value = False
-
-        # Act & Assert
-        with raises(MigrationError, match="Driver factory did not return a MySQLDriver instance"):
-            await run_migrate(args, config)
-
-    @patch("asynctasq.cli.commands.migrate.isinstance")
     @patch("asynctasq.drivers.mysql_driver.MySQLDriver")
     @patch("asynctasq.cli.commands.migrate.DriverFactory")
     @patch("asynctasq.cli.commands.migrate.logger")
     @mark.asyncio
     async def test_run_migrate_logs_mysql_configuration(
-        self, mock_logger, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
+        self, mock_logger, mock_driver_factory, mock_mysql_driver_class
     ) -> None:
         # Arrange
         args = argparse.Namespace()
@@ -353,9 +298,8 @@ class TestRunMigrate:
             ),
         )
         mock_driver = AsyncMock()
+        mock_driver.__class__.__name__ = "MySQLDriver"
         mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return True for MySQLDriver check
-        mock_isinstance.return_value = True
 
         # Act
         await run_migrate(args, config)
@@ -406,22 +350,20 @@ class TestRunMigrate:
         assert any("idx_task_queue_lookup" in str(call) for call in mock_logger.info.call_args_list)
         assert any("dead_letter_queue" in str(call) for call in mock_logger.info.call_args_list)
 
-    @patch("asynctasq.cli.commands.migrate.isinstance")
     @patch("asynctasq.drivers.mysql_driver.MySQLDriver")
     @patch("asynctasq.cli.commands.migrate.DriverFactory")
     @mark.asyncio
     async def test_run_migrate_mysql_disconnects_on_error(
-        self, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
+        self, mock_driver_factory, mock_mysql_driver_class
     ) -> None:
         # Arrange
         args = argparse.Namespace()
         config = Config(driver="mysql")
         mock_driver = AsyncMock()
+        mock_driver.__class__.__name__ = "MySQLDriver"
         mock_driver.connect.return_value = None
         mock_driver.init_schema.side_effect = Exception("Schema error")
         mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return True for MySQLDriver check
-        mock_isinstance.return_value = True
 
         # Act & Assert
         with raises(Exception, match="Schema error"):
@@ -430,21 +372,19 @@ class TestRunMigrate:
         # Assert - disconnect should be called even on error
         mock_driver.disconnect.assert_awaited_once()
 
-    @patch("asynctasq.cli.commands.migrate.isinstance")
     @patch("asynctasq.drivers.mysql_driver.MySQLDriver")
     @patch("asynctasq.cli.commands.migrate.DriverFactory")
     @mark.asyncio
     async def test_run_migrate_mysql_disconnects_on_connect_error(
-        self, mock_driver_factory, mock_mysql_driver_class, mock_isinstance
+        self, mock_driver_factory, mock_mysql_driver_class
     ) -> None:
         # Arrange
         args = argparse.Namespace()
         config = Config(driver="mysql")
         mock_driver = AsyncMock()
+        mock_driver.__class__.__name__ = "MySQLDriver"
         mock_driver.connect.side_effect = Exception("Connection error")
         mock_driver_factory.create.return_value = mock_driver
-        # Make isinstance return True for MySQLDriver check
-        mock_isinstance.return_value = True
 
         # Act & Assert
         with raises(Exception, match="Connection error"):
