@@ -14,29 +14,32 @@ The **worker context** refers to when the worker process is running and processi
 
 ### Context Applicability
 
-| Configuration Group | Context | Description |
-|-------------------|---------|-------------|
-| **Driver Selection** (`driver`) | Both | Required for both dispatching and processing tasks |
-| **Driver Configs** (`redis`, `sqs`, `postgres`, `mysql`, `rabbitmq`) | Both | Queue connections needed in both contexts |
-| **Events** (`events`) | Both | Event emission happens during both dispatch and processing |
-| **Task Defaults** | Mixed | See detailed breakdown below |
-| **Process Pool** (`process_pool`) | Worker only | Only used by workers executing CPU-bound tasks |
-| **Repository** (`repository`) | Worker only | Only used by workers when completing tasks |
+| Configuration Group                                                  | Context     | Description                                                |
+| -------------------------------------------------------------------- | ----------- | ---------------------------------------------------------- |
+| **Driver Selection** (`driver`)                                      | Both        | Required for both dispatching and processing tasks         |
+| **Driver Configs** (`redis`, `sqs`, `postgres`, `mysql`, `rabbitmq`) | Both        | Queue connections needed in both contexts                  |
+| **Events** (`events`)                                                | Both        | Event emission happens during both dispatch and processing |
+| **Task Defaults**                                                    | Both        | Used when dispatching tasks and by workers when processing them         |
+| **Process Pool** (`process_pool`)                                    | Worker only | Only used by workers executing CPU-bound tasks             |
+| **Repository** (`repository`)                                        | Worker only | Only used by workers when completing tasks                 |
 
 #### Task Defaults Context Breakdown
 
-| Property | Context | Usage |
-|---------|---------|-------|
-| `queue` | Both | Used when dispatching (stored in task), worker uses it as default |
-| `max_attempts` | Both | Set during dispatch (stored in task), enforced by worker during retries |
-| `retry_strategy` | Both | Set during dispatch (stored in task), used by worker for retry logic |
-| `retry_delay` | Both | Set during dispatch (stored in task), used by worker for retry delays |
-| `timeout` | **Worker only** | Enforced during task execution by the worker |
-| `visibility_timeout` | **Worker only** | Used when dequeuing tasks for crash recovery |
+| Property         | Context | Usage                                                |
+| ---------------- | ------- | ---------------------------------------------------- |
+| `queue`          | Both    | Used when dispatching and by workers                 |
+| `max_attempts`   | Both    | Set during dispatch, enforced by worker during retries |
+| `retry_strategy` | Both    | Set during dispatch, used by worker for retry logic  |
+| `retry_delay`    | Both    | Set during dispatch, used by worker for retry delays |
 
 ## Table of Contents
 
 - [Configuration](#configuration)
+  - [Configuration Contexts](#configuration-contexts)
+    - [Dispatch Context](#dispatch-context)
+    - [Worker Context](#worker-context)
+    - [Context Applicability](#context-applicability)
+      - [Task Defaults Context Breakdown](#task-defaults-context-breakdown)
   - [Table of Contents](#table-of-contents)
   - [Configuration Functions](#configuration-functions)
     - [`asynctasq.init()`](#asynctasqinit)
@@ -51,7 +54,6 @@ The **worker context** refers to when the worker process is running and processi
     - [RabbitMQ Configuration](#rabbitmq-configuration)
     - [Events Configuration](#events-configuration)
     - [Task Defaults Configuration](#task-defaults-configuration)
-      - [Understanding Visibility Timeout (Crash Recovery)](#understanding-visibility-timeout-crash-recovery)
     - [Process Pool Configuration](#process-pool-configuration)
       - [Warm Event Loops for AsyncProcessTask](#warm-event-loops-for-asyncprocesstask)
     - [Repository Configuration](#repository-configuration)
@@ -346,18 +348,16 @@ asynctasq.init({
 
 Configuration group: `task_defaults` (type: `TaskDefaultsConfig`)
 
-**Context: Mixed (see individual properties below)** – Some properties apply to both contexts, while others are worker-only.
+**Context: Both dispatch and worker contexts** – Used when dispatching tasks and by workers when processing them.
 
-Default settings for all tasks (can be overridden per task).
+Default settings for all tasks.
 
-| Option               |        Type | Context | Description                                                                                           | Choices                | Default       |
-| -------------------- | ----------: | ------- | ----------------------------------------------------------------------------------------------------- | ---------------------- | ------------- |
-| `queue`              |         str | Both | Default queue name for tasks (used when dispatching, stored in task)                                  | —                      | `default`     |
-| `max_attempts`       |         int | Both | Default maximum retry attempts (set during dispatch, enforced by worker)                              | —                      | `3`           |
-| `retry_strategy`     |         str | Both | Retry delay strategy (set during dispatch, used by worker for retry logic)                            | `fixed`, `exponential` | `exponential` |
-| `retry_delay`        |         int | Both | Base retry delay in seconds (set during dispatch, used by worker for retry delays)                    | —                      | `60`          |
-| `timeout`            | int \| None | **Worker only** | Default task timeout in seconds - enforced during task execution (None = no timeout)         | —                      | `None`        |
-| `visibility_timeout` |         int | **Worker only** | Crash recovery timeout - seconds a task is invisible before auto-recovery (PostgreSQL/MySQL/SQS only) | —                      | `300`         |
+| Option           | Type | Context | Description                                             | Choices                | Default       |
+| ---------------- | ---: | ------- | ------------------------------------------------------- | ---------------------- | ------------- |
+| `queue`          |  str | Both    | Default queue name for tasks                            | —                      | `default`     |
+| `max_attempts`   |  int | Both    | Default maximum retry attempts                          | —                      | `3`           |
+| `retry_strategy` |  str | Both    | Default retry delay strategy                            | `fixed`, `exponential` | `exponential` |
+| `retry_delay`    |  int | Both    | Default base retry delay in seconds                     | —                      | `60`          |
 
 ```python
 import asynctasq
@@ -368,72 +368,10 @@ asynctasq.init({
         queue='high-priority',
         max_attempts=5,
         retry_strategy='exponential',
-        retry_delay=120,
-        timeout=600,
-        visibility_timeout=300  # 5 minutes
+        retry_delay=120
     )
 })
 ```
-
-#### Understanding Visibility Timeout (Crash Recovery)
-
-**What is visibility timeout?**
-
-Visibility timeout is AsyncTasQ's **automatic crash recovery mechanism**. When a worker dequeues a task, the task becomes invisible to other workers for the specified duration. If the worker crashes and never acknowledges the task, it automatically becomes visible again after the timeout expires.
-
-**How it works:**
-
-1. **Worker A dequeues task** → Task marked as `processing`, locked until `NOW() + visibility_timeout`
-2. **Task becomes invisible** → Other workers cannot see this task for `visibility_timeout` seconds
-3. **Two possible outcomes:**
-   - ✅ **Success**: Worker completes task and calls `ack()` → Task removed/completed permanently
-   - ❌ **Crash**: Worker crashes without calling `ack()` → After timeout expires, task becomes visible again for another worker to retry
-
-**Example scenario:**
-
-```python
-# Configuration
-asynctasq.init({
-    'driver': 'postgres',
-    'task_defaults': TaskDefaultsConfig(visibility_timeout=300)  # 5 minutes
-})
-
-# Timeline:
-# 11:00:00 - Worker A dequeues payment task (locked until 11:05:00)
-# 11:00:45 - Worker A crashes (server dies, OOM, network failure)
-# 11:00:46 - Task is invisible, other workers can't see it
-# 11:05:00 - Visibility timeout expires
-# 11:05:01 - Task automatically becomes visible again
-# 11:05:02 - Worker B picks up the task and processes it successfully
-# Result: No manual intervention needed, task recovered automatically!
-```
-
-**Choosing the right value:**
-
-- **Too short** (e.g., 30s): Tasks taking longer than timeout will be processed by multiple workers (duplicate processing)
-- **Too long** (e.g., 1 hour): Crashed tasks wait too long before retry, poor user experience
-- **Recommended**: `visibility_timeout = (expected_task_duration × 2) + buffer`
-
-**Example:**
-```python
-# Task typically takes 60 seconds
-asynctasq.init({
-    'task_defaults': TaskDefaultsConfig(visibility_timeout=180)  # (60 × 2) + 60 = 3 minutes
-})
-```
-
-**Driver support:**
-- ✅ **PostgreSQL**: Uses `locked_until` timestamp column
-- ✅ **MySQL**: Uses `locked_until` timestamp column
-- ✅ **SQS**: Built-in visibility timeout feature
-- ❌ **Redis**: Uses consumer groups (different mechanism)
-- ❌ **RabbitMQ**: Uses acknowledgment-based recovery (different mechanism)
-
-**Important notes:**
-- This is different from `task_defaults.timeout` (execution timeout per attempt)
-- Only applies to PostgreSQL, MySQL, and SQS drivers
-- Critical for production reliability and fault tolerance
-- Prevents task loss when workers crash unexpectedly
 
 ---
 

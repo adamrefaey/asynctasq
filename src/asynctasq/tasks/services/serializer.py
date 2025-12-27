@@ -71,6 +71,7 @@ class TaskSerializer:
             "max_attempts": task.config.get("max_attempts"),
             "retry_delay": task.config.get("retry_delay"),
             "timeout": task.config.get("timeout"),
+            "visibility_timeout": task.config.get("visibility_timeout"),
         }
 
         # Add FunctionTask-specific metadata

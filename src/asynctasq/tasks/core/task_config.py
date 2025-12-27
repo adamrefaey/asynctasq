@@ -51,6 +51,9 @@ class TaskConfig(TypedDict, total=False):
         Seconds to wait between retry attempts (default: 60)
     timeout : int | None, optional
         Task execution timeout in seconds, None for no timeout (default: None)
+    visibility_timeout : int, optional
+        Crash recovery timeout - seconds a task is invisible before auto-recovery (default: 300)
+        Used by PostgreSQL, MySQL, and SQS drivers for handling worker crashes
     driver : DriverType | BaseDriver | None, optional
         Optional driver override for routing this task to a specific backend (default: None)
     correlation_id : str | None, optional
@@ -62,11 +65,13 @@ class TaskConfig(TypedDict, total=False):
     - The configuration is merged with defaults during task initialization
     - driver allows routing specific tasks to different queue backends
     - correlation_id is useful for tracking related tasks across distributed systems
+    - visibility_timeout should be 2-3x the expected task duration for optimal crash recovery
     """
 
     queue: NotRequired[str]
     max_attempts: NotRequired[int]
     retry_delay: NotRequired[int]
     timeout: NotRequired[int | None]
+    visibility_timeout: NotRequired[int]
     driver: NotRequired[DriverType | BaseDriver | None]
     correlation_id: NotRequired[str | None]

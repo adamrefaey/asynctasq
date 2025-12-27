@@ -135,13 +135,7 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
         task_defaults_overrides["retry_strategy"] = args.task_defaults_retry_strategy
     if hasattr(args, "task_defaults_retry_delay") and args.task_defaults_retry_delay is not None:
         task_defaults_overrides["retry_delay"] = args.task_defaults_retry_delay
-    if hasattr(args, "task_defaults_timeout") and args.task_defaults_timeout is not None:
-        task_defaults_overrides["timeout"] = args.task_defaults_timeout
-    if (
-        hasattr(args, "task_defaults_visibility_timeout")
-        and args.task_defaults_visibility_timeout is not None
-    ):
-        task_defaults_overrides["visibility_timeout"] = args.task_defaults_visibility_timeout
+    # Note: timeout and visibility_timeout are now per-task (TaskConfig), not global defaults
     if task_defaults_overrides:
         overrides["task_defaults"] = TaskDefaultsConfig(**task_defaults_overrides)
 
@@ -177,13 +171,7 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
         task_defaults_overrides["retry_strategy"] = args.task_defaults_retry_strategy
     if hasattr(args, "task_defaults_retry_delay") and args.task_defaults_retry_delay is not None:
         task_defaults_overrides["retry_delay"] = args.task_defaults_retry_delay
-    if hasattr(args, "task_defaults_timeout") and args.task_defaults_timeout is not None:
-        task_defaults_overrides["timeout"] = args.task_defaults_timeout
-    if (
-        hasattr(args, "task_defaults_visibility_timeout")
-        and args.task_defaults_visibility_timeout is not None
-    ):
-        task_defaults_overrides["visibility_timeout"] = args.task_defaults_visibility_timeout
+    # Note: timeout and visibility_timeout are now per-task (TaskConfig), not global defaults
     if task_defaults_overrides:
         overrides["task_defaults"] = TaskDefaultsConfig(**task_defaults_overrides)
 

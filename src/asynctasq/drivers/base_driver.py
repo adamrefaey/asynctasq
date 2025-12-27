@@ -37,7 +37,12 @@ class BaseDriver(ABC):
 
     @abstractmethod
     async def enqueue(
-        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+        self,
+        queue_name: str,
+        task_data: bytes,
+        delay_seconds: int = 0,
+        current_attempt: int = 0,
+        visibility_timeout: int = 300,
     ) -> None:
         """Add a task to the queue.
 
@@ -46,6 +51,7 @@ class BaseDriver(ABC):
             task_data: Serialized task data (msgpack bytes)
             delay_seconds: Optional delay before task becomes visible (default: 0)
             current_attempt: Current attempt number for the task (default: 0)
+            visibility_timeout: Crash recovery timeout in seconds (default: 300)
 
         Raises:
             ValueError: If delay_seconds exceeds driver limits
@@ -54,6 +60,7 @@ class BaseDriver(ABC):
         Note:
             Delay implementation is driver-specific.
             current_attempt is used by drivers with rich schemas (Postgres/MySQL) for monitoring.
+            visibility_timeout determines how long a task is locked during processing.
         """
         ...
 

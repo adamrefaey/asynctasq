@@ -43,12 +43,6 @@ class TestConfigValidation:
         with pytest.raises(ValueError, match="retry_strategy must be 'fixed' or 'exponential'"):
             TaskDefaultsConfig(retry_strategy=invalid_value)
 
-    @pytest.mark.parametrize("invalid_value", [0, -1])
-    def test_default_visibility_timeout_validation(self, invalid_value):
-        """Test default_visibility_timeout validation."""
-        with pytest.raises(ValueError, match="visibility_timeout must be positive"):
-            TaskDefaultsConfig(visibility_timeout=invalid_value)
-
     @pytest.mark.parametrize("invalid_value", [-1, 16, 100])
     def test_redis_db_validation(self, invalid_value):
         """Test redis_db validation."""
@@ -186,8 +180,6 @@ class TestConfigGroupDefaults:
         assert config.task_defaults.max_attempts == 3
         assert config.task_defaults.retry_strategy == "exponential"
         assert config.task_defaults.retry_delay == 60
-        assert config.task_defaults.timeout is None
-        assert config.task_defaults.visibility_timeout == 300
 
         # RepositoryConfig defaults
         assert config.repository.keep_completed_tasks is False

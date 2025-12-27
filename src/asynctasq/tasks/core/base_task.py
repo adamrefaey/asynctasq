@@ -112,7 +112,10 @@ class BaseTask[T](ABC):
                 "max_attempts", global_config.task_defaults.max_attempts
             ),
             "retry_delay": class_config.get("retry_delay", global_config.task_defaults.retry_delay),
-            "timeout": class_config.get("timeout", global_config.task_defaults.timeout),
+            "timeout": class_config.get("timeout"),  # Per-task only, no global default
+            "visibility_timeout": class_config.get(
+                "visibility_timeout", 300
+            ),  # Per-task, default 300
             "driver": class_config.get("driver"),
             "correlation_id": class_config.get("correlation_id"),
         }

@@ -175,7 +175,8 @@ class TestMySQLDriverErrorHandling:
         # First execute (SELECT) succeeds, fetchone returns data, second execute (UPDATE) fails
         mock_cursor.fetchone.return_value = (
             1,
-            3,
+            3,  # max_attempts
+            300,  # visibility_timeout
             "test_queue",
             b"payload",
         )  # current_attempt, max_attempts, queue_name, payload
@@ -291,8 +292,9 @@ class TestMySQLDriverConnection:
 
         await driver.init_schema()
 
-        # Should execute CREATE TABLE statements
-        assert mock_cursor.execute.call_count == 2  # queue table + dead letter table
+        # Should execute CREATE TABLE statements + migration check
+        # 3 queries: queue table + visibility_timeout migration check SELECT + dead letter table
+        assert mock_cursor.execute.call_count == 3
 
 
 @mark.unit
@@ -329,9 +331,10 @@ class TestMySQLDriverEnqueueDequeue:
         assert args[1] == (
             "test_queue",
             b"task_data",
-            0,
-            0,
-            3,
+            0,  # delay_seconds
+            0,  # current_attempt
+            3,  # max_attempts
+            300,  # visibility_timeout (default)
         )  # queue_name, payload, delay, current_attempt, max_attempts
         mock_conn.commit.assert_called_once()
 
@@ -362,7 +365,7 @@ class TestMySQLDriverEnqueueDequeue:
         mock_cursor.execute.assert_called_once()
         args = mock_cursor.execute.call_args[0]
         assert "DATE_ADD(NOW(6), INTERVAL %s SECOND)" in args[0]
-        assert args[1] == ("test_queue", b"task_data", 60, 0, 3)
+        assert args[1] == ("test_queue", b"task_data", 60, 0, 3, 300)
 
     @mark.asyncio
     @patch("asynctasq.drivers.mysql_driver.create_pool", new_callable=AsyncMock)

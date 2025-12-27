@@ -48,7 +48,6 @@ class SQSDriver(BaseDriver):
     aws_secret_access_key: str | None = None
     endpoint_url: str | None = None  # For LocalStack or custom endpoints
     queue_url_prefix: str | None = None
-    visibility_timeout: int = 300
     session: Session | None = field(default=None, init=False, repr=False)
     client: SQSClient | None = field(default=None, init=False, repr=False)
     _exit_stack: AsyncExitStack | None = field(default=None, init=False, repr=False)
@@ -105,7 +104,12 @@ class SQSDriver(BaseDriver):
         self._receipt_handles.clear()
 
     async def enqueue(
-        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+        self,
+        queue_name: str,
+        task_data: bytes,
+        delay_seconds: int = 0,
+        current_attempt: int = 0,
+        visibility_timeout: int = 300,
     ) -> None:
         """Add task to queue with optional delay.
 
@@ -116,6 +120,7 @@ class SQSDriver(BaseDriver):
             task_data: Serialized task data (will be Base64-encoded)
             delay_seconds: Delay in seconds (0-900 max, SQS limit)
             current_attempt: Current attempt number (ignored by SQS driver)
+            visibility_timeout: Crash recovery timeout in seconds (default: 300)
 
         Raises:
             ValueError: If delay_seconds > 900
@@ -138,7 +143,16 @@ class SQSDriver(BaseDriver):
         queue_url = await self._get_queue_url(queue_name)
         message_body = b64encode(task_data).decode("ascii")
 
-        params: dict[str, Any] = {"QueueUrl": queue_url, "MessageBody": message_body}
+        params: dict[str, Any] = {
+            "QueueUrl": queue_url,
+            "MessageBody": message_body,
+            "MessageAttributes": {
+                "visibility_timeout": {
+                    "DataType": "Number",
+                    "StringValue": str(visibility_timeout),
+                }
+            },
+        }
 
         if delay_seconds > 0:
             params["DelaySeconds"] = delay_seconds
@@ -172,7 +186,6 @@ class SQSDriver(BaseDriver):
             QueueUrl=queue_url,
             MaxNumberOfMessages=1,
             WaitTimeSeconds=min(poll_seconds, 20),
-            VisibilityTimeout=self.visibility_timeout,
             MessageAttributeNames=["All"],
         )
 
@@ -183,9 +196,24 @@ class SQSDriver(BaseDriver):
         message = messages[0]
         body = message.get("Body")
         receipt_handle = message.get("ReceiptHandle")
+        message_attrs = message.get("MessageAttributes", {})
 
         if body is None or receipt_handle is None:
             return None
+
+        # Extract per-task visibility_timeout from message attributes
+        visibility_timeout = 300  # Default
+        if "visibility_timeout" in message_attrs:
+            vis_timeout_attr = message_attrs["visibility_timeout"]
+            if "StringValue" in vis_timeout_attr:
+                visibility_timeout = int(vis_timeout_attr["StringValue"])
+
+        # Change message visibility using per-task timeout
+        await self.client.change_message_visibility(
+            QueueUrl=queue_url,
+            ReceiptHandle=receipt_handle,
+            VisibilityTimeout=visibility_timeout,
+        )
 
         task_data = b64decode(body)
 

@@ -92,7 +92,6 @@ class DriverFactory:
                     aws_access_key_id=config.sqs.aws_access_key_id,
                     aws_secret_access_key=config.sqs.aws_secret_access_key,
                     endpoint_url=config.sqs.endpoint_url,
-                    visibility_timeout=config.task_defaults.visibility_timeout,
                 )
             case "postgres":
                 try:
@@ -109,7 +108,6 @@ class DriverFactory:
                     dead_letter_table=config.postgres.dead_letter_table,
                     max_attempts=config.postgres.max_attempts,
                     retry_delay_seconds=config.task_defaults.retry_delay,
-                    visibility_timeout_seconds=config.task_defaults.visibility_timeout,
                     min_pool_size=config.postgres.min_pool_size,
                     max_pool_size=config.postgres.max_pool_size,
                     keep_completed_tasks=config.repository.keep_completed_tasks,
@@ -129,7 +127,6 @@ class DriverFactory:
                     dead_letter_table=config.mysql.dead_letter_table,
                     max_attempts=config.mysql.max_attempts,
                     retry_delay_seconds=config.task_defaults.retry_delay,
-                    visibility_timeout_seconds=config.task_defaults.visibility_timeout,
                     min_pool_size=config.mysql.min_pool_size,
                     max_pool_size=config.mysql.max_pool_size,
                     keep_completed_tasks=config.repository.keep_completed_tasks,

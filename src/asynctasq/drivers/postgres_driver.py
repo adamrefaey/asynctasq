@@ -39,7 +39,6 @@ class PostgresDriver(BaseDriver):
     max_attempts: int = 3
     retry_strategy: RetryStrategy = "exponential"
     retry_delay_seconds: int = 60
-    visibility_timeout_seconds: int = 300  # 5 minutes
     min_pool_size: int = 10
     max_pool_size: int = 10
     keep_completed_tasks: bool = False
@@ -87,9 +86,25 @@ class PostgresDriver(BaseDriver):
                     status TEXT NOT NULL DEFAULT 'pending',
                     current_attempt INTEGER NOT NULL DEFAULT 0,
                     max_attempts INTEGER NOT NULL DEFAULT 3,
+                    visibility_timeout_seconds INTEGER NOT NULL DEFAULT 300,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
+            """)
+
+            # Add visibility_timeout_seconds column if it doesn't exist (migration)
+            await conn.execute(f"""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = '{self.queue_table}'
+                        AND column_name = 'visibility_timeout_seconds'
+                    ) THEN
+                        ALTER TABLE {self.queue_table}
+                        ADD COLUMN visibility_timeout_seconds INTEGER NOT NULL DEFAULT 300;
+                    END IF;
+                END $$;
             """)
 
             # Create index for efficient queue lookup
@@ -113,7 +128,12 @@ class PostgresDriver(BaseDriver):
             """)
 
     async def enqueue(
-        self, queue_name: str, task_data: bytes, delay_seconds: int = 0, current_attempt: int = 0
+        self,
+        queue_name: str,
+        task_data: bytes,
+        delay_seconds: int = 0,
+        current_attempt: int = 0,
+        visibility_timeout: int = 300,
     ) -> None:
         """Add task to queue with optional delay.
 
@@ -122,6 +142,7 @@ class PostgresDriver(BaseDriver):
             task_data: Serialized task data
             delay_seconds: Seconds to delay task visibility (0 = immediate)
             current_attempt: Current attempt number (0 for first attempt)
+            visibility_timeout: Crash recovery timeout in seconds (default: 300)
         """
         if self.pool is None:
             await self.connect()
@@ -129,11 +150,17 @@ class PostgresDriver(BaseDriver):
 
         query = f"""
             INSERT INTO {self.queue_table}
-                (queue_name, payload, available_at, status, current_attempt, max_attempts, created_at)
-            VALUES ($1, $2, NOW() + $3 * INTERVAL '1 second', 'pending', $4, $5, NOW())
+                (queue_name, payload, available_at, status, current_attempt, max_attempts, visibility_timeout_seconds, created_at)
+            VALUES ($1, $2, NOW() + $3 * INTERVAL '1 second', 'pending', $4, $5, $6, NOW())
         """
         await self.pool.execute(
-            query, queue_name, task_data, delay_seconds, current_attempt, self.max_attempts
+            query,
+            queue_name,
+            task_data,
+            delay_seconds,
+            current_attempt,
+            self.max_attempts,
+            visibility_timeout,
         )
 
     async def dequeue(self, queue_name: str, poll_seconds: int = 0) -> bytes | None:
@@ -167,7 +194,7 @@ class PostgresDriver(BaseDriver):
             # Includes: 1) pending tasks that are ready and not locked
             #           2) processing tasks with expired locks (stuck/crashed workers)
             query = f"""
-                SELECT id, payload FROM {self.queue_table}
+                SELECT id, payload, visibility_timeout_seconds FROM {self.queue_table}
                 WHERE queue_name = $1
                   AND (
                     (status = 'pending' AND available_at <= NOW() AND (locked_until IS NULL OR locked_until < NOW()))
@@ -185,8 +212,9 @@ class PostgresDriver(BaseDriver):
                     if row:
                         task_id = row["id"]
                         task_data = bytes(row["payload"])
+                        visibility_timeout_seconds = row["visibility_timeout_seconds"]
 
-                        # Update status and set visibility timeout
+                        # Update status and set visibility timeout using the per-task value
                         # Increment current_attempt ONLY if status was 'pending' (new attempt)
                         # If status was 'processing', it's a retry of a stuck task (don't increment again)
                         await conn.execute(
@@ -198,7 +226,7 @@ class PostgresDriver(BaseDriver):
                                 updated_at = NOW()
                             WHERE id = $2
                             """,
-                            self.visibility_timeout_seconds,
+                            visibility_timeout_seconds,
                             task_id,
                         )
 

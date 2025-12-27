@@ -69,7 +69,6 @@ async def postgres_driver(postgres_dsn: str) -> AsyncGenerator[PostgresDriver, N
         dead_letter_table=TEST_DLQ_TABLE,
         max_attempts=3,
         retry_delay_seconds=60,
-        visibility_timeout_seconds=300,
         min_pool_size=5,
         max_pool_size=10,
     )
@@ -769,31 +768,6 @@ class TestPostgresDriverWithRealPostgres:
         assert receipt2 is not None
 
     @mark.asyncio
-    async def test_visibility_timeout_recovery(
-        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
-    ) -> None:
-        """Tasks with expired locked_until should be recoverable."""
-        # Arrange
-        await postgres_driver.enqueue("default", b"task")
-        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
-        assert receipt is not None
-
-        # Manually expire the lock
-        task_id = postgres_driver._receipt_handles.get(receipt)
-        assert task_id is not None
-        await postgres_conn.execute(
-            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second', status = 'pending' WHERE id = $1",
-            task_id,
-        )
-
-        # Act - should be able to dequeue again
-        receipt2 = await postgres_driver.dequeue("default", poll_seconds=0)
-
-        # Assert - same task_data is returned since it's the same task
-        assert receipt2 is not None
-        assert receipt2 == receipt  # Same task_data
-
-    @mark.asyncio
     async def test_get_queue_size_all_combinations(
         self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
     ) -> None:
@@ -856,31 +830,6 @@ class TestPostgresDriverWithRealPostgres:
         await postgres_driver.ack("default", receipt)
 
     @mark.asyncio
-    async def test_ack_after_visibility_timeout_expires(
-        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
-    ) -> None:
-        """Ack should handle receipt handle even if visibility timeout expired."""
-        # Arrange
-        await postgres_driver.enqueue("default", b"task")
-        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
-        assert receipt is not None
-
-        # Manually expire the lock
-        task_id = postgres_driver._receipt_handles.get(receipt)
-        assert task_id is not None
-        await postgres_conn.execute(
-            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second' WHERE id = $1",
-            task_id,
-        )
-
-        # Act - ack should still work (task exists, just lock expired)
-        await postgres_driver.ack("default", receipt)
-
-        # Assert - task should be deleted
-        count = await postgres_conn.fetchval(f"SELECT COUNT(*) FROM {TEST_QUEUE_TABLE}")
-        assert count == 0
-
-    @mark.asyncio
     async def test_ack_twice_is_safe(self, postgres_driver: PostgresDriver) -> None:
         """Acking the same receipt handle twice should be safe."""
         # Arrange
@@ -894,34 +843,6 @@ class TestPostgresDriverWithRealPostgres:
 
         # Assert - should not raise, receipt handle should be cleared
         assert receipt not in postgres_driver._receipt_handles
-
-    @mark.asyncio
-    async def test_nack_after_visibility_timeout_expires(
-        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
-    ) -> None:
-        """Nack should handle receipt handle even if visibility timeout expired."""
-        # Arrange
-        await postgres_driver.enqueue("default", b"task")
-        receipt = await postgres_driver.dequeue("default", poll_seconds=0)
-        assert receipt is not None
-
-        # Manually expire the lock and reset status
-        task_id = postgres_driver._receipt_handles.get(receipt)
-        assert task_id is not None
-        await postgres_conn.execute(
-            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second', status = 'pending' WHERE id = $1",
-            task_id,
-        )
-
-        # Act - nack should still work
-        await postgres_driver.nack("default", receipt)
-
-        # Assert - task should still have attempt=1 (dequeue incremented, nack didn't)
-        result = await postgres_conn.fetchrow(
-            f"SELECT current_attempt FROM {TEST_QUEUE_TABLE} WHERE id = $1", task_id
-        )
-        assert result is not None
-        assert result["current_attempt"] == 1
 
     @mark.asyncio
     async def test_nack_then_ack_is_safe(self, postgres_driver: PostgresDriver) -> None:
@@ -1126,39 +1047,6 @@ class TestPostgresDriverWithRealPostgres:
 
         # Assert - all receipt handles should be cleared
         assert len(postgres_driver._receipt_handles) == 0
-
-    @mark.asyncio
-    async def test_multiple_visibility_timeout_expirations(
-        self, postgres_driver: PostgresDriver, postgres_conn: asyncpg.Connection
-    ) -> None:
-        """Multiple visibility timeout expirations should allow task recovery."""
-        # Arrange
-        await postgres_driver.enqueue("default", b"task")
-        receipt1 = await postgres_driver.dequeue("default", poll_seconds=0)
-        assert receipt1 is not None
-
-        task_id = postgres_driver._receipt_handles.get(receipt1)
-        assert task_id is not None
-
-        # Expire lock first time
-        await postgres_conn.execute(
-            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second', status = 'pending' WHERE id = $1",
-            task_id,
-        )
-        receipt2 = await postgres_driver.dequeue("default", poll_seconds=0)
-        assert receipt2 is not None
-        # Same task_data is returned since it's the same task
-        assert receipt2 == receipt1
-
-        # Expire lock second time
-        await postgres_conn.execute(
-            f"UPDATE {TEST_QUEUE_TABLE} SET locked_until = NOW() - INTERVAL '1 second', status = 'pending' WHERE id = $1",
-            task_id,
-        )
-        receipt3 = await postgres_driver.dequeue("default", poll_seconds=0)
-        assert receipt3 is not None
-        # Same task_data is returned since it's the same task
-        assert receipt3 == receipt2
 
     @mark.asyncio
     async def test_get_queue_size_with_expired_locks(
