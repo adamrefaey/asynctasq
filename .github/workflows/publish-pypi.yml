@@ -1,12 +1,10 @@
-name: Publish to PyPI (manual)
+name: Publish to PyPI (after TestPyPI success)
 
 on:
-  workflow_dispatch:
-    inputs:
-      confirm:
-        description: 'Type "yes" to confirm publishing to PyPI'
-        required: true
-        default: "no"
+  workflow_run:
+    workflows: ["Publish to TestPyPI (on tag)"]
+    types:
+      - completed
 
 permissions:
   contents: read
@@ -57,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    if: github.event.inputs.confirm == 'yes'
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Download dists
         uses: actions/download-artifact@v4
