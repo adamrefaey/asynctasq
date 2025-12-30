@@ -60,8 +60,12 @@ asynctasq = "asynctasq.cli.main:main"
 
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.9.20"]
+build-backend = "uv_build"
+
+[tool.uv]
+# Enable uv build backend for 10-35x faster builds compared to hatchling/setuptools
+# Optimized for pure-Python projects with good defaults and user-friendly errors
 
 [dependency-groups]
 dev = [
