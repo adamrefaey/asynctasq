@@ -101,9 +101,31 @@ class TestTortoiseOrmHook:
         model_class = MagicMock()
         model_class.get = AsyncMock(return_value=mock_model)
 
-        result = await hook._fetch_model(model_class, 42)
-        assert result == mock_model
-        model_class.get.assert_called_once_with(pk=42)
+        # Mock Tortoise._inited to True so we bypass the initialization check
+        # Patch where it's imported (inside the function)
+        with patch("tortoise.Tortoise") as mock_tortoise:
+            mock_tortoise._inited = True
+            result = await hook._fetch_model(model_class, 42)
+            assert result == mock_model
+            model_class.get.assert_called_once_with(pk=42)
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
+    async def test_fetch_model_not_initialized(self) -> None:
+        """Test _fetch_model raises helpful error when Tortoise not initialized."""
+        hook = TortoiseOrmHook()
+
+        model_class = MagicMock()
+        model_class.__name__ = "Product"
+
+        # Mock Tortoise._inited to False to trigger the initialization check
+        with patch("tortoise.Tortoise") as mock_tortoise:
+            mock_tortoise._inited = False
+            with raises(
+                RuntimeError,
+                match="Tortoise ORM is not initialized. Cannot fetch Product instance",
+            ):
+                await hook._fetch_model(model_class, 42)
 
     @mark.asyncio
     @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
@@ -114,5 +136,8 @@ class TestTortoiseOrmHook:
         model_class = MagicMock()
         model_class.get = AsyncMock(side_effect=RuntimeError("Database error"))
 
-        with raises(RuntimeError, match="Database error"):
-            await hook._fetch_model(model_class, 42)
+        # Mock Tortoise as initialized
+        with patch("tortoise.Tortoise") as mock_tortoise:
+            mock_tortoise._inited = True
+            with raises(RuntimeError, match="Database error"):
+                await hook._fetch_model(model_class, 42)
