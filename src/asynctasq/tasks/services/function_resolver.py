@@ -164,14 +164,21 @@ class FunctionResolver:
             func_file: Optional file path for __main__ resolution
 
         Returns:
-            Function reference
+            Function reference (unwrapped if it's a TaskFunctionWrapper)
 
         Raises:
             ImportError: If module/function cannot be loaded
             FileNotFoundError: If __main__ file doesn't exist
         """
         func_module = cls.get_module(func_module_name, func_file)
-        return getattr(func_module, func_name)
+        func_attr = getattr(func_module, func_name)
+
+        # If it's a TaskFunctionWrapper, unwrap it to get the actual function
+        # This happens when deserializing a @task decorated function
+        if hasattr(func_attr, "__wrapped__"):
+            return func_attr.__wrapped__
+
+        return func_attr
 
     @classmethod
     def clear_cache(cls) -> None:
