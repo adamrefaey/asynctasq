@@ -49,67 +49,17 @@ class DjangoOrmHook(BaseOrmHook):
         return obj.pk
 
     def _import_model_class(self, class_path: str, class_file: str | None = None) -> type:
-        """Import Django model class with settings configuration.
+        """Import Django model class.
 
-        Ensures Django settings are configured before importing model classes
-        to prevent "settings are not configured" errors during deserialization.
+        Relies on the user's script or DJANGO_SETTINGS_MODULE to configure Django.
+        The FunctionResolver will handle patching settings.configure() to prevent
+        "Settings already configured" errors when loading user modules.
 
         Args:
             class_path: Full class path (e.g., "__main__.Article")
             class_file: Optional file path for __main__ module resolution
         """
-        import logging
-        import os
-        import sys
-
-        logger = logging.getLogger(__name__)
-
-        # Ensure Django settings are configured before importing model classes
-        # This prevents "settings are not configured" errors during deserialization
-        if DJANGO_AVAILABLE:
-            try:
-                if "django" in sys.modules and "django.conf" in sys.modules:
-                    from django.conf import settings as django_settings
-
-                    # Check if settings are already configured
-                    if not django_settings.configured:
-                        # Settings not configured - configure with minimal settings
-                        # Check if DJANGO_SETTINGS_MODULE is set
-                        if "DJANGO_SETTINGS_MODULE" in os.environ:
-                            # Use django.setup() to configure from settings module
-                            import django
-
-                            django.setup()
-                            logger.debug(
-                                f"Configured Django using DJANGO_SETTINGS_MODULE="
-                                f"{os.environ['DJANGO_SETTINGS_MODULE']}"
-                            )
-                        else:
-                            # No settings module - configure with minimal defaults
-                            # This allows model imports to work without full Django setup
-                            django_settings.configure(
-                                INSTALLED_APPS=[],
-                                DATABASES={
-                                    "default": {
-                                        "ENGINE": "django.db.backends.sqlite3",
-                                        "NAME": ":memory:",
-                                    }
-                                },
-                                SECRET_KEY="asynctasq-worker-temporary-key",
-                                USE_TZ=True,
-                            )
-                            logger.debug(
-                                "Configured Django with minimal settings for ORM model deserialization"
-                            )
-            except (ImportError, AttributeError) as e:
-                # Django not available or couldn't configure - continue without configuring
-                logger.debug(f"Could not configure Django settings: {e}")
-            except RuntimeError as e:
-                # Settings already configured by another thread/process
-                if "Settings already configured" not in str(e):
-                    raise
-
-        # Call parent implementation to do the actual import
+        # Call parent implementation - FunctionResolver handles Django settings patching
         return super()._import_model_class(class_path, class_file)
 
     async def _fetch_model(self, model_class: type, pk: Any) -> Any:

@@ -73,37 +73,44 @@ class FunctionResolver:
             # Add to sys.modules before exec to support relative imports
             sys.modules[internal_module_name] = func_module
 
-            # Temporarily patch Django settings.configure to suppress "already configured" errors
-            # This allows the rest of the module to load even if settings.configure() is called
-            django_settings_patched = False
+            # Temporarily patch Django settings to suppress "already configured" errors
+            # This allows user modules to load even if they call settings.configure()
+            # when settings are already configured
+            django_patched = False
             original_configure = None
 
             try:
-                # Check if Django is imported and patch it
+                # Check if Django is imported and patch the LazySettings class directly
                 if "django" in sys.modules and "django.conf" in sys.modules:
-                    from django.conf import settings as django_settings
+                    import django.conf
 
-                    original_configure = django_settings.configure
+                    # Get the LazySettings class (not an instance)
+                    LazySettings = type(django.conf.settings)
 
-                    def patched_configure(*args: Any, **kwargs: Any) -> None:
+                    # Save original configure method
+                    original_configure = LazySettings.configure
+
+                    def patched_configure(self: Any, *args: Any, **kwargs: Any) -> None:
                         """Patched configure that silently ignores 'already configured' errors."""
                         try:
-                            original_configure(*args, **kwargs)
+                            original_configure(self, *args, **kwargs)
                         except RuntimeError as e:
                             if "Settings already configured" in str(e):
                                 # Silently ignore - settings are already configured
                                 logger.debug(
                                     f"Suppressed 'Settings already configured' error while loading {main_file}"
                                 )
-                                pass
+                                return
                             else:
                                 raise
 
-                    django_settings.configure = patched_configure  # type: ignore[method-assign]
-                    django_settings_patched = True
-                    logger.debug(f"Patched Django settings.configure for loading {main_file}")
-            except (ImportError, AttributeError):
+                    # Patch the class method, not the instance method
+                    LazySettings.configure = patched_configure  # type: ignore[method-assign]
+                    django_patched = True
+                    logger.debug(f"Patched Django LazySettings.configure for loading {main_file}")
+            except (ImportError, AttributeError) as e:
                 # Django not available or couldn't patch - continue without patching
+                logger.debug(f"Could not patch Django settings: {e}")
                 pass
 
             try:
@@ -135,12 +142,17 @@ class FunctionResolver:
                 raise
             finally:
                 # Restore original Django settings.configure if it was patched
-                if django_settings_patched and original_configure is not None:
+                if django_patched and original_configure is not None:
                     try:
-                        from django.conf import settings as django_settings
+                        import django.conf
 
-                        django_settings.configure = original_configure  # type: ignore[method-assign]
-                    except (ImportError, AttributeError):
+                        LazySettings = type(django.conf.settings)
+                        LazySettings.configure = original_configure  # type: ignore[method-assign]
+                        logger.debug(
+                            f"Restored original Django LazySettings.configure after loading {main_file}"
+                        )
+                    except (ImportError, AttributeError) as e:
+                        logger.debug(f"Could not restore Django settings: {e}")
                         pass
         else:
             # For non-__main__ modules, first try standard import
