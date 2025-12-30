@@ -39,6 +39,7 @@
     - [Best Practices](#best-practices)
     - [Common Pitfalls](#common-pitfalls)
   - [Additional Configuration Methods](#additional-configuration-methods)
+  - [Beautiful Console Output](#beautiful-console-output)
 
 AsyncTasQ supports two task definition styles: **function-based** (simple, inline) and **class-based** (reusable, testable).
 
@@ -60,7 +61,10 @@ from asynctasq.tasks import task
 
 @task
 async def send_email(to: str, subject: str, body: str):
-    print(f"Sending email to {to}: {subject}")
+    # Use asynctasq.print() for beautiful Rich-formatted output
+    from asynctasq import print
+
+    print(f"[cyan]Sending email to[/cyan] [yellow]{to}[/yellow]: [bold]{subject}[/bold]")
     await asyncio.sleep(1)  # Simulate email sending
     return f"Email sent to {to}"
 
@@ -978,3 +982,148 @@ class MyTask(AsyncTask[None]):
         print(f"Attempt: {self._current_attempt}")
         print(f"Dispatched at: {self._dispatched_at}")
 ```
+
+## Beautiful Console Output
+
+AsyncTasQ includes built-in [Rich](https://rich.readthedocs.io/) library integration for beautiful, colorized console output. Use `asynctasq.print()` in your tasks for gorgeous terminal displays with zero configuration.
+
+### Why Use asynctasq.print()?
+
+- **Rich Markup Support** – Use tags like `[bold]`, `[cyan]`, `[green]` for colored, styled output
+- **Automatic Formatting** – Dictionaries, lists, and objects are automatically pretty-printed
+- **Syntax Highlighting** – Code snippets, JSON, and data structures are highlighted automatically
+- **Better Debugging** – Clear, readable output makes development and debugging easier
+- **Zero Configuration** – Works out of the box, no setup required
+
+### Basic Usage
+
+```python
+from asynctasq import print
+from asynctasq.tasks import task
+
+@task
+async def process_data(user_id: int, data: dict):
+    # Basic colored output
+    print(f"[cyan]Processing data for user[/cyan] [yellow]{user_id}[/yellow]")
+
+    # Pretty-print data structures
+    print(data)  # Automatically formatted
+
+    # Status messages with colors
+    print("[green]✅ Processing complete![/green]")
+
+    return "success"
+```
+
+### Advanced Examples
+
+**Progress Indicators:**
+
+```python
+@task
+async def long_running_task(items: list):
+    from asynctasq import print
+
+    print(f"\n[bold cyan]{'='*60}[/bold cyan]")
+    print("[bold]Processing Items[/bold]")
+    print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+
+    for i, item in enumerate(items, 1):
+        print(f"[dim]Step {i}/{len(items)}[/dim] Processing: [yellow]{item}[/yellow]")
+        await asyncio.sleep(0.5)
+        print(f"[green]✅ Completed: {item}[/green]")
+
+    print("\n[bold green]🎉 All items processed![/bold green]\n")
+```
+
+**Error Reporting:**
+
+```python
+@task
+async def validate_payment(payment_id: str):
+    from asynctasq import print
+
+    try:
+        # Validation logic here
+        result = await validate(payment_id)
+
+        if result.is_valid:
+            print(f"[green]✅ Payment {payment_id[:8]} validated[/green]")
+        else:
+            print(f"[red]❌ Payment {payment_id[:8]} failed validation[/red]")
+            print(f"[dim]Reason:[/dim] [yellow]{result.error}[/yellow]")
+
+    except Exception as e:
+        print(f"[bold red]Error validating payment:[/bold red] {e}")
+        raise
+```
+
+**Data Display:**
+
+```python
+@task
+async def fetch_user_stats(user_id: int):
+    from asynctasq import print
+
+    stats = {
+        "user_id": user_id,
+        "total_orders": 42,
+        "revenue": 1234.56,
+        "last_order": datetime.now(),
+        "active": True,
+        "tags": ["premium", "verified"],
+    }
+
+    print(f"\n[bold magenta]📊 User Statistics:[/bold magenta]")
+    print(stats)  # Automatically formatted with syntax highlighting
+
+    return stats
+```
+
+### Available Rich Markup Tags
+
+Common markup tags you can use:
+
+- **Colors:** `[red]`, `[green]`, `[blue]`, `[yellow]`, `[magenta]`, `[cyan]`, `[white]`
+- **Styles:** `[bold]`, `[dim]`, `[italic]`, `[underline]`, `[strike]`
+- **Combined:** `[bold red]`, `[dim cyan]`, `[bold underline green]`
+- **Reset:** `[/]` to end all formatting, or `[/red]` to end specific tag
+
+### Console Output Features
+
+AsyncTasQ's CLI worker provides beautiful logging automatically:
+
+- 🟢 **Worker Online** – Green indicator when worker starts
+- 🚀 **Task Started** – Cyan formatting with task ID
+- ✅ **Task Completed** – Green checkmark on success
+- ❌ **Task Failed** – Red indicator on failure
+- 🔄 **Task Retrying** – Yellow retry indicator
+- 🔴 **Worker Offline** – Red indicator on shutdown
+
+Example worker output:
+
+```
+[04:12:22] INFO     Starting worker: driver=redis, queues=['default'], concurrency=2
+           INFO     uvloop not available, using default event loop policy
+           INFO     Worker worker-e6de08ad starting: queues=['default'], concurrency=2
+           INFO     🟢 Worker Online worker=worker-e6de08ad active=0 processed=0
+           INFO     🚀 Task Started task=e8ffce94 queue=default worker=worker-e6de08ad
+
+Processing data for user 123
+{
+    'id': 12345,
+    'status': 'active',
+    'metrics': {'cpu': 45.2, 'memory': 78.5}
+}
+✅ Processing complete!
+
+[04:12:24] INFO     ✅ Task Completed task=e8ffce94 queue=default worker=worker-e6de08ad
+```
+
+### Best Practices
+
+1. **Import per-task:** Import `print` inside task functions to avoid import-time dependencies
+2. **Use semantic colors:** Green for success, red for errors, yellow for warnings, cyan for info
+3. **Add emojis:** Use emojis (🚀, ✅, ❌, 🔄) for quick visual scanning
+4. **Keep it clean:** Don't overuse colors/formatting – use them to highlight important information
+5. **Test visibility:** Ensure your output is readable on both light and dark terminal themes

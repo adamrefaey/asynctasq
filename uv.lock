@@ -313,6 +313,7 @@ version = "0.9.26"
 source = { editable = "." }
 dependencies = [
     { name = "msgpack" },
+    { name = "rich" },
 ]
 
 [package.optional-dependencies]
@@ -406,6 +407,7 @@ requires-dist = [
     { name = "psycopg2-binary", marker = "extra == 'django'", specifier = ">=2.9.11" },
     { name = "redis", extras = ["hiredis"], marker = "extra == 'monitor'", specifier = ">=7.1.0" },
     { name = "redis", extras = ["hiredis"], marker = "extra == 'redis'", specifier = ">=7.1.0" },
+    { name = "rich", specifier = ">=14.2.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=2.0.44" },
     { name = "tortoise-orm", marker = "extra == 'tortoise'", specifier = ">=0.25.1" },
     { name = "types-aioboto3", extras = ["sqs"], marker = "extra == 'sqs'", specifier = ">=15.5.0" },

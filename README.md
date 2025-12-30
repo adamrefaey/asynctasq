@@ -50,6 +50,7 @@ Create a new file named `quick_start.py` and add the following code:
 import asyncio
 
 import asynctasq
+from asynctasq import print
 from asynctasq.config import RedisConfig
 from asynctasq.tasks import AsyncTask, TaskConfig, task
 
@@ -61,7 +62,8 @@ asynctasq.init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6
 # Function-based task
 @task
 async def send_email(to: str, subject: str, body: str):
-    print(f"Sending email to {to}: {subject}")
+    # Use asynctasq.print() for beautiful Rich-formatted console output
+    print(f"[cyan]Sending email to[/cyan] [yellow]{to}[/yellow]: [bold]{subject}[/bold]")
     await asyncio.sleep(1)  # Simulate email sending
     return f"Email sent to {to}"
 
@@ -82,7 +84,10 @@ class ProcessPayment(AsyncTask[bool]):
         self.amount = amount
 
     async def execute(self) -> bool:
-        print(f"Processing ${self.amount} for user {self.user_id}")
+        # Use asynctasq.print() for beautiful Rich-formatted console output
+        print(
+            f"[green]Processing[/green] [bold]${self.amount}[/bold] for user [cyan]{self.user_id}[/cyan]"
+        )
         await asyncio.sleep(2)  # Simulate payment processing
         return True
 
@@ -230,6 +235,7 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 - **Simple configuration** – Use `asynctasq.init()` and `Config.get()` for all configuration needs
 - **Two task styles** – Choose function-based `@task` decorators or class-based tasks with lifecycle hooks
 - **Fluent method chaining** – Configure tasks expressively: `.delay(60).on_queue("high").max_attempts(10).timeout(300).dispatch()`
+- **Beautiful console output** – Built-in Rich integration provides colorized logging, syntax highlighting, and formatted output. Use `asynctasq.print()` in tasks for gorgeous terminal displays with zero configuration
 - **First-class FastAPI integration** – Lifespan management, automatic connection pooling, native async support
 
 ### Multi-Driver Flexibility Without Vendor Lock-In
@@ -256,6 +262,8 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
   - ✅ **Type-safe** with full type hints and Generic support
 
   - ✅ **Three execution modes**: Async (I/O), Thread pool (moderate CPU), Process pool (heavy CPU)
+
+  - ✅ **Beautiful console output** with Rich library integration for colorized logs and formatted task output
 
   - ✅ **Configurable retries** with custom retry logic hooks
 

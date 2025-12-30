@@ -49,29 +49,35 @@ class TestLoggingEventEmitter:
 
     @mark.asyncio
     async def test_emit_task_event_logs(self, sample_task_event: TaskEvent, caplog) -> None:
-        """Test that task events are logged."""
+        """Test that task events are logged with Rich formatting."""
         import logging
 
         with caplog.at_level(logging.INFO):
             emitter = LoggingEventEmitter()
             await emitter.emit(sample_task_event)
 
-        assert "TaskEvent" in caplog.text
-        assert "task_started" in caplog.text
-        assert "test-task-123" in caplog.text
+        # Verify Rich-formatted output
+        assert "🚀" in caplog.text  # Task started icon
+        assert "Task Started" in caplog.text  # Formatted event name
+        assert "test-tas" in caplog.text  # Truncated task ID (first 8 chars)
+        assert "default" in caplog.text  # Queue name
+        assert "worker-abc123" in caplog.text  # Worker ID
 
     @mark.asyncio
     async def test_emit_worker_event_logs(self, sample_worker_event: WorkerEvent, caplog) -> None:
-        """Test that worker events are logged."""
+        """Test that worker events are logged with Rich formatting."""
         import logging
 
         with caplog.at_level(logging.INFO):
             emitter = LoggingEventEmitter()
             await emitter.emit(sample_worker_event)
 
-        assert "WorkerEvent" in caplog.text
-        assert "worker_online" in caplog.text
-        assert "worker-abc123" in caplog.text
+        # Verify Rich-formatted output
+        assert "🟢" in caplog.text  # Worker online icon
+        assert "Worker Online" in caplog.text  # Formatted event name
+        assert "worker-abc123" in caplog.text  # Worker ID
+        assert "5" in caplog.text  # Active tasks
+        assert "100" in caplog.text  # Processed count
 
     @mark.asyncio
     async def test_close_is_noop(self) -> None:

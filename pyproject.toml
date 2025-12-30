@@ -31,7 +31,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-dependencies = ["msgpack>=1.1.0"]
+dependencies = ["msgpack>=1.1.0", "rich>=14.2.0"]
 
 [project.optional-dependencies]
 uvloop = ["uvloop>=0.22.1"]
@@ -119,6 +119,8 @@ typeCheckingMode = "standard"
 #
 # Pyright sees this as an assignment type error, but it's intentional shadowing
 reportAssignmentType = "none"
+# Ignore missing imports for optional dependencies (installed only when needed)
+reportMissingImports = "none"
 
 [tool.pytest.ini_options]
 # Use strict mode to avoid false positives from auto-detection

@@ -12,6 +12,8 @@ except importlib.metadata.PackageNotFoundError:
 from asynctasq.config import Config, ConfigOverrides
 from asynctasq.core.dispatcher import cleanup
 from asynctasq.monitoring import EventEmitter, EventRegistry
+from asynctasq.utils.console import console as console
+from asynctasq.utils.console import print as print
 
 logger = logging.getLogger(__name__)
 

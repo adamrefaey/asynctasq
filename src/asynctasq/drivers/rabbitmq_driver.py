@@ -105,14 +105,16 @@ class RabbitMQDriver(BaseDriver):
         if self.connection is not None:
             return
 
-        self.connection = await aio_pika.connect_robust(self.url)
-        self.channel = await self.connection.channel()
+        connection = await aio_pika.connect_robust(self.url)
+        self.connection = connection
+        channel = await connection.channel()
+        self.channel = channel
 
         # Set prefetch count for fair distribution
-        await self.channel.set_qos(prefetch_count=self.prefetch_count)
+        await channel.set_qos(prefetch_count=self.prefetch_count)
 
         # Declare main exchange (direct exchange for routing)
-        exchange = await self.channel.declare_exchange(
+        exchange = await channel.declare_exchange(
             self.exchange_name, aio_pika.ExchangeType.DIRECT, durable=True
         )
         self._delayed_exchange = exchange

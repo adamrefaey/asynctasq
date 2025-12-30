@@ -84,8 +84,11 @@ class SQSDriver(BaseDriver):
         # aioboto3's client is an async context manager but types from
         # types-aiobotocore may not perfectly match; cast to Any so Pyright
         # accepts the enter_async_context usage here.
-        client_cm = cast(Any, self.session.client("sqs", **client_kwargs))
-        self.client = await self._exit_stack.enter_async_context(client_cm)
+        session = self.session
+        assert session is not None, "Session must be initialized"
+        client_cm = cast(Any, session.client("sqs", **client_kwargs))
+        client = await self._exit_stack.enter_async_context(client_cm)
+        self.client = client
 
     async def disconnect(self) -> None:
         """Close connection and cleanup resources.

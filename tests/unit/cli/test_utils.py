@@ -39,11 +39,15 @@ class TestSetupLogging:
         # Act
         setup_logging()
 
-        # Assert
-        mock_basic_config.assert_called_once_with(
-            level=logging.INFO,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
+        # Assert - Verify Rich logging handler is configured
+        mock_basic_config.assert_called_once()
+        call_kwargs = mock_basic_config.call_args.kwargs
+        assert call_kwargs["level"] == logging.INFO
+        assert call_kwargs["format"] == "%(message)s"
+        assert call_kwargs["datefmt"] == "[%X]"
+        assert len(call_kwargs["handlers"]) == 1
+        # Verify it's a RichHandler (check class name since it's mocked)
+        assert "RichHandler" in str(type(call_kwargs["handlers"][0]))
 
     def test_setup_logging_can_be_called_multiple_times(self) -> None:
         # Act & Assert - should not raise

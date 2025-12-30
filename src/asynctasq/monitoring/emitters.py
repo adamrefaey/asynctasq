@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import msgpack
+from rich.console import Console
 
 from asynctasq.config import Config
 
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
+console = Console()
 
 
 class EventEmitter(ABC):
@@ -35,30 +37,61 @@ class EventEmitter(ABC):
 
 
 class LoggingEventEmitter(EventEmitter):
-    """Simple event emitter that logs events (default, no dependencies).
+    """Beautiful event emitter that logs events with Rich formatting.
 
     This is the default emitter when Redis is not configured. Useful for
     development, debugging, or when monitoring is not required.
+
+    Uses Rich for colorized, styled console output with icons and visual hierarchy.
     """
 
+    def _format_task_event(self, event: TaskEvent) -> str:
+        """Format a task event with colors and icons."""
+        # Event type to emoji/icon mapping
+        event_icons = {
+            "task_started": "🚀",
+            "task_completed": "✅",
+            "task_failed": "❌",
+            "task_retrying": "🔄",
+        }
+
+        icon = event_icons.get(event.event_type.value, "📋")
+        event_name = event.event_type.value.replace("_", " ").title()
+
+        return (
+            f"{icon} [bold cyan]{event_name}[/bold cyan] "
+            f"[dim]task=[/dim][yellow]{event.task_id[:8]}[/yellow] "
+            f"[dim]queue=[/dim][magenta]{event.queue}[/magenta] "
+            f"[dim]worker=[/dim][blue]{event.worker_id}[/blue]"
+        )
+
+    def _format_worker_event(self, event: WorkerEvent) -> str:
+        """Format a worker event with colors and icons."""
+        # Event type to emoji/icon mapping
+        event_icons = {
+            "worker_online": "🟢",
+            "worker_offline": "🔴",
+            "worker_heartbeat": "💓",
+        }
+
+        icon = event_icons.get(event.event_type.value, "⚙️")
+        event_name = event.event_type.value.replace("_", " ").title()
+
+        return (
+            f"{icon} [bold green]{event_name}[/bold green] "
+            f"[dim]worker=[/dim][blue]{event.worker_id}[/blue] "
+            f"[dim]active=[/dim][cyan]{event.active}[/cyan] "
+            f"[dim]processed=[/dim][green]{event.processed}[/green]"
+        )
+
     async def emit(self, event: TaskEvent | WorkerEvent) -> None:
-        """Log a task or worker event at INFO level."""
+        """Log a task or worker event with beautiful Rich formatting."""
         if isinstance(event, TaskEvent):
-            logger.info(
-                "TaskEvent: %s task=%s queue=%s worker=%s",
-                event.event_type.value,
-                event.task_id,
-                event.queue,
-                event.worker_id,
-            )
+            message = self._format_task_event(event)
         else:
-            logger.info(
-                "WorkerEvent: %s worker=%s active=%d processed=%d",
-                event.event_type.value,
-                event.worker_id,
-                event.active,
-                event.processed,
-            )
+            message = self._format_worker_event(event)
+
+        logger.info(message)
 
     async def close(self) -> None:
         """No-op for logging emitter."""
