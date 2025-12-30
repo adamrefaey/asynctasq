@@ -143,11 +143,15 @@ tag TAG:
 	@if [ "$(printf '%s' '{{TAG}}' | cut -c1)" != "v" ]; then \
 		echo "Tag should start with 'v', e.g. v1.2.3"; exit 1; \
 	fi
-	git tag {{TAG}}
+	git tag -s {{TAG}}
 	git push origin {{TAG}}
 	@echo "✅ Pushed {{TAG}}"
 
-
+# Delete a git tag locally and remotely (usage: just untag v1.2.3)
+untag TAG:
+	git tag -d {{TAG}}
+	git push origin --delete {{TAG}}
+	@echo "✅ Deleted tag {{TAG}} locally and remotely"
 
 # Generate coverage badge
 coverage-badge:
