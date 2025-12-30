@@ -73,6 +73,39 @@ class FunctionResolver:
             # Add to sys.modules before exec to support relative imports
             sys.modules[internal_module_name] = func_module
 
+            # Temporarily patch Django settings.configure to suppress "already configured" errors
+            # This allows the rest of the module to load even if settings.configure() is called
+            django_settings_patched = False
+            original_configure = None
+
+            try:
+                # Check if Django is imported and patch it
+                if "django" in sys.modules and "django.conf" in sys.modules:
+                    from django.conf import settings as django_settings
+
+                    original_configure = django_settings.configure
+
+                    def patched_configure(*args: Any, **kwargs: Any) -> None:
+                        """Patched configure that silently ignores 'already configured' errors."""
+                        try:
+                            original_configure(*args, **kwargs)
+                        except RuntimeError as e:
+                            if "Settings already configured" in str(e):
+                                # Silently ignore - settings are already configured
+                                logger.debug(
+                                    f"Suppressed 'Settings already configured' error while loading {main_file}"
+                                )
+                                pass
+                            else:
+                                raise
+
+                    django_settings.configure = patched_configure  # type: ignore[method-assign]
+                    django_settings_patched = True
+                    logger.debug(f"Patched Django settings.configure for loading {main_file}")
+            except (ImportError, AttributeError):
+                # Django not available or couldn't patch - continue without patching
+                pass
+
             try:
                 spec.loader.exec_module(func_module)
                 # Cache successfully loaded module
@@ -80,21 +113,35 @@ class FunctionResolver:
                 logger.debug(f"Loaded and cached module {internal_module_name} from {main_file}")
                 return func_module
             except RuntimeError as e:
-                # Clean up on failure
-                sys.modules.pop(internal_module_name, None)
+                error_msg = str(e)
 
-                if "cannot be called from a running event loop" in str(e):
+                # Handle asyncio.run() at module level - this is fatal
+                if "cannot be called from a running event loop" in error_msg:
+                    sys.modules.pop(internal_module_name, None)
                     logger.error(
                         f"Module {main_file} contains asyncio.run() at module level. "
                         f"This conflicts with the worker's event loop. "
                         f"Ensure asyncio.run() is inside 'if __name__ == \"__main__\":' block."
                     )
+                    raise
+
+                # Unknown RuntimeError - clean up and re-raise
+                sys.modules.pop(internal_module_name, None)
                 raise
             except Exception as e:
                 # Clean up on failure
                 sys.modules.pop(internal_module_name, None)
                 logger.exception(f"Failed to execute module {main_file}: {e}")
                 raise
+            finally:
+                # Restore original Django settings.configure if it was patched
+                if django_settings_patched and original_configure is not None:
+                    try:
+                        from django.conf import settings as django_settings
+
+                        django_settings.configure = original_configure  # type: ignore[method-assign]
+                    except (ImportError, AttributeError):
+                        pass
         else:
             # For non-__main__ modules, first try standard import
             # If that fails and we have a module_file, load from file
