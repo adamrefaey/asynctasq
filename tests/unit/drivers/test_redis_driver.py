@@ -483,6 +483,27 @@ class TestRedisDriverAck:
         # Act & Assert - should not raise
         await driver.ack("default", b"task_data")
 
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_ack_with_keep_completed_tasks(self, mock_redis_class: MagicMock) -> None:
+        """Test ack with keep_completed_tasks=True adds to completed list."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.lrem = AsyncMock(return_value=1)
+        mock_client.incr = AsyncMock(return_value=1)
+        mock_client.lpush = AsyncMock(return_value=1)
+        driver = RedisDriver(keep_completed_tasks=True)
+        await driver.connect()
+
+        # Act
+        await driver.ack("default", b"task_data")
+
+        # Assert
+        mock_client.lrem.assert_called_once_with("queue:default:processing", 1, b"task_data")
+        mock_client.incr.assert_called_once_with("queue:default:stats:completed")
+        mock_client.lpush.assert_called_once_with("queue:default:completed", b"task_data")
+
 
 @mark.unit
 class TestRedisDriverNack:
@@ -1179,6 +1200,146 @@ class TestRedisDriverInspectionAndManagement:
         w = workers[0]
         assert w["worker_id"] == "abc"
         assert w["status"] == "busy"
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_mark_failed_auto_connects(self, mock_redis_class: MagicMock) -> None:
+        """Test mark_failed automatically connects if not connected."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.lrem = AsyncMock(return_value=1)
+        mock_client.incr = AsyncMock(return_value=5)
+        driver = RedisDriver()
+
+        # Act
+        await driver.mark_failed("default", b"task_data")
+
+        # Assert
+        mock_redis_class.from_url.assert_called_once()
+        mock_client.lrem.assert_called_once()
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_queue_stats_auto_connects(self, mock_redis_class: MagicMock) -> None:
+        """Test get_queue_stats automatically connects if not connected."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.llen = AsyncMock(side_effect=[4, 2])
+        mock_client.get = AsyncMock(side_effect=[b"10", b"3"])
+        driver = RedisDriver()
+
+        # Act
+        stats = await driver.get_queue_stats("default")
+
+        # Assert
+        mock_redis_class.from_url.assert_called_once()
+        assert stats["name"] == "default"
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_global_stats_auto_connects(self, mock_redis_class: MagicMock) -> None:
+        """Test get_global_stats automatically connects if not connected."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.scan = AsyncMock(return_value=(0, []))
+        driver = RedisDriver()
+
+        # Act
+        stats = await driver.get_global_stats()
+
+        # Assert
+        mock_redis_class.from_url.assert_called_once()
+        assert stats["pending"] == 0
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_running_tasks_auto_connects(self, mock_redis_class: MagicMock) -> None:
+        """Test get_running_tasks automatically connects if not connected."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.scan = AsyncMock(return_value=(0, []))
+        driver = RedisDriver()
+
+        # Act
+        tasks = await driver.get_running_tasks()
+
+        # Assert
+        mock_redis_class.from_url.assert_called_once()
+        assert tasks == []
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_tasks_auto_connects(self, mock_redis_class: MagicMock) -> None:
+        """Test get_tasks automatically connects if not connected."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.scan = AsyncMock(return_value=(0, []))
+        driver = RedisDriver()
+
+        # Act
+        tasks, total = await driver.get_tasks(queue="default")
+
+        # Assert
+        mock_redis_class.from_url.assert_called_once()
+        assert tasks == []
+        assert total == 0
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_delete_raw_task_auto_connects(self, mock_redis_class: MagicMock) -> None:
+        """Test delete_raw_task automatically connects if not connected."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.lrem = AsyncMock(return_value=1)
+        driver = RedisDriver()
+
+        # Act
+        result = await driver.delete_raw_task("default", b"task_data")
+
+        # Assert
+        mock_redis_class.from_url.assert_called_once()
+        assert result is True
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_retry_raw_task_auto_connects(self, mock_redis_class: MagicMock) -> None:
+        """Test retry_raw_task automatically connects if not connected."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.lrem = AsyncMock(return_value=1)
+        mock_client.lpush = AsyncMock(return_value=1)
+        driver = RedisDriver()
+
+        # Act
+        result = await driver.retry_raw_task("default", b"task_data")
+
+        # Assert
+        mock_redis_class.from_url.assert_called_once()
+        assert result is True
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_get_worker_stats_auto_connects(self, mock_redis_class: MagicMock) -> None:
+        """Test get_worker_stats automatically connects if not connected."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.scan = AsyncMock(return_value=(0, []))
+        driver = RedisDriver()
+
+        # Act
+        workers = await driver.get_worker_stats()
+
+        # Assert
+        mock_redis_class.from_url.assert_called_once()
+        assert workers == []
 
 
 if __name__ == "__main__":
