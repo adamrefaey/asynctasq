@@ -56,8 +56,19 @@ class TaskSerializer:
             # Store func_file if it's __main__ module
             if func_module == "__main__":
                 func_file = func.__code__.co_filename
+
+            # IMPORTANT: For FunctionTask, individual kwargs are stored as instance attributes
+            # (e.g., self.user = user_value) but they're also in self.kwargs.
+            # We only want them serialized ONCE in kwargs, not duplicated as top-level params.
+            # Remove individual kwargs from params to avoid duplication during deserialization.
+            task_kwargs = task.kwargs  # type: ignore[attr-defined]
+            for kwarg_key in task_kwargs.keys():
+                params.pop(kwarg_key, None)
+
+            # Now add args and kwargs explicitly
             params["args"] = task.args  # type: ignore[attr-defined]
-            params["kwargs"] = task.kwargs  # type: ignore[attr-defined]
+            params["kwargs"] = task_kwargs
+
             # Remove func and use_process from params since we can't/don't need to serialize them
             params.pop("func", None)
             params.pop("_use_process", None)
