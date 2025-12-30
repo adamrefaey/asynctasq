@@ -8,6 +8,9 @@ import traceback
 from typing import Any
 import uuid
 
+from rich.panel import Panel
+from rich.table import Table
+
 from asynctasq.config import Config
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.drivers.retry_utils import calculate_retry_delay
@@ -73,6 +76,41 @@ class Worker:
         self._task_serializer = TaskSerializer(self.serializer)
         self._task_executor = TaskExecutor()
 
+    def _display_startup_banner(self) -> None:
+        """Display a beautiful startup banner with worker configuration."""
+        from rich.console import Console
+
+        console = Console()
+
+        # Create configuration table
+        config_table = Table.grid(padding=(0, 2))
+        config_table.add_column(style="cyan", justify="right")
+        config_table.add_column(style="bold white")
+
+        config_table.add_row("Worker ID", f"[bold blue]{self.worker_id}[/bold blue]")
+        config_table.add_row("Hostname", f"[dim]{self.hostname}[/dim]")
+        config_table.add_row("Queues", f"[magenta]{', '.join(self.queues)}[/magenta]")
+        config_table.add_row("Concurrency", f"[green]{self.concurrency}[/green]")
+        config_table.add_row("Driver", f"[yellow]{type(self.queue_driver).__name__}[/yellow]")
+
+        if self.max_tasks:
+            config_table.add_row("Max Tasks", f"[orange1]{self.max_tasks}[/orange1]")
+
+        if self.process_pool_size:
+            config_table.add_row("Process Pool", f"[cyan]{self.process_pool_size} workers[/cyan]")
+
+        # Create a nice panel
+        panel = Panel(
+            config_table,
+            title="[bold green]⚡ AsyncTasq Worker Starting[/bold green]",
+            border_style="green",
+            padding=(1, 2),
+        )
+
+        console.print()
+        console.print(panel)
+        console.print()
+
     async def start(self) -> None:
         """Initialize worker and begin processing tasks until shutdown.
 
@@ -94,6 +132,9 @@ class Worker:
             logger.info("Using uvloop event loop policy")
         except ImportError:
             logger.info("uvloop not available, using default event loop policy")
+
+        # Display startup banner
+        self._display_startup_banner()
 
         self._running = True
         self._start_time = datetime.now(UTC)
@@ -126,13 +167,6 @@ class Worker:
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, self._handle_shutdown)
-
-        logger.info(
-            "Worker %s starting: queues=%s, concurrency=%d",
-            self.worker_id,
-            self.queues,
-            self.concurrency,
-        )
 
         # Emit worker_online event via global emitters
         await EventRegistry.emit(

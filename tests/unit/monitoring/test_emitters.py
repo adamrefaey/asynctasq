@@ -60,8 +60,8 @@ class TestLoggingEventEmitter:
         assert "🚀" in caplog.text  # Task started icon
         assert "Task Started" in caplog.text  # Formatted event name
         assert "test-tas" in caplog.text  # Truncated task ID (first 8 chars)
+        assert "TestTask" in caplog.text  # Task name
         assert "default" in caplog.text  # Queue name
-        assert "worker-abc123" in caplog.text  # Worker ID
 
     @mark.asyncio
     async def test_emit_worker_event_logs(self, sample_worker_event: WorkerEvent, caplog) -> None:
@@ -76,8 +76,8 @@ class TestLoggingEventEmitter:
         assert "🟢" in caplog.text  # Worker online icon
         assert "Worker Online" in caplog.text  # Formatted event name
         assert "worker-abc123" in caplog.text  # Worker ID
-        assert "5" in caplog.text  # Active tasks
-        assert "100" in caplog.text  # Processed count
+        assert "default" in caplog.text  # Queue names
+        assert "test-host" in caplog.text  # Hostname
 
     @mark.asyncio
     async def test_close_is_noop(self) -> None:

@@ -250,12 +250,11 @@ class TestWorkerStart:
             except asyncio.CancelledError:
                 pass
 
-        # Assert
+        # Assert - Worker logs uvloop availability messages
         mock_logger.info.assert_called()
-        # Check that the log message includes queue and concurrency info
         log_calls = [str(call) for call in mock_logger.info.call_args_list]
-        assert any("queues=" in str(call) for call in log_calls)
-        assert any("concurrency=" in str(call) for call in log_calls)
+        # Check that we log something about uvloop or event loop
+        assert any("event loop" in str(call).lower() for call in log_calls)
 
 
 @mark.unit

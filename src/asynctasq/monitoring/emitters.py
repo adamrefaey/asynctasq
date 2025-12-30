@@ -45,6 +45,40 @@ class LoggingEventEmitter(EventEmitter):
     Uses Rich for colorized, styled console output with icons and visual hierarchy.
     """
 
+    def _format_duration(self, duration_ms: int | None) -> str:
+        """Format duration with color-coded performance indicators."""
+        if duration_ms is None:
+            return ""
+
+        # Convert to seconds for readability
+        duration_s = duration_ms / 1000.0
+
+        # Color-code based on performance
+        if duration_s < 1.0:
+            color = "green"
+            icon = "⚡"
+        elif duration_s < 5.0:
+            color = "cyan"
+            icon = "✨"
+        elif duration_s < 30.0:
+            color = "yellow"
+            icon = "⏱️"
+        else:
+            color = "red"
+            icon = "🐌"
+
+        # Format with appropriate precision
+        if duration_s < 1.0:
+            duration_str = f"{duration_ms}ms"
+        elif duration_s < 60.0:
+            duration_str = f"{duration_s:.2f}s"
+        else:
+            minutes = int(duration_s // 60)
+            seconds = duration_s % 60
+            duration_str = f"{minutes}m {seconds:.1f}s"
+
+        return f"{icon} [{color}]{duration_str}[/{color}]"
+
     def _format_task_event(self, event: TaskEvent) -> str:
         """Format a task event with colors and icons."""
         # Event type to emoji/icon mapping
@@ -53,17 +87,36 @@ class LoggingEventEmitter(EventEmitter):
             "task_completed": "✅",
             "task_failed": "❌",
             "task_retrying": "🔄",
+            "task_reenqueued": "📤",
+            "task_enqueued": "📥",
+            "task_cancelled": "🚫",
         }
 
         icon = event_icons.get(event.event_type.value, "📋")
         event_name = event.event_type.value.replace("_", " ").title()
 
-        return (
+        # Base message with event type and task info
+        base_msg = (
             f"{icon} [bold cyan]{event_name}[/bold cyan] "
             f"[dim]task=[/dim][yellow]{event.task_id[:8]}[/yellow] "
-            f"[dim]queue=[/dim][magenta]{event.queue}[/magenta] "
-            f"[dim]worker=[/dim][blue]{event.worker_id}[/blue]"
+            f"[dim]name=[/dim][bold magenta]{event.task_name}[/bold magenta] "
+            f"[dim]queue=[/dim][magenta]{event.queue}[/magenta]"
         )
+
+        # Add attempt info if > 1
+        if event.attempt > 1:
+            base_msg += f" [dim]attempt=[/dim][orange1]{event.attempt}[/orange1]"
+
+        # Add duration for completed/failed tasks
+        if event.duration_ms is not None:
+            duration_str = self._format_duration(event.duration_ms)
+            base_msg += f" [dim]duration=[/dim]{duration_str}"
+
+        # Add error info for failed tasks
+        if event.error and event.event_type.value == "task_failed":
+            base_msg += f"\n  [dim]└─[/dim] [red]Error:[/red] {event.error}"
+
+        return base_msg
 
     def _format_worker_event(self, event: WorkerEvent) -> str:
         """Format a worker event with colors and icons."""
@@ -77,8 +130,36 @@ class LoggingEventEmitter(EventEmitter):
         icon = event_icons.get(event.event_type.value, "⚙️")
         event_name = event.event_type.value.replace("_", " ").title()
 
+        # Special formatting for worker_online - make it stand out
+        if event.event_type.value == "worker_online":
+            # Create a simple but elegant startup message
+            queues_str = ", ".join(event.queues)
+            return (
+                f"{icon} [bold green]{event_name}[/bold green] "
+                f"[dim]worker=[/dim][bold blue]{event.worker_id}[/bold blue] "
+                f"[dim]queues=[/dim][cyan]\\[{queues_str}][/cyan] "
+                f"[dim]hostname=[/dim][dim]{event.hostname}[/dim]"
+            )
+
+        # Special formatting for worker_offline
+        if event.event_type.value == "worker_offline":
+            uptime_str = ""
+            if event.uptime_seconds:
+                hours = event.uptime_seconds // 3600
+                minutes = (event.uptime_seconds % 3600) // 60
+                seconds = event.uptime_seconds % 60
+                uptime_str = f" [dim]uptime=[/dim][cyan]{hours}h {minutes}m {seconds}s[/cyan]"
+
+            return (
+                f"{icon} [bold red]{event_name}[/bold red] "
+                f"[dim]worker=[/dim][blue]{event.worker_id}[/blue] "
+                f"[dim]processed=[/dim][green]{event.processed}[/green]"
+                f"{uptime_str}"
+            )
+
+        # Standard heartbeat formatting
         return (
-            f"{icon} [bold green]{event_name}[/bold green] "
+            f"{icon} [dim]{event_name}[/dim] "
             f"[dim]worker=[/dim][blue]{event.worker_id}[/blue] "
             f"[dim]active=[/dim][cyan]{event.active}[/cyan] "
             f"[dim]processed=[/dim][green]{event.processed}[/green]"
