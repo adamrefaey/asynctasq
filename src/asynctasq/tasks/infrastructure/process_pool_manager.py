@@ -53,6 +53,24 @@ _fallback_lock = threading.Lock()
 DEFAULT_MAX_TASKS_PER_CHILD: Final = 100
 
 
+def _setup_subprocess_io() -> None:
+    """Configure subprocess stdout/stderr to be unbuffered.
+
+    Ensures print() statements and logging output from subprocesses
+    appear immediately in the parent process terminal. This is especially
+    important on macOS/Windows where 'spawn' context creates fresh processes.
+
+    Called by ProcessPoolExecutor as the worker initializer function.
+    """
+    import sys
+
+    # Force unbuffered output for immediate visibility
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(line_buffering=True)  # type: ignore[attr-defined]
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(line_buffering=True)  # type: ignore[attr-defined]
+
+
 def init_warm_event_loop() -> None:
     """Initialize persistent event loop in subprocess.
 
@@ -69,6 +87,9 @@ def init_warm_event_loop() -> None:
         Each worker process gets its own independent event loop.
     """
     global _process_loop, _loop_thread
+
+    # Setup subprocess I/O for proper print() visibility
+    _setup_subprocess_io()
 
     # Create new event loop for this process
     _process_loop = asyncio.new_event_loop()
@@ -206,7 +227,7 @@ class ProcessPoolManager:
                 max_workers=self.sync_max_workers,
                 max_tasks_per_child=self.sync_max_tasks_per_child or DEFAULT_MAX_TASKS_PER_CHILD,
                 mp_context=self.mp_context,
-                initializer=None,
+                initializer=_setup_subprocess_io,
                 initargs=(),
             )
 
@@ -240,7 +261,7 @@ class ProcessPoolManager:
                     max_tasks_per_child=self.sync_max_tasks_per_child
                     or DEFAULT_MAX_TASKS_PER_CHILD,
                     mp_context=self.mp_context,
-                    initializer=None,
+                    initializer=_setup_subprocess_io,
                     initargs=(),
                 )
                 self._initialized = True
