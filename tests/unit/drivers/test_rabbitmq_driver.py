@@ -418,6 +418,80 @@ class TestRabbitMQDriverAck:
         # Act & Assert - should not raise
         await driver.ack("default", receipt_handle)
 
+    @mark.asyncio
+    async def test_ack_with_keep_completed_tasks(self) -> None:
+        """Test ack() with keep_completed_tasks=True publishes to completed queue."""
+        # Arrange
+        driver = RabbitMQDriver(keep_completed_tasks=True)
+        mock_message = AsyncMock()
+        mock_message.ack = AsyncMock()
+        receipt_handle = b"task_data"
+        driver._receipt_handles[receipt_handle] = mock_message
+
+        # Mock connection and channel
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_completed_queue = AsyncMock()
+        mock_completed_queue.bind = AsyncMock()
+
+        with patch(
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_completed_queue)
+
+            await driver.connect()
+
+            # Act
+            await driver.ack("default", receipt_handle)
+
+            # Assert
+            mock_message.ack.assert_called_once()
+            assert receipt_handle not in driver._receipt_handles
+            # Should have published to completed queue
+            mock_exchange.publish.assert_called_once()
+
+    @mark.asyncio
+    async def test_ack_auto_connects(self) -> None:
+        """Test ack() auto-connects when keep_completed_tasks=True."""
+        # Arrange
+        driver = RabbitMQDriver(keep_completed_tasks=True)
+        mock_message = AsyncMock()
+        mock_message.ack = AsyncMock()
+        receipt_handle = b"task_data"
+        driver._receipt_handles[receipt_handle] = mock_message
+
+        # Mock connection and channel (not connected initially)
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_completed_queue = AsyncMock()
+        mock_completed_queue.bind = AsyncMock()
+
+        with patch(
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_completed_queue)
+
+            # Act (driver not connected yet)
+            await driver.ack("default", receipt_handle)
+
+            # Assert
+            mock_message.ack.assert_called_once()
+            assert receipt_handle not in driver._receipt_handles
+            # Should have auto-connected and published to completed queue
+            mock_exchange.publish.assert_called_once()
+            assert driver.connection is not None
+            assert driver.channel is not None
+
 
 @mark.unit
 class TestRabbitMQDriverNack:
@@ -449,6 +523,38 @@ class TestRabbitMQDriverNack:
 
         # Act & Assert - should not raise
         await driver.nack("default", receipt_handle)
+
+
+@mark.unit
+class TestRabbitMQDriverMarkFailed:
+    """Test RabbitMQDriver.mark_failed() method."""
+
+    @mark.asyncio
+    async def test_mark_failed_removes_message(self) -> None:
+        """Test mark_failed() acknowledges and removes message without requeue."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_message = AsyncMock()
+        mock_message.ack = AsyncMock()
+        receipt_handle = b"task_data"
+        driver._receipt_handles[receipt_handle] = mock_message
+
+        # Act
+        await driver.mark_failed("default", receipt_handle)
+
+        # Assert
+        mock_message.ack.assert_called_once()
+        assert receipt_handle not in driver._receipt_handles
+
+    @mark.asyncio
+    async def test_mark_failed_with_invalid_receipt_is_safe(self) -> None:
+        """Test mark_failed() with invalid receipt handle is safe."""
+        # Arrange
+        driver = RabbitMQDriver()
+        receipt_handle = b"invalid"
+
+        # Act & Assert - should not raise
+        await driver.mark_failed("default", receipt_handle)
 
 
 @mark.unit
@@ -1293,6 +1399,44 @@ class TestRabbitMQDriverGetQueueStats:
             assert stats["processing"] == 2
             assert stats["depth"] == 4  # 3 + 1 (main + delayed)
 
+    @mark.asyncio
+    async def test_get_queue_stats_auto_connects(self) -> None:
+        """Test get_queue_stats() auto-connects if not connected."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_main_queue = AsyncMock()
+        mock_delayed_queue = AsyncMock()
+        mock_main_state = MagicMock()
+        mock_main_state.message_count = 5
+        mock_delayed_state = MagicMock()
+        mock_delayed_state.message_count = 2
+        mock_main_queue.declare = AsyncMock(return_value=mock_main_state)
+        mock_main_queue.bind = AsyncMock()
+        mock_delayed_queue.declare = AsyncMock(return_value=mock_delayed_state)
+        mock_delayed_queue.bind = AsyncMock()
+
+        with patch(
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(
+                side_effect=[mock_main_queue, mock_delayed_queue]
+            )
+
+            # Act (driver not connected yet)
+            stats = await driver.get_queue_stats("default")
+
+            # Assert
+            assert stats["depth"] == 7  # 5 + 2
+            assert driver.connection is not None
+            assert driver.channel is not None
+
 
 @mark.unit
 class TestRabbitMQDriverGetAllQueueNames:
@@ -1456,6 +1600,40 @@ class TestRabbitMQDriverGetGlobalStats:
 
 
 @mark.unit
+class TestRabbitMQDriverPurgeQueue:
+    """Test RabbitMQDriver.purge_queue() method."""
+
+    @mark.asyncio
+    async def test_purge_queue_auto_connects(self) -> None:
+        """Test purge_queue() auto-connects if not connected."""
+        # Arrange
+        driver = RabbitMQDriver()
+        mock_connection = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_queue = AsyncMock()
+        mock_queue.purge = AsyncMock()
+
+        with patch(
+            "asynctasq.drivers.rabbitmq_driver.aio_pika.connect_robust",
+            return_value=mock_connection,
+        ):
+            mock_connection.channel = AsyncMock(return_value=mock_channel)
+            mock_channel.set_qos = AsyncMock()
+            mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+            mock_channel.declare_queue = AsyncMock(return_value=mock_queue)
+            mock_queue.bind = AsyncMock()
+
+            # Act (driver not connected yet)
+            await driver.purge_queue("default")
+
+            # Assert
+            mock_queue.purge.assert_called_once()
+            assert driver.connection is not None
+            assert driver.channel is not None
+
+
+@mark.unit
 class TestRabbitMQDriverTaskManagement:
     """Test RabbitMQDriver task management methods (AMQP limitations)."""
 
@@ -1470,9 +1648,6 @@ class TestRabbitMQDriverTaskManagement:
 
         # Assert
         assert tasks == []
-
-    @mark.asyncio
-    async def test_get_tasks_returns_empty(self) -> None:
         """Test get_tasks() returns empty list (AMQP limitation)."""
         # Arrange
         driver = RabbitMQDriver()
