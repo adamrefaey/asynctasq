@@ -47,6 +47,8 @@ class BaseOrmHook(AsyncTypeHook[Any]):
         This ensures ORM models from user scripts can be properly imported
         in worker processes.
 
+        Subclasses can override this to add ORM-specific configuration
+
         Args:
             class_path: Full class path (e.g., "__main__.User")
             class_file: Optional file path for __main__ module resolution
