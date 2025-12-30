@@ -5,6 +5,12 @@ an asyncio event loop closes, similar to how atexit works for process terminatio
 
 Inspired by asyncio-atexit (https://github.com/minrk/asyncio-atexit) but
 tailored specifically for AsyncTasQ's cleanup needs.
+
+Best Practices Applied (2025):
+- Uses asyncio.get_running_loop() instead of deprecated get_event_loop()
+- Proper async/sync callback handling with graceful degradation
+- WeakKeyDictionary prevents memory leaks from loop references
+- Comprehensive error handling prevents callback failures from cascading
 """
 
 from __future__ import annotations
@@ -72,6 +78,12 @@ class _RegistryEntry:
         This is called when the loop is being closed, so we can't use
         await or schedule new tasks. We need to handle both sync and
         async callbacks appropriately.
+
+        Best Practice (2025):
+            - Callbacks run in registration order for predictable cleanup sequence
+            - Async callbacks use run_until_complete if loop is still open
+            - Graceful degradation: logs warning if async callback can't run
+            - Error isolation: one failing callback doesn't prevent others
         """
         if not self.callbacks:
             return
@@ -80,24 +92,33 @@ class _RegistryEntry:
         callbacks = self.callbacks.copy()
 
         for callback in callbacks:
+            callback_name = getattr(callback, "__name__", str(callback))
             try:
                 if inspect.iscoroutinefunction(callback):
                     # For async callbacks, we need to run them with run_until_complete
                     # if the loop is not already closed
-                    if not self.loop.is_closed():
+                    if not self.loop.is_closed() and not self.loop.is_running():
+                        # Safe to run async callback
                         self.loop.run_until_complete(callback())
                     else:
-                        callback_name = getattr(callback, "__name__", str(callback))
+                        # Cannot run async callback - loop is closed or running
+                        loop_state = "closed" if self.loop.is_closed() else "running"
                         logger.warning(
-                            f"Cannot run async cleanup callback {callback_name} "
-                            f"- loop already closed"
+                            f"Cannot run async cleanup callback '{callback_name}' "
+                            f"- loop is {loop_state}. Consider running cleanup earlier."
                         )
                 else:
-                    # Sync callback - just call it
+                    # Sync callback - just call it directly
                     callback()
+            except asyncio.CancelledError:
+                # Task was cancelled during cleanup - this is expected during shutdown
+                logger.debug(
+                    f"Cleanup callback '{callback_name}' was cancelled (expected during shutdown)"
+                )
             except Exception as e:
                 # Don't let one failing callback prevent others from running
-                logger.exception(f"Error in cleanup callback {callback}: {e}")
+                # Log with full traceback for debugging
+                logger.exception(f"Error in cleanup callback '{callback_name}': {e}")
 
 
 def register(callback: Callable[[], Any], *, loop: asyncio.AbstractEventLoop | None = None) -> None:
@@ -110,32 +131,40 @@ def register(callback: Callable[[], Any], *, loop: asyncio.AbstractEventLoop | N
         callback: A callable (sync or async) to execute during loop cleanup.
                  Async callbacks will be awaited if the loop is still running.
         loop: The event loop to attach to. If None, uses the running loop
-              (if available) or the current event loop policy's loop.
+              (preferred) or falls back to get_event_loop() for compatibility.
 
     Example:
         >>> async def cleanup():
         ...     await some_async_cleanup()
-        >>> asyncio_atexit.register(cleanup)
+        >>> from asynctasq.utils import cleanup_hooks
+        >>> cleanup_hooks.register(cleanup)
 
-    Note:
+    Best Practices (2025):
         - The callback receives no arguments
         - Multiple callbacks can be registered
-        - Callbacks are executed in registration order
-        - Exceptions in callbacks don't prevent other callbacks from running
+        - Callbacks execute in registration order (FIFO)
+        - Exceptions in callbacks don't prevent others from running
+        - Uses get_running_loop() (preferred) over deprecated get_event_loop()
+
+    Note:
+        If no event loop exists, the callback cannot be registered.
+        Create/start an event loop before registering cleanup hooks.
     """
     if loop is None:
         try:
-            # Try to get the running loop first
+            # Try to get the running loop first (modern best practice)
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            # No running loop, get the event loop from policy
+            # No running loop - fall back to get_event_loop() for compatibility
+            # Note: get_event_loop() is deprecated but still needed for some cases
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_event_loop_policy().get_event_loop()
             except RuntimeError:
-                # No event loop, can't register
+                # No event loop available at all
                 logger.warning(
                     "Cannot register cleanup callback - no event loop available. "
-                    "Create an event loop first or pass it explicitly."
+                    "Create an event loop first or pass it explicitly. "
+                    "Use asyncio.run() or asyncio.Runner for automatic loop management."
                 )
                 return
 
@@ -144,13 +173,16 @@ def register(callback: Callable[[], Any], *, loop: asyncio.AbstractEventLoop | N
     if entry is None:
         entry = _RegistryEntry(loop)
         _registry[loop] = entry
-        # Patch the loop's close method
+        # Patch the loop's close method to run cleanup
         entry.patch_loop_close()
 
-    # Add the callback
+    # Add the callback to the registry
     entry.add_callback(callback)
     callback_name = getattr(callback, "__name__", str(callback))
-    logger.debug(f"Registered cleanup callback {callback_name} for event loop {id(loop)}")
+    logger.debug(
+        f"Registered cleanup callback '{callback_name}' for event loop {id(loop)} "
+        f"({len(entry.callbacks)} total callbacks)"
+    )
 
 
 def unregister(
