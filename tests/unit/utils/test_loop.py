@@ -89,22 +89,23 @@ class TestRunFunction:
         async def test_coro():
             return "success"
 
-        with patch("uvloop.new_event_loop") as mock_uvloop_new:
-            with patch("asyncio.set_event_loop"):
-                mock_loop = MagicMock()
-                mock_uvloop_new.return_value = mock_loop
-                mock_loop.run_until_complete.side_effect = ["success", None, None, None]
+        # Mock asyncio.Runner context manager
+        mock_runner_instance = MagicMock()
+        mock_runner_instance.run.side_effect = ["success", None]  # coro result, then cleanup
 
+        mock_runner = MagicMock()
+        mock_runner.__enter__.return_value = mock_runner_instance
+        mock_runner.__exit__.return_value = None
+
+        with patch("uvloop.new_event_loop"):
+            with patch("asyncio.Runner", return_value=mock_runner):
                 result = run(test_coro())
 
                 assert result == "success"
-                mock_uvloop_new.assert_called_once()
-                assert (
-                    mock_loop.run_until_complete.call_count == 4
-                )  # coro + cleanup + shutdown_asyncgens + shutdown_default_executor
-                mock_loop.close.assert_called_once()
-                mock_loop.shutdown_asyncgens.assert_called_once()
-                mock_loop.shutdown_default_executor.assert_called_once()
+                # Runner.run should be called twice: once for coro, once for cleanup
+                assert mock_runner_instance.run.call_count == 2
+                mock_runner.__enter__.assert_called_once()
+                mock_runner.__exit__.assert_called_once()
 
     def test_run_successful_without_uvloop(self):
         """Test successful run without uvloop."""
@@ -112,19 +113,23 @@ class TestRunFunction:
         async def test_coro():
             return "success"
 
+        # Mock asyncio.Runner context manager
+        mock_runner_instance = MagicMock()
+        mock_runner_instance.run.side_effect = ["success", None]  # coro result, then cleanup
+
+        mock_runner = MagicMock()
+        mock_runner.__enter__.return_value = mock_runner_instance
+        mock_runner.__exit__.return_value = None
+
         with patch("uvloop.new_event_loop", side_effect=ImportError()):
-            with patch("asyncio.new_event_loop") as mock_asyncio_new:
-                with patch("asyncio.set_event_loop"):
-                    mock_loop = MagicMock()
-                    mock_asyncio_new.return_value = mock_loop
-                    mock_loop.run_until_complete.side_effect = ["success", None, None, None]
+            with patch("asyncio.Runner", return_value=mock_runner):
+                result = run(test_coro())
 
-                    result = run(test_coro())
-
-                    assert result == "success"
-                    mock_asyncio_new.assert_called_once()
-                    assert mock_loop.run_until_complete.call_count == 4
-                    mock_loop.close.assert_called_once()
+                assert result == "success"
+                # Runner.run should be called twice: once for coro, once for cleanup
+                assert mock_runner_instance.run.call_count == 2
+                mock_runner.__enter__.assert_called_once()
+                mock_runner.__exit__.assert_called_once()
 
     def test_run_with_running_loop_raises_error(self):
         """Test run raises error when called from running loop."""
@@ -143,22 +148,25 @@ class TestRunFunction:
         async def test_coro():
             return "success"
 
-        with patch("uvloop.new_event_loop") as mock_uvloop_new:
-            with patch("asyncio.set_event_loop"):
-                mock_loop = MagicMock()
-                mock_uvloop_new.return_value = mock_loop
-                mock_loop.run_until_complete.side_effect = [
-                    "success",  # coro result
-                    Exception("cleanup error"),  # cleanup failure
-                    Exception("asyncgens error"),  # shutdown_asyncgens failure
-                    Exception("executor error"),  # shutdown_default_executor failure
-                ]
+        # Mock asyncio.Runner context manager
+        mock_runner_instance = MagicMock()
+        # First call succeeds, second call (cleanup) raises exception
+        mock_runner_instance.run.side_effect = ["success", Exception("cleanup error")]
 
-                result = run(test_coro())
+        mock_runner = MagicMock()
+        mock_runner.__enter__.return_value = mock_runner_instance
+        mock_runner.__exit__.return_value = None
 
-                assert result == "success"
-                assert mock_loop.run_until_complete.call_count == 4
-                mock_loop.close.assert_called_once()
+        with patch("uvloop.new_event_loop"):
+            with patch("asyncio.Runner", return_value=mock_runner):
+                with patch("asynctasq.utils.loop.logger"):
+                    result = run(test_coro())
+
+                    assert result == "success"
+                    # Runner.run should be called twice: once for coro, once for cleanup (which fails)
+                    assert mock_runner_instance.run.call_count == 2
+                    # Runner context manager still exits cleanly
+                    mock_runner.__exit__.assert_called_once()
 
     def test_run_cleanup_timeout_in_cleanup(self):
         """Test run handles timeout in cleanup."""
@@ -166,23 +174,24 @@ class TestRunFunction:
         async def test_coro():
             return "success"
 
-        with patch("uvloop.new_event_loop") as mock_uvloop_new:
-            with patch("asyncio.set_event_loop"):
-                mock_loop = MagicMock()
-                mock_uvloop_new.return_value = mock_loop
-                mock_loop.run_until_complete.side_effect = [
-                    "success",  # coro result
-                    TimeoutError(),  # cleanup timeout
-                    None,  # shutdown_asyncgens
-                    None,  # shutdown_default_executor
-                ]
+        # Mock asyncio.Runner context manager
+        mock_runner_instance = MagicMock()
+        # First call succeeds, second call (cleanup) times out
+        mock_runner_instance.run.side_effect = ["success", TimeoutError()]
 
+        mock_runner = MagicMock()
+        mock_runner.__enter__.return_value = mock_runner_instance
+        mock_runner.__exit__.return_value = None
+
+        with patch("uvloop.new_event_loop"):
+            with patch("asyncio.Runner", return_value=mock_runner):
                 with patch("asynctasq.utils.loop.logger"):
                     result = run(test_coro())
 
                     assert result == "success"
                     # The warning is logged inside _cleanup_asynctasq, not in run()
-                    # So we don't expect it to be called here
+                    # Runner.run should still be called twice
+                    assert mock_runner_instance.run.call_count == 2
 
     def test_run_with_exception_in_coro(self):
         """Test run propagates exceptions from coroutine."""
@@ -190,39 +199,42 @@ class TestRunFunction:
         async def failing_coro():
             raise ValueError("Test error")
 
-        with patch("uvloop.new_event_loop") as mock_uvloop_new:
-            with patch("asyncio.set_event_loop"):
-                mock_loop = MagicMock()
-                mock_uvloop_new.return_value = mock_loop
-                mock_loop.run_until_complete.side_effect = [
-                    ValueError("Test error"),  # coro raises
-                    None,  # cleanup
-                    None,  # shutdown_asyncgens
-                    None,  # shutdown_default_executor
-                ]
+        # Mock asyncio.Runner context manager
+        mock_runner_instance = MagicMock()
+        # First call raises exception, cleanup may or may not happen depending on implementation
+        mock_runner_instance.run.side_effect = [ValueError("Test error"), None]
 
+        mock_runner = MagicMock()
+        mock_runner.__enter__.return_value = mock_runner_instance
+        mock_runner.__exit__.return_value = None
+
+        with patch("uvloop.new_event_loop"):
+            with patch("asyncio.Runner", return_value=mock_runner):
                 with pytest.raises(ValueError, match="Test error"):
                     run(failing_coro())
 
     def test_run_sets_event_loop_correctly(self):
-        """Test run sets and resets event loop correctly."""
+        """Test run uses asyncio.Runner which manages event loop automatically."""
 
         async def test_coro():
             return "success"
 
-        with patch("uvloop.new_event_loop") as mock_uvloop_new:
-            with patch("asyncio.set_event_loop") as mock_set_loop:
-                mock_loop = MagicMock()
-                mock_uvloop_new.return_value = mock_loop
-                mock_loop.run_until_complete.side_effect = ["success", None, None, None]
+        # Mock asyncio.Runner context manager
+        mock_runner_instance = MagicMock()
+        mock_runner_instance.run.side_effect = ["success", None]
 
+        mock_runner = MagicMock()
+        mock_runner.__enter__.return_value = mock_runner_instance
+        mock_runner.__exit__.return_value = None
+
+        with patch("uvloop.new_event_loop"):
+            with patch("asyncio.Runner", return_value=mock_runner):
                 result = run(test_coro())
 
                 assert result == "success"
-                # Should set loop initially and reset to None at end
-                assert mock_set_loop.call_count == 2
-                mock_set_loop.assert_any_call(mock_loop)
-                mock_set_loop.assert_any_call(None)
+                # Runner handles loop management internally, so we just verify it was used
+                mock_runner.__enter__.assert_called_once()
+                mock_runner.__exit__.assert_called_once()
 
     def test_run_debug_logging(self):
         """Test run logs appropriate debug messages."""
@@ -230,35 +242,51 @@ class TestRunFunction:
         async def test_coro():
             return "success"
 
-        with patch("uvloop.new_event_loop") as mock_uvloop_new:
-            with patch("asyncio.set_event_loop"):
-                with patch("asynctasq.utils.loop.logger") as mock_logger:
-                    mock_loop = MagicMock()
-                    mock_uvloop_new.return_value = mock_loop
-                    mock_loop.run_until_complete.side_effect = ["success", None, None, None]
+        # Mock asyncio.Runner context manager
+        mock_runner_instance = MagicMock()
+        mock_runner_instance.run.side_effect = ["success", None]
 
+        mock_runner = MagicMock()
+        mock_runner.__enter__.return_value = mock_runner_instance
+        mock_runner.__exit__.return_value = None
+
+        with patch("uvloop.new_event_loop"):
+            with patch("asyncio.Runner", return_value=mock_runner):
+                with patch("asynctasq.utils.loop.logger") as mock_logger:
                     result = run(test_coro())
 
                     assert result == "success"
-                    mock_logger.debug.assert_called_once_with("Using uvloop event loop")
+                    mock_logger.debug.assert_called_once_with("Using asyncio.Runner with uvloop")
 
     def test_run_fallback_logging(self):
         """Test run logs fallback to asyncio when uvloop unavailable."""
+        import builtins
 
         async def test_coro():
             return "success"
 
-        with patch("uvloop.new_event_loop", side_effect=ImportError()):
-            with patch("asyncio.new_event_loop") as mock_asyncio_new:
-                with patch("asyncio.set_event_loop"):
-                    with patch("asynctasq.utils.loop.logger") as mock_logger:
-                        mock_loop = MagicMock()
-                        mock_asyncio_new.return_value = mock_loop
-                        mock_loop.run_until_complete.side_effect = ["success", None, None, None]
+        # Mock asyncio.Runner context manager
+        mock_runner_instance = MagicMock()
+        mock_runner_instance.run.side_effect = ["success", None]
 
-                        result = run(test_coro())
+        mock_runner = MagicMock()
+        mock_runner.__enter__.return_value = mock_runner_instance
+        mock_runner.__exit__.return_value = None
 
-                        assert result == "success"
-                        mock_logger.debug.assert_called_once_with(
-                            "Using asyncio event loop (uvloop not available)"
-                        )
+        # Patch builtins.__import__ to raise ImportError when importing uvloop
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "uvloop":
+                raise ImportError("uvloop not available")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            with patch("asyncio.Runner", return_value=mock_runner):
+                with patch("asynctasq.utils.loop.logger") as mock_logger:
+                    result = run(test_coro())
+
+                    assert result == "success"
+                    mock_logger.debug.assert_called_once_with(
+                        "Using asyncio.Runner (uvloop not available)"
+                    )

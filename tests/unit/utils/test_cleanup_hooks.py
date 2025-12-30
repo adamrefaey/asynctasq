@@ -106,16 +106,22 @@ class TestRegistryEntry:
         """Test _run_cleanup_sync with async callback when loop is running."""
         mock_loop = MagicMock()
         mock_loop.is_closed.return_value = False
+        mock_loop.is_running.return_value = True  # Loop is running
         entry = _RegistryEntry(mock_loop)
 
         async_callback = AsyncMock()
         entry.add_callback(async_callback)
 
-        with patch("asyncio.iscoroutinefunction", return_value=True):
+        with (
+            patch("asyncio.iscoroutinefunction", return_value=True),
+            patch("asynctasq.utils.cleanup_hooks.logger") as mock_logger,
+        ):
             entry._run_cleanup_sync()
 
-        # Should have called run_until_complete
-        mock_loop.run_until_complete.assert_called_once()
+        # Should NOT have called run_until_complete when loop is running
+        mock_loop.run_until_complete.assert_not_called()
+        # Should log warning
+        mock_logger.warning.assert_called_once()
 
     def test_run_cleanup_sync_async_callback_loop_closed(self):
         """Test _run_cleanup_sync with async callback when loop is closed."""
@@ -196,9 +202,13 @@ class TestRegisterFunction:
         """Test register with no loop available logs warning."""
         callback = MagicMock()
 
+        # Mock the event loop policy to raise RuntimeError
+        mock_policy = MagicMock()
+        mock_policy.get_event_loop.side_effect = RuntimeError()
+
         with (
             patch("asyncio.get_running_loop", side_effect=RuntimeError()),
-            patch("asyncio.get_event_loop", side_effect=RuntimeError()),
+            patch("asyncio.get_event_loop_policy", return_value=mock_policy),
             patch("asynctasq.utils.cleanup_hooks.logger") as mock_logger,
         ):
             register(callback)
