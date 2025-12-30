@@ -3,12 +3,10 @@
 
 Usage: merge_local_coverage.py [artifacts_dir]
 
-Prints either a percentage like "85%" or "85.3%" or the string "unknown".
+Prints either a percentage like "85%" or the string "unknown".
 
-This script properly merges coverage from multiple coverage.xml files by:
-1. Using the aggregate line-rate statistics from the root <coverage> element for maximum accuracy
-2. Falling back to tracking which lines are covered in each source file across all reports
-3. Rounding to 1 decimal place for more precise reporting (shows as integer if whole number)
+This script properly merges coverage from multiple coverage.xml files by tracking
+which lines are covered in each source file across all reports, avoiding double-counting.
 """
 
 from collections import defaultdict
@@ -29,10 +27,6 @@ def main(argv):
     all_file_coverage = defaultdict(set)
     all_file_lines = defaultdict(set)
 
-    # Track root-level coverage statistics for weighted average
-    total_root_lines_valid = 0
-    total_root_lines_covered = 0
-
     coverage_files = list(p.rglob("coverage.xml"))
     if not coverage_files:
         print("unknown")
@@ -44,18 +38,6 @@ def main(argv):
             root = tree.getroot()
         except Exception:
             continue
-
-        # First, try to use the aggregate statistics from the root <coverage> element
-        # This is more accurate than recalculating from individual lines
-        lines_valid = root.attrib.get("lines-valid")
-        lines_covered = root.attrib.get("lines-covered")
-
-        if lines_valid and lines_covered:
-            try:
-                total_root_lines_valid += int(lines_valid)
-                total_root_lines_covered += int(lines_covered)
-            except (ValueError, TypeError):
-                pass
 
         # Navigate through packages/classes to find all lines
         for package in root.iter("package"):
@@ -82,17 +64,7 @@ def main(argv):
                     except (ValueError, TypeError):
                         continue
 
-    # Use root-level statistics if available (more accurate)
-    if total_root_lines_valid > 0:
-        pct = round((total_root_lines_covered / total_root_lines_valid) * 100, 1)
-        # Format to 1 decimal place if not a whole number, otherwise show as integer
-        if pct == int(pct):
-            print(f"{int(pct)}%")
-        else:
-            print(f"{pct}%")
-        return 0
-
-    # Fallback: Calculate total coverage from line-by-line data
+    # Calculate total coverage
     total_lines = sum(len(lines) for lines in all_file_lines.values())
     total_covered = sum(len(all_file_coverage[filename]) for filename in all_file_lines.keys())
 
@@ -100,12 +72,8 @@ def main(argv):
         print("unknown")
         return 0
 
-    pct = round((total_covered / total_lines) * 100, 1)
-    # Format to 1 decimal place if not a whole number, otherwise show as integer
-    if pct == int(pct):
-        print(f"{int(pct)}%")
-    else:
-        print(f"{pct}%")
+    pct = round((total_covered / total_lines) * 100)
+    print(f"{pct}%")
     return 0
 
 
