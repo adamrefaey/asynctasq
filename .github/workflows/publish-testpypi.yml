@@ -24,8 +24,14 @@ jobs:
       - name: Use test project name for TestPyPI
         run: |
           sed -i 's/name = "asynctasq"/name = "asynctasq-test"/' pyproject.toml
-          echo 'pyproject.toml updated for TestPyPI build (using uv_build backend)'
-          cat pyproject.toml | grep -A2 '\[build-system\]'
+          cat >> pyproject.toml << 'ENDCONFIG'
+
+          [tool.uv.build-backend]
+          module-name = "asynctasq"
+          module-root = "src"
+          ENDCONFIG
+          echo 'pyproject.toml updated for TestPyPI build'
+          cat pyproject.toml | tail -15
 
       - name: Install build deps
         run: |
