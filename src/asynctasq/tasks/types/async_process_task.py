@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from abc import abstractmethod
 import asyncio
+import inspect
 import logging
-from typing import override
+from typing import Any, override
 
 from asynctasq.tasks.core.base_task import BaseTask
 from asynctasq.tasks.infrastructure.process_pool_manager import (
@@ -155,3 +156,81 @@ class AsyncProcessTask[T](BaseTask[T]):
         - Shared state (globals, files) must be handled with care due to multiprocessing
         """
         ...
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        """Custom serialization support for ProcessPoolExecutor inter-process communication.
+
+        When AsyncProcessTask is sent to a subprocess via ProcessPoolExecutor,
+        Python's multiprocessing internally uses pickle for IPC. This method ensures
+        the task can be reconstructed in the subprocess even if it was originally
+        loaded from a __main__ module.
+
+        Returns
+        -------
+        tuple
+            Reduction tuple: (callable, args) where callable(*args) reconstructs the object
+        """
+        # Get the class file path for reliable reconstruction
+        class_file = getattr(self, "_original_class_file", None)
+        if not class_file:
+            try:
+                class_file = inspect.getfile(self.__class__)
+                # Only store if it's a real file (not built-in or C extension)
+                if class_file and class_file.startswith("<"):
+                    class_file = None
+            except (TypeError, OSError):
+                class_file = None
+
+        # Prepare reconstruction data
+        return (
+            _reconstruct_async_process_task,
+            (
+                self.__class__.__module__,
+                self.__class__.__name__,
+                class_file,
+                self.__dict__.copy(),
+            ),
+        )
+
+
+def _reconstruct_async_process_task(
+    module_name: str, class_name: str, class_file: str | None, state: dict[str, Any]
+) -> Any:
+    """Reconstruct AsyncProcessTask instance in subprocess.
+
+    This function is called during inter-process communication to recreate the task
+    instance in the subprocess. It uses FunctionResolver to handle __main__ modules correctly.
+
+    Parameters
+    ----------
+    module_name : str
+        Original module name (may be __asynctasq_main_xxx__)
+    class_name : str
+        Class name
+    class_file : str | None
+        Path to the class file (for __main__ modules)
+    state : dict
+        Instance __dict__ to restore
+
+    Returns
+    -------
+    Any
+        Reconstructed task instance
+    """
+    from asynctasq.tasks.services.function_resolver import FunctionResolver
+
+    # Normalize __asynctasq_main_xxx__ back to __main__ for resolution
+    if module_name.startswith("__asynctasq_main_"):
+        module_name = "__main__"
+
+    # Use FunctionResolver to load the module (handles __main__ correctly)
+    resolver = FunctionResolver()
+    module = resolver.get_module(module_name, class_file)
+    task_class = getattr(module, class_name)
+
+    # Create a new instance without calling __init__
+    # We'll restore the state directly
+    instance = task_class.__new__(task_class)
+    instance.__dict__.update(state)
+
+    return instance
