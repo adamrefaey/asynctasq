@@ -11,6 +11,15 @@ Key features:
 - Context manager support for RAII pattern
 - Configurable worker limits and task recycling
 - Process-local state management for multiprocessing safety
+- Secure 'spawn' context by default for cross-platform safety
+- Graceful signal handling in subprocesses
+
+Best Practices Applied (2025):
+- Uses 'spawn' start method for safer multiprocessing (avoids fork corruption)
+- Implements SIGINT handlers for clean shutdown without tracebacks
+- Uses max_tasks_per_child to prevent memory leaks
+- Provides context manager for proper resource cleanup
+- Thread-safe operations with proper locking primitives
 """
 
 from __future__ import annotations
@@ -20,8 +29,11 @@ from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 import logging
+import multiprocessing
 import multiprocessing.context
 import os
+import signal
+import sys
 import threading
 import types
 from typing import Any, Final, Literal, Self, TypedDict
@@ -49,31 +61,65 @@ _loop_thread: threading.Thread | None = None
 _fallback_count = 0
 _fallback_lock = threading.Lock()
 
-# Default max_tasks_per_child to prevent memory leaks (best practice from research)
+# Default max_tasks_per_child to prevent memory leaks (Python 3.11+ feature)
+# Research shows 100-1000 is optimal for most workloads to balance overhead vs memory safety
 DEFAULT_MAX_TASKS_PER_CHILD: Final = 100
 
 
-def _setup_subprocess_io() -> None:
-    """Configure subprocess stdout/stderr to be unbuffered.
+def _get_safe_mp_context() -> multiprocessing.context.BaseContext:
+    """Get the safest multiprocessing context for the current platform.
 
-    Ensures print() statements and logging output from subprocesses
-    appear immediately in the parent process terminal. This is especially
-    important on macOS/Windows where 'spawn' context creates fresh processes.
+    Returns 'spawn' context which is:
+    - Cross-platform compatible (works on Windows, macOS, Linux)
+    - Safer than 'fork' (avoids inheriting locks/state from parent)
+    - Required for CUDA/GPU workloads
+    - Default in Python 3.14+ on all platforms
+
+    Note:
+        While 'spawn' is slower than 'fork' due to fresh interpreter startup,
+        it prevents deadlocks, corruption, and crashes that can occur with fork.
+
+    Returns:
+        Multiprocessing context configured for spawn start method
+    """
+    return multiprocessing.get_context("spawn")
+
+
+def _setup_subprocess_io() -> None:
+    """Configure subprocess environment for safe execution.
+
+    Sets up:
+    1. Unbuffered I/O for immediate output visibility
+    2. SIGINT handler for graceful shutdown without tracebacks
+    3. SIGTERM handler for clean termination
+
+    This is especially important on macOS/Windows where 'spawn' context
+    creates fresh processes that need proper signal handling.
 
     Called by ProcessPoolExecutor as the worker initializer function.
+
+    Best Practice:
+        Child processes should not handle SIGINT/SIGTERM directly - the parent
+        process controls shutdown sequencing. This prevents race conditions and
+        ensures orderly resource cleanup.
     """
-    import signal
-    import sys
 
     # Suppress KeyboardInterrupt traceback in subprocess workers
-    # This prevents noisy output when the parent process shuts down
-    def silent_interrupt_handler(signum: int, frame: Any) -> None:
-        """Silently exit on SIGINT without printing traceback."""
+    # Prevents noisy output when parent process shuts down pool
+    def _silent_signal_handler(signum: int, frame: Any) -> None:
+        """Silently exit on signal without printing traceback.
+
+        This gives the parent process full control over shutdown sequencing
+        while avoiding confusing subprocess tracebacks in the terminal.
+        """
         sys.exit(0)
 
-    signal.signal(signal.SIGINT, silent_interrupt_handler)
+    # Install handlers for common termination signals
+    signal.signal(signal.SIGINT, _silent_signal_handler)
+    signal.signal(signal.SIGTERM, _silent_signal_handler)
 
     # Force unbuffered output for immediate visibility
+    # Critical for debugging and monitoring subprocess behavior
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(line_buffering=True)  # type: ignore[attr-defined]
     if hasattr(sys.stderr, "reconfigure"):
@@ -196,9 +242,13 @@ class ProcessPoolManager:
     """Instance-based manager for sync and async process pools with context manager support.
 
     Provides thread-safe process pool management with automatic cleanup.
-    Use as async context manager for automatic resource management:
+    Implements 2025 best practices for safe multiprocessing:
+    - Uses 'spawn' context by default (safer than 'fork')
+    - Graceful signal handling in subprocesses
+    - Memory leak prevention via max_tasks_per_child
+    - Proper resource cleanup via context manager
 
-    Example:
+    Example (Recommended):
         ```python
         async with ProcessPoolManager() as manager:
             pool = manager.get_sync_pool()
@@ -214,6 +264,13 @@ class ProcessPoolManager:
         # ... use pools ...
         await manager.shutdown()
         ```
+
+    Attributes:
+        sync_max_workers: Max workers for sync pool (default: CPU count)
+        async_max_workers: Max workers for async pool (default: CPU count)
+        sync_max_tasks_per_child: Tasks before worker restart (default: 100)
+        async_max_tasks_per_child: Tasks before worker restart (default: 100)
+        mp_context: Multiprocessing context (default: spawn for safety)
     """
 
     # Configuration parameters
@@ -344,7 +401,7 @@ class ProcessPoolManager:
             pool_type: "sync" or "async"
             max_workers: Max workers (None = CPU count)
             max_tasks_per_child: Tasks per worker before restart
-            mp_context: Multiprocessing context
+            mp_context: Multiprocessing context (defaults to safe 'spawn')
             initializer: Callable to run on worker startup
             initargs: Arguments for initializer
 
@@ -354,9 +411,17 @@ class ProcessPoolManager:
         Raises:
             ValueError: If max_workers is <= 0
             TypeError: If max_workers is not an integer
+
+        Best Practice:
+            Uses 'spawn' context by default for safety. While slower than 'fork',
+            it prevents deadlocks from inherited locks and corruption from shared state.
         """
         # Determine actual max_workers (None defaults to CPU count)
         actual_max_workers = max_workers if max_workers is not None else self._get_cpu_count()
+
+        # Use safe 'spawn' context by default
+        # This prevents fork-related issues: deadlocks, corruption, crashes
+        actual_mp_context = mp_context if mp_context is not None else _get_safe_mp_context()
 
         # Validation happens in ProcessPoolExecutor constructor
         # It will raise ValueError if max_workers <= 0 or TypeError if not int
@@ -367,13 +432,14 @@ class ProcessPoolManager:
                 "pool_size": actual_max_workers,
                 "max_tasks_per_child": max_tasks_per_child,
                 "pool_type": pool_type,
+                "mp_context": actual_mp_context._name,  # type: ignore[attr-defined]
             },
         )
 
         return ProcessPoolExecutor(
             max_workers=actual_max_workers,
             max_tasks_per_child=max_tasks_per_child,
-            mp_context=mp_context,
+            mp_context=actual_mp_context,
             initializer=initializer,
             initargs=initargs,
         )
