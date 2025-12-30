@@ -159,6 +159,7 @@ jobs:
         if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
@@ -386,6 +387,7 @@ jobs:
         if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           flags: integrationtests
           name: codecov-umbrella
