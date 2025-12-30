@@ -43,6 +43,7 @@ repos:
           - django>=4.2
           - tortoise-orm>=0.25.0
           - uvloop>=0.22.1
+          - rich>=13.0.0
 
   # Standard hooks for whitespace, JSON/TOML/YAML checks and basic safety
   - repo: https://github.com/pre-commit/pre-commit-hooks
