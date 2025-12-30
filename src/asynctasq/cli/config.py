@@ -158,23 +158,6 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if repository_overrides:
         overrides["repository"] = RepositoryConfig(**repository_overrides)
 
-    # Task defaults
-    task_defaults_overrides = {}
-    if hasattr(args, "task_defaults_queue") and args.task_defaults_queue is not None:
-        task_defaults_overrides["queue"] = args.task_defaults_queue
-    if hasattr(args, "task_defaults_max_attempts") and args.task_defaults_max_attempts is not None:
-        task_defaults_overrides["max_attempts"] = args.task_defaults_max_attempts
-    if (
-        hasattr(args, "task_defaults_retry_strategy")
-        and args.task_defaults_retry_strategy is not None
-    ):
-        task_defaults_overrides["retry_strategy"] = args.task_defaults_retry_strategy
-    if hasattr(args, "task_defaults_retry_delay") and args.task_defaults_retry_delay is not None:
-        task_defaults_overrides["retry_delay"] = args.task_defaults_retry_delay
-    # Note: timeout and visibility_timeout are now per-task (TaskConfig), not global defaults
-    if task_defaults_overrides:
-        overrides["task_defaults"] = TaskDefaultsConfig(**task_defaults_overrides)
-
     return overrides
 
 
