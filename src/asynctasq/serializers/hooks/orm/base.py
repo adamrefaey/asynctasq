@@ -47,7 +47,11 @@ class BaseOrmHook(AsyncTypeHook[Any]):
         This ensures ORM models from user scripts can be properly imported
         in worker processes.
 
-        Subclasses can override this to add ORM-specific configuration
+        Subclasses can override this to add ORM-specific configuration.
+
+        Note: This method is called from decode_async() in a thread pool executor
+        to avoid Django's SynchronousOnlyOperation errors when user modules
+        have sync database operations at module level.
 
         Args:
             class_path: Full class path (e.g., "__main__.User")
@@ -101,7 +105,11 @@ class BaseOrmHook(AsyncTypeHook[Any]):
         """Fetch ORM model from database using reference.
 
         Uses class file path if available to handle __main__ modules correctly.
+        Runs model class import in a thread pool to avoid Django's SynchronousOnlyOperation
+        errors when user modules have sync database operations at module level.
         """
+        import asyncio
+
         pk = data.get(self.type_key)
         class_path = data.get("__orm_class__")
         class_file = data.get("__orm_class_file__")
@@ -109,5 +117,11 @@ class BaseOrmHook(AsyncTypeHook[Any]):
         if pk is None or class_path is None:
             raise ValueError(f"Invalid ORM reference: {data}")
 
-        model_class = self._import_model_class(class_path, class_file)
+        # Run import in thread pool to avoid Django async safety issues
+        # This prevents SynchronousOnlyOperation errors when loading modules
+        # that have sync Django operations at module level
+        loop = asyncio.get_running_loop()
+        model_class = await loop.run_in_executor(
+            None, self._import_model_class, class_path, class_file
+        )
         return await self._fetch_model(model_class, pk)
