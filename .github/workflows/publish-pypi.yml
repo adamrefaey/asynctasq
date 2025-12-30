@@ -21,14 +21,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Use publish project name for PyPI
+      - name: Verify project configuration
         run: |
-          sed -i 's/name = "asynctasq"/name = "asynctasq"/' pyproject.toml
-          cat >> pyproject.toml <<'TOM'
-          [tool.hatch.build.targets.wheel]
-          packages = ["src/asynctasq"]
-          TOM
-          echo 'pyproject.toml updated for PyPI build (name + hatch wheel packages)'
+          echo 'Using uv_build backend - no additional configuration needed'
+          cat pyproject.toml | grep -A2 '\[build-system\]'
 
       - name: Install build deps
         run: |
