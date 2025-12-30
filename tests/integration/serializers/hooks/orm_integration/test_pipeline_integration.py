@@ -100,7 +100,7 @@ class TestPipelineWithOrmHooks:
         await postgres_conn.execute(
             """
             INSERT INTO sqlalchemy_test_users (id, username, email, created_at)
-            VALUES 
+            VALUES
                 (9020, 'list_user1', 'list1@test.com', NOW()),
                 (9021, 'list_user2', 'list2@test.com', NOW())
             ON CONFLICT (id) DO NOTHING
