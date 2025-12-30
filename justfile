@@ -52,6 +52,14 @@ docker-down:
 docker-restart:
 	docker-compose -f tests/infrastructure/docker-compose.yml restart
 
+# Start specific Docker services (usage: just docker-start-services redis postgres)
+docker-start-services SERVICES:
+	docker-compose -f tests/infrastructure/docker-compose.yml up -d {{SERVICES}}
+
+# Stop specific Docker services (usage: just docker-stop-services redis postgres)
+docker-stop-services SERVICES:
+	docker-compose -f tests/infrastructure/docker-compose.yml down {{SERVICES}}
+
 # Clean up cache files and directories
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
@@ -69,14 +77,6 @@ clean:
 # Run all tests
 test:
 	uv run pytest
-
-# Run unit tests only
-test-unit:
-	uv run pytest -m unit
-
-# Run integration tests only (requires Docker services)
-test-integration:
-	uv run pytest -m integration
 
 # Run all tests with coverage report
 test-cov:
@@ -124,20 +124,6 @@ test-verbose:
 build:
 	uv build
 
-# Publish to PyPI (requires credentials)
-publish:
-	uv build
-	uv run python -m pip install --upgrade build twine
-	uv run python -m twine check dist/*
-	uv publish
-
-# Publish to Test PyPI
-publish-test:
-	uv build
-	uv run python -m pip install --upgrade build twine
-	uv run python -m twine check dist/*
-	uv publish --index-url https://test.pypi.org/legacy/
-
 # Create and push a git tag (usage: just tag v1.2.3)
 tag TAG:
 	@if [ "$(printf '%s' '{{TAG}}' | cut -c1)" != "v" ]; then \
@@ -152,11 +138,6 @@ untag TAG:
 	git tag -d {{TAG}}
 	git push origin --delete {{TAG}}
 	@echo "✅ Deleted tag {{TAG}} locally and remotely"
-
-# Generate coverage badge
-coverage-badge:
-	uv pip install coverage-badge
-	uv run coverage-badge -o coverage.svg
 
 # Type check with Pyright
 pyright:
