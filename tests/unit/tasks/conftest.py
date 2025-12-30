@@ -6,7 +6,14 @@ across test files, particularly for common task patterns.
 
 import asyncio
 
+import pytest
+
 from asynctasq.tasks import AsyncProcessTask, SyncProcessTask
+from asynctasq.tasks.infrastructure.process_pool_manager import (
+    ProcessPoolManager,
+    get_default_manager,
+    set_default_manager,
+)
 
 
 def factorial(n: int) -> int:
@@ -49,3 +56,37 @@ class SharedAsyncFactorialTask(AsyncProcessTask[int]):
             if i % 1000 == 0:
                 await asyncio.sleep(0)
         return result
+
+
+@pytest.fixture(autouse=True, scope="function")
+def reset_default_manager(event_loop):
+    """Reset the default process pool manager before and after each test.
+
+    This fixture ensures test isolation by:
+    1. Shutting down any existing default manager before the test
+    2. Creating a fresh default manager for the test
+    3. Shutting down the manager after the test completes
+
+    This prevents process pool state from bleeding between tests.
+    """
+    # Shutdown any existing default manager from previous tests
+    try:
+        manager = get_default_manager()
+        if manager.is_initialized():
+            event_loop.run_until_complete(manager.shutdown(wait=True, cancel_futures=True))
+    except Exception:
+        pass  # Ignore errors if manager doesn't exist or is already shut down
+
+    # Create a fresh default manager for this test
+    fresh_manager = ProcessPoolManager()
+    set_default_manager(fresh_manager)
+
+    # Run the test
+    yield fresh_manager
+
+    # Cleanup after test
+    try:
+        if fresh_manager.is_initialized():
+            event_loop.run_until_complete(fresh_manager.shutdown(wait=True, cancel_futures=True))
+    except Exception:
+        pass  # Ignore cleanup errors

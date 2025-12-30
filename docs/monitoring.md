@@ -2,28 +2,33 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Event System](#event-system)
-  - [Event Types](#event-types)
-    - [Task Events](#task-events)
-    - [Worker Events](#worker-events)
-  - [Event Data Structures](#event-data-structures)
-  - [Event Emitters](#event-emitters)
-    - [Logging Emitter (Default)](#logging-emitter-default)
-    - [Redis Emitter](#redis-emitter)
-  - [Event Registry](#event-registry)
-- [Configuration](#configuration)
-  - [Configuration Options](#configuration-options)
-- [Consuming Events](#consuming-events)
-  - [Using EventSubscriber](#using-eventsubscriber)
-  - [WebSocket Integration](#websocket-integration)
-- [Queue Statistics](#queue-statistics)
-- [Integration with asynctasq-monitor](#integration-with-asynctasq-monitor)
-- [Best Practices](#best-practices)
-  - [Production Monitoring](#production-monitoring)
-  - [Performance Considerations](#performance-considerations)
-  - [Security](#security)
-- [Troubleshooting](#troubleshooting)
+- [Monitoring](#monitoring)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Event System](#event-system)
+    - [Event Types](#event-types)
+      - [Task Events](#task-events)
+      - [Worker Events](#worker-events)
+    - [Event Data Structures](#event-data-structures)
+    - [Event Emitters](#event-emitters)
+      - [Logging Emitter (Default)](#logging-emitter-default)
+      - [Redis Emitter](#redis-emitter)
+    - [Event Registry](#event-registry)
+  - [Configuration](#configuration)
+    - [Configuration Options](#configuration-options)
+  - [Consuming Events](#consuming-events)
+    - [Using EventSubscriber](#using-eventsubscriber)
+    - [WebSocket Integration](#websocket-integration)
+  - [Queue Statistics](#queue-statistics)
+  - [Integration with asynctasq-monitor](#integration-with-asynctasq-monitor)
+  - [Best Practices](#best-practices)
+    - [Production Monitoring](#production-monitoring)
+    - [Performance Considerations](#performance-considerations)
+    - [Security](#security)
+  - [Troubleshooting](#troubleshooting)
+    - [Events Not Appearing](#events-not-appearing)
+    - [High Memory Usage](#high-memory-usage)
+    - [Missing Events](#missing-events)
 
 AsyncTasQ provides comprehensive monitoring capabilities through real-time event streaming and queue statistics. This enables observability, alerting, and dashboards for production task queue operations.
 
@@ -66,7 +71,7 @@ AsyncTasQ emits events for all major lifecycle changes:
 Events are immutable dataclasses with comprehensive metadata:
 
 ```python
-from asynctasq.monitoring import TaskEvent, WorkerEvent, EventType
+from asynctasq import TaskEvent, WorkerEvent, EventType
 
 # Task event example
 task_event = TaskEvent(
@@ -101,7 +106,7 @@ AsyncTasQ supports multiple event emitters that can be used simultaneously:
 Always enabled, logs events at INFO level for development and debugging:
 
 ```python
-from asynctasq.monitoring import LoggingEventEmitter
+from asynctasq import LoggingEventEmitter
 
 emitter = LoggingEventEmitter()
 # Events are logged automatically when emitted
@@ -112,7 +117,7 @@ emitter = LoggingEventEmitter()
 Publishes events to Redis Pub/Sub for consumption by monitoring tools:
 
 ```python
-from asynctasq.monitoring import RedisEventEmitter
+from asynctasq import RedisEventEmitter
 
 emitter = RedisEventEmitter(
     redis_url="redis://localhost:6379",
@@ -125,7 +130,7 @@ emitter = RedisEventEmitter(
 The `EventRegistry` manages all emitters and broadcasts events to them:
 
 ```python
-from asynctasq.monitoring import EventRegistry
+from asynctasq import EventRegistry
 
 # Initialize with default emitters based on config
 EventRegistry.init()
@@ -142,10 +147,9 @@ await EventRegistry.close_all()
 Enable Redis event emission in your AsyncTasQ configuration:
 
 ```python
-import asynctasq
-from asynctasq.config import EventsConfig
+from asynctasq import init, EventsConfig
 
-asynctasq.init({
+init({
     'driver': 'redis',
     'events': EventsConfig(
         enable_event_emitter_redis=True,  # Enable Redis event emission
@@ -227,8 +231,7 @@ async def events_websocket(websocket: WebSocket):
 Beyond events, AsyncTasQ provides APIs for historical queue statistics:
 
 ```python
-from asynctasq.monitoring import MonitoringService
-from asynctasq.core.driver_factory import DriverFactory
+from asynctasq import MonitoringService, DriverFactory
 
 async def get_stats():
     driver = DriverFactory.create()

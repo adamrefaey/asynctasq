@@ -2,29 +2,34 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [How It Works](#how-it-works)
-- [Usage Patterns](#usage-patterns)
-  - [Pattern 1: Standard Scripts with asyncio.run()](#pattern-1-standard-scripts-with-asynciorun)
-  - [Pattern 2: Using AsyncTasQ's Runner (with uvloop support)](#pattern-2-using-asynctasqs-runner-with-uvloop-support)
-  - [Pattern 3: FastAPI Integration](#pattern-3-fastapi-integration)
-  - [Pattern 4: uvloop Direct Usage](#pattern-4-uvloop-direct-usage)
-  - [Pattern 5: Jupyter Notebooks](#pattern-5-jupyter-notebooks)
-  - [Pattern 6: Custom Event Loop Policy](#pattern-6-custom-event-loop-policy)
-- [Cleanup Behavior](#cleanup-behavior)
-  - [Automatic Cleanup](#automatic-cleanup)
-  - [Manual Cleanup](#manual-cleanup)
-  - [What Gets Cleaned Up](#what-gets-cleaned-up)
-- [Event Loop Detection](#event-loop-detection)
-- [Best Practices](#best-practices)
-  - [✅ Do's](#-dos)
-  - [❌ Don'ts](#-donts)
-- [Troubleshooting](#troubleshooting)
-- [Technical Details](#technical-details)
-  - [Cleanup Hook Implementation](#cleanup-hook-implementation)
-  - [Compatibility](#compatibility)
-- [Related Documentation](#related-documentation)
-- [Sources](#sources)
+- [Event Loop Integration](#event-loop-integration)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [How It Works](#how-it-works)
+  - [Usage Patterns](#usage-patterns)
+    - [Pattern 1: Standard Scripts with asyncio.run()](#pattern-1-standard-scripts-with-asynciorun)
+    - [Pattern 2: Using AsyncTasQ's Runner (with uvloop support)](#pattern-2-using-asynctasqs-runner-with-uvloop-support)
+    - [Pattern 3: FastAPI Integration](#pattern-3-fastapi-integration)
+    - [Pattern 4: uvloop Direct Usage](#pattern-4-uvloop-direct-usage)
+    - [Pattern 5: Jupyter Notebooks](#pattern-5-jupyter-notebooks)
+    - [Pattern 6: Custom Event Loop Policy](#pattern-6-custom-event-loop-policy)
+  - [Cleanup Behavior](#cleanup-behavior)
+    - [Automatic Cleanup](#automatic-cleanup)
+    - [Manual Cleanup](#manual-cleanup)
+    - [What Gets Cleaned Up](#what-gets-cleaned-up)
+  - [Event Loop Detection](#event-loop-detection)
+  - [Best Practices](#best-practices)
+    - [✅ Do's](#-dos)
+    - [❌ Don'ts](#-donts)
+  - [Troubleshooting](#troubleshooting)
+    - [RuntimeError: cannot be called from a running event loop](#runtimeerror-cannot-be-called-from-a-running-event-loop)
+    - [Cleanup not running](#cleanup-not-running)
+    - [Connection warnings on shutdown](#connection-warnings-on-shutdown)
+  - [Technical Details](#technical-details)
+    - [Cleanup Hook Implementation](#cleanup-hook-implementation)
+    - [Compatibility](#compatibility)
+  - [Related Documentation](#related-documentation)
+  - [Sources](#sources)
 
 AsyncTasQ is designed to work seamlessly with any async event loop implementation. This guide explains how AsyncTasQ integrates with different event loop contexts and provides examples for various use cases.
 
@@ -40,7 +45,7 @@ AsyncTasQ uses an intelligent cleanup hook system that automatically detects you
 
 ## How It Works
 
-When you call `asynctasq.init()`, the library:
+When you call `init()`, the library:
 
 1. **Detects the event loop context** - Checks if an event loop is currently running
 2. **Registers cleanup hooks** - Attaches cleanup to the appropriate lifecycle:
@@ -58,12 +63,10 @@ The most straightforward approach for simple scripts:
 
 ```python
 import asyncio
-import asynctasq
-from asynctasq.config import RedisConfig
-from asynctasq.tasks import task
+from asynctasq import init, RedisConfig, task
 
 # Initialize AsyncTasQ
-asynctasq.init({
+init({
     'driver': 'redis',
     'redis': RedisConfig(url='redis://localhost:6379')
 })
@@ -89,12 +92,10 @@ if __name__ == "__main__":
 For optimal performance, use AsyncTasQ's built-in runner that automatically uses uvloop when available:
 
 ```python
-import asynctasq
-from asynctasq.utils.loop import run
-from asynctasq.tasks import task
+from asynctasq import init, run, task
 
 # Initialize AsyncTasQ
-asynctasq.init({'driver': 'redis'})
+init({'driver': 'redis'})
 
 @task()
 async def send_email(to: str, subject: str):
@@ -126,9 +127,7 @@ AsyncTasQ works perfectly with FastAPI's managed event loop:
 
 ```python
 from fastapi import FastAPI
-import asynctasq
-from asynctasq.config import RedisConfig
-from asynctasq.tasks import task
+from asynctasq import init, RedisConfig, task
 
 app = FastAPI()
 
@@ -136,7 +135,7 @@ app = FastAPI()
 async def startup():
     """Initialize AsyncTasQ when FastAPI starts."""
     # This is called from within FastAPI's running event loop
-    asynctasq.init({
+    init({
         'driver': 'redis',
         'redis': RedisConfig(url='redis://localhost:6379')
     })
@@ -163,11 +162,10 @@ If you want to use uvloop directly:
 
 ```python
 import uvloop
-import asynctasq
-from asynctasq.tasks import task
+from asynctasq import init, task
 
 # Initialize AsyncTasQ
-asynctasq.init({'driver': 'redis'})
+init({'driver': 'redis'})
 
 @task()
 async def background_job(data: dict):
@@ -188,11 +186,10 @@ AsyncTasQ works in Jupyter notebooks where an event loop is already running:
 
 ```python
 # In a Jupyter notebook cell
-import asynctasq
-from asynctasq.tasks import task
+from asynctasq import init, task
 
 # Initialize (this registers cleanup hooks to the notebook's event loop)
-asynctasq.init({'driver': 'redis'})
+init({'driver': 'redis'})
 
 @task()
 async def analyze_data(dataset: str):
@@ -209,7 +206,7 @@ AsyncTasQ works with custom event loop policies:
 
 ```python
 import asyncio
-import asynctasq
+from asynctasq import init
 
 # Set a custom event loop policy
 class CustomEventLoopPolicy(asyncio.DefaultEventLoopPolicy):
@@ -220,7 +217,7 @@ class CustomEventLoopPolicy(asyncio.DefaultEventLoopPolicy):
 asyncio.set_event_loop_policy(CustomEventLoopPolicy())
 
 # Initialize AsyncTasQ
-asynctasq.init({'driver': 'redis'})
+init({'driver': 'redis'})
 
 async def main():
     # Your async code
@@ -249,7 +246,7 @@ AsyncTasQ automatically handles cleanup in all contexts:
 You can also manually trigger cleanup if needed:
 
 ```python
-from asynctasq.core.dispatcher import cleanup
+from asynctasq import cleanup
 
 async def shutdown():
     """Manual cleanup before event loop closes."""
@@ -289,7 +286,7 @@ except RuntimeError:
 
 ### ✅ Do's
 
-1. **Call `asynctasq.init()` early** - Before dispatching any tasks
+1. **Call `init()` early** - Before dispatching any tasks
 2. **Use `await` in running loops** - Don't call `asynctasq.utils.loop.run()` from within FastAPI, Jupyter, etc.
 3. **Let AsyncTasQ handle cleanup** - Trust the automatic cleanup hooks
 4. **Choose the right pattern** - Use `asyncio.run()` for simplicity, `asynctasq.utils.loop.run` for uvloop performance
@@ -310,7 +307,7 @@ except RuntimeError:
 
 ```python
 # ❌ Wrong - in FastAPI, Jupyter, etc.
-from asynctasq.utils.loop import run
+from asynctasq import run
 run(my_coroutine())
 
 # ✅ Correct
@@ -321,20 +318,20 @@ await my_coroutine()
 
 **Problem:** AsyncTasQ resources aren't being cleaned up.
 
-**Solution:** Ensure you're calling `asynctasq.init()`:
+**Solution:** Ensure you're calling `init()`:
 
 ```python
-import asynctasq
+from asynctasq import init
 
 # Must call init() to register cleanup hooks
-asynctasq.init({'driver': 'redis'})
+init({'driver': 'redis'})
 ```
 
 ### Connection warnings on shutdown
 
 **Problem:** Seeing warnings about unclosed connections.
 
-**Solution:** Make sure `asynctasq.init()` is called and the event loop is properly closed:
+**Solution:** Make sure `init()` is called and the event loop is properly closed:
 
 ```python
 # For scripts

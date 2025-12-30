@@ -13,9 +13,15 @@ from .shared_tasks import SharedAsyncFactorialTask
 
 
 @pytest.fixture
-def manager() -> ProcessPoolManager:
-    """Create ProcessPoolManager instance with test configuration."""
-    return ProcessPoolManager(sync_max_workers=4, async_max_workers=4)
+def manager(reset_default_manager) -> ProcessPoolManager:
+    """Create ProcessPoolManager instance with test configuration.
+
+    Note: This uses the reset_default_manager fixture to ensure proper cleanup.
+    """
+    # Configure the reset_default_manager fixture with test settings
+    reset_default_manager.sync_max_workers = 4
+    reset_default_manager.async_max_workers = 4
+    return reset_default_manager
 
 
 class AsyncGetPIDTask(AsyncProcessTask[int]):
@@ -139,15 +145,11 @@ async def test_async_process_pool_initialization(manager: ProcessPoolManager):
 async def test_async_process_pool_auto_initialization(manager: ProcessPoolManager):
     """Test process pool auto-initializes on first task execution."""
     # Arrange - ensure pool is not initialized
-    from asynctasq.tasks.infrastructure.process_pool_manager import set_default_manager
-
     await manager.shutdown(wait=True)
     assert not manager.is_initialized()
 
-    # Set test manager as default so task uses it
-    set_default_manager(manager)
-
     # Act - execute task which triggers auto-initialization via get_async_pool()
+    # (manager is already set as default by the fixture)
     task = SharedAsyncFactorialTask(n=3)
     result = await task.run()
 

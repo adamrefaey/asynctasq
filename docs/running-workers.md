@@ -2,10 +2,12 @@
 
 ## Table of Contents
 
-- [CLI Workers (Recommended)](#cli-workers-recommended)
-- [Programmatic Workers](#programmatic-workers)
-- [Multiple Workers for Different Queues](#multiple-workers-for-different-queues)
-- [Graceful Shutdown](#graceful-shutdown)
+- [Running Workers](#running-workers)
+  - [Table of Contents](#table-of-contents)
+  - [CLI Workers (Recommended)](#cli-workers-recommended)
+  - [Programmatic Workers](#programmatic-workers)
+  - [Multiple Workers for Different Queues](#multiple-workers-for-different-queues)
+  - [Graceful Shutdown](#graceful-shutdown)
 
 Workers continuously poll queues and execute tasks. Run workers via CLI (recommended) or programmatically.
 
@@ -80,9 +82,7 @@ For custom worker implementations or embedding workers in applications:
 
 ```python
 import asyncio
-from asynctasq.config import Config, RedisConfig
-from asynctasq.core.driver_factory import DriverFactory
-from asynctasq.core.worker import Worker
+from asynctasq import Config, DriverFactory, RedisConfig, Worker
 
 async def main():
     # Create configuration
@@ -110,7 +110,7 @@ async def main():
         await driver.disconnect()
 
 if __name__ == "__main__":
-    from asynctasq.utils.loop import run
+    from asynctasq import run
 
     run(main())
 ```

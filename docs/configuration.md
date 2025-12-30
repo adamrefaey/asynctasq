@@ -1,6 +1,6 @@
 # Configuration
 
-AsyncTasQ uses the `asynctasq.init()` function as the primary configuration interface. This function initializes both configuration and event emitters.
+AsyncTasQ uses the `init()` function as the primary configuration interface. This function initializes both configuration and event emitters.
 
 ## Configuration Contexts
 
@@ -14,23 +14,23 @@ The **worker context** refers to when the worker process is running and processi
 
 ### Context Applicability
 
-| Configuration Group                                                  | Context     | Description                                                |
-| -------------------------------------------------------------------- | ----------- | ---------------------------------------------------------- |
-| **Driver Selection** (`driver`)                                      | Both        | Required for both dispatching and processing tasks         |
-| **Driver Configs** (`redis`, `sqs`, `postgres`, `mysql`, `rabbitmq`) | Both        | Queue connections needed in both contexts                  |
-| **Events** (`events`)                                                | Both        | Event emission happens during both dispatch and processing |
-| **Task Defaults**                                                    | Both        | Used when dispatching tasks and by workers when processing them         |
-| **Process Pool** (`process_pool`)                                    | Worker only | Only used by workers executing CPU-bound tasks             |
-| **Repository** (`repository`)                                        | Worker only | Only used by workers when completing tasks                 |
+| Configuration Group                                                  | Context     | Description                                                     |
+| -------------------------------------------------------------------- | ----------- | --------------------------------------------------------------- |
+| **Driver Selection** (`driver`)                                      | Both        | Required for both dispatching and processing tasks              |
+| **Driver Configs** (`redis`, `sqs`, `postgres`, `mysql`, `rabbitmq`) | Both        | Queue connections needed in both contexts                       |
+| **Events** (`events`)                                                | Both        | Event emission happens during both dispatch and processing      |
+| **Task Defaults**                                                    | Both        | Used when dispatching tasks and by workers when processing them |
+| **Process Pool** (`process_pool`)                                    | Worker only | Only used by workers executing CPU-bound tasks                  |
+| **Repository** (`repository`)                                        | Worker only | Only used by workers when completing tasks                      |
 
 #### Task Defaults Context Breakdown
 
-| Property         | Context | Usage                                                |
-| ---------------- | ------- | ---------------------------------------------------- |
-| `queue`          | Both    | Used when dispatching and by workers                 |
+| Property         | Context | Usage                                                  |
+| ---------------- | ------- | ------------------------------------------------------ |
+| `queue`          | Both    | Used when dispatching and by workers                   |
 | `max_attempts`   | Both    | Set during dispatch, enforced by worker during retries |
-| `retry_strategy` | Both    | Set during dispatch, used by worker for retry logic  |
-| `retry_delay`    | Both    | Set during dispatch, used by worker for retry delays |
+| `retry_strategy` | Both    | Set during dispatch, used by worker for retry logic    |
+| `retry_delay`    | Both    | Set during dispatch, used by worker for retry delays   |
 
 ## Table of Contents
 
@@ -42,7 +42,7 @@ The **worker context** refers to when the worker process is running and processi
       - [Task Defaults Context Breakdown](#task-defaults-context-breakdown)
   - [Table of Contents](#table-of-contents)
   - [Configuration Functions](#configuration-functions)
-    - [`asynctasq.init()`](#asynctasqinit)
+    - [`init()`](#init)
     - [`Config.get()`](#configget)
   - [Configuration Structure](#configuration-structure)
   - [Configuration Options](#configuration-options)
@@ -60,16 +60,15 @@ The **worker context** refers to when the worker process is running and processi
 
 ## Configuration Functions
 
-### `asynctasq.init()`
+### `init()`
 
 Initialize AsyncTasQ with configuration and event emitters. **This function must be called before using any AsyncTasQ functionality.** It is recommended to call it as early as possible in your main script.
 
 ```python
-import asynctasq
-from asynctasq.config import RedisConfig
+from asynctasq import init, RedisConfig
 
 # Initialize with Redis driver
-asynctasq.init({
+init({
     'driver': 'redis',
     'redis': RedisConfig(url='redis://localhost:6379')
 })
@@ -81,15 +80,13 @@ asynctasq.init({
 
 **Example with custom event emitters:**
 ```python
-import asynctasq
-from asynctasq.core.events import LoggingEventEmitter
-from asynctasq.config import RedisConfig
+from asynctasq import init, LoggingEventEmitter, RedisConfig
 
 # Create custom emitter
 custom_emitter = LoggingEventEmitter()
 
 # Initialize with config and additional emitters
-asynctasq.init(
+init(
     config_overrides={
         'driver': 'redis',
         'redis': RedisConfig(url='redis://localhost:6379')
@@ -103,7 +100,7 @@ asynctasq.init(
 Get the current global configuration. If not set, returns a `Config` with default values.
 
 ```python
-from asynctasq.config import Config
+from asynctasq import Config
 
 config = Config.get()
 print(config.driver)  # 'redis'
@@ -133,7 +130,7 @@ AsyncTasQ uses a grouped configuration structure where related settings are orga
 
 ## Configuration Options
 
-All configuration options are set via the `config_overrides` parameter of `asynctasq.init()`.
+All configuration options are set via the `config_overrides` parameter of `init()`.
 
 ### Driver Selection
 
@@ -142,9 +139,9 @@ All configuration options are set via the `config_overrides` parameter of `async
 | `driver` |  str | Queue driver to use | `redis`, `postgres`, `mysql`, `rabbitmq`, `sqs` | `redis` |
 
 ```python
-import asynctasq
+from asynctasq import init
 
-asynctasq.init({'driver': 'postgres'})
+init({'driver': 'postgres'})
 ```
 
 ---
@@ -163,10 +160,9 @@ Configuration group: `redis` (type: `RedisConfig`)
 | `max_connections` |         int | Maximum connections in Redis pool | `100`                    |
 
 ```python
-import asynctasq
-from asynctasq.config import RedisConfig
+from asynctasq import init, RedisConfig
 
-asynctasq.init({
+init({
     'driver': 'redis',
     'redis': RedisConfig(
         url='redis://prod.example.com:6379',
@@ -194,10 +190,9 @@ Configuration group: `sqs` (type: `SQSConfig`)
 | `aws_secret_access_key` | str \| None | AWS secret access key (None uses credential chain) | `None`      |
 
 ```python
-import asynctasq
-from asynctasq.config import SQSConfig
+from asynctasq import init, SQSConfig
 
-asynctasq.init({
+init({
     'driver': 'sqs',
     'sqs': SQSConfig(
         region='us-west-2',
@@ -226,10 +221,9 @@ Configuration group: `postgres` (type: `PostgresConfig`)
 | `max_pool_size`     |  int | Maximum connection pool size           | `10`                                            |
 
 ```python
-import asynctasq
-from asynctasq.config import PostgresConfig
+from asynctasq import init, PostgresConfig
 
-asynctasq.init({
+init({
     'driver': 'postgres',
     'postgres': PostgresConfig(
         dsn='postgresql://user:pass@localhost:5432/mydb',
@@ -260,10 +254,9 @@ Configuration group: `mysql` (type: `MySQLConfig`)
 | `max_pool_size`     |  int | Maximum connection pool size           | `10`                                       |
 
 ```python
-import asynctasq
-from asynctasq.config import MySQLConfig
+from asynctasq import init, MySQLConfig
 
-asynctasq.init({
+init({
     'driver': 'mysql',
     'mysql': MySQLConfig(
         dsn='mysql://user:pass@localhost:3306/mydb',
@@ -291,10 +284,9 @@ Configuration group: `rabbitmq` (type: `RabbitMQConfig`)
 | `prefetch_count` |  int | Consumer prefetch count | `1`                                  |
 
 ```python
-import asynctasq
-from asynctasq.config import RabbitMQConfig
+from asynctasq import init, RabbitMQConfig
 
-asynctasq.init({
+init({
     'driver': 'rabbitmq',
     'rabbitmq': RabbitMQConfig(
         url='amqp://user:pass@localhost:5672/',
@@ -321,10 +313,9 @@ Controls monitoring and event emission for task lifecycle events.
 | `enable_event_emitter_redis` |        bool | Enable Redis Pub/Sub event emitter for monitoring (task_enqueued, etc.) | `False`            |
 
 ```python
-import asynctasq
-from asynctasq.config import EventsConfig, RedisConfig
+from asynctasq import init, EventsConfig, RedisConfig
 
-asynctasq.init({
+init({
     'driver': 'redis',
     'redis': RedisConfig(url='redis://queue-redis:6379'),
     'events': EventsConfig(
@@ -352,18 +343,17 @@ Configuration group: `task_defaults` (type: `TaskDefaultsConfig`)
 
 Default settings for all tasks.
 
-| Option           | Type | Context | Description                                             | Choices                | Default       |
-| ---------------- | ---: | ------- | ------------------------------------------------------- | ---------------------- | ------------- |
-| `queue`          |  str | Both    | Default queue name for tasks                            | —                      | `default`     |
-| `max_attempts`   |  int | Both    | Default maximum retry attempts                          | —                      | `3`           |
-| `retry_strategy` |  str | Both    | Default retry delay strategy                            | `fixed`, `exponential` | `exponential` |
-| `retry_delay`    |  int | Both    | Default base retry delay in seconds                     | —                      | `60`          |
+| Option           | Type | Context | Description                         | Choices                | Default       |
+| ---------------- | ---: | ------- | ----------------------------------- | ---------------------- | ------------- |
+| `queue`          |  str | Both    | Default queue name for tasks        | —                      | `default`     |
+| `max_attempts`   |  int | Both    | Default maximum retry attempts      | —                      | `3`           |
+| `retry_strategy` |  str | Both    | Default retry delay strategy        | `fixed`, `exponential` | `exponential` |
+| `retry_delay`    |  int | Both    | Default base retry delay in seconds | —                      | `60`          |
 
 ```python
-import asynctasq
-from asynctasq.config import TaskDefaultsConfig
+from asynctasq import init, TaskDefaultsConfig
 
-asynctasq.init({
+init({
     'task_defaults': TaskDefaultsConfig(
         queue='high-priority',
         max_attempts=5,
@@ -387,10 +377,9 @@ Configuration group: `process_pool` (type: `ProcessPoolConfig`)
 | `max_tasks_per_child` | int \| None | Recycle worker processes after N tasks (recommended: 100–1000) | `None`  |
 
 ```python
-import asynctasq
-from asynctasq.config import ProcessPoolConfig
+from asynctasq import init, ProcessPoolConfig
 
-asynctasq.init({
+init({
     'process_pool': ProcessPoolConfig(
         size=4,
         max_tasks_per_child=100
@@ -408,7 +397,7 @@ AsyncProcessTask requires an event loop in each worker process. AsyncTasQ provid
 **Initializing Warm Event Loops:**
 
 ```python
-from asynctasq.tasks.infrastructure import ProcessPoolManager
+from asynctasq import ProcessPoolManager
 
 # Initialize the process pool with warm event loops
 async def init_worker():
@@ -449,10 +438,9 @@ Configuration group: `repository` (type: `RepositoryConfig`)
 | `keep_completed_tasks` | bool | Keep completed tasks for history/audit (not applicable for SQS) | `False` |
 
 ```python
-import asynctasq
-from asynctasq.config import RepositoryConfig
+from asynctasq import init, RepositoryConfig
 
-asynctasq.init({
+init({
     'repository': RepositoryConfig(keep_completed_tasks=True)
 })
 ```

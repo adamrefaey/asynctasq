@@ -36,6 +36,7 @@ from .hooks import (
     TypeHook,
     UUIDHook,
     create_default_registry,
+    create_worker_session_factory,
     register_orm_hooks,
 )
 from .msgpack_serializer import MsgpackSerializer
@@ -50,6 +51,7 @@ __all__ = [
     "HookRegistry",
     "SerializationPipeline",
     "create_default_registry",
+    "create_worker_session_factory",
     # Built-in Type Hooks
     "DatetimeHook",
     "DateHook",

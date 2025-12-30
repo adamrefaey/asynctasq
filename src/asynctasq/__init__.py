@@ -9,11 +9,82 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = "0.0.0"
 
-from asynctasq.config import Config, ConfigOverrides
-from asynctasq.core.dispatcher import cleanup
-from asynctasq.monitoring import EventEmitter, EventRegistry
-from asynctasq.utils.console import console as console
-from asynctasq.utils.console import print as print
+# Configuration
+from asynctasq.config import (
+    Config,
+    ConfigOverrides,
+    EventsConfig,
+    MySQLConfig,
+    PostgresConfig,
+    ProcessPoolConfig,
+    RabbitMQConfig,
+    RedisConfig,
+    RepositoryConfig,
+    SQSConfig,
+    TaskDefaultsConfig,
+)
+
+# Core
+from asynctasq.core.dispatcher import Dispatcher, cleanup
+from asynctasq.core.driver_factory import DriverFactory
+from asynctasq.core.worker import Worker
+
+# Integrations
+from asynctasq.integrations.fastapi import AsyncTasQIntegration
+
+# Monitoring
+from asynctasq.monitoring import (
+    EventEmitter,
+    EventRegistry,
+    EventType,
+    LoggingEventEmitter,
+    MonitoringService,
+    RedisEventEmitter,
+    TaskEvent,
+    WorkerEvent,
+)
+
+# Serializers - only user-facing classes for custom type hooks
+from asynctasq.serializers import (
+    AsyncTypeHook,
+    BaseSerializer,
+    DateHook,
+    DatetimeHook,
+    DecimalHook,
+    DjangoOrmHook,
+    HookRegistry,
+    MsgpackSerializer,
+    SerializationPipeline,
+    SetHook,
+    SqlalchemyOrmHook,
+    TortoiseOrmHook,
+    TypeHook,
+    UUIDHook,
+    create_default_registry,
+    create_worker_session_factory,
+    register_orm_hooks,
+)
+
+# Tasks
+from asynctasq.tasks import (
+    AsyncProcessTask,
+    AsyncTask,
+    BaseTask,
+    FunctionTask,
+    ProcessPoolManager,
+    SyncProcessTask,
+    SyncTask,
+    TaskConfig,
+    TaskExecutor,
+    TaskFunction,
+    TaskRepository,
+    TaskSerializer,
+    task,
+)
+
+# Utils
+from asynctasq.utils.console import Console, Panel, Syntax, Table, console, print
+from asynctasq.utils.loop import run
 
 logger = logging.getLogger(__name__)
 
@@ -114,11 +185,11 @@ def init(
         - Cleanup happens automatically when the event loop closes
 
     Example:
-        >>> import asynctasq
+        >>> from asynctasq import init
         >>> import asyncio
         >>>
         >>> # Initialize with Redis driver
-        >>> asynctasq.init({
+        >>> init({
         ...     'driver': 'redis',
         ...     'redis_url': 'redis://localhost:6379',
         ... })
@@ -132,7 +203,7 @@ def init(
         >>> asyncio.run(main())
         >>>
         >>> # Option 2: Use AsyncTasQ's runner (with uvloop support)
-        >>> from asynctasq.utils.loop import run
+        >>> from asynctasq import run
         >>> run(main())
         >>>
         >>> # Option 3: In FastAPI/running loop - just await directly
@@ -155,3 +226,81 @@ def init(
 
     # Register cleanup hooks for the current event loop context
     _register_cleanup_hooks()
+
+
+__all__ = [
+    # Version
+    "__version__",
+    # Configuration
+    "Config",
+    "ConfigOverrides",
+    "RedisConfig",
+    "SQSConfig",
+    "PostgresConfig",
+    "MySQLConfig",
+    "RabbitMQConfig",
+    "EventsConfig",
+    "TaskDefaultsConfig",
+    "ProcessPoolConfig",
+    "RepositoryConfig",
+    # Core
+    "Dispatcher",
+    "DriverFactory",
+    "Worker",
+    "cleanup",
+    "init",
+    # Task Types
+    "AsyncTask",
+    "SyncTask",
+    "AsyncProcessTask",
+    "SyncProcessTask",
+    "FunctionTask",
+    "BaseTask",
+    "task",
+    "TaskFunction",
+    # Task Configuration and Services
+    "TaskConfig",
+    "TaskExecutor",
+    "TaskSerializer",
+    "TaskRepository",
+    "ProcessPoolManager",
+    # Monitoring
+    "EventEmitter",
+    "LoggingEventEmitter",
+    "RedisEventEmitter",
+    "EventRegistry",
+    "EventType",
+    "TaskEvent",
+    "WorkerEvent",
+    "MonitoringService",
+    # Serialization
+    "BaseSerializer",
+    "MsgpackSerializer",
+    "TypeHook",
+    "AsyncTypeHook",
+    "HookRegistry",
+    "SerializationPipeline",
+    "create_default_registry",
+    "create_worker_session_factory",
+    "register_orm_hooks",
+    # Built-in Type Hooks
+    "DatetimeHook",
+    "DateHook",
+    "DecimalHook",
+    "UUIDHook",
+    "SetHook",
+    # ORM Hooks
+    "SqlalchemyOrmHook",
+    "DjangoOrmHook",
+    "TortoiseOrmHook",
+    # Integrations
+    "AsyncTasQIntegration",
+    # Utilities
+    "console",
+    "print",
+    "Console",
+    "Table",
+    "Panel",
+    "Syntax",
+    "run",
+]

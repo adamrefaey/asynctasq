@@ -57,7 +57,7 @@ Use the `@task` decorator for simple, inline task definitions. The decorator pro
 **Basic Function Task:**
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task
 async def send_email(to: str, subject: str, body: str):
@@ -165,7 +165,7 @@ AsyncTasQ provides **4 base classes** for different execution patterns:
 Use for async operations like API calls, database queries, file I/O:
 
 ```python
-from asynctasq.tasks import AsyncTask, TaskConfig
+from asynctasq import AsyncTask, TaskConfig
 
 class ProcessPayment(AsyncTask[bool]):
     # Configuration via config dict (type-safe with TaskConfig)
@@ -193,7 +193,7 @@ class ProcessPayment(AsyncTask[bool]):
 Use for blocking I/O operations (e.g., `requests` library, sync DB drivers):
 
 ```python
-from asynctasq.tasks import SyncTask
+from asynctasq import SyncTask
 import requests
 
 class FetchWebPage(SyncTask[str]):
@@ -215,7 +215,7 @@ class FetchWebPage(SyncTask[str]):
 Use for CPU-intensive async operations (e.g., ML inference with async preprocessing):
 
 ```python
-from asynctasq.tasks import AsyncProcessTask
+from asynctasq import AsyncProcessTask
 
 class ProcessVideoAsync(AsyncProcessTask[dict]):
     queue = "video-processing"
@@ -241,7 +241,7 @@ class ProcessVideoAsync(AsyncProcessTask[dict]):
 Use for CPU-intensive synchronous operations (e.g., data processing, encryption):
 
 ```python
-from asynctasq.tasks import SyncProcessTask
+from asynctasq import SyncProcessTask
 import numpy as np
 
 class ProcessLargeDataset(SyncProcessTask[dict]):
@@ -262,7 +262,7 @@ class ProcessLargeDataset(SyncProcessTask[dict]):
 **With Lifecycle Hooks:**
 
 ```python
-from asynctasq.tasks import AsyncTask, TaskConfig
+from asynctasq import AsyncTask, TaskConfig
 
 class ProcessPayment(AsyncTask[bool]):
     # Configuration via config dict (type-safe with TaskConfig)
@@ -354,7 +354,7 @@ All tasks have access to these configuration attributes via `task.config`:
 Define configuration using a class-level `config` dictionary with the `TaskConfig` TypedDict for full type safety:
 
 ```python
-from asynctasq.tasks import AsyncTask, TaskConfig
+from asynctasq import AsyncTask, TaskConfig
 
 class SendEmail(AsyncTask[str]):
     # Configuration via config dict (type-safe with TaskConfig)
@@ -466,7 +466,7 @@ task_id = await my_task().timeout(None).dispatch()
 You can set defaults via `config` dict (with `TaskConfig` for type safety) and override them with method chaining:
 
 ```python
-from asynctasq.tasks import AsyncTask, TaskConfig
+from asynctasq import AsyncTask, TaskConfig
 
 class SendNotification(AsyncTask[bool]):
     # Defaults via config dict (type-safe)
@@ -779,7 +779,7 @@ task_id = await send_notification(user_id=123, message="Hello") \
 
 ```python
 # ✅ CORRECT: Use TaskConfig dict for type safety
-from asynctasq.tasks import AsyncTask, TaskConfig
+from asynctasq import AsyncTask, TaskConfig
 
 class ProcessPayment(AsyncTask[bool]):
     # Configuration via config dict (type-safe with TaskConfig)
@@ -864,7 +864,7 @@ task_id = await send_notification(user_id=123) \
 # Result: Uses queue="urgent", max_attempts=3
 
 # Class task priority order
-from asynctasq.tasks import AsyncTask, TaskConfig
+from asynctasq import AsyncTask, TaskConfig
 
 class ProcessOrder(AsyncTask[bool]):
     # Configuration via config dict (type-safe with TaskConfig)
@@ -947,7 +947,7 @@ async def send_email(to: str, subject: str):
     pass
 
 # 2. Class attributes (class tasks)
-from asynctasq.tasks import AsyncTask, TaskConfig
+from asynctasq import AsyncTask, TaskConfig
 
 class ProcessPayment(AsyncTask[bool]):
     # Configuration via config dict (type-safe with TaskConfig)
@@ -998,8 +998,7 @@ AsyncTasQ includes built-in [Rich](https://rich.readthedocs.io/) library integra
 ### Basic Usage
 
 ```python
-from asynctasq import print
-from asynctasq.tasks import task
+from asynctasq import print, task
 
 @task
 async def process_data(user_id: int, data: dict):

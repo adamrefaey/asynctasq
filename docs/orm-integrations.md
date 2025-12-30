@@ -2,11 +2,13 @@
 
 ## Table of Contents
 
-- [How It Works](#how-it-works)
-- [SQLAlchemy](#sqlalchemy)
-- [Django ORM](#django-orm)
-- [Tortoise ORM](#tortoise-orm)
-- [Custom Type Support](#custom-type-support)
+- [ORM Integrations](#orm-integrations)
+  - [Table of Contents](#table-of-contents)
+  - [How It Works](#how-it-works)
+  - [SQLAlchemy](#sqlalchemy)
+  - [Django ORM](#django-orm)
+  - [Tortoise ORM](#tortoise-orm)
+  - [Custom Type Support](#custom-type-support)
 
 AsyncTasQ automatically handles ORM model serialization and deserialization, reducing queue payload size and ensuring fresh data.
 
@@ -55,7 +57,7 @@ Set the session factory **once** on your Base class. All models automatically in
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from asynctasq.tasks import task
+from asynctasq import task
 
 # Define your models
 class Base(DeclarativeBase):
@@ -92,8 +94,7 @@ async def send_welcome_email(user: User):
 
 ```python
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from asynctasq.tasks import task
-from asynctasq.serializers.hooks import create_worker_session_factory
+from asynctasq import task, create_worker_session_factory
 
 # Define your models
 class Base(DeclarativeBase):
@@ -137,8 +138,7 @@ When using multiprocessing (multiple worker processes), SQLAlchemy's connection 
 
 ```python
 from sqlalchemy.orm import DeclarativeBase
-from asynctasq.tasks import task
-from asynctasq.serializers.hooks import create_worker_session_factory
+from asynctasq import task, create_worker_session_factory
 
 class Base(DeclarativeBase):
     pass
@@ -221,11 +221,10 @@ def receive_checkout(dbapi_conn, connection_record, connection_proxy):
 If you want AsyncTasQ to handle disposing (cleaning up) the SQLAlchemy engine for you, pass your engine to `asynctasq.init()`:
 
 ```python
-import asynctasq
-from asynctasq.config import RedisConfig
+from asynctasq import init, RedisConfig
 
 # Pass your SQLAlchemy engine to AsyncTasQ for automatic cleanup
-asynctasq.init({
+init({
     "driver": "redis",
     "redis": RedisConfig(url="redis://localhost:6379"),
     "sqlalchemy_engine": engine  # AsyncTasQ will dispose this on shutdown
@@ -272,13 +271,13 @@ This prevents connection leaks and ensures graceful shutdown of database connect
 
 **Common Issues & Solutions:**
 
-| Issue | Symptom | Solution |
-|-------|---------|----------|
-| Protocol errors | `sslSocket error`, `connection reset` | Use NullPool for workers |
-| Stale connections | `connection terminated unexpectedly` | Set `pool_pre_ping=True` |
-| Connection leaks | Pool exhaustion, timeouts | Verify sessions are closed, increase `max_overflow` |
-| Lazy-load errors | `DetachedInstanceError` after commit | Set `expire_on_commit=False` |
-| Fork issues | Workers inherit parent connections | Use NullPool or dispose engine after fork |
+| Issue             | Symptom                               | Solution                                            |
+| ----------------- | ------------------------------------- | --------------------------------------------------- |
+| Protocol errors   | `sslSocket error`, `connection reset` | Use NullPool for workers                            |
+| Stale connections | `connection terminated unexpectedly`  | Set `pool_pre_ping=True`                            |
+| Connection leaks  | Pool exhaustion, timeouts             | Verify sessions are closed, increase `max_overflow` |
+| Lazy-load errors  | `DetachedInstanceError` after commit  | Set `expire_on_commit=False`                        |
+| Fork issues       | Workers inherit parent connections    | Use NullPool or dispose engine after fork           |
 
 ---
 
@@ -305,7 +304,7 @@ pip install "asynctasq[django]"
 
 ```python
 from django.db import models
-from asynctasq.tasks import task
+from asynctasq import task
 
 # Define your Django model
 class User(models.Model):
@@ -355,7 +354,7 @@ pip install "asynctasq[tortoise]"
 ```python
 from tortoise import fields
 from tortoise.models import Model
-from asynctasq.tasks import task
+from asynctasq import task
 
 # Define your Tortoise model
 class User(Model):

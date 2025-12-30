@@ -320,7 +320,7 @@ class ProcessOrderTask(AsyncTask[None]):
 ### Task-Level Configuration
 
 ```python
-from asynctasq.tasks.core.task_config import TaskConfig
+from asynctasq import AsyncTask, TaskConfig
 
 class MyTask(AsyncTask[None]):
     config: TaskConfig = {
@@ -370,7 +370,7 @@ logger.error(
 
 ```python
 import pytest
-from asynctasq.tasks.types import AsyncTask
+from asynctasq import AsyncTask
 
 class FailingTask(AsyncTask[None]):
     fail_count: int = 0

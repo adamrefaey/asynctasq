@@ -2,12 +2,14 @@
 
 ## Table of Contents
 
-- [Redis Driver](#redis-driver)
-- [PostgreSQL Driver](#postgresql-driver)
-- [MySQL Driver](#mysql-driver)
-- [AWS SQS Driver](#aws-sqs-driver)
-- [RabbitMQ Driver](#rabbitmq-driver)
-- [Driver Comparison](#driver-comparison)
+- [Queue Drivers](#queue-drivers)
+  - [Table of Contents](#table-of-contents)
+  - [Redis Driver](#redis-driver)
+  - [PostgreSQL Driver](#postgresql-driver)
+  - [MySQL Driver](#mysql-driver)
+  - [AWS SQS Driver](#aws-sqs-driver)
+  - [RabbitMQ Driver](#rabbitmq-driver)
+  - [Driver Comparison](#driver-comparison)
 
 AsyncTasQ supports five production-ready queue drivers with identical APIs.
 
@@ -39,10 +41,9 @@ pip install "asynctasq[redis]"
 
 ```python
 # Programmatic configuration
-import asynctasq
-from asynctasq.config import RedisConfig
+from asynctasq import init, RedisConfig
 
-asynctasq.init({
+init({
     'driver': 'redis',
     'redis': RedisConfig(
         url='redis://localhost:6379',
@@ -92,10 +93,9 @@ pip install "asynctasq[postgres]"
 
 ```python
 # Programmatic configuration
-import asynctasq
-from asynctasq.config import PostgresConfig
+from asynctasq import init, PostgresConfig
 
-asynctasq.init({
+init({
     'driver': 'postgres',
     'postgres': PostgresConfig(
         dsn='postgresql://user:pass@localhost:5432/dbname',
@@ -151,10 +151,9 @@ pip install "asynctasq[mysql]"
 
 ```python
 # Programmatic configuration
-import asynctasq
-from asynctasq.config import MySQLConfig
+from asynctasq import init, MySQLConfig
 
-asynctasq.init({
+init({
     'driver': 'mysql',
     'mysql': MySQLConfig(
         dsn='mysql://user:pass@localhost:3306/dbname',
@@ -210,10 +209,9 @@ pip install "asynctasq[sqs]"
 
 ```python
 # Programmatic configuration
-import asynctasq
-from asynctasq.config import SQSConfig
+from asynctasq import init, SQSConfig
 
-asynctasq.init({
+init({
     'driver': 'sqs',
     'sqs': SQSConfig(
         region='us-east-1',
@@ -267,10 +265,9 @@ pip install "asynctasq[rabbitmq]"
 
 ```python
 # Programmatic configuration
-import asynctasq
-from asynctasq.config import RabbitMQConfig
+from asynctasq import init, RabbitMQConfig
 
-asynctasq.init({
+init({
     'driver': 'rabbitmq',
     'rabbitmq': RabbitMQConfig(
         url='amqp://user:pass@localhost:5672/',

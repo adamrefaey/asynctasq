@@ -99,6 +99,11 @@ def init_warm_event_loop() -> None:
     _loop_thread = threading.Thread(target=_process_loop.run_forever, daemon=True)
     _loop_thread.start()
 
+    # Register cleanup function to stop the event loop gracefully
+    import atexit
+
+    atexit.register(_cleanup_warm_event_loop)
+
     logger.debug(
         "Warm event loop initialized in subprocess",
         extra={
@@ -106,6 +111,29 @@ def init_warm_event_loop() -> None:
             "loop_id": id(_process_loop),
         },
     )
+
+
+def _cleanup_warm_event_loop() -> None:
+    """Clean up the warm event loop when the process exits.
+
+    This function is registered with atexit to ensure proper cleanup
+    of the event loop and its thread when the worker process terminates.
+    """
+    global _process_loop, _loop_thread
+
+    if _process_loop is not None and _process_loop.is_running():
+        # Stop the event loop gracefully
+        _process_loop.call_soon_threadsafe(_process_loop.stop)
+
+        # Wait for the thread to finish (with timeout to avoid hanging)
+        if _loop_thread is not None and _loop_thread.is_alive():
+            _loop_thread.join(timeout=1.0)
+
+        # Close the event loop to free resources
+        if not _process_loop.is_closed():
+            _process_loop.close()
+
+        logger.debug("Warm event loop cleaned up")
 
 
 def get_warm_event_loop() -> asyncio.AbstractEventLoop | None:

@@ -23,7 +23,7 @@ Function-based tasks allow you to convert any Python function (async or sync) in
 Note: Example snippets in this guide use the project's event loop runner helper. For runnable examples, import it as:
 
 ```python
-from asynctasq.utils.loop import run
+from asynctasq import run
 ```
 
 ## Four Execution Modes
@@ -40,7 +40,7 @@ The `@task` decorator provides **all 4 execution modes** through a combination o
 **Examples:**
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 # Mode 1: AsyncTask (async I/O-bound) - DEFAULT for async functions
 @task
@@ -106,12 +106,11 @@ The simplest way to create a task is to add the `@task` decorator to an async fu
 
 ```python
 import asyncio
-import asynctasq
-from asynctasq.tasks import task
+from asynctasq import init, task
 
 # Configure the queue driver
 # Note: Use 'redis', 'postgres', 'mysql', or 'sqs' for production
-asynctasq.init({'driver': 'redis'})
+init({'driver': 'redis'})
 
 # Define a simple task
 @task
@@ -128,7 +127,7 @@ async def main():
     # Note: Task will be executed by a worker process
 
 if __name__ == "__main__":
-    from asynctasq.utils.loop import run
+    from asynctasq import run
 
     run(main())
 ```
@@ -140,10 +139,9 @@ if __name__ == "__main__":
 Synchronous functions are automatically executed in a thread pool, so you can use blocking operations without converting to async:
 
 ```python
-import asynctasq
-from asynctasq.tasks import task
+from asynctasq import init, task
 
-asynctasq.init({'driver': 'redis'})
+init({'driver': 'redis'})
 
 # Synchronous function (automatically runs in thread pool)
 @task
@@ -159,7 +157,7 @@ async def main():
     print(f"Task dispatched: {task_id}")
 
 if __name__ == "__main__":
-    from asynctasq.utils.loop import run
+    from asynctasq import run
 
     run(main())
 ```
@@ -180,7 +178,7 @@ def heavy_computation(data: list[float]):
 ### Without Parentheses (Default Configuration)
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task  # Uses all defaults: queue='default', max_attempts=3, etc.
 async def simple_task():
@@ -191,7 +189,7 @@ async def simple_task():
 ### With Parentheses (Custom Configuration)
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task(queue='emails', max_attempts=5, retry_delay=120, timeout=30)
 async def send_email(to: str, subject: str, body: str):
@@ -222,7 +220,7 @@ All configuration options can be set via the `@task` decorator. These settings a
 Use different queues to organize tasks by priority, type, or processing requirements:
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 # Different queues for different task types
 @task(queue='emails')
@@ -250,7 +248,7 @@ async def send_push_notification(user_id: int, message: str):
 ### Retry Configuration
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 # High retry count for critical operations
 @task(queue='payments', max_attempts=10, retry_delay=30)
@@ -277,7 +275,7 @@ async def call_external_api(endpoint: str):
 ### Timeout Configuration
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 # Short timeout for quick operations
 @task(queue='quick', timeout=5)
@@ -304,7 +302,7 @@ async def background_cleanup():
 ### Combined Configuration
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task(
     queue='critical',
@@ -323,7 +321,7 @@ async def critical_operation(data: dict):
 Use `process=True` for CPU-intensive work that requires true multiprocessing (bypasses GIL):
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 # Async CPU-intensive work
 @task(queue='ml-inference', process=True, timeout=300)
@@ -385,7 +383,7 @@ Tasks are dispatched using the unified API where you call the function first (wi
 The simplest way to dispatch a task is to call the function with its parameters, then call `.dispatch()`:
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task(queue='emails')
 async def send_email(to: str, subject: str, body: str):
@@ -406,7 +404,7 @@ async def main():
 You can delay task execution using the `.delay()` method in the chain:
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task(queue='reminders')
 async def send_reminder(user_id: int, message: str):
@@ -426,7 +424,7 @@ async def main():
 ### Dispatch with Positional Arguments
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task
 async def process_items(item1: str, item2: str, item3: str):
@@ -440,7 +438,7 @@ async def main():
 ### Dispatch with Mixed Arguments
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task
 async def update_user(user_id: int, name: str, email: str, active: bool = True):
@@ -508,7 +506,7 @@ def cpu_sync(): ...
 Use async functions for async I/O-bound operations (API calls, async database queries, async file operations):
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 import httpx
 
 @task(queue='api')  # process=False is default
@@ -532,7 +530,7 @@ async def fetch_user_data(user_id: int):
 Use sync functions for sync/blocking I/O operations:
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 import requests
 
 @task(queue='web-scraping')  # process=False is default
@@ -554,7 +552,7 @@ def fetch_web_page(url: str) -> str:
 Use async functions with `process=True` for CPU-intensive work that also needs async I/O:
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 import aiofiles
 
 @task(queue='video-processing', process=True)  # AsyncProcessTask
@@ -583,7 +581,7 @@ async def process_video_async(video_path: str) -> dict:
 Use sync functions with `process=True` for heavy CPU-intensive work:
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 import numpy as np
 
 @task(queue='data-processing', process=True, timeout=600)  # SyncProcessTask
@@ -626,7 +624,7 @@ def process_large_dataset(data: list[float]) -> dict:
 **Examples:**
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 # ✅ Mode 1: Async I/O-bound (default)
 @task
@@ -659,7 +657,7 @@ def heavy_math(matrix: list[list[float]]):
 ### Mixed Async/Sync in Same Application
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 import asyncio
 import time
 
@@ -688,11 +686,10 @@ async def main():
 ### Per-Task Driver Override (String)
 
 ```python
-import asynctasq
-from asynctasq.tasks import task
+from asynctasq import init, task
 
 # Global config uses redis driver
-asynctasq.init({'driver': 'redis'})
+init({'driver': 'redis'})
 
 # This task uses Redis regardless of global config
 @task(queue='critical', driver='redis')
@@ -718,7 +715,7 @@ async def normal_task(data: str):
 You can also pass a driver instance directly for complete control over driver configuration:
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 from asynctasq.drivers.redis_driver import RedisDriver
 
 # Create a custom driver instance with specific configuration
@@ -751,11 +748,10 @@ async def main():
 ### Multiple Drivers in Same Application
 
 ```python
-import asynctasq
-from asynctasq.tasks import task
+from asynctasq import init, task
 
 # Default driver
-asynctasq.init({'driver': 'redis'})
+init({'driver': 'redis'})
 
 # Tasks using different drivers
 @task(queue='redis-queue', driver='redis')
@@ -788,7 +784,7 @@ async def redis_task(data: str):
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from asynctasq.tasks import task
+from asynctasq import task
 
 # Define models
 class Base(DeclarativeBase):
@@ -863,7 +859,7 @@ async def main():
 
 ```python
 from django.db import models
-from asynctasq.tasks import task
+from asynctasq import task
 
 # Define Django model
 class User(models.Model):
@@ -900,7 +896,7 @@ async def main():
 ```python
 from tortoise import fields
 from tortoise.models import Model
-from asynctasq.tasks import task
+from asynctasq import task
 
 # Define Tortoise model
 class User(Model):
@@ -954,7 +950,7 @@ await task_function(arg1, arg2).on_queue("queue").delay(60).dispatch()
 ### Basic Method Chaining
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task(queue='default')
 async def process_data(data: str):
@@ -970,7 +966,7 @@ async def main():
 ### Queue Override with Chaining
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task(queue='default')
 async def send_notification(message: str):
@@ -990,7 +986,7 @@ async def main():
 Override the retry delay for specific dispatches:
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task(queue='api', max_attempts=3, retry_delay=60)
 async def call_api(endpoint: str):
@@ -1012,7 +1008,7 @@ async def main():
 ### Complex Chaining
 
 ```python
-from asynctasq.tasks import task
+from asynctasq import task
 
 @task(queue='default')
 async def complex_task(data: dict):
@@ -1036,8 +1032,7 @@ async def main():
 
 ```python
 import asyncio
-from asynctasq.tasks import task
-from asynctasq.utils.loop import run
+from asynctasq import task, run
 from typing import Optional
 
 @task(queue='emails', max_attempts=5, retry_delay=60, timeout=30)
@@ -1078,8 +1073,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.tasks import task
-from asynctasq.utils.loop import run
+from asynctasq import task, run
 from decimal import Decimal
 
 @task(
@@ -1121,8 +1115,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.tasks import task
-from asynctasq.utils.loop import run
+from asynctasq import task, run
 from datetime import datetime, timedelta
 
 @task(queue='reports', timeout=3600)  # 1 hour timeout
@@ -1165,8 +1158,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.tasks import task
-from asynctasq.utils.loop import run
+from asynctasq import task, run
 from pathlib import Path
 
 @task(queue='images', max_attempts=3, timeout=300)
@@ -1202,8 +1194,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.tasks import task
-from asynctasq.utils.loop import run
+from asynctasq import task, run
 import httpx
 
 @task(
@@ -1245,8 +1236,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from asynctasq.tasks import task
-from asynctasq.utils.loop import run
+from asynctasq import task, run
 
 @task(queue='sync', max_attempts=3, retry_delay=300)
 async def sync_user_data(
@@ -1282,8 +1272,7 @@ Process multiple items in a single task:
 
 ```python
 import asyncio
-from asynctasq.tasks import task
-from asynctasq.utils.loop import run
+from asynctasq import task, run
 from typing import List
 
 @task(queue='batch', timeout=1800)  # 30 minutes timeout
@@ -1341,12 +1330,10 @@ Here's a complete, runnable example demonstrating multiple function-based task p
 
 ```python
 import asyncio
-import asynctasq
-from asynctasq.tasks import task
-from asynctasq.utils.loop import run
+from asynctasq import init, task, run
 
 # Configure (use 'redis' or 'postgres' for production)
-asynctasq.init({'driver': 'redis'})
+init({'driver': 'redis'})
 
 # Define tasks with different configurations
 @task(queue='emails', max_attempts=3, retry_delay=60)
@@ -1452,14 +1439,14 @@ Function-based tasks in AsyncTasQ provide a simple, powerful way to convert any 
 1. **Configure your driver:**
 
     ```python
-    import asynctasq
-    asynctasq.init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs'
+    from asynctasq import init
+    init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs'
     ```
 
 2. **Define a task:**
 
    ```python
-   from asynctasq.tasks import task
+   from asynctasq import task
 
    @task(queue='emails')
    async def send_email(to: str, subject: str):

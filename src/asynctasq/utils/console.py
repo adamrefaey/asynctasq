@@ -1,10 +1,10 @@
 """Rich console utilities for beautiful task output."""
 
 from rich import print as rich_print
-from rich.console import Console
-from rich.panel import Panel
-from rich.syntax import Syntax
-from rich.table import Table
+from rich.console import Console as Console
+from rich.panel import Panel as Panel
+from rich.syntax import Syntax as Syntax
+from rich.table import Table as Table
 
 # Global console instance for all asynctasq output
 console = Console()

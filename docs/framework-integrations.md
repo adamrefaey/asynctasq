@@ -2,7 +2,9 @@
 
 ## Table of Contents
 
-- [FastAPI Integration](#fastapi-integration)
+- [Framework Integrations](#framework-integrations)
+  - [Table of Contents](#table-of-contents)
+  - [FastAPI Integration](#fastapi-integration)
 
 ## FastAPI Integration
 
@@ -26,21 +28,18 @@ pip install "asynctasq[fastapi]"
 
 ```python
 from fastapi import FastAPI, Depends
-from asynctasq.integrations.fastapi import AsyncTaskIntegration
-from asynctasq.tasks import task
-from asynctasq.core.dispatcher import Dispatcher
+from asynctasq import AsyncTasQIntegration, task, Dispatcher
 from asynctasq.drivers.base_driver import BaseDriver
 
 # Configure AsyncTasQ
-import asynctasq
-from asynctasq.config import RedisConfig
+from asynctasq import init, RedisConfig
 
-asynctasq.init({
+init({
     'driver': 'redis',
     'redis': RedisConfig(url='redis://localhost:6379')
 })
 
-asynctasq_integration = AsyncTaskIntegration()
+asynctasq_integration = AsyncTasQIntegration()
 
 # Create FastAPI app with asynctasq lifespan
 app = FastAPI(lifespan=asynctasq.lifespan)
@@ -61,7 +60,7 @@ async def send_email_route(to: str, subject: str, body: str):
 **Explicit Configuration:**
 
 ```python
-from asynctasq.config import Config, RedisConfig
+from asynctasq import Config, RedisConfig
 
 config = Config(
     driver="redis",
@@ -70,7 +69,7 @@ config = Config(
         db=1
     )
 )
-asynctasq = AsyncTaskIntegration(config=config)
+asynctasq = AsyncTasQIntegration(config=config)
 app = FastAPI(lifespan=asynctasq.lifespan)
 ```
 
@@ -101,7 +100,7 @@ from asynctasq.drivers.redis_driver import RedisDriver
 
 # Use pre-configured driver
 custom_driver = RedisDriver(url='redis://cache-server:6379', db=2)
-asynctasq = AsyncTaskIntegration(driver=custom_driver)
+asynctasq = AsyncTasQIntegration(driver=custom_driver)
 app = FastAPI(lifespan=asynctasq.lifespan)
 ```
 

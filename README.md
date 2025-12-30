@@ -49,13 +49,10 @@ Create a new file named `quick_start.py` and add the following code:
 ```python
 import asyncio
 
-import asynctasq
-from asynctasq import print
-from asynctasq.config import RedisConfig
-from asynctasq.tasks import AsyncTask, TaskConfig, task
+from asynctasq import AsyncTask, RedisConfig, TaskConfig, init, print, task
 
 # 1. Configure AsyncTasQ
-asynctasq.init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
+init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
 
 
 # 2. Define tasks (function-based or class-based)
@@ -130,7 +127,7 @@ if __name__ == "__main__":
     # AsyncTasQ works with any event loop - choose what works best for you:
 
     # Option 1: Use AsyncTasQ's runner (automatic uvloop support)
-    from asynctasq.utils.loop import run
+    from asynctasq import run
 
     run(main())
 

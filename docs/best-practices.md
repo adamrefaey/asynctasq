@@ -2,11 +2,13 @@
 
 ## Table of Contents
 
-- [Task Design](#task-design)
-- [Queue Organization](#queue-organization)
-- [Error Handling](#error-handling)
-- [Performance](#performance)
-- [Production Deployment](#production-deployment)
+- [Best Practices](#best-practices)
+  - [Table of Contents](#table-of-contents)
+  - [Task Design](#task-design)
+  - [Queue Organization](#queue-organization)
+  - [Error Handling](#error-handling)
+  - [Performance](#performance)
+  - [Production Deployment](#production-deployment)
 
 ## Task Design
 
@@ -114,13 +116,10 @@ class ProcessPayment(AsyncTask[bool]):
 **Example Production Setup:**
 
 ```python
-import asynctasq
-from asynctasq.config import RedisConfig, TaskDefaultsConfig, EventsConfig, ProcessPoolConfig
-from asynctasq.core.worker import Worker
-from asynctasq.core.driver_factory import DriverFactory
+from asynctasq import init, RedisConfig, TaskDefaultsConfig, EventsConfig, ProcessPoolConfig, Worker, DriverFactory
 
 # Initialize AsyncTasQ with configuration
-asynctasq.init({
+init({
     'driver': 'redis',
     'redis': RedisConfig(
         url='redis://redis-master:6379',

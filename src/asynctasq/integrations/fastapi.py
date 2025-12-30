@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class AsyncTaskIntegration:
+class AsyncTasQIntegration:
     """FastAPI integration for asynctasq.
 
     Manages the lifecycle of queue drivers and dispatchers within FastAPI applications.
@@ -29,16 +29,16 @@ class AsyncTaskIntegration:
     Example:
         ```python
         from fastapi import FastAPI
-        from asynctasq.integrations.fastapi import AsyncTaskIntegration
+        from asynctasq.integrations.fastapi import AsyncTasQIntegration
 
         # Auto-configure from environment variables
-        asynctasq = AsyncTaskIntegration()
+        asynctasq = AsyncTasQIntegration()
         app = FastAPI(lifespan=asynctasq.lifespan)
 
         # Or with explicit configuration
         from asynctasq.config import Config
         config = Config(driver="redis", redis_url="redis://localhost:6379")
-        asynctasq = AsyncTaskIntegration(config=config)
+        asynctasq = AsyncTasQIntegration(config=config)
         app = FastAPI(lifespan=asynctasq.lifespan)
         ```
     """
@@ -149,9 +149,9 @@ class AsyncTaskIntegration:
         Example:
             ```python
             from fastapi import Depends
-            from asynctasq.integrations.fastapi import AsyncTaskIntegration
+            from asynctasq.integrations.fastapi import AsyncTasQIntegration
 
-            asynctasq = AsyncTaskIntegration()
+            asynctasq = AsyncTasQIntegration()
             app = FastAPI(lifespan=asynctasq.lifespan)
 
             @app.post("/dispatch")
@@ -165,7 +165,7 @@ class AsyncTaskIntegration:
         """
         if not self._initialized or self._dispatcher is None:
             raise RuntimeError(
-                "AsyncTaskIntegration not initialized. "
+                "AsyncTasQIntegration not initialized. "
                 "Ensure FastAPI app has started (lifespan context entered)."
             )
         return self._dispatcher
@@ -182,9 +182,9 @@ class AsyncTaskIntegration:
         Example:
             ```python
             from fastapi import Depends
-            from asynctasq.integrations.fastapi import AsyncTaskIntegration
+            from asynctasq.integrations.fastapi import AsyncTasQIntegration
 
-            asynctasq = AsyncTaskIntegration()
+            asynctasq = AsyncTasQIntegration()
             app = FastAPI(lifespan=asynctasq.lifespan)
 
             @app.get("/queue-stats")
@@ -197,7 +197,7 @@ class AsyncTaskIntegration:
         """
         if not self._initialized or self._dispatcher is None:
             raise RuntimeError(
-                "AsyncTaskIntegration not initialized. "
+                "AsyncTasQIntegration not initialized. "
                 "Ensure FastAPI app has started (lifespan context entered)."
             )
         return self._dispatcher.driver

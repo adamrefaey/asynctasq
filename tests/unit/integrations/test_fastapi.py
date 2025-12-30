@@ -15,7 +15,7 @@ from asynctasq.config import Config
 from asynctasq.core.dispatcher import Dispatcher
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.drivers.redis_driver import RedisDriver
-from asynctasq.integrations.fastapi import AsyncTaskIntegration
+from asynctasq.integrations.fastapi import AsyncTasQIntegration
 
 
 @fixture
@@ -34,14 +34,14 @@ def mock_fastapi_app():
     return app
 
 
-class TestAsyncTaskIntegration:
-    """Test AsyncTaskIntegration class."""
+class TestAsyncTasQIntegration:
+    """Test AsyncTasQIntegration class."""
 
     @mark.asyncio
     async def test_init_with_config(self, mock_driver):
         """Test initialization with explicit config."""
         config = Config(driver="redis")
-        integration = AsyncTaskIntegration(config=config)
+        integration = AsyncTasQIntegration(config=config)
 
         assert integration._config == config
         assert integration._driver is None
@@ -51,7 +51,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_init_with_driver(self, mock_driver):
         """Test initialization with explicit driver."""
-        integration = AsyncTaskIntegration(driver=mock_driver)
+        integration = AsyncTasQIntegration(driver=mock_driver)
 
         assert integration._config is None
         assert integration._driver == mock_driver
@@ -61,7 +61,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_init_without_args(self):
         """Test initialization without arguments (uses global config)."""
-        integration = AsyncTaskIntegration()
+        integration = AsyncTasQIntegration()
 
         assert integration._config is None
         assert integration._driver is None
@@ -71,7 +71,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_lifespan_startup_and_shutdown(self, mock_driver, mock_fastapi_app):
         """Test lifespan context manager startup and shutdown."""
-        integration = AsyncTaskIntegration(driver=mock_driver)
+        integration = AsyncTasQIntegration(driver=mock_driver)
 
         # Enter lifespan context (startup)
         async with integration.lifespan(mock_fastapi_app):
@@ -90,7 +90,7 @@ class TestAsyncTaskIntegration:
     async def test_lifespan_with_config(self, mock_fastapi_app):
         """Test lifespan with config (creates driver from config)."""
         config = Config(driver="redis")
-        integration = AsyncTaskIntegration(config=config)
+        integration = AsyncTasQIntegration(config=config)
 
         with patch("asynctasq.integrations.fastapi.DriverFactory.create") as mock_factory:
             mock_driver = RedisDriver()
@@ -104,7 +104,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_lifespan_without_config(self, mock_fastapi_app):
         """Test lifespan without config (uses global config)."""
-        integration = AsyncTaskIntegration()
+        integration = AsyncTasQIntegration()
 
         with (
             patch("asynctasq.integrations.fastapi.Config.get") as mock_get_config,
@@ -123,7 +123,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_get_dispatcher_success(self, mock_driver, mock_fastapi_app):
         """Test get_dispatcher returns dispatcher after initialization."""
-        integration = AsyncTaskIntegration(driver=mock_driver)
+        integration = AsyncTasQIntegration(driver=mock_driver)
 
         async with integration.lifespan(mock_fastapi_app):
             dispatcher = integration.get_dispatcher()
@@ -133,7 +133,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_get_dispatcher_before_init(self):
         """Test get_dispatcher raises error before initialization."""
-        integration = AsyncTaskIntegration()
+        integration = AsyncTasQIntegration()
 
         with raises(RuntimeError, match="not initialized"):
             integration.get_dispatcher()
@@ -141,7 +141,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_get_driver_success(self, mock_driver, mock_fastapi_app):
         """Test get_driver returns driver after initialization."""
-        integration = AsyncTaskIntegration(driver=mock_driver)
+        integration = AsyncTasQIntegration(driver=mock_driver)
 
         async with integration.lifespan(mock_fastapi_app):
             driver = integration.get_driver()
@@ -150,7 +150,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_get_driver_before_init(self):
         """Test get_driver raises error before initialization."""
-        integration = AsyncTaskIntegration()
+        integration = AsyncTasQIntegration()
 
         with raises(RuntimeError, match="not initialized"):
             integration.get_driver()
@@ -158,7 +158,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_lifespan_idempotent_startup(self, mock_driver, mock_fastapi_app):
         """Test that startup is idempotent (can be called multiple times safely)."""
-        integration = AsyncTaskIntegration(driver=mock_driver)
+        integration = AsyncTasQIntegration(driver=mock_driver)
 
         async with integration.lifespan(mock_fastapi_app):
             # Call startup again (should be no-op)
@@ -171,7 +171,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_lifespan_idempotent_shutdown(self, mock_driver, mock_fastapi_app):
         """Test that shutdown is idempotent (can be called multiple times safely)."""
-        integration = AsyncTaskIntegration(driver=mock_driver)
+        integration = AsyncTasQIntegration(driver=mock_driver)
 
         async with integration.lifespan(mock_fastapi_app):
             pass
@@ -186,7 +186,7 @@ class TestAsyncTaskIntegration:
     @mark.asyncio
     async def test_lifespan_exception_handling(self, mock_driver, mock_fastapi_app):
         """Test that shutdown is called even if exception occurs in lifespan."""
-        integration = AsyncTaskIntegration(driver=mock_driver)
+        integration = AsyncTasQIntegration(driver=mock_driver)
 
         with raises(ValueError):
             async with integration.lifespan(mock_fastapi_app):
