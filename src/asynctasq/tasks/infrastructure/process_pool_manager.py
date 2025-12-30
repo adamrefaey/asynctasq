@@ -62,7 +62,16 @@ def _setup_subprocess_io() -> None:
 
     Called by ProcessPoolExecutor as the worker initializer function.
     """
+    import signal
     import sys
+
+    # Suppress KeyboardInterrupt traceback in subprocess workers
+    # This prevents noisy output when the parent process shuts down
+    def silent_interrupt_handler(signum: int, frame: Any) -> None:
+        """Silently exit on SIGINT without printing traceback."""
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, silent_interrupt_handler)
 
     # Force unbuffered output for immediate visibility
     if hasattr(sys.stdout, "reconfigure"):
@@ -89,6 +98,7 @@ def init_warm_event_loop() -> None:
     global _process_loop, _loop_thread
 
     # Setup subprocess I/O for proper print() visibility
+    # (also sets up signal handler for clean shutdown)
     _setup_subprocess_io()
 
     # Create new event loop for this process
@@ -378,6 +388,10 @@ class ProcessPoolManager:
         Args:
             wait: Wait for pending tasks to complete
             cancel_futures: Cancel pending futures (Python 3.9+)
+
+        Note:
+            Subprocess workers are configured to handle SIGINT silently,
+            so shutdown is clean even if workers are interrupted.
         """
         errors: list[Exception] = []
 
