@@ -22,6 +22,8 @@
 - Pass ORM models directly as parameters - they're automatically serialized as lightweight references and re-fetched with fresh data when the task executes (Supported ORMs: SQLAlchemy, Django ORM, Tortoise ORM)
 - Use type hints on task parameters for better IDE support and documentation
 - Name tasks descriptively (class name or function name should explain purpose)
+- Use `correlation_id` for distributed tracing and tracking related tasks across systems
+- For CPU-bound async tasks (`AsyncProcessTask`), initialize warm event loops in production for better performance (see [Configuration docs](configuration.md#warm-event-loops-for-asyncprocesstask))
 
 ❌ **Don't:**
 
@@ -29,8 +31,9 @@
 - Share mutable state between tasks (each task execution should be isolated)
 - Perform network calls without timeouts (always use `timeout` parameter)
 - Store large objects in task parameters (serialize references instead, e.g., database IDs)
-- Use reserved parameter names (`config`, `run`, `execute`, `dispatch`, `failed`, `should_retry`, `on_queue`, `delay`, `retry_after`)
+- Use reserved parameter names (`config`, `run`, `execute`, `dispatch`, `failed`, `should_retry`, `on_queue`, `delay`, `retry_after`, `max_attempts`, `timeout`)
 - Start parameter names with underscore (reserved for internal use)
+- Create new database connections in subprocesses without using proper ORM patterns (see [ORM Integrations](orm-integrations.md) for SQLAlchemy/Django/Tortoise best practices)
 
 ## Queue Organization
 
@@ -110,13 +113,13 @@ class ProcessPayment(AsyncTask[bool]):
 - **Test thoroughly** before deploying to production (unit tests + integration tests)
 - **Use structured logging** with context (task_id, worker_id, queue_name, current_attempt)
 - **Enable event streaming** (Redis Pub/Sub) for real-time monitoring and observability
-- **Configure process pools** for CPU-bound tasks (`process_pool_size`, `process_pool_max_tasks_per_child`)
+- **Configure process pools** for CPU-bound tasks (use `ProcessPoolConfig` with `size` and `max_tasks_per_child` options)
 - **Set task retention policy** (`keep_completed_tasks=False` by default to save memory)
 
 **Example Production Setup:**
 
 ```python
-from asynctasq import init, RedisConfig, TaskDefaultsConfig, EventsConfig, ProcessPoolConfig, Worker, DriverFactory
+from asynctasq import init, RedisConfig, TaskDefaultsConfig, EventsConfig, ProcessPoolConfig, Worker, DriverFactory, Config
 
 # Initialize AsyncTasQ with configuration
 init({
@@ -127,8 +130,7 @@ init({
     ),
     'task_defaults': TaskDefaultsConfig(
         max_attempts=5,
-        retry_delay=120,  # 2 minutes
-        timeout=300       # 5 minutes
+        retry_delay=120  # 2 minutes
     ),
     # Event streaming for monitoring (asynctasq-monitor)
     'events': EventsConfig(
@@ -143,13 +145,18 @@ init({
     )
 })
 
-# Create and start multiple worker processes for different priorities
-import asyncio
-import multiprocessing
+# Option 1: Using CLI (Recommended for production)
+# Deploy multiple worker processes using systemd, supervisor, or Kubernetes
+# Example:
+#   asynctasq worker --queues critical --concurrency 20
+#   asynctasq worker --queues default --concurrency 10
+#   asynctasq worker --queues low-priority --concurrency 5
 
-async def run_worker(queues, concurrency):
+# Option 2: Programmatic worker (for custom integrations)
+async def run_worker(queues: list[str], concurrency: int):
+    """Start a worker programmatically."""
     config = Config.get()
-    driver = DriverFactory.create(config)
+    driver = DriverFactory.create(config.driver, config)
 
     worker = Worker(
         queue_driver=driver,
@@ -159,18 +166,36 @@ async def run_worker(queues, concurrency):
 
     await worker.start()
 
-def start_worker_process(queues, concurrency):
-    asyncio.run(run_worker(queues, concurrency))
+# Example: Single worker in async context
+import asyncio
+await run_worker(["default"], 10)
 
-# Start multiple worker processes
-processes = [
-    multiprocessing.Process(target=start_worker_process, args=(["critical"], 20)),
-    multiprocessing.Process(target=start_worker_process, args=(["default"], 10)),
-    multiprocessing.Process(target=start_worker_process, args=(["low-priority"], 5)),
-]
+# For multiple workers, use process managers (systemd/supervisor/K8s) instead of multiprocessing.Process
+```
 
-for p in processes:
-    p.start()
-for p in processes:
-    p.join()
+**Deployment Recommendations:**
+
+1. **Use Process Managers** (systemd, supervisor, Kubernetes) to run multiple worker processes - this is the standard production approach
+2. **Use CLI** (`asynctasq worker`) for most deployments - it handles all configuration from environment variables
+3. **Use multiprocessing** only if you need programmatic control over worker lifecycle in the same Python process
+
+**Example systemd service:**
+
+```ini
+[Unit]
+Description=AsyncTasQ Worker - Critical Queue
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=asynctasq
+WorkingDirectory=/app
+Environment="REDIS_URL=redis://redis-master:6379"
+Environment="REDIS_PASSWORD=your-password"
+ExecStart=/usr/local/bin/asynctasq worker --queues critical --concurrency 20
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
 ```
