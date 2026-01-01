@@ -8,8 +8,6 @@
 
 A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Laravel's elegant queue system. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+. Features ACID guarantees, dead-letter queues, crash recovery, and real-time event streaming.
 
-> 📊 **Looking for a monitoring dashboard?** Check out **[asynctasq-monitor](https://github.com/adamrefaey/asynctasq-monitor)** – a beautiful real-time UI to monitor your tasks, workers, and queues.
-
 ---
 
 ## Table of Contents
@@ -339,7 +337,6 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 | **Setup Complexity**     | ✅ Simple with `asynctasq.init()`                  | ⚠️ Complex configuration                                   |
 | **Prefetch Multiplier**  | ✅ Sensible default (1)                            | ⚠️ Dangerous default (4x), often causes performance issues |
 | **Learning Curve**       | ✅ Simple, intuitive API                           | ⚠️ Steep learning curve                                    |
-| **Maturity**             | ⚠️ Young project (v0.9.x)                          | ✅ 13+ years, battle-tested                                |
 
 **When to use AsyncTasQ:**
 
