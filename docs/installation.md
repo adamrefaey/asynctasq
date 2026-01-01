@@ -2,9 +2,11 @@
 
 ## Table of Contents
 
-- [Requirements](#requirements)
-- [Using uv (Recommended)](#using-uv-recommended)
-- [Using pip](#using-pip)
+- [Installation](#installation)
+  - [Table of Contents](#table-of-contents)
+  - [Requirements](#requirements)
+  - [Using uv (Recommended)](#using-uv-recommended)
+  - [Using pip](#using-pip)
 
 ## Requirements
 
