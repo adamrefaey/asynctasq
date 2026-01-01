@@ -20,6 +20,9 @@
     - [Using EventSubscriber](#using-eventsubscriber)
     - [WebSocket Integration](#websocket-integration)
   - [Queue Statistics](#queue-statistics)
+    - [Queue Operations](#queue-operations)
+    - [Worker Operations](#worker-operations)
+    - [Task Operations](#task-operations)
   - [Integration with asynctasq-monitor](#integration-with-asynctasq-monitor)
   - [Best Practices](#best-practices)
     - [Production Monitoring](#production-monitoring)
@@ -49,14 +52,14 @@ AsyncTasQ emits events for all major lifecycle changes:
 
 #### Task Events
 
-| Event             | Description                                  |
-| ----------------- | -------------------------------------------- |
-| `task_enqueued`   | Task added to queue, awaiting execution      |
-| `task_started`    | Worker began executing the task              |
-| `task_completed`  | Task finished successfully                   |
-| `task_failed`     | Task failed after exhausting retries         |
-| `task_reenqueued` | Task failed but will be retried              |
-| `task_cancelled`  | Task was cancelled/revoked before completion |
+| Event             | Description                                   |
+| ----------------- | --------------------------------------------- |
+| `task_enqueued`   | Task added to queue, awaiting execution       |
+| `task_started`    | Worker began executing the task               |
+| `task_completed`  | Task finished successfully                    |
+| `task_failed`     | Task failed after exhausting retries          |
+| `task_reenqueued` | Task failed and will be retried (re-enqueued) |
+| `task_cancelled`  | Task was cancelled/revoked before completion  |
 
 #### Worker Events
 
@@ -147,16 +150,17 @@ await EventRegistry.close_all()
 Enable Redis event emission in your AsyncTasQ configuration:
 
 ```python
-from asynctasq import init, EventsConfig
+from asynctasq import init, EventsConfig, RedisConfig
 
-init({
-    'driver': 'redis',
-    'events': EventsConfig(
+init(
+    driver='redis',
+    redis=RedisConfig(url='redis://localhost:6379'),
+    events=EventsConfig(
         enable_event_emitter_redis=True,  # Enable Redis event emission
         redis_url='redis://events.example.com:6379',  # Optional: separate Redis for events
         channel='asynctasq:prod:events'  # Pub/Sub channel name
     )
-})
+)
 ```
 
 ### Configuration Options
@@ -231,10 +235,13 @@ async def events_websocket(websocket: WebSocket):
 Beyond events, AsyncTasQ provides APIs for historical queue statistics:
 
 ```python
-from asynctasq import MonitoringService, DriverFactory
+from asynctasq import MonitoringService, DriverFactory, Config, RedisConfig
 
 async def get_stats():
-    driver = DriverFactory.create()
+    config = Config(driver='redis', redis=RedisConfig(url='redis://localhost:6379'))
+    driver = DriverFactory.create('redis', config)
+    await driver.connect()
+
     monitoring = MonitoringService(driver)
 
     # Get stats for a specific queue
@@ -254,6 +261,124 @@ async def get_stats():
     workers = await monitoring.get_worker_stats()
     for worker in workers:
         print(f"Worker {worker.worker_id}: {worker.tasks_processed} processed")
+
+    await driver.disconnect()
+```
+
+**MonitoringService Methods:**
+
+### Queue Operations
+
+| Method                   | Description                                  | Returns            |
+| ------------------------ | -------------------------------------------- | ------------------ |
+| `get_queue_stats(queue)` | Get statistics for a specific queue          | `QueueStats`       |
+| `get_all_queue_stats()`  | Get statistics for all queues                | `list[QueueStats]` |
+| `get_all_queue_names()`  | Get list of all queue names                  | `list[str]`        |
+| `get_global_stats()`     | Get global task statistics across all queues | `dict[str, int]`   |
+
+**QueueStats Model:**
+
+```python
+@dataclass
+class QueueStats:
+    name: str                          # Queue name
+    depth: int                         # Pending tasks
+    processing: int                    # Currently running
+    completed_total: int               # Total completed tasks
+    failed_total: int                  # Total failed tasks
+    avg_duration_ms: float | None      # Average task duration
+    throughput_per_minute: float | None # Tasks processed per minute
+```
+
+### Worker Operations
+
+| Method               | Description                           | Returns            |
+| -------------------- | ------------------------------------- | ------------------ |
+| `get_worker_stats()` | Get statistics for all active workers | `list[WorkerInfo]` |
+
+**WorkerInfo Model:**
+
+```python
+@dataclass
+class WorkerInfo:
+    worker_id: str                     # Worker identifier
+    status: str                        # "active", "idle", "down"
+    current_task_id: str | None        # Currently processing task
+    tasks_processed: int               # Total tasks processed
+    uptime_seconds: int                # Worker uptime
+    last_heartbeat: datetime | None    # Last heartbeat timestamp
+    load_percentage: float             # Worker load (0.0-100.0)
+```
+
+### Task Operations
+
+| Method                                         | Description                                    | Returns                          |
+| ---------------------------------------------- | ---------------------------------------------- | -------------------------------- |
+| `get_running_tasks(limit, offset)`             | Get raw bytes of currently running tasks       | `list[tuple[bytes, str]]`        |
+| `get_running_task_infos(limit, offset)`        | Get currently running tasks as TaskInfo models | `list[TaskInfo]`                 |
+| `get_tasks(status, queue, limit, offset)`      | Get raw task data with pagination              | `tuple[list[tuple], int]`        |
+| `get_task_infos(status, queue, limit, offset)` | Get tasks as TaskInfo models with pagination   | `tuple[list[TaskInfo], int]`     |
+| `get_task_by_id(task_id)`                      | Get raw task data by ID                        | `tuple[bytes, str, str] \| None` |
+| `get_task_info_by_id(task_id)`                 | Get task as TaskInfo model by ID               | `TaskInfo \| None`               |
+| `retry_task(task_id)`                          | Retry a failed task                            | `bool`                           |
+| `delete_task(task_id)`                         | Delete a task                                  | `bool`                           |
+
+**TaskInfo Model:**
+
+```python
+@dataclass
+class TaskInfo:
+    id: str                            # Task UUID
+    name: str                          # Task class/function name
+    queue: str                         # Queue name
+    status: str                        # "pending", "running", "completed", "failed"
+    enqueued_at: datetime              # When task was enqueued
+    started_at: datetime | None        # When task started executing
+    completed_at: datetime | None      # When task completed
+    duration_ms: int | None            # Execution duration in milliseconds
+    worker_id: str | None              # Worker that processed the task
+    attempt: int                       # Current retry attempt (1-based)
+    max_attempts: int                  # Maximum retry attempts
+    args: list[Any] | None             # Task arguments
+    kwargs: dict[str, Any] | None      # Task keyword arguments
+    result: Any                        # Task result (if completed)
+    exception: str | None              # Exception message (if failed)
+    traceback: str | None              # Full traceback (if failed)
+    priority: int                      # Task priority
+    timeout_seconds: int | None        # Task timeout
+    tags: list[str] | None             # Task tags
+```
+
+**Example - Task Management:**
+
+```python
+from asynctasq import MonitoringService, TaskInfo
+
+async def manage_tasks(monitoring: MonitoringService):
+    # Get all pending tasks for a specific queue
+    task_infos, total_count = await monitoring.get_task_infos(
+        status="pending",
+        queue="default",
+        limit=10,
+        offset=0
+    )
+
+    for task in task_infos:
+        print(f"Task {task.id}: {task.name} (attempt {task.attempt}/{task.max_attempts})")
+
+    # Get specific task by ID
+    task = await monitoring.get_task_info_by_id("abc123-task-uuid")
+    if task and task.status == "failed":
+        # Retry failed task
+        success = await monitoring.retry_task(task.id)
+        print(f"Retry {'succeeded' if success else 'failed'}")
+
+    # Get currently running tasks
+    running_tasks = await monitoring.get_running_task_infos(limit=20)
+    print(f"Currently running: {len(running_tasks)} tasks")
+
+    # Delete completed tasks
+    success = await monitoring.delete_task("completed-task-uuid")
 ```
 
 ## Integration with asynctasq-monitor
