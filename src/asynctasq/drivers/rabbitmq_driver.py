@@ -24,14 +24,14 @@ class RabbitMQDriver(BaseDriver):
 
     Architecture:
         - Immediate tasks: Direct exchange with queue (routing_key = queue_name)
-        - Delayed tasks: Stored in delayed queue with timestamp prepended to message body
+        - Delayed tasks: Stored in delayed queue with timestamp, manually processed
         - Receipt handles: Task data bytes mapped to AbstractIncomingMessage for ack/nack
         - Queue caching: Queues are cached in _queues and _delayed_queues dicts
         - Auto-queue creation: Queues are created on-demand when first accessed
 
     Features:
         - Reliable message delivery with persistent messages
-        - Delayed task support without plugins (timestamp-based)
+        - Delayed task support using timestamp-based manual processing (no plugins needed)
         - Auto-reconnection with connect_robust for resilience
         - Fair task distribution via prefetch_count=1
         - Message acknowledgments for reliable processing
@@ -42,10 +42,11 @@ class RabbitMQDriver(BaseDriver):
 
     Design Decisions:
         - Direct exchange pattern: Simple routing (queue_name = routing_key)
-        - Delayed task implementation: Timestamp-based (ready_at prepended to message)
-          - Avoids RabbitMQ per-message TTL limitations (requires consumption to dead-letter)
-          - _process_delayed_tasks() checks timestamps and moves ready messages
-          - Timestamp encoded as 8-byte double using struct.pack/unpack
+        - Delayed task implementation: Timestamp-based manual processing
+          - ready_at timestamp encoded as 8-byte double, prepended to message body
+          - _process_delayed_tasks() checks timestamps on each dequeue
+          - Moves ready messages to main queue, requeues not-ready messages
+          - No RabbitMQ plugins required (per-message TTL doesn't auto-expire)
         - Consumer prefetch: Set to 1 for fair distribution across workers
         - Auto-delete queues: False (persistent queues for reliability)
         - Durable queues: True (survive broker restarts)
@@ -88,6 +89,9 @@ class RabbitMQDriver(BaseDriver):
         default_factory=dict, init=False, repr=False
     )
     _in_flight_per_queue: dict[str, int] = field(default_factory=dict, init=False, repr=False)
+    _delayed_task_locks: dict[str, asyncio.Lock] = field(
+        default_factory=dict, init=False, repr=False
+    )
 
     async def connect(self) -> None:
         """Initialize RabbitMQ connection with auto-reconnection.
@@ -127,6 +131,15 @@ class RabbitMQDriver(BaseDriver):
             - Clears all cached queues and receipt handles
             - Idempotent: safe to call multiple times
         """
+        # Clear caches first to prevent stale references
+        self._queues.clear()
+        self._delayed_queues.clear()
+        self._completed_queues.clear()
+        self._delayed_exchange = None
+        self._receipt_handles.clear()
+        self._in_flight_per_queue.clear()
+        self._delayed_task_locks.clear()
+
         if self.channel is not None:
             await self.channel.close()
             self.channel = None
@@ -134,13 +147,6 @@ class RabbitMQDriver(BaseDriver):
         if self.connection is not None:
             await self.connection.close()
             self.connection = None
-
-        self._queues.clear()
-        self._delayed_queues.clear()
-        self._completed_queues.clear()
-        self._delayed_exchange = None
-        self._receipt_handles.clear()
-        self._in_flight_per_queue.clear()
 
     async def _ensure_queue(self, queue_name: str) -> AbstractQueue:
         """Ensure queue exists and return it.
@@ -158,13 +164,15 @@ class RabbitMQDriver(BaseDriver):
             - Caches queue for subsequent operations
             - Auto-connects if channel not initialized
         """
-        if queue_name in self._queues:
-            return self._queues[queue_name]
-
+        # Check if we need to reconnect (clears cache)
         if self.channel is None:
             await self.connect()
             assert self.channel is not None
             assert self._delayed_exchange is not None
+
+        # Check cache after potential reconnection
+        if queue_name in self._queues:
+            return self._queues[queue_name]
 
         # Declare queue (durable, not auto-delete)
         queue = await self.channel.declare_queue(queue_name, durable=True, auto_delete=False)
@@ -196,13 +204,15 @@ class RabbitMQDriver(BaseDriver):
         """
         delayed_queue_name = f"{queue_name}_delayed"
 
-        if delayed_queue_name in self._delayed_queues:
-            return self._delayed_queues[delayed_queue_name]
-
+        # Check if we need to reconnect (clears cache)
         if self.channel is None:
             await self.connect()
             assert self.channel is not None
             assert self._delayed_exchange is not None
+
+        # Check cache after potential reconnection
+        if delayed_queue_name in self._delayed_queues:
+            return self._delayed_queues[delayed_queue_name]
 
         # Create delayed queue with dead-letter exchange configuration
         # Dead-letter exchange routes expired/delayed messages back to main queue
@@ -273,13 +283,15 @@ class RabbitMQDriver(BaseDriver):
             - Caches queue for subsequent operations
             - Auto-connects if channel not initialized
         """
-        if queue_name in self._completed_queues:
-            return self._completed_queues[queue_name]
-
+        # Check if we need to reconnect (clears cache)
         if self.channel is None:
             await self.connect()
             assert self.channel is not None
             assert self._delayed_exchange is not None
+
+        # Check cache after potential reconnection
+        if queue_name in self._completed_queues:
+            return self._completed_queues[queue_name]
 
         # Declare completed queue (durable, not auto-delete)
         completed_queue = await self.channel.declare_queue(
@@ -316,12 +328,11 @@ class RabbitMQDriver(BaseDriver):
               - Publishes directly to main queue via direct exchange
               - Queue auto-created if doesn't exist
             - Delayed (delay_seconds > 0):
-              - Calculates ready_at = current_time + delay_seconds
-              - Encodes ready_at as 8-byte double using struct.pack
-              - Prepends ready_at_bytes to task_data (delayed_body)
-              - Creates persistent message with delayed_body
+              - Calculates ready_at timestamp (current_time + delay_seconds)
+              - Encodes ready_at as 8-byte double, prepends to task_data
+              - Creates persistent message with timestamped body
               - Publishes to delayed queue (auto-created if needed)
-              - _process_delayed_tasks() will move to main queue when ready
+              - _process_delayed_tasks() will manually check timestamps and move to main queue
             - All messages use PERSISTENT delivery mode for durability
             - current_attempt is tracked in serialized task, not in RabbitMQ
         """
@@ -337,18 +348,15 @@ class RabbitMQDriver(BaseDriver):
 
         if delay_seconds > 0:
             # Ensure both delayed queue and main queue exist
-            # Main queue must exist for dead-letter routing to work
+            # Main queue must exist for routing to work
             await self._ensure_queue(queue_name)
             await self._ensure_delayed_queue(queue_name)
 
-            # Store the ready_at timestamp in the message headers
-            # We'll use this to determine when the message should be processed
+            # Store ready_at timestamp in message body
+            # RabbitMQ's per-message TTL doesn't auto-expire without consumers
+            # So we use manual timestamp checking
             ready_at = current_time() + delay_seconds
-
-            # Encode ready_at as bytes (8-byte double)
             ready_at_bytes = struct.pack("d", ready_at)
-
-            # Prepend ready_at timestamp to task_data
             delayed_body = ready_at_bytes + task_data
 
             message = aio_pika.Message(
@@ -357,7 +365,6 @@ class RabbitMQDriver(BaseDriver):
             )
 
             # Publish to delayed queue
-            # We'll manually check timestamps and move to main queue when ready
             delayed_queue_name = f"{queue_name}_delayed"
             assert self._delayed_exchange is not None
             await self._delayed_exchange.publish(message, routing_key=delayed_queue_name)
@@ -379,8 +386,8 @@ class RabbitMQDriver(BaseDriver):
             Serialized task data (bytes) or None if queue empty
 
         Implementation:
-            - Processes delayed tasks first via _process_delayed_tasks()
-            - Ensures queue exists and refreshes state via queue.declare()
+            - Triggers delayed task processing via _process_delayed_tasks()
+            - Ensures queue exists and is properly bound to exchange
             - Non-blocking (poll_seconds=0):
               - Uses queue.get(fail=False) for immediate retrieval
               - Returns None immediately if no message available
@@ -391,18 +398,17 @@ class RabbitMQDriver(BaseDriver):
             - Stores message in _receipt_handles dict (key=task_data, value=message)
               for subsequent ack/nack operations
             - Returns task_data bytes (not the message object)
+            - Delayed tasks appear when _process_delayed_tasks moves them from delayed queue
         """
         if self.channel is None:
             await self.connect()
             assert self.channel is not None
 
-        # Process any ready delayed tasks
+        # Trigger delayed task processing to check for expired messages
         await self._process_delayed_tasks(queue_name)
 
-        # Ensure queue exists and is bound - re-declare to refresh state
+        # Ensure queue exists and is bound
         queue = await self._ensure_queue(queue_name)
-        # Re-declare queue to ensure we have fresh state
-        await queue.declare()
 
         # For non-blocking, use queue.get() directly
         if poll_seconds == 0:
@@ -617,8 +623,9 @@ class RabbitMQDriver(BaseDriver):
     async def _process_delayed_tasks(self, queue_name: str) -> None:
         """Process delayed tasks that are ready.
 
-        Checks delayed queue for messages with ready_at timestamp <= current time.
-        Moves ready messages to the main queue and requeues not-ready messages.
+        Manually checks timestamps and moves ready messages to main queue.
+        This is needed because RabbitMQ's per-message TTL doesn't automatically
+        expire messages without active consumers on the queue.
 
         Args:
             queue_name: Name of the main queue (delayed queue = "{queue_name}_delayed")
@@ -652,30 +659,28 @@ class RabbitMQDriver(BaseDriver):
         # Get the delayed queue
         delayed_queue = self._delayed_queues[delayed_queue_name]
 
-        # Process messages from delayed queue
-        # We need to peek at all messages and move ready ones
+        # Process all messages in delayed queue
         now = current_time()
         messages_to_requeue = []
 
         while True:
-            # Get message from delayed queue
+            # Get message from delayed queue (non-blocking)
             message = await delayed_queue.get(fail=False)
             if message is None:
-                break  # No more messages
+                break
 
-            # Extract ready_at timestamp from message body
+            # Extract ready_at timestamp (first 8 bytes)
             if len(message.body) < 8:
-                # Malformed message, ack it to remove
+                # Malformed message, ack to remove
                 await message.ack()
                 continue
 
-            # Decode ready_at (first 8 bytes)
             ready_at = struct.unpack("d", message.body[:8])[0]
-            task_data = message.body[8:]  # Rest is actual task data
+            task_data = message.body[8:]
 
-            # Check if message is ready
+            # Check if ready
             if now >= ready_at:
-                # Message is ready - publish to main queue
+                # Move to main queue
                 await self._delayed_exchange.publish(
                     aio_pika.Message(
                         body=task_data,
@@ -683,15 +688,13 @@ class RabbitMQDriver(BaseDriver):
                     ),
                     routing_key=queue_name,
                 )
-                # Acknowledge the delayed message
                 await message.ack()
             else:
-                # Not ready yet - store for requeuing
+                # Not ready, requeue
                 messages_to_requeue.append(message)
 
-        # Requeue messages that aren't ready yet
+        # Requeue not-ready messages
         for message in messages_to_requeue:
-            # Requeue by nacking with requeue=True
             await message.nack(requeue=True)
 
     async def get_queue_stats(self, queue: str) -> dict[str, Any]:
