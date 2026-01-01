@@ -206,14 +206,15 @@ All configuration options can be set via the `@task` decorator. These settings a
 
 **Available Options:**
 
-| Option         | Type                        | Default     | Description                                                                                       |
-| -------------- | --------------------------- | ----------- | ------------------------------------------------------------------------------------------------- |
-| `queue`        | `str`                       | `"default"` | Queue name for task execution                                                                     |
-| `max_attempts` | `int`                       | `3`         | Maximum retry attempts on failure                                                                 |
-| `retry_delay`  | `int`                       | `60`        | Seconds to wait between retry attempts                                                            |
-| `timeout`      | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                                                     |
-| `driver`       | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config)                                  |
-| `process`      | `bool`                      | `False`     | Use process pool for CPU-intensive work (`True` = process pool, `False` = event loop/thread pool) |
+| Option               | Type                        | Default     | Description                                                                                       |
+| -------------------- | --------------------------- | ----------- | ------------------------------------------------------------------------------------------------- |
+| `queue`              | `str`                       | `"default"` | Queue name for task execution                                                                     |
+| `max_attempts`       | `int`                       | `3`         | Maximum retry attempts on failure                                                                 |
+| `retry_delay`        | `int`                       | `60`        | Seconds to wait between retry attempts                                                            |
+| `timeout`            | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                                                     |
+| `visibility_timeout` | `int`                       | `300`       | Visibility timeout for crash recovery in seconds (time before task is auto-recovered)             |
+| `driver`             | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config)                                  |
+| `process`            | `bool`                      | `False`     | Use process pool for CPU-intensive work (`True` = process pool, `False` = event loop/thread pool) |
 
 ### Queue Configuration
 
@@ -935,6 +936,9 @@ Method chaining allows you to override task configuration at dispatch time. This
 - `.on_queue(queue_name)`: Override the queue name
 - `.delay(seconds)`: Add execution delay (in seconds)
 - `.retry_after(seconds)`: Override retry delay (in seconds)
+- `.max_attempts(attempts)`: Override maximum retry attempts
+- `.timeout(seconds)`: Override task execution timeout
+- `.visibility_timeout(seconds)`: Override visibility timeout for crash recovery
 - `.dispatch()`: Final method that actually dispatches the task
 
 **Important:** Method chaining requires calling the function first (with arguments) to create a task instance, then chaining configuration methods. The function call returns a task instance that supports chaining.
@@ -1000,10 +1004,7 @@ async def main():
         .retry_after(120) \
         .dispatch()
     # Will retry with 120 second delays instead of default 60
-    # Note: max_attempts (3) is still from the decorator
 ```
-
-**Note:** Method chaining can only override `queue`, `delay`, and `retry_delay`. The `max_attempts` and `timeout` values are set at decoration time and cannot be overridden via chaining.
 
 ### Complex Chaining
 
@@ -1023,6 +1024,30 @@ async def main():
         .dispatch()
     # Queued on 'critical' queue, 30s delay, 180s retry delay
 ```
+
+### Override All Configuration at Dispatch Time
+
+```python
+from asynctasq import task
+
+@task(queue='default', max_attempts=3, timeout=60)
+async def flexible_task(data: str):
+    print(f"Processing: {data}")
+
+# Override ALL configuration at dispatch time
+async def main():
+    task_id = await flexible_task("data") \
+        .on_queue("high-priority") \
+        .max_attempts(10) \
+        .timeout(120) \
+        .retry_after(30) \
+        .visibility_timeout(600) \
+        .delay(60) \
+        .dispatch()
+    # All decorator values overridden!
+```
+
+**Note:** Method chaining allows you to override ANY configuration parameter at dispatch time, including those set in the decorator. This provides maximum flexibility for different execution scenarios.
 
 ---
 
