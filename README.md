@@ -20,7 +20,6 @@ A modern, async-first, type-safe task queue for Python 3.12+. Inspired by Larave
 - [Why AsyncTasQ?](#why-asynctasq)
 - [Key Features](#key-features)
 - [Comparison with Alternatives](#comparison-with-alternatives)
-- [Quick Reference](#quick-reference)
 - [Contributing](#contributing)
 - [License](#license)
 - [Support](#support)
@@ -505,18 +504,15 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 
 ---
 
-## Quick Reference
+## CI & Contributing (short)
 
 - **One-line setup:** `just init` — install deps and pre-commit hooks
-- **Start services:** `just services-up` — Redis, PostgreSQL, MySQL, RabbitMQ, LocalStack (SQS) for local integration tests
-- **Run tests:** `just test` (or `pytest`) — use `just test-unit` / `just test-integration` to scope
+- **Start services:** `just docker-up` — Redis, PostgreSQL, MySQL, RabbitMQ, LocalStack (SQS) for local integration tests
+- **Run tests:** `just test` — use `just test-unit` / `just test-integration` to scope
 - **Run with coverage:** `just test-cov` or `pytest --cov=src/asynctasq --cov-report=html`
 - **Run the worker locally:** `python -m asynctasq worker`
 - **Pre-commit hooks:** [`./setup-pre-commit.sh`](https://github.com/adamrefaey/asynctasq/blob/main/setup-pre-commit.sh) or `just setup-hooks`
 - **Format / lint / typecheck:** `just format`, `just lint`, `just typecheck`
-
-## CI & Contributing (short)
-
 - **CI runs on PRs and pushes to `main`** and includes lint, type checks and tests across Python 3.12–3.14.
 - **Pre-commit hooks** enforce formatting and static checks locally before commits (see [`./setup-pre-commit.sh`](https://github.com/adamrefaey/asynctasq/blob/main/setup-pre-commit.sh)).
 - **Branch protection:** enable required status checks (CI success, lint, unit/integration jobs) for `main`.
