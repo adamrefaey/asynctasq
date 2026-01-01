@@ -9,7 +9,7 @@
   - [Usage Patterns](#usage-patterns)
     - [Pattern 1: Standard Scripts with asyncio.run()](#pattern-1-standard-scripts-with-asynciorun)
     - [Pattern 2: Using AsyncTasQ's Runner (with uvloop support)](#pattern-2-using-asynctasqs-runner-with-uvloop-support)
-    - [Pattern 3: FastAPI Integration](#pattern-3-fastapi-integration)
+    - [Pattern 3: FastAPI Integration (Recommended)](#pattern-3-fastapi-integration-recommended)
     - [Pattern 4: uvloop Direct Usage](#pattern-4-uvloop-direct-usage)
     - [Pattern 5: Jupyter Notebooks](#pattern-5-jupyter-notebooks)
     - [Pattern 6: Custom Event Loop Policy](#pattern-6-custom-event-loop-policy)
@@ -25,6 +25,7 @@
     - [RuntimeError: cannot be called from a running event loop](#runtimeerror-cannot-be-called-from-a-running-event-loop)
     - [Cleanup not running](#cleanup-not-running)
     - [Connection warnings on shutdown](#connection-warnings-on-shutdown)
+    - [FastAPI deprecation warnings](#fastapi-deprecation-warnings)
   - [Technical Details](#technical-details)
     - [Cleanup Hook Implementation](#cleanup-hook-implementation)
     - [Compatibility](#compatibility)
@@ -110,36 +111,34 @@ if __name__ == "__main__":
     run(main())
 ```
 
-**Benefits of `asynctasq.utils.loop.run`:**
-- Automatically uses uvloop when installed for ~2x performance boost
+**Benefits of `run()`:**
+- Automatically uses uvloop when available for ~2x performance boost
 - Gracefully falls back to asyncio if uvloop is not available
 - Handles proper cleanup of AsyncTasQ resources
 - Mimics `asyncio.run()` semantics
 
-**Installation with uvloop:**
-```bash
-pip install asynctasq[uvloop]
-```
+**Note:** uvloop (>=0.22.1) is included as a core dependency of AsyncTasQ, so it's available by default. The `run()` function is exported directly from `asynctasq` (not `asynctasq.utils.loop.run`), though both import paths work.
 
-### Pattern 3: FastAPI Integration
+### Pattern 3: FastAPI Integration (Recommended)
 
-AsyncTasQ works perfectly with FastAPI's managed event loop:
+AsyncTasQ provides a dedicated `AsyncTasQIntegration` class for FastAPI with automatic lifecycle management:
 
 ```python
-from fastapi import FastAPI
-from asynctasq import init, RedisConfig, task
+from fastapi import FastAPI, Depends
+from asynctasq import AsyncTasQIntegration, init, RedisConfig, task
+from asynctasq.core.dispatcher import Dispatcher
 
-app = FastAPI()
+# Initialize AsyncTasQ configuration
+init({
+    'driver': 'redis',
+    'redis': RedisConfig(url='redis://localhost:6379')
+})
 
-@app.on_event("startup")
-async def startup():
-    """Initialize AsyncTasQ when FastAPI starts."""
-    # This is called from within FastAPI's running event loop
-    init({
-        'driver': 'redis',
-        'redis': RedisConfig(url='redis://localhost:6379')
-    })
-    # Cleanup is automatically registered to run when the event loop closes
+# Create integration instance
+asynctasq = AsyncTasQIntegration()
+
+# Use lifespan for automatic driver management
+app = FastAPI(lifespan=asynctasq.lifespan)
 
 @task()
 async def process_order(order_id: int):
@@ -152,9 +151,58 @@ async def trigger_processing(order_id: int):
     task_id = await process_order(order_id).dispatch()
     return {"task_id": task_id, "status": "dispatched"}
 
-# When FastAPI shuts down and closes its event loop,
-# AsyncTasQ cleanup runs automatically
+# Optional: Use dependency injection for dispatcher access
+@app.post("/orders/{order_id}/process-with-di")
+async def trigger_with_di(
+    order_id: int,
+    dispatcher: Dispatcher = Depends(asynctasq.get_dispatcher)
+):
+    """Dispatch using injected dispatcher."""
+    task = process_order(order_id)
+    task_id = await dispatcher.dispatch(task)
+    return {"task_id": task_id, "status": "dispatched"}
+
+# Cleanup happens automatically when FastAPI shuts down
 ```
+
+**Benefits:**
+- Uses modern FastAPI `lifespan` context manager (FastAPI 0.115.0+)
+- Automatic driver connection on startup
+- Graceful driver disconnection on shutdown
+- Dependency injection support for `Dispatcher` and `BaseDriver`
+- Works with all queue drivers
+
+**Alternative: Manual init() Pattern**
+
+For simple use cases without dependency injection:
+
+```python
+from fastapi import FastAPI
+from asynctasq import init, RedisConfig, task
+
+# Initialize AsyncTasQ before creating the app
+init({
+    'driver': 'redis',
+    'redis': RedisConfig(url='redis://localhost:6379')
+})
+
+app = FastAPI()
+
+@task()
+async def process_order(order_id: int):
+    return f"Order {order_id} processed"
+
+@app.post("/orders/{order_id}/process")
+async def trigger_processing(order_id: int):
+    task_id = await process_order(order_id).dispatch()
+    return {"task_id": task_id, "status": "dispatched"}
+
+# Cleanup hooks are automatically registered when tasks are dispatched
+# If init() is called before a loop starts, cleanup registration is deferred
+# until the first dispatch, ensuring proper attachment to the running loop
+```
+
+**Note:** The `@app.on_event("startup")` decorator is deprecated in FastAPI 0.115.0+. Use the `lifespan` pattern shown above instead.
 
 ### Pattern 4: uvloop Direct Usage
 
@@ -287,21 +335,23 @@ except RuntimeError:
 ### ✅ Do's
 
 1. **Call `init()` early** - Before dispatching any tasks
-2. **Use `await` in running loops** - Don't call `asynctasq.utils.loop.run()` from within FastAPI, Jupyter, etc.
+2. **Use `await` in running loops** - Don't call `run()` from within FastAPI, Jupyter, etc.
 3. **Let AsyncTasQ handle cleanup** - Trust the automatic cleanup hooks
-4. **Choose the right pattern** - Use `asyncio.run()` for simplicity, `asynctasq.utils.loop.run` for uvloop performance
+4. **Choose the right pattern** - Use `asyncio.run()` for simplicity, `run()` for uvloop performance
+5. **Use AsyncTasQIntegration for FastAPI** - Leverage the modern `lifespan` pattern for proper lifecycle management
 
 ### ❌ Don'ts
 
 1. **Don't call `run()` from running loops** - Will raise `RuntimeError`
 2. **Don't manually close connections** - Let AsyncTasQ's cleanup handle it
 3. **Don't mix event loop patterns** - Stick to one approach per application
+4. **Don't use deprecated FastAPI patterns** - Avoid `@app.on_event()`, use `lifespan` instead
 
 ## Troubleshooting
 
 ### RuntimeError: cannot be called from a running event loop
 
-**Problem:** You're trying to use `asynctasq.utils.loop.run()` inside a running event loop.
+**Problem:** You're trying to use `run()` inside a running event loop.
 
 **Solution:** Use `await` directly instead:
 
@@ -337,8 +387,26 @@ init({'driver': 'redis'})
 # For scripts
 asyncio.run(main())  # Properly closes the loop
 
-# For FastAPI
-# Let the framework manage loop lifecycle
+# For FastAPI - use AsyncTasQIntegration
+asynctasq = AsyncTasQIntegration()
+app = FastAPI(lifespan=asynctasq.lifespan)
+```
+
+### FastAPI deprecation warnings
+
+**Problem:** Seeing warnings about `@app.on_event()` being deprecated.
+
+**Solution:** Migrate to the modern `lifespan` pattern:
+
+```python
+# ❌ Old way (deprecated in FastAPI 0.115.0+)
+@app.on_event("startup")
+async def startup():
+    init(...)
+
+# ✅ New way
+asynctasq = AsyncTasQIntegration()
+app = FastAPI(lifespan=asynctasq.lifespan)
 ```
 
 ## Technical Details
@@ -357,10 +425,12 @@ AsyncTasQ's cleanup hook system:
 
 AsyncTasQ's event loop integration works with:
 
-- **Python 3.12+** - Uses modern asyncio APIs
+- **Python 3.12+** - Uses modern asyncio APIs (minimum version requirement)
 - **asyncio** - Standard library event loop
-- **uvloop 0.22+** - High-performance event loop
+- **uvloop 0.22+** - High-performance event loop (via `asyncio.Runner` with loop factory)
 - **Any asyncio-compatible loop** - Follows standard event loop protocol
+
+**Note:** AsyncTasQ uses `asyncio.Runner` (introduced in Python 3.11) which is why Python 3.12+ is required as the minimum version. This provides proper cleanup sequencing and modern event loop management.
 
 ## Related Documentation
 
