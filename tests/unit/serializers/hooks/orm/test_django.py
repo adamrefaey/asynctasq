@@ -299,9 +299,79 @@ class TestDjangoHookEdgeCases:
         model_class = MagicMock()
         # Force fallback to sync get
         del model_class.objects.aget
-        model_class.objects.get = MagicMock(side_effect=ValueError("Sync database error"))
-        with raises(ValueError, match="Sync database error"):
+        model_class.objects.get = MagicMock(side_effect=RuntimeError("Sync database error"))
+        with raises(RuntimeError, match="Sync database error"):
             await hook._fetch_model(model_class, 1)
+
+    def test_can_encode_with_instance_check_exception_caught(self, hook: DjangoOrmHook) -> None:
+        """Test can_encode catches exceptions from isinstance check."""
+        obj = MagicMock()
+        with patch("asynctasq.serializers.hooks.orm.django.DJANGO_AVAILABLE", True):
+            with patch("asynctasq.serializers.hooks.orm.django.django") as mock_django:
+                # Make the isinstance check raise
+                mock_django.db.models.Model = MagicMock()
+                result = hook.can_encode(obj)
+                # Should return False when exception occurs
+                assert result is False
+
+    def test_get_model_pk_with_none_pk_edge_case(self, hook: DjangoOrmHook) -> None:
+        """Test _get_model_pk with model that has None pk doesn't crash."""
+        obj = MockDjangoModel(pk=None)
+        result = hook._get_model_pk(obj)
+        assert result is None
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.django.DJANGO_AVAILABLE", True)
+    async def test_fetch_model_with_sync_executor(self, hook: DjangoOrmHook) -> None:
+        """Test _fetch_model properly uses executor for sync database calls."""
+        model_class = MagicMock()
+        mock_model = MagicMock()
+        # Remove aget to force sync fallback
+        del model_class.objects.aget
+        model_class.objects.get = MagicMock(return_value=mock_model)
+
+        result = await hook._fetch_model(model_class, 42)
+
+        assert result == mock_model
+        # Verify the sync get was called
+        model_class.objects.get.assert_called_once_with(pk=42)
+
+
+# =============================================================================
+# Test Django Hook Integration with Error Messages
+# =============================================================================
+
+
+@mark.unit
+class TestDjangoHookErrorMessages:
+    """Test Django ORM hook error message clarity."""
+
+    @fixture
+    def hook(self) -> DjangoOrmHook:
+        return DjangoOrmHook()
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.django.DJANGO_AVAILABLE", False)
+    async def test_fetch_model_error_message_clarity(self, hook: DjangoOrmHook) -> None:
+        """Test that ImportError message is clear."""
+        with raises(ImportError, match="Django is not installed"):
+            await hook._fetch_model(MagicMock, 1)
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.django.DJANGO_AVAILABLE", True)
+    async def test_fetch_model_with_database_error(self, hook: DjangoOrmHook) -> None:
+        """Test _fetch_model propagates database errors with original message."""
+        model_class = MagicMock()
+        model_class.objects.aget = AsyncMock(side_effect=Exception("Connection to database failed"))
+
+        with raises(Exception, match="Connection to database failed"):
+            await hook._fetch_model(model_class, 1)
+
+    def test_hook_attributes_are_correct(self, hook: DjangoOrmHook) -> None:
+        """Test hook has correct attributes for Django ORM."""
+        assert hook.orm_name == "django"
+        assert hook.type_key == "__orm:django__"
+        assert hook.priority == 100
 
     @mark.asyncio
     @patch("asynctasq.serializers.hooks.orm.django.DJANGO_AVAILABLE", True)
@@ -336,3 +406,132 @@ class TestDjangoHookEdgeCases:
         result = await hook._fetch_model(model_class, complex_pk)
         assert result == mock_model
         model_class.objects.aget.assert_called_once_with(pk=complex_pk)
+
+
+@mark.unit
+class TestDjangoHookEncodeDecode:
+    """Test Django ORM hook encode and decode methods."""
+
+    @fixture
+    def hook(self) -> DjangoOrmHook:
+        return DjangoOrmHook()
+
+    def test_encode_extracts_model_info(self, hook: DjangoOrmHook) -> None:
+        """Test encode extracts model class path and pk."""
+        obj = MockDjangoModel(pk=42)
+        obj.__class__.__module__ = "myapp.models"
+        obj.__class__.__name__ = "Article"
+
+        result = hook.encode(obj)
+
+        assert result["__orm:django__"] == 42  # type_key maps to pk value
+        assert result["__orm_class__"] == "myapp.models.Article"
+
+    def test_encode_with_string_pk(self, hook: DjangoOrmHook) -> None:
+        """Test encode works with string pk."""
+        obj = MockDjangoModel(pk="uuid-123")
+        obj.__class__.__module__ = "myapp.models"
+        obj.__class__.__name__ = "User"
+
+        result = hook.encode(obj)
+
+        assert result["__orm:django__"] == "uuid-123"
+
+    @mark.asyncio
+    async def test_decode_calls_fetch_model(self, hook: DjangoOrmHook) -> None:
+        """Test decode_async calls _fetch_model with correct parameters."""
+        data = {
+            "__orm:django__": 42,
+            "__orm_class__": "myapp.models.Article",
+        }
+
+        mock_model = MagicMock()
+        mock_class = MagicMock()
+
+        with (
+            patch.object(hook, "_import_model_class", return_value=mock_class),
+            patch.object(hook, "_fetch_model", new=AsyncMock(return_value=mock_model)),
+        ):
+            result = await hook.decode_async(data)
+
+        assert result == mock_model
+
+    @mark.asyncio
+    async def test_decode_with_string_pk(self, hook: DjangoOrmHook) -> None:
+        """Test decode_async works with string pk."""
+        data = {
+            "__orm:django__": "uuid-456",
+            "__orm_class__": "myapp.models.User",
+        }
+
+        mock_model = MagicMock()
+        mock_class = MagicMock()
+
+        with (
+            patch.object(hook, "_import_model_class", return_value=mock_class),
+            patch.object(hook, "_fetch_model", new=AsyncMock(return_value=mock_model)),
+        ):
+            result = await hook.decode_async(data)
+
+        assert result == mock_model
+
+
+# =============================================================================
+# Test Django Hook Import Model Class
+# =============================================================================
+
+
+@mark.unit
+class TestDjangoImportModelClass:
+    """Test _import_model_class method from BaseOrmHook."""
+
+    @fixture
+    def hook(self) -> DjangoOrmHook:
+        return DjangoOrmHook()
+
+    def test_import_model_class_regular_module(self, hook: DjangoOrmHook) -> None:
+        """Test _import_model_class imports from regular module."""
+        # Use a real class to test
+        model_class = hook._import_model_class("unittest.mock.MagicMock")
+        assert model_class is not None
+        assert model_class.__name__ == "MagicMock"
+
+    def test_import_model_class_invalid_module(self, hook: DjangoOrmHook) -> None:
+        """Test _import_model_class raises ImportError for invalid module."""
+        with raises(ImportError):
+            hook._import_model_class("nonexistent.module.Model")
+
+    def test_import_model_class_main_module(self, hook: DjangoOrmHook) -> None:
+        """Test _import_model_class handles __main__ module with file."""
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write("class Article:\n    pass\n")
+            temp_file = f.name
+
+        try:
+            model_class = hook._import_model_class("__main__.Article", temp_file)
+            assert model_class is not None
+            assert model_class.__name__ == "Article"
+        finally:
+            Path(temp_file).unlink()
+
+    def test_import_model_class_with_class_file(self, hook: DjangoOrmHook) -> None:
+        """Test _import_model_class uses class_file parameter."""
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write("class CustomModel:\n    def __init__(self):\n        self.name = 'test'\n")
+            temp_file = f.name
+
+        try:
+            model_class = hook._import_model_class("__main__.CustomModel", temp_file)
+            assert model_class is not None
+            assert model_class.__name__ == "CustomModel"
+            # Test instantiation
+            instance = model_class()
+            assert instance.name == "test"
+        finally:
+            Path(temp_file).unlink()
