@@ -790,3 +790,161 @@ class TestSqlalchemyHookEdgeCases:
         # Factory should create sessions with custom settings
         session = factory()
         assert session is not None
+
+
+@mark.unit
+class TestSqlalchemyImportModelClass:
+    """Test _import_model_class method from BaseOrmHook parent."""
+
+    @fixture
+    def hook(self) -> SqlalchemyOrmHook:
+        return SqlalchemyOrmHook()
+
+    def test_import_model_class_regular_path(self, hook: SqlalchemyOrmHook) -> None:
+        """Test _import_model_class imports from regular module path."""
+        # Import a real class to test the mechanism
+        model_class = hook._import_model_class("unittest.mock.MagicMock")
+        assert model_class is not None
+        assert model_class.__name__ == "MagicMock"
+
+    def test_import_model_class_invalid_path(self, hook: SqlalchemyOrmHook) -> None:
+        """Test _import_model_class raises ImportError for invalid path."""
+        from pytest import raises
+
+        with raises(ImportError):
+            hook._import_model_class("nonexistent.module.Model")
+
+    def test_import_model_class_main_module_with_file(self, hook: SqlalchemyOrmHook) -> None:
+        """Test _import_model_class with __main__ module and file path."""
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write("class TestModel:\n    pass\n")
+            temp_file = f.name
+
+        try:
+            model_class = hook._import_model_class("__main__.TestModel", temp_file)
+            assert model_class is not None
+            assert model_class.__name__ == "TestModel"
+        finally:
+            Path(temp_file).unlink()
+
+
+@mark.unit
+class TestSqlalchemyOrmHookEncode:
+    """Test encode method of SqlalchemyOrmHook."""
+
+    @fixture
+    def hook(self) -> SqlalchemyOrmHook:
+        return SqlalchemyOrmHook()
+
+    def test_encode_model_with_single_pk(self, hook: SqlalchemyOrmHook) -> None:
+        """Test encode extracts single primary key."""
+        obj = MagicMock()
+        obj.id = 42
+        obj.__class__.__module__ = "myapp.models"
+        obj.__class__.__name__ = "Product"
+
+        mock_mapper = MagicMock()
+        mock_pk_col = MagicMock()
+        mock_pk_col.name = "id"
+        mock_mapper.primary_key = [mock_pk_col]
+
+        with patch("sqlalchemy.inspect") as mock_inspect:
+            mock_inspect.return_value = mock_mapper
+            result = hook.encode(obj)
+
+        assert result["__orm:sqlalchemy__"] == 42  # type_key maps to pk value
+        assert result["__orm_class__"] == "myapp.models.Product"
+
+    def test_encode_model_with_composite_pk(self, hook: SqlalchemyOrmHook) -> None:
+        """Test encode extracts composite primary key."""
+        obj = MagicMock()
+        obj.user_id = 1
+        obj.session_id = "abc"
+        obj.__class__.__module__ = "myapp.models"
+        obj.__class__.__name__ = "Session"
+
+        mock_mapper = MagicMock()
+        mock_pk_col1 = MagicMock()
+        mock_pk_col1.name = "user_id"
+        mock_pk_col2 = MagicMock()
+        mock_pk_col2.name = "session_id"
+        mock_mapper.primary_key = [mock_pk_col1, mock_pk_col2]
+
+        with patch("sqlalchemy.inspect") as mock_inspect:
+            mock_inspect.return_value = mock_mapper
+            result = hook.encode(obj)
+
+        assert result["__orm:sqlalchemy__"] == (1, "abc")  # type_key maps to composite pk
+
+
+@mark.unit
+class TestSqlalchemyOrmHookDecode:
+    """Test decode method of SqlalchemyOrmHook."""
+
+    @fixture
+    def hook(self) -> SqlalchemyOrmHook:
+        return SqlalchemyOrmHook()
+
+    @mark.asyncio
+    async def test_decode_single_pk(self, hook: SqlalchemyOrmHook) -> None:
+        """Test decode_async with single primary key."""
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        data = {
+            "__orm:sqlalchemy__": 42,
+            "__orm_class__": "unittest.mock.MagicMock",
+        }
+
+        # Mock session factory
+        mock_session = AsyncMock()
+        mock_model = MagicMock()
+        mock_session.get = AsyncMock(return_value=mock_model)
+
+        mock_factory = MagicMock(spec=async_sessionmaker)
+        mock_factory.kw = {}
+        mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        # Create a real class with session factory
+        class MockModel:
+            _asynctasq_session_factory = mock_factory
+
+        # Patch import and session factory
+        with patch.object(hook, "_import_model_class", return_value=MockModel):
+            result = await hook.decode_async(data)
+
+        assert result == mock_model
+
+    @mark.asyncio
+    async def test_decode_composite_pk(self, hook: SqlalchemyOrmHook) -> None:
+        """Test decode_async with composite primary key."""
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        data = {
+            "__orm:sqlalchemy__": (1, "abc"),
+            "__orm_class__": "unittest.mock.MagicMock",
+        }
+
+        # Mock session factory
+        mock_session = AsyncMock()
+        mock_model = MagicMock()
+        mock_session.get = AsyncMock(return_value=mock_model)
+
+        mock_factory = MagicMock(spec=async_sessionmaker)
+        mock_factory.kw = {}
+        mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        # Create a real class with session factory
+        class MockModel:
+            _asynctasq_session_factory = mock_factory
+
+        # Patch import and session factory
+        with patch.object(hook, "_import_model_class", return_value=MockModel):
+            result = await hook.decode_async(data)
+
+        assert result == mock_model
+        mock_session.get.assert_called_once_with(MockModel, (1, "abc"))
