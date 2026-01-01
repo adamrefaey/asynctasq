@@ -31,15 +31,8 @@ from fastapi import FastAPI, Depends
 from asynctasq import AsyncTasQIntegration, task, Dispatcher
 from asynctasq.drivers.base_driver import BaseDriver
 
-# Configure AsyncTasQ
-from asynctasq import init, RedisConfig
-
-init({
-    'driver': 'redis',
-    'redis': RedisConfig(url='redis://localhost:6379')
-})
-
-asynctasq_integration = AsyncTasQIntegration()
+# Create AsyncTasQ integration (uses global config or defaults)
+asynctasq = AsyncTasQIntegration()
 
 # Create FastAPI app with asynctasq lifespan
 app = FastAPI(lifespan=asynctasq.lifespan)
@@ -57,11 +50,15 @@ async def send_email_route(to: str, subject: str, body: str):
     return {"task_id": task_id, "status": "queued"}
 ```
 
+**Note:** `AsyncTasQIntegration` manages its own driver instance and lifecycle. You don't need to call `init()` when using this integration pattern.
+
 **Explicit Configuration:**
 
 ```python
-from asynctasq import Config, RedisConfig
+from fastapi import FastAPI
+from asynctasq import AsyncTasQIntegration, Config, RedisConfig
 
+# Create config with specific settings
 config = Config(
     driver="redis",
     redis=RedisConfig(
@@ -69,6 +66,8 @@ config = Config(
         db=1
     )
 )
+
+# Pass config to integration
 asynctasq = AsyncTasQIntegration(config=config)
 app = FastAPI(lifespan=asynctasq.lifespan)
 ```
@@ -96,12 +95,68 @@ async def get_stats(
 **Custom Driver Instance:**
 
 ```python
+from fastapi import FastAPI
+from asynctasq import AsyncTasQIntegration
 from asynctasq.drivers.redis_driver import RedisDriver
 
-# Use pre-configured driver
+# Create and configure custom driver instance
 custom_driver = RedisDriver(url='redis://cache-server:6379', db=2)
+
+# Pass driver to integration
 asynctasq = AsyncTasQIntegration(driver=custom_driver)
 app = FastAPI(lifespan=asynctasq.lifespan)
+```
+
+**Note:** You don't need to call `connect()` on the driver manually. `AsyncTasQIntegration` handles connection during startup and disconnection during shutdown automatically.
+
+**Alternative Pattern: Using init() Without Integration**
+
+If you don't need dependency injection or managed driver lifecycle, you can use `init()` directly:
+
+```python
+from fastapi import FastAPI
+from asynctasq import init, RedisConfig, task
+
+# Initialize AsyncTasQ before creating the app
+init({
+    'driver': 'redis',
+    'redis': RedisConfig(url='redis://localhost:6379')
+})
+
+app = FastAPI()
+
+@task(queue='emails')
+async def send_email(to: str, subject: str, body: str):
+    return f"Email sent to {to}"
+
+@app.post("/send-email")
+async def send_email_route(to: str, subject: str, body: str):
+    task_id = await send_email(to=to, subject=subject, body=body).dispatch()
+    return {"task_id": task_id, "status": "queued"}
+```
+
+**Note:** When using `init()`, cleanup hooks are automatically registered when tasks are dispatched. This pattern doesn't provide dependency injection or explicit driver lifecycle management.
+
+**Configuration Priority:**
+
+`AsyncTasQIntegration` uses the following priority order:
+
+1. **Explicit driver instance** - Highest priority (passed via `driver` parameter)
+2. **Explicit config** - Medium priority (passed via `config` parameter)
+3. **Global config** - Lowest priority (set via `init()` or defaults to Redis localhost)
+
+```python
+# Priority 1: Explicit driver (highest)
+custom_driver = RedisDriver(url='redis://prod:6379')
+AsyncTasQIntegration(driver=custom_driver)
+
+# Priority 2: Explicit config
+config = Config(driver='redis', redis=RedisConfig(url='redis://prod:6379'))
+AsyncTasQIntegration(config=config)
+
+# Priority 3: Global config (lowest)
+init({'driver': 'redis'})  # Set global config first
+AsyncTasQIntegration()      # Uses global config
 ```
 
 **Important Notes:**
@@ -130,6 +185,6 @@ python -m asynctasq worker \
 
 - Automatic driver connection on startup
 - Graceful driver disconnection on shutdown
-- Zero-configuration with environment variables
+- Multiple configuration options (explicit config, driver instance, or global config)
 - Dependency injection for dispatcher and driver access
 - Works with all drivers (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS)
