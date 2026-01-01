@@ -143,8 +143,9 @@ AsyncTasQ uses a grouped configuration structure where related settings are orga
 - `process_pool`: Process pool settings (ProcessPoolConfig)
 - `repository`: Task repository settings (RepositoryConfig)
 - `sqlalchemy_engine`: SQLAlchemy engine for cleanup (top-level, optional)
+- `tortoise_orm`: Tortoise ORM configuration dictionary (top-level, optional)
 
-**Note:** Tortoise ORM configuration is passed via a separate `tortoise_config` parameter to `init()`, not via `config_overrides`.
+**Note:** While `tortoise_orm` can be set via `config_overrides`, it's more commonly passed via the separate `tortoise_config` parameter to `init()` for clarity.
 
 ---
 
@@ -363,6 +364,19 @@ Configuration group: `task_defaults` (type: `TaskDefaultsConfig`)
 
 Default settings for all tasks.
 
+**Important Distinction: Global Defaults vs Per-Task Configuration**
+
+- **TaskDefaultsConfig** (this section): Global defaults set via `init()` that apply to all tasks unless overridden
+- **TaskConfig** (per-task): Configuration set on individual task classes or via method chaining (`.timeout()`, `.visibility_timeout()`, etc.)
+
+Per-task configuration always takes precedence over global defaults. The following are **only** configurable per-task:
+- `timeout`: Task execution timeout (not a global default)
+- `visibility_timeout`: Crash recovery timeout (not a global default)
+- `correlation_id`: Distributed tracing ID (per-task only)
+- `driver`: Driver override for routing specific tasks
+
+See [Task Definitions](task-definitions.md) for complete TaskConfig documentation.
+
 | Option           | Type | Context | Description                         | Choices                | Default       |
 | ---------------- | ---: | ------- | ----------------------------------- | ---------------------- | ------------- |
 | `queue`          |  str | Both    | Default queue name for tasks        | —                      | `default`     |
@@ -417,10 +431,7 @@ AsyncProcessTask requires an event loop in each worker process. AsyncTasQ provid
 **Initializing Warm Event Loops:**
 
 ```python
-from asynctasq.tasks.infrastructure.process_pool_manager import (
-    ProcessPoolManager,
-    set_default_manager,
-)
+from asynctasq import ProcessPoolManager
 
 # Initialize the process pool with warm event loops
 async def init_worker():
@@ -432,13 +443,12 @@ async def init_worker():
     await manager.initialize()
     # Event loops are now pre-initialized in all worker processes
 
-    # Set as default manager for this process
-    set_default_manager(manager)
-
 # In your worker startup code
 import asyncio
 asyncio.run(init_worker())
 ```
+
+**Note:** The `set_default_manager()` function is available from `asynctasq.tasks.infrastructure.process_pool_manager` if you need to set a custom default manager for the current process.
 
 **Benefits of Warm Event Loops:**
 - ⚡ **Faster task execution** - No loop creation overhead per task
