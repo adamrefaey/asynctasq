@@ -1,53 +1,18 @@
 # Task Definitions
 
+This document explains how to define tasks in AsyncTasQ, covering both function-based and class-based approaches, task types, and configuration options.
+
+For complete working examples, see:
+- [Function-Based Tasks Examples](examples/function-based-tasks.md)
+- [Class-Based Tasks Examples](examples/class-based-tasks.md)
+
 ## Table of Contents
 
-- [Task Definitions](#task-definitions)
-  - [Table of Contents](#table-of-contents)
-  - [Function-Based Tasks](#function-based-tasks)
-  - [Class-Based Tasks](#class-based-tasks)
-    - [Quick Selection Guide](#quick-selection-guide)
-    - [AsyncTask - Async I/O-Bound (Default Choice)](#asynctask---async-io-bound-default-choice)
-    - [SyncTask - Sync I/O-Bound via Thread Pool](#synctask---sync-io-bound-via-thread-pool)
-    - [AsyncProcessTask - Async CPU-Bound via Process Pool](#asyncprocesstask---async-cpu-bound-via-process-pool)
-    - [SyncProcessTask - Sync CPU-Bound via Process Pool](#syncprocesstask---sync-cpu-bound-via-process-pool)
-  - [Task Configuration](#task-configuration)
-    - [Configuration Attributes](#configuration-attributes)
-    - [Pattern 1: Using `config` Dict with `TaskConfig`](#pattern-1-using-config-dict-with-taskconfig)
-    - [Pattern 2: Method Chaining (Runtime)](#pattern-2-method-chaining-runtime)
-    - [Available Chainable Methods](#available-chainable-methods)
-      - [`on_queue(queue_name: str) -> Self`](#on_queuequeue_name-str---self)
-      - [`delay(seconds: int) -> Self`](#delayseconds-int---self)
-      - [`retry_after(seconds: int) -> Self`](#retry_afterseconds-int---self)
-      - [`max_attempts(attempts: int) -> Self`](#max_attemptsattempts-int---self)
-      - [`timeout(seconds: int | None) -> Self`](#timeoutseconds-int--none---self)
-      - [`visibility_timeout(seconds: int) -> Self`](#visibility_timeoutseconds-int---self)
-    - [Combining Config Dict with Method Chaining](#combining-config-dict-with-method-chaining)
-    - [Configuration with Function-Based Tasks](#configuration-with-function-based-tasks)
-    - [Accessing Configuration](#accessing-configuration)
-  - [Choosing the Right Task Type](#choosing-the-right-task-type)
-    - [The Four Execution Modes](#the-four-execution-modes)
-    - [Comparison Table](#comparison-table)
-    - [Quick Decision Matrix](#quick-decision-matrix)
-    - [Performance Characteristics](#performance-characteristics)
-    - [When to Use Each Type](#when-to-use-each-type)
-  - [Task Configuration Options](#task-configuration-options)
-      - [Understanding Visibility Timeout (Crash Recovery)](#understanding-visibility-timeout-crash-recovery)
-  - [Configuration Approaches: Function vs Class Tasks](#configuration-approaches-function-vs-class-tasks)
-    - [Overview](#overview)
-    - [Function-Based Task Configuration](#function-based-task-configuration)
-    - [Class-Based Task Configuration](#class-based-task-configuration)
-    - [Configuration Priority Order](#configuration-priority-order)
-    - [Best Practices](#best-practices)
-    - [Common Pitfalls](#common-pitfalls)
-  - [Additional Configuration Methods](#additional-configuration-methods)
-  - [Beautiful Console Output](#beautiful-console-output)
-    - [Why Use asynctasq.print()?](#why-use-asynctasqprint)
-    - [Basic Usage](#basic-usage)
-    - [Advanced Examples](#advanced-examples)
-    - [Available Rich Markup Tags](#available-rich-markup-tags)
-    - [Console Output Features](#console-output-features)
-    - [Best Practices](#best-practices-1)
+- [Function-Based Tasks](#function-based-tasks)
+- [Class-Based Tasks](#class-based-tasks)
+- [Task Types and Execution Modes](#task-types-and-execution-modes)
+- [Task Configuration](#task-configuration)
+- [Configuration Approaches](#configuration-approaches)
 
 AsyncTasQ supports two task definition styles: **function-based** (simple, inline) and **class-based** (reusable, testable).
 
@@ -62,91 +27,46 @@ Use the `@task` decorator for simple, inline task definitions. The decorator pro
 | **AsyncProcessTask** | `async def`   | `True`            | Process pool (async) | Async CPU-intensive |
 | **SyncProcessTask**  | `def`         | `True`            | Process pool (sync)  | Sync CPU-intensive  |
 
-**Basic Function Task:**
+**Basic Syntax:**
 
 ```python
 from asynctasq import task
 
+# Async I/O task (default)
 @task
 async def send_email(to: str, subject: str, body: str):
-    # Use asynctasq.print() for beautiful Rich-formatted output
-    from asynctasq import print
+    print(f"Sending email to {to}")
+    return f"Email sent"
 
-    print(f"[cyan]Sending email to[/cyan] [yellow]{to}[/yellow]: [bold]{subject}[/bold]")
-    await asyncio.sleep(1)  # Simulate email sending
-    return f"Email sent to {to}"
-
-# Dispatch - call the function first, then call .dispatch()
-task_id = await send_email(
-    to="user@example.com",
-    subject="Welcome!",
-    body="Welcome to our platform!"
-).dispatch()
-```
-
-**With Configuration:**
-
-```python
-@task(queue='emails', max_attempts=5, retry_delay=120, timeout=30, visibility_timeout=600)
-async def send_welcome_email(user_id: int):
-    # Task automatically retries up to 5 times with 120s delay
-    # Timeout after 30 seconds, visibility timeout of 10 minutes for crash recovery
-    print(f"Sending welcome email to user {user_id}")
-```
-
-**Synchronous I/O Tasks:**
-
-For blocking I/O operations (runs in thread pool via `SyncTask`):
-
-```python
+# Sync I/O task
 @task(queue='web-scraping')
 def fetch_web_page(url: str):
-    # Synchronous function runs in thread pool
     import requests
-    response = requests.get(url)  # Blocking operation OK
-    return response.text
-```
+    return requests.get(url).text
 
-**CPU-Intensive Tasks:**
-
-For heavy CPU work, add `process=True` to run in process pool:
-
-```python
-@task(queue='data-processing', process=True, timeout=600)
+# CPU-intensive task
+@task(queue='data-processing', process=True)
 def heavy_computation(data: list[float]):
-    # Runs in ProcessPoolExecutor - bypasses GIL
     import numpy as np
     return np.fft.fft(data).tolist()
 ```
 
-**Dispatching Function Tasks:**
+**Dispatching:**
 
-Function-based tasks use a **two-step dispatch pattern**: first call the decorated function with its arguments to create a task instance, then call `.dispatch()` on that instance.
+Function tasks use a two-step dispatch pattern - call the function first, then `.dispatch()`:
 
 ```python
-# Direct dispatch - call function first, then .dispatch()
-task_id = await send_email(
-    to="user@example.com",
-    subject="Hello",
-    body="Hi!"
-).dispatch()
+# Basic dispatch
+task_id = await send_email(to="user@example.com", subject="Hello", body="Hi").dispatch()
 
-# With delay (execute after 60 seconds)
-task_id = await send_email(
-    to="user@example.com",
-    subject="Hello",
-    body="Hi!"
-).delay(60).dispatch()
+# With delay
+task_id = await send_email(...).delay(60).dispatch()
 
-# Method chaining with queue override
-task_id = await send_email(
-    to="user@example.com",
-    subject="Hello",
-    body="Hi!"
-).on_queue("high").dispatch()
+# With method chaining
+task_id = await send_email(...).on_queue("high").retry_after(120).dispatch()
 ```
 
-**Important:** The decorated function must be called first (with parentheses and arguments) to create a task instance. Then `.dispatch()` is called on that instance with NO arguments.
+For detailed examples, see [Function-Based Tasks Guide](examples/function-based-tasks.md).
 
 ---
 
@@ -154,29 +74,20 @@ task_id = await send_email(
 
 AsyncTasQ provides **4 base classes** for different execution patterns:
 
-1. **`AsyncTask`** - Async I/O-bound tasks (API calls, DB queries) - **Use this 90% of the time**
-2. **`SyncTask`** - Sync I/O-bound tasks via ThreadPoolExecutor (blocking libraries)
-3. **`AsyncProcessTask`** - Async CPU-bound tasks via ProcessPoolExecutor (async heavy computation)
-4. **`SyncProcessTask`** - Sync CPU-bound tasks via ProcessPoolExecutor (CPU-intensive work)
-
-### Quick Selection Guide
-
-| Task Type          | Use For                            | Execution Context       | Example                                     |
+| Task Type          | Use For                            | Execution Context       | Example Use Cases                           |
 | ------------------ | ---------------------------------- | ----------------------- | ------------------------------------------- |
 | `AsyncTask`        | I/O-bound async operations         | Event loop              | API calls, async DB queries, file I/O       |
 | `SyncTask`         | I/O-bound sync/blocking operations | Thread pool             | `requests` library, sync DB drivers         |
 | `AsyncProcessTask` | CPU-bound async operations         | Process pool with async | ML inference with async preprocessing       |
 | `SyncProcessTask`  | CPU-bound sync operations          | Process pool            | Data processing, encryption, video encoding |
 
-### AsyncTask - Async I/O-Bound (Default Choice)
-
-Use for async operations like API calls, database queries, file I/O:
+**Basic Syntax:**
 
 ```python
 from asynctasq import AsyncTask, TaskConfig
 
 class ProcessPayment(AsyncTask[bool]):
-    # Configuration via config dict (type-safe with TaskConfig)
+    # Configuration via config dict
     config: TaskConfig = {
         "queue": "payments",
         "max_attempts": 3,
@@ -190,376 +101,45 @@ class ProcessPayment(AsyncTask[bool]):
         self.amount = amount
 
     async def execute(self) -> bool:
-        # Async I/O-bound work
         print(f"Processing ${self.amount} for user {self.user_id}")
-        await asyncio.sleep(2)  # Async operation
-        return True
-```
-
-### SyncTask - Sync I/O-Bound via Thread Pool
-
-Use for blocking I/O operations (e.g., `requests` library, sync DB drivers):
-
-```python
-from asynctasq import SyncTask
-import requests
-
-class FetchWebPage(SyncTask[str]):
-    queue = "web-scraping"
-    max_attempts = 3
-
-    def __init__(self, url: str, **kwargs):
-        super().__init__(**kwargs)
-        self.url = url
-
-    def execute(self) -> str:
-        # Runs in thread pool - blocking OK
-        response = requests.get(self.url)
-        return response.text
-```
-
-### AsyncProcessTask - Async CPU-Bound via Process Pool
-
-Use for CPU-intensive async operations (e.g., ML inference with async preprocessing):
-
-```python
-from asynctasq import AsyncProcessTask
-
-class ProcessVideoAsync(AsyncProcessTask[dict]):
-    queue = "video-processing"
-    timeout = 3600
-
-    def __init__(self, video_path: str, **kwargs):
-        super().__init__(**kwargs)
-        self.video_path = video_path
-
-    async def execute(self) -> dict:
-        # Runs in subprocess with async support
-        # Async preprocessing
-        async with aiofiles.open(self.video_path, 'rb') as f:
-            data = await f.read()
-
-        # CPU-intensive work (bypasses GIL)
-        result = await self._process_frames(data)
-        return {"frames_processed": result}
-```
-
-### SyncProcessTask - Sync CPU-Bound via Process Pool
-
-Use for CPU-intensive synchronous operations (e.g., data processing, encryption):
-
-```python
-from asynctasq import SyncProcessTask
-import numpy as np
-
-class ProcessLargeDataset(SyncProcessTask[dict]):
-    queue = "data-processing"
-    timeout = 3600
-
-    def __init__(self, data: list[float], **kwargs):
-        super().__init__(**kwargs)
-        self.data = data
-
-    def execute(self) -> dict:
-        # Runs in subprocess - bypasses GIL
-        arr = np.array(self.data)
-        result = np.fft.fft(arr)  # CPU-intensive
-        return {"mean": float(result.mean())}
-```
-
-**With Lifecycle Hooks:**
-
-```python
-from asynctasq import AsyncTask, TaskConfig
-
-class ProcessPayment(AsyncTask[bool]):
-    # Configuration via config dict (type-safe with TaskConfig)
-    config: TaskConfig = {
-        "queue": "payments",
-        "max_attempts": 3,
-        "retry_delay": 60,
-    }
-
-    def __init__(self, user_id: int, amount: float, **kwargs):
-        super().__init__(**kwargs)
-        self.user_id = user_id
-        self.amount = amount
-
-    async def execute(self) -> bool:
-        # Main task logic
-        print(f"Processing ${self.amount} for user {self.user_id}")
-        await self._charge_card()
-        await self._send_receipt()
         return True
 
     async def failed(self, exception: Exception) -> None:
-        # Called when task fails after all retries
-        print(f"Payment failed for user {self.user_id}: {exception}")
-        await self._refund_user()
-        await self._notify_admin(exception)
+        # Optional: Called when task fails after all retries
+        print(f"Payment failed: {exception}")
 
     def should_retry(self, exception: Exception) -> bool:
-        # Custom retry logic
-        if isinstance(exception, ValueError):
-            # Don't retry validation errors
-            return False
-        if isinstance(exception, ConnectionError):
-            # Always retry network errors
-            return True
-        return True  # Default: retry
-
-    async def _charge_card(self):
-        # Private helper methods
-        pass
-
-    async def _send_receipt(self):
-        pass
-
-    async def _refund_user(self):
-        pass
-
-    async def _notify_admin(self, exception: Exception):
-        pass
+        # Optional: Custom retry logic
+        return not isinstance(exception, ValueError)
 ```
 
-**Dispatching Class Tasks:**
+**Dispatching:**
 
 ```python
-# Method 1: Immediate dispatch
+# Basic dispatch
 task_id = await ProcessPayment(user_id=123, amount=99.99).dispatch()
 
-# Method 2: With delay
-task_id = await ProcessPayment(user_id=123, amount=99.99).delay(60).dispatch()
-
-# Method 3: Method chaining
+# With method chaining
 task_id = await ProcessPayment(user_id=123, amount=99.99) \
     .on_queue("high-priority") \
-    .delay(60) \
     .retry_after(120) \
     .dispatch()
 ```
 
----
-
-## Task Configuration
-
-AsyncTasQ provides flexible task configuration through **class attributes** (for defaults) and **method chaining** (for runtime configuration). All configuration lives in `task.config`.
-
-### Configuration Attributes
-
-All tasks have access to these configuration attributes via `task.config`:
-
-| Attribute            | Type                 | Default     | Description                                                                         |
-| -------------------- | -------------------- | ----------- | ----------------------------------------------------------------------------------- |
-| `queue`              | `str`                | `"default"` | Target queue name for task execution                                                |
-| `max_attempts`       | `int`                | `3`         | Maximum execution attempts (including initial attempt)                              |
-| `retry_delay`        | `int`                | `60`        | Delay in seconds between retry attempts                                             |
-| `timeout`            | `int \| None`        | `None`      | Task execution timeout in seconds (None = no timeout)                               |
-| `visibility_timeout` | `int`                | `300`       | Crash recovery timeout - seconds task is invisible before auto-recovery (5 minutes) |
-| `driver`             | `DriverType \| None` | `None`      | Override default queue driver for this task                                         |
-| `correlation_id`     | `str \| None`        | `None`      | Correlation ID for distributed tracing                                              |
-
-### Pattern 1: Using `config` Dict with `TaskConfig`
-
-Define configuration using a class-level `config` dictionary with the `TaskConfig` TypedDict for full type safety:
-
-```python
-from asynctasq import AsyncTask, TaskConfig
-
-class SendEmail(AsyncTask[str]):
-    # Configuration via config dict (type-safe with TaskConfig)
-    config: TaskConfig = {
-        "queue": "emails",
-        "max_attempts": 5,
-        "retry_delay": 120,
-        "timeout": 30,
-    }
-
-    to: str
-    subject: str
-
-    async def execute(self) -> str:
-        # Send email logic
-        return f"Email sent to {self.to}"
-
-# Uses defaults from config dict
-task_id = await SendEmail(to="user@example.com", subject="Welcome").dispatch()
-
-# Override with method chaining
-task_id = await SendEmail(to="admin@example.com", subject="Alert") \
-    .max_attempts(10) \
-    .timeout(60) \
-    .dispatch()
-```
-
-**Benefits:**
-- ✅ Full type safety with `TaskConfig` TypedDict
-- ✅ IDE autocomplete for config keys
-- ✅ Works with method chaining
-- ✅ Clear separation between config and task parameters
-- ✅ No type checker warnings
-
-### Pattern 2: Method Chaining (Runtime)
-
-Override configuration at runtime using fluent method chaining. All methods return `Self` for chaining:
-
-```python
-class ProcessOrder(AsyncTask[dict]):
-    order_id: int
-
-    async def execute(self) -> dict:
-        return {"order_id": self.order_id, "status": "processed"}
-
-# Override configuration via method chaining
-task_id = await ProcessOrder(order_id=123) \
-    .on_queue("high-priority") \
-    .max_attempts(10) \
-    .timeout(300) \
-    .retry_after(60) \
-    .delay(30) \
-    .dispatch()
-```
-
-### Available Chainable Methods
-
-All tasks (function-based and class-based) support these chainable methods:
-
-#### `on_queue(queue_name: str) -> Self`
-
-Set the target queue for task dispatch.
-
-```python
-task_id = await my_task().on_queue("high-priority").dispatch()
-```
-
-#### `delay(seconds: int) -> Self`
-
-Delay task execution by N seconds after dispatch (scheduled execution).
-
-```python
-# Execute 1 hour from now
-task_id = await my_task().delay(3600).dispatch()
-```
-
-#### `retry_after(seconds: int) -> Self`
-
-Set delay between retry attempts (overrides `retry_delay`).
-
-```python
-# Wait 5 minutes between retries
-task_id = await my_task().retry_after(300).dispatch()
-```
-
-#### `max_attempts(attempts: int) -> Self`
-
-Set maximum number of execution attempts (including initial attempt).
-
-```python
-# Retry up to 10 times
-task_id = await my_task().max_attempts(10).dispatch()
-```
-
-#### `timeout(seconds: int | None) -> Self`
-
-Set task execution timeout in seconds (None = no timeout).
-
-```python
-# Timeout after 5 minutes
-task_id = await my_task().timeout(300).dispatch()
-
-# Disable timeout
-task_id = await my_task().timeout(None).dispatch()
-```
-
-#### `visibility_timeout(seconds: int) -> Self`
-
-Set visibility timeout for crash recovery (seconds a task is invisible before auto-recovery).
-
-```python
-# Set 10-minute visibility timeout
-task_id = await my_task().visibility_timeout(600).dispatch()
-```
-
-### Combining Config Dict with Method Chaining
-
-You can set defaults via `config` dict (with `TaskConfig` for type safety) and override them with method chaining:
-
-```python
-from asynctasq import AsyncTask, TaskConfig
-
-class SendNotification(AsyncTask[bool]):
-    # Defaults via config dict (type-safe)
-    config: TaskConfig = {
-        "queue": "notifications",
-        "max_attempts": 3,
-        "timeout": 30,
-    }
-
-    user_id: int
-    message: str
-
-    async def execute(self) -> bool:
-        # Send notification logic
-        return True
-
-# Use defaults from config
-await SendNotification(user_id=123, message="Hello").dispatch()
-
-# Override with method chaining
-await SendNotification(user_id=456, message="URGENT") \
-    .on_queue("critical") \
-    .max_attempts(10) \
-    .timeout(60) \
-    .visibility_timeout(300) \
-    .dispatch()
-```
-
-### Configuration with Function-Based Tasks
-
-Function-based tasks support the same configuration patterns:
-
-```python
-# Via decorator
-@task(queue="emails", max_attempts=5, timeout=30)
-async def send_email(to: str, subject: str):
-    # Email logic
-    pass
-
-# Via method chaining
-task_id = await send_email(to="user@example.com", subject="Hi") \
-    .max_attempts(10) \
-    .timeout(60) \
-    .retry_after(120) \
-    .dispatch()
-```
-
-### Accessing Configuration
-
-Configuration is stored in `task.config` (a `TaskConfig` TypedDict - access via dict syntax):
-
-```python
-task = SendEmail(to="user@example.com", subject="Welcome")
-print(task.config["queue"])          # "emails"
-print(task.config["max_attempts"])   # 5
-print(task.config["timeout"])        # 30
-
-# After chaining
-task = task.max_attempts(10)
-print(task.config["max_attempts"])   # 10
-```
+For detailed examples including all task types and lifecycle hooks, see [Class-Based Tasks Guide](examples/class-based-tasks.md).
 
 ---
 
-## Choosing the Right Task Type
+## Task Types and Execution Modes
 
-AsyncTasQ provides **4 task execution modes** optimized for different workloads. Choosing the right mode is critical for optimal performance:
+AsyncTasQ provides **4 task execution modes** optimized for different workloads:
 
-### The Four Execution Modes
+### The Four Modes
 
-1. **`AsyncTask`** - Event loop execution for async I/O-bound operations
-2. **`SyncTask`** - Thread pool execution for sync/blocking I/O operations
-3. **`AsyncProcessTask`** - Process pool execution for async CPU-intensive operations
-4. **`SyncProcessTask`** - Process pool execution for sync CPU-intensive operations
+1. **AsyncTask** - Event loop execution for async I/O-bound operations
+2. **SyncTask** - Thread pool execution for sync/blocking I/O operations
+3. **AsyncProcessTask** - Process pool execution for async CPU-intensive operations
+4. **SyncProcessTask** - Process pool execution for sync CPU-intensive operations
 
 ### Comparison Table
 
@@ -570,579 +150,165 @@ AsyncTasQ provides **4 task execution modes** optimized for different workloads.
 | `AsyncProcessTask` | Process pool (async) | Async CPU-intensive | CPU cores        | ML inference with async I/O, async video processing    |
 | `SyncProcessTask`  | Process pool (sync)  | Sync CPU-intensive  | CPU cores        | NumPy/Pandas processing, encryption, image processing  |
 
-### Quick Decision Matrix
-
-**Choose based on your workload characteristics:**
-
-```python
-# ✅ Use AsyncTask for async I/O-bound work (90% of use cases)
-class FetchData(AsyncTask[dict]):
-    async def execute(self) -> dict:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
-            return response.json()
-
-# ✅ Use SyncTask for blocking I/O (requests, sync DB drivers)
-class FetchWebPage(SyncTask[str]):
-    def execute(self) -> str:
-        import requests
-        response = requests.get(self.url)
-        return response.text
-
-# 🚀 Use AsyncProcessTask for async CPU-intensive work
-class ProcessVideoAsync(AsyncProcessTask[dict]):
-    async def execute(self) -> dict:
-        # Async I/O + CPU work in subprocess
-        async with aiofiles.open(self.path, 'rb') as f:
-            data = await f.read()
-        return await self._process_frames(data)
-
-# 🚀 Use SyncProcessTask for sync CPU-intensive work
-class ProcessDataset(SyncProcessTask[dict]):
-    def execute(self) -> dict:
-        import numpy as np
-        # Heavy computation bypasses GIL
-        result = np.linalg.inv(self.large_matrix)
-        return {"result": result.tolist()}
-```
-
-### Performance Characteristics
-
-| Mode                 | Concurrency      | Memory Overhead           | Best Throughput                   |
-| -------------------- | ---------------- | ------------------------- | --------------------------------- |
-| **AsyncTask**        | 1000s concurrent | Minimal (~KB per task)    | I/O-bound async workloads         |
-| **SyncTask**         | 100s concurrent  | Low (~MB per thread)      | I/O-bound sync/blocking workloads |
-| **AsyncProcessTask** | CPU cores        | High (~50MB+ per process) | CPU-intensive with async I/O      |
-| **SyncProcessTask**  | CPU cores        | High (~50MB+ per process) | CPU-intensive sync workloads      |
-
 ### When to Use Each Type
 
 **AsyncTask (Default - Use for 90% of tasks):**
-
-✅ I/O-bound async operations (API calls, async database queries)
-✅ Tasks that spend time waiting (network, disk, external services)
-✅ Async libraries available (httpx, aiohttp, asyncpg, aiofiles, etc.)
-✅ Need high concurrency (1000s of tasks)
-✅ Low CPU utilization during execution
+- I/O-bound async operations (API calls, async database queries)
+- Async libraries available (httpx, aiohttp, asyncpg, aiofiles)
+- High concurrency needed (1000s of tasks)
 
 **SyncTask (For blocking I/O):**
-
-✅ Blocking I/O libraries (`requests`, sync DB drivers like `psycopg2`)
-✅ File operations with sync libraries
-✅ Legacy sync code that can't be easily converted to async
-✅ Moderate concurrency needed (100s of tasks)
-
-❌ Don't use for async code (use `AsyncTask` instead)
-❌ Don't use for CPU-intensive work (use process tasks instead)
+- Blocking I/O libraries (`requests`, sync DB drivers like `psycopg2`)
+- Legacy sync code that can't be easily converted to async
 
 **AsyncProcessTask (For async CPU-intensive work):**
-
-✅ CPU-intensive work that also needs async I/O
-✅ ML inference with async preprocessing/postprocessing
-✅ Video processing with async file operations
-✅ Task duration > 100ms (amortizes process overhead)
-✅ All arguments and return values are serializable (msgpack-compatible)
-
-❌ Don't use for pure I/O-bound tasks (use `AsyncTask` instead)
-❌ Don't use for short tasks < 100ms (overhead not worth it)
+- CPU-intensive work that also needs async I/O
+- ML inference with async preprocessing/postprocessing
 
 **SyncProcessTask (For sync CPU-intensive work):**
-
-✅ CPU utilization > 80% (verified with profiling)
-✅ Heavy computation that bypasses GIL (NumPy, Pandas, encryption)
-✅ Task duration > 100ms (amortizes process overhead)
-✅ All arguments and return values are serializable (msgpack-compatible)
-✅ No async operations needed
-
-❌ Don't use for I/O-bound tasks (use `AsyncTask` or `SyncTask` instead)
-❌ Don't use for short tasks < 100ms (overhead not worth it)
-❌ Don't use with unserializable objects like lambdas or file handles (will fail at dispatch)
+- CPU utilization > 80% (verified with profiling)
+- Heavy computation (NumPy, Pandas, encryption)
+- Task duration > 100ms (amortizes process overhead)
 
 ---
 
-## Task Configuration Options
+## Task Configuration
 
-**Available Configuration:**
+All tasks support the following configuration options:
 
-| Option               | Type                               | Default     | Description                                      |
-| -------------------- | ---------------------------------- | ----------- | ------------------------------------------------ |
-| `queue`              | `str`                              | `"default"` | Queue name for task                              |
-| `max_attempts`       | `int`                              | `3`         | Maximum retry attempts                           |
-| `retry_delay`        | `int`                              | `60`        | Seconds to wait between retries                  |
-| `timeout`            | `int \| None`                      | `None`      | Task timeout in seconds (None = no timeout)      |
-| `visibility_timeout` | `int`                              | `300`       | Visibility timeout for crash recovery in seconds |
-| `driver`             | `DriverType \| BaseDriver \| None` | `None`      | Driver override for this task                    |
-| `correlation_id`     | `str \| None`                      | `None`      | Correlation ID for distributed tracing           |
+| Attribute            | Type                               | Default     | Description                                                                         |
+| -------------------- | ---------------------------------- | ----------- | ----------------------------------------------------------------------------------- |
+| `queue`              | `str`                              | `"default"` | Target queue name for task execution                                                |
+| `max_attempts`       | `int`                              | `3`         | Maximum execution attempts (including initial attempt)                              |
+| `retry_delay`        | `int`                              | `60`        | Delay in seconds between retry attempts                                             |
+| `timeout`            | `int \| None`                      | `None`      | Task execution timeout in seconds (None = no timeout)                               |
+| `visibility_timeout` | `int`                              | `300`       | Crash recovery timeout - seconds task is invisible before auto-recovery (5 minutes) |
+| `driver`             | `DriverType \| BaseDriver \| None` | `None`      | Override default queue driver for this task                                         |
+| `correlation_id`     | `str \| None`                      | `None`      | Correlation ID for distributed tracing                                              |
 
-#### Understanding Visibility Timeout (Crash Recovery)
-
-**What is visibility timeout?**
-
-Visibility timeout is AsyncTasQ's **automatic crash recovery mechanism**. When a worker dequeues a task, the task becomes invisible to other workers for the specified duration (configured per-task). If the worker crashes and never acknowledges the task, it automatically becomes visible again after the timeout expires.
-
-**How it works:**
-
-1. **Worker A dequeues task** → Task marked as `processing`, locked until `NOW() + task.visibility_timeout`
-2. **Task becomes invisible** → Other workers cannot see this task for the configured duration
-3. **Two possible outcomes:**
-   - ✅ **Success**: Worker completes task and calls `ack()` → Task removed/completed permanently
-   - ❌ **Crash**: Worker crashes without calling `ack()` → After timeout expires, task becomes visible again for another worker to retry
-
-**Example scenario:**
+### Class-Based Configuration
 
 ```python
-class ProcessPaymentTask(AsyncTask[str]):
+from asynctasq import AsyncTask, TaskConfig
+
+class SendEmail(AsyncTask[str]):
     config: TaskConfig = {
-        "visibility_timeout": 300,  # 5 minutes
+        "queue": "emails",
+        "max_attempts": 5,
+        "retry_delay": 120,
+        "timeout": 30,
     }
+
+    def __init__(self, to: str, subject: str, **kwargs):
+        super().__init__(**kwargs)
+        self.to = to
+        self.subject = subject
 
     async def execute(self) -> str:
-        # Payment processing logic
-        return "processed"
-
-# Timeline:
-# 11:00:00 - Worker A dequeues payment task (locked until 11:05:00 based on task's visibility_timeout)
-# 11:00:45 - Worker A crashes (server dies, OOM, network failure)
-# 11:00:46 - Task is invisible, other workers can't see it
-# 11:05:00 - Visibility timeout expires
-# 11:05:01 - Task automatically becomes visible again
-# 11:05:02 - Worker B picks up the task and processes it successfully
-# Result: No manual intervention needed, task recovered automatically!
+        return f"Email sent to {self.to}"
 ```
 
-**Choosing the right value (per-task):**
-
-- **Too short** (e.g., 30s): Tasks taking longer than timeout will be processed by multiple workers (duplicate processing)
-- **Too long** (e.g., 1 hour): Crashed tasks wait too long before retry, poor user experience
-- **Recommended**: `visibility_timeout = (expected_task_duration × 2) + buffer`
-
-**Example:**
-```python
-class QuickEmailTask(AsyncTask[str]):
-    config: TaskConfig = {
-        "timeout": 60,  # Typically takes 60 seconds
-        "visibility_timeout": 180,  # (60 × 2) + 60 = 3 minutes
-    }
-
-class LongVideoTask(AsyncTask[str]):
-    config: TaskConfig = {
-        "timeout": 600,  # 10 minutes
-        "visibility_timeout": 1500,  # (600 × 2) + 300 = 25 minutes
-    }
-```
-
-**Driver support:**
-- ✅ **PostgreSQL**: Uses `locked_until` timestamp column
-- ✅ **MySQL**: Uses `locked_until` timestamp column
-- ✅ **SQS**: Built-in visibility timeout feature
-- ❌ **Redis**: Uses consumer groups (different mechanism)
-- ❌ **RabbitMQ**: Uses acknowledgment-based recovery (different mechanism)
-
-**Important notes:**
-- This is different from `task_defaults.timeout` (execution timeout per attempt)
-- Only applies to PostgreSQL, MySQL, and SQS drivers
-- Critical for production reliability and fault tolerance
-- Prevents task loss when workers crash unexpectedly
-
----
-
-## Configuration Approaches: Function vs Class Tasks
-
-AsyncTasQ provides **two distinct configuration systems** depending on your task definition style. Understanding when and how to use each is essential for writing clean, maintainable code.
-
-### Overview
-
-| Task Style                                | Configuration Source | Example                                 |
-| ----------------------------------------- | -------------------- | --------------------------------------- |
-| **Function-based** (`@task`)              | Decorator arguments  | `@task(queue='emails', max_attempts=5)` |
-| **Class-based** (`AsyncTask`, `SyncTask`) | Class attributes     | `class MyTask: queue = 'emails'`        |
-
-### Function-Based Task Configuration
-
-**Function tasks ALWAYS use decorator arguments for configuration.** Class attributes are ignored.
+### Function-Based Configuration
 
 ```python
-# ✅ CORRECT: Use decorator arguments
-@task(queue='emails', max_attempts=5, retry_delay=120, timeout=30)
-async def send_email(to: str, subject: str, body: str):
-    print(f"Sending email to {to}: {subject}")
-    return f"Email sent to {to}"
+from asynctasq import task
 
-# ❌ WRONG: Class attributes don't apply to function tasks
-@task
-async def send_email(to: str, subject: str, body: str):
-    # These attributes are ignored!
-    queue = "emails"  # This is just a local variable
-    max_attempts = 5   # This does nothing
-    print(f"Sending email to {to}: {subject}")
-```
-
-**Runtime Configuration with Method Chaining:**
-
-```python
-# Decorator sets defaults
-@task(queue='notifications', max_attempts=3)
-async def send_notification(user_id: int, message: str):
-    pass
-
-# Override at dispatch time with method chaining
-task_id = await send_notification(user_id=123, message="Hello") \
-    .on_queue("high-priority") \  # Override queue
-    .retry_after(30) \             # Override retry_delay
-    .delay(60) \                   # Add 60s delay
-    .dispatch()
-```
-
-### Class-Based Task Configuration
-
-**Class tasks use class attributes for default configuration.**
-
-```python
-# ✅ CORRECT: Use TaskConfig dict for type safety
-from asynctasq import AsyncTask, TaskConfig
-
-class ProcessPayment(AsyncTask[bool]):
-    # Configuration via config dict (type-safe with TaskConfig)
-    config: TaskConfig = {
-        "queue": "payments",
-        "max_attempts": 3,
-        "retry_delay": 60,
-        "timeout": 30,
-    }
-
-    def __init__(self, user_id: int, amount: float, **kwargs):
-        super().__init__(**kwargs)
-        self.user_id = user_id
-        self.amount = amount
-
-    async def execute(self) -> bool:
-        print(f"Processing ${self.amount} for user {self.user_id}")
-        return True
-
-# Dispatch with defaults
-task_id = await ProcessPayment(user_id=123, amount=99.99).dispatch()
-```
-
-**Runtime Configuration with Method Chaining:**
-
-```python
-# Override class defaults at dispatch time
-task_id = await ProcessPayment(user_id=123, amount=99.99) \
-    .on_queue("high-priority") \  # Override class attribute
-    .retry_after(120) \            # Override retry_delay
-    .delay(60) \                   # Add delay
-    .dispatch()
-```
-
-**How It Works Internally:**
-
-```python
-class BaseTask:
-    @classmethod
-    def _extract_config_from_class(cls) -> dict[str, Any]:
-        """Extract TaskConfig values from class attributes."""
-        return {
-            "queue": getattr(cls, "queue", "default"),
-            "max_attempts": getattr(cls, "max_attempts", 3),
-            "retry_delay": getattr(cls, "retry_delay", 60),
-            "timeout": getattr(cls, "timeout", None),
-        }
-
-    def __init__(self, **kwargs):
-        # Read configuration from class attributes
-        config_values = self._extract_config_from_class()
-        self.config = TaskConfig(**config_values)
-        # ...
-```
-
-### Configuration Priority Order
-
-When multiple configuration sources are present, AsyncTasQ follows this priority order:
-
-**For Function Tasks:**
-1. **Method chaining** (highest priority) - `.on_queue("high")`
-2. **Decorator arguments** - `@task(queue='emails')`
-3. **Framework defaults** (lowest) - `queue='default'`
-
-**For Class Tasks:**
-1. **Method chaining** (highest priority) - `.on_queue("high")`
-2. **Class attributes** - `class MyTask: queue = 'emails'`
-3. **Framework defaults** (lowest) - `queue='default'`
-
-**Example:**
-
-```python
-# Function task priority order
-@task(queue='notifications', max_attempts=3)  # 2. Decorator defaults
-async def send_notification(user_id: int):
-    pass
-
-# Override at runtime
-task_id = await send_notification(user_id=123) \
-    .on_queue("urgent") \  # 1. Highest priority - overrides decorator
-    .dispatch()
-# Result: Uses queue="urgent", max_attempts=3
-
-# Class task priority order
-from asynctasq import AsyncTask, TaskConfig
-
-class ProcessOrder(AsyncTask[bool]):
-    # Configuration via config dict (type-safe with TaskConfig)
-    config: TaskConfig = {
-        "queue": "orders",
-        "max_attempts": 3,
-    }
-
-    def __init__(self, order_id: int, **kwargs):
-        super().__init__(**kwargs)
-        self.order_id = order_id
-
-    async def execute(self) -> bool:
-        return True
-
-# Override at runtime
-task_id = await ProcessOrder(order_id=456) \
-    .on_queue("express") \  # 1. Highest priority - overrides class attribute
-    .dispatch()
-# Result: Uses queue="express", max_attempts=3
-```
-
-### Best Practices
-
-**✅ DO:**
-
-- Use decorator arguments for function tasks: `@task(queue='emails')`
-- Use `TaskConfig` dict for class tasks: `config: TaskConfig = {"queue": "emails"}`
-- Use method chaining for runtime overrides: `.on_queue("high").delay(60)`
-- Be consistent within your codebase (pick function or class style and stick to it)
-
-**❌ DON'T:**
-
-- Mix configuration approaches (e.g., decorator + class attributes in same task)
-- Assume class attributes work with `@task` decorated functions
-- Modify `task.config` directly after instantiation (use method chaining instead)
-
-### Common Pitfalls
-
-**Pitfall 1: Expecting class attributes to work with `@task`**
-
-```python
-# ❌ WRONG: This doesn't work
-@task
-async def send_email(to: str):
-    queue = "emails"  # This is just a local variable, not configuration!
-    pass
-
-# ✅ CORRECT: Use decorator arguments
-@task(queue='emails')
-async def send_email(to: str):
-    pass
-```
-
-**Pitfall 2: Forgetting to call `super().__init__()` in class tasks**
-
-```python
-# ❌ WRONG: Missing super().__init__() call
-class ProcessPayment(AsyncTask[bool]):
-    def __init__(self, amount: float):
-        self.amount = amount  # Config not initialized!
-
-# ✅ CORRECT: Always call super().__init__()
-class ProcessPayment(AsyncTask[bool]):
-    def __init__(self, amount: float, **kwargs):
-        super().__init__(**kwargs)  # Initializes config
-        self.amount = amount
-```
-
----
-
-## Additional Configuration Methods
-
-Beyond the two primary approaches, AsyncTasQ provides convenience methods for common scenarios:
-
-```python
-# 1. Decorator configuration (function tasks)
-@task(queue='emails', max_attempts=5, retry_delay=120, timeout=30)
+@task(queue="emails", max_attempts=5, retry_delay=120, timeout=30)
 async def send_email(to: str, subject: str):
-    pass
-
-# 2. Class attributes (class tasks)
-from asynctasq import AsyncTask, TaskConfig
-
-class ProcessPayment(AsyncTask[bool]):
-    # Configuration via config dict (type-safe with TaskConfig)
-    config: TaskConfig = {
-        "queue": "payments",
-        "max_attempts": 3,
-        "retry_delay": 60,
-        "timeout": 30,
-    }
-
-# 3. Method chaining (runtime configuration for both)
-await task_instance.on_queue("high").retry_after(120).delay(60).dispatch()
-
-# 4. Function tasks - unified API
-await send_email(to="user@example.com", subject="Hello").delay(60).dispatch()
+    return f"Email sent to {to}"
 ```
 
-**Task Metadata:**
+### Method Chaining
 
-Tasks automatically track metadata:
+Both function and class-based tasks support method chaining to override configuration at dispatch time:
 
-- `_task_id`: UUID string for task identification
-- `_current_attempt`: Current retry attempt count (0-indexed)
-- `_dispatched_at`: ISO format datetime when task was first queued
+**Available Methods:**
+- `.on_queue(name)` - Override queue name
+- `.delay(seconds)` - Delay execution
+- `.retry_after(seconds)` - Override retry delay
+- `.max_attempts(n)` - Override max attempts
+- `.timeout(seconds)` - Override timeout
+- `.visibility_timeout(seconds)` - Override visibility timeout
 
-Access metadata in task methods:
+**Example:**
 
 ```python
-class MyTask(AsyncTask[None]):
-    async def execute(self) -> None:
-        print(f"Task ID: {self._task_id}")
-        print(f"Attempt: {self._current_attempt}")
-        print(f"Dispatched at: {self._dispatched_at}")
+# Class-based
+task_id = await SendEmail(to="user@example.com", subject="Hi") \
+    .on_queue("high-priority") \
+    .max_attempts(10) \
+    .dispatch()
+
+# Function-based
+task_id = await send_email(to="user@example.com", subject="Hi") \
+    .on_queue("high-priority") \
+    .max_attempts(10) \
+    .dispatch()
 ```
 
-## Beautiful Console Output
+### Understanding Visibility Timeout
 
-AsyncTasQ includes built-in [Rich](https://rich.readthedocs.io/) library integration for beautiful, colorized console output. Use `asynctasq.print()` in your tasks for gorgeous terminal displays with zero configuration.
+Visibility timeout is AsyncTasQ's automatic crash recovery mechanism. When a worker crashes before completing a task, the task automatically becomes available again after the timeout expires.
 
-### Why Use asynctasq.print()?
+**How it works:**
+1. Worker dequeues task → Task locked for `visibility_timeout` seconds
+2. Worker crashes → Task remains locked
+3. Timeout expires → Task becomes available for retry
 
-- **Rich Markup Support** – Use tags like `[bold]`, `[cyan]`, `[green]` for colored, styled output
-- **Automatic Formatting** – Dictionaries, lists, and objects are automatically pretty-printed
-- **Syntax Highlighting** – Code snippets, JSON, and data structures are highlighted automatically
-- **Better Debugging** – Clear, readable output makes development and debugging easier
-- **Zero Configuration** – Works out of the box, no setup required
+**Choosing the right value:**
+- **Too short**: Duplicate processing if task takes longer than timeout
+- **Too long**: Slow recovery from crashes
+- **Recommended**: `visibility_timeout = (expected_duration × 2) + buffer`
 
-### Basic Usage
-
+**Example:**
 ```python
-from asynctasq import print, task
-
-@task
-async def process_data(user_id: int, data: dict):
-    # Basic colored output
-    print(f"[cyan]Processing data for user[/cyan] [yellow]{user_id}[/yellow]")
-
-    # Pretty-print data structures
-    print(data)  # Automatically formatted
-
-    # Status messages with colors
-    print("[green]✅ Processing complete![/green]")
-
-    return "success"
-```
-
-### Advanced Examples
-
-**Progress Indicators:**
-
-```python
-@task
-async def long_running_task(items: list):
-    from asynctasq import print
-
-    print(f"\n[bold cyan]{'='*60}[/bold cyan]")
-    print("[bold]Processing Items[/bold]")
-    print(f"[bold cyan]{'='*60}[/bold cyan]\n")
-
-    for i, item in enumerate(items, 1):
-        print(f"[dim]Step {i}/{len(items)}[/dim] Processing: [yellow]{item}[/yellow]")
-        await asyncio.sleep(0.5)
-        print(f"[green]✅ Completed: {item}[/green]")
-
-    print("\n[bold green]🎉 All items processed![/bold green]\n")
-```
-
-**Error Reporting:**
-
-```python
-@task
-async def validate_payment(payment_id: str):
-    from asynctasq import print
-
-    try:
-        # Validation logic here
-        result = await validate(payment_id)
-
-        if result.is_valid:
-            print(f"[green]✅ Payment {payment_id[:8]} validated[/green]")
-        else:
-            print(f"[red]❌ Payment {payment_id[:8]} failed validation[/red]")
-            print(f"[dim]Reason:[/dim] [yellow]{result.error}[/yellow]")
-
-    except Exception as e:
-        print(f"[bold red]Error validating payment:[/bold red] {e}")
-        raise
-```
-
-**Data Display:**
-
-```python
-@task
-async def fetch_user_stats(user_id: int):
-    from asynctasq import print
-
-    stats = {
-        "user_id": user_id,
-        "total_orders": 42,
-        "revenue": 1234.56,
-        "last_order": datetime.now(),
-        "active": True,
-        "tags": ["premium", "verified"],
-    }
-
-    print(f"\n[bold magenta]📊 User Statistics:[/bold magenta]")
-    print(stats)  # Automatically formatted with syntax highlighting
-
-    return stats
-```
-
-### Available Rich Markup Tags
-
-Common markup tags you can use:
-
-- **Colors:** `[red]`, `[green]`, `[blue]`, `[yellow]`, `[magenta]`, `[cyan]`, `[white]`
-- **Styles:** `[bold]`, `[dim]`, `[italic]`, `[underline]`, `[strike]`
-- **Combined:** `[bold red]`, `[dim cyan]`, `[bold underline green]`
-- **Reset:** `[/]` to end all formatting, or `[/red]` to end specific tag
-
-### Console Output Features
-
-AsyncTasQ's CLI worker provides beautiful logging automatically:
-
-- 🟢 **Worker Online** – Green indicator when worker starts
-- 🚀 **Task Started** – Cyan formatting with task ID
-- ✅ **Task Completed** – Green checkmark on success
-- ❌ **Task Failed** – Red indicator on failure
-- 🔄 **Task Retrying** – Yellow retry indicator
-- 🔴 **Worker Offline** – Red indicator on shutdown
-
-Example worker output:
-
-```
-[04:12:22] INFO     Starting worker: driver=redis, queues=['default'], concurrency=2
-           INFO     uvloop not available, using default event loop policy
-           INFO     Worker worker-e6de08ad starting: queues=['default'], concurrency=2
-           INFO     🟢 Worker Online worker=worker-e6de08ad active=0 processed=0
-           INFO     🚀 Task Started task=e8ffce94 queue=default worker=worker-e6de08ad
-
-Processing data for user 123
-{
-    'id': 12345,
-    'status': 'active',
-    'metrics': {'cpu': 45.2, 'memory': 78.5}
+# Quick task
+config: TaskConfig = {
+    "timeout": 60,
+    "visibility_timeout": 180,  # (60 × 2) + 60
 }
-✅ Processing complete!
 
-[04:12:24] INFO     ✅ Task Completed task=e8ffce94 queue=default worker=worker-e6de08ad
+# Long task
+config: TaskConfig = {
+    "timeout": 600,
+    "visibility_timeout": 1500,  # (600 × 2) + 300
+}
 ```
 
-### Best Practices
+**Driver support:** PostgreSQL, MySQL, SQS (Redis and RabbitMQ use different mechanisms)
 
-1. **Import per-task:** Import `print` inside task functions to avoid import-time dependencies
-2. **Use semantic colors:** Green for success, red for errors, yellow for warnings, cyan for info
-3. **Add emojis:** Use emojis (🚀, ✅, ❌, 🔄) for quick visual scanning
-4. **Keep it clean:** Don't overuse colors/formatting – use them to highlight important information
-5. **Test visibility:** Ensure your output is readable on both light and dark terminal themes
+---
+
+## Configuration Approaches
+
+AsyncTasQ supports two configuration approaches:
+
+| Task Style        | Configuration Source | Priority (Highest to Lowest)                                  |
+| ----------------- | -------------------- | ------------------------------------------------------------- |
+| **Function-based** | Decorator arguments  | 1. Method chaining → 2. Decorator arguments → 3. Defaults     |
+| **Class-based**    | `config` dict        | 1. Method chaining → 2. Class config dict → 3. Defaults       |
+
+**Key Points:**
+
+- Function tasks: Use `@task(queue='emails', max_attempts=5)`
+- Class tasks: Use `config: TaskConfig = {"queue": "emails", "max_attempts": 5}`
+- Both support method chaining for runtime overrides
+- Always call `super().__init__(**kwargs)` in class task `__init__` methods
+
+**Common Pitfalls:**
+
+```python
+# ❌ WRONG: Local variables don't configure function tasks
+@task
+async def send_email(to: str):
+    queue = "emails"  # This is just a variable, not configuration!
+
+# ✅ CORRECT: Use decorator arguments
+@task(queue="emails")
+async def send_email(to: str):
+    pass
+```
+
+For comprehensive examples and best practices, see:
+- [Function-Based Tasks Guide](examples/function-based-tasks.md)
+- [Class-Based Tasks Guide](examples/class-based-tasks.md)
