@@ -637,10 +637,22 @@ class TestSQSDriverEdgeCases:
         # Act
         await sqs_driver.enqueue(TEST_QUEUE_NAME, task_data)
 
-        # Assert
-        dequeued_data = await sqs_driver.dequeue(TEST_QUEUE_NAME)
-        assert dequeued_data is not None
+        # Wait for large message to be available in SQS (eventual consistency)
+        await asyncio.sleep(0.5)
+
+        # Assert - retry dequeue to handle SQS eventual consistency
+        dequeued_data = None
+        for _ in range(5):  # Retry up to 5 times
+            dequeued_data = await sqs_driver.dequeue(TEST_QUEUE_NAME)
+            if dequeued_data is not None:
+                break
+            await asyncio.sleep(0.3)
+
+        assert dequeued_data is not None, "Failed to dequeue message after multiple attempts"
         dequeued_payload = json.loads(dequeued_data.decode("utf-8"))
+        assert dequeued_payload.get("task") == "large_task", (
+            f"Wrong message dequeued: {dequeued_payload}"
+        )
         assert dequeued_payload["data"] == large_data
 
     @mark.parametrize("operation", ["ack", "nack"])
