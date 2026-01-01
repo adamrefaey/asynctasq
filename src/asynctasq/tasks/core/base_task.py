@@ -309,6 +309,22 @@ class BaseTask[T](ABC):
         self.config = {**self.config, "timeout": seconds}
         return self
 
+    def visibility_timeout(self, seconds: int) -> Self:
+        """Set visibility timeout for crash recovery.
+
+        Parameters
+        ----------
+        seconds : int
+            Seconds a task is invisible before auto-recovery (crash recovery timeout)
+
+        Returns
+        -------
+        Self
+            Returns self for method chaining
+        """
+        self.config = {**self.config, "visibility_timeout": seconds}
+        return self
+
     async def dispatch(self) -> str:
         """Dispatch task to queue backend for asynchronous execution.
 

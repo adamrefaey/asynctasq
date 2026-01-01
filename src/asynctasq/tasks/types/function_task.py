@@ -85,6 +85,10 @@ class FunctionTask[T](BaseTask[T]):
             or 3,
             "retry_delay": getattr(func, "_task_retry_delay", self.config.get("retry_delay")) or 60,
             "timeout": getattr(func, "_task_timeout", self.config.get("timeout")),
+            "visibility_timeout": getattr(
+                func, "_task_visibility_timeout", self.config.get("visibility_timeout")
+            )
+            or 300,
             "driver": getattr(func, "_task_driver", self.config.get("driver")),
             "correlation_id": self.config.get("correlation_id"),
         }
@@ -287,6 +291,7 @@ def task[T](
     max_attempts: int = 3,
     retry_delay: int = 60,
     timeout: int | None = None,
+    visibility_timeout: int = 300,
     driver: str | BaseDriver | None = None,
     process: bool = False,
 ) -> Callable[[Callable[..., T]], TaskFunction[T]]:
@@ -302,6 +307,7 @@ def task[T](
     max_attempts: int = 3,
     retry_delay: int = 60,
     timeout: int | None = None,
+    visibility_timeout: int = 300,
     driver: str | BaseDriver | None = None,
     process: bool = False,
 ) -> TaskFunction[T] | Callable[[Callable[..., T]], TaskFunction[T]]:
@@ -315,6 +321,7 @@ def task[T](
         max_attempts: Max attempt count (default: 3)
         retry_delay: Retry delay in seconds (default: 60)
         timeout: Task timeout in seconds (default: None)
+        visibility_timeout: Visibility timeout for crash recovery in seconds (default: 300)
         driver: Driver override (default: None)
         process: Use process pool for CPU-bound work (default: False)
 
@@ -351,6 +358,7 @@ def task[T](
         func._task_max_attempts = max_attempts  # type: ignore[attr-defined]
         func._task_retry_delay = retry_delay  # type: ignore[attr-defined]
         func._task_timeout = timeout  # type: ignore[attr-defined]
+        func._task_visibility_timeout = visibility_timeout  # type: ignore[attr-defined]
         func._task_driver = driver  # type: ignore[attr-defined]
         func._task_process = process  # type: ignore[attr-defined]
         func._is_task = True  # type: ignore[attr-defined]

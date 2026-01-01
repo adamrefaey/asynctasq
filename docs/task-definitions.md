@@ -21,6 +21,7 @@
       - [`retry_after(seconds: int) -> Self`](#retry_afterseconds-int---self)
       - [`max_attempts(attempts: int) -> Self`](#max_attemptsattempts-int---self)
       - [`timeout(seconds: int | None) -> Self`](#timeoutseconds-int--none---self)
+      - [`visibility_timeout(seconds: int) -> Self`](#visibility_timeoutseconds-int---self)
     - [Combining Config Dict with Method Chaining](#combining-config-dict-with-method-chaining)
     - [Configuration with Function-Based Tasks](#configuration-with-function-based-tasks)
     - [Accessing Configuration](#accessing-configuration)
@@ -31,6 +32,7 @@
     - [Performance Characteristics](#performance-characteristics)
     - [When to Use Each Type](#when-to-use-each-type)
   - [Task Configuration Options](#task-configuration-options)
+      - [Understanding Visibility Timeout (Crash Recovery)](#understanding-visibility-timeout-crash-recovery)
   - [Configuration Approaches: Function vs Class Tasks](#configuration-approaches-function-vs-class-tasks)
     - [Overview](#overview)
     - [Function-Based Task Configuration](#function-based-task-configuration)
@@ -40,6 +42,12 @@
     - [Common Pitfalls](#common-pitfalls)
   - [Additional Configuration Methods](#additional-configuration-methods)
   - [Beautiful Console Output](#beautiful-console-output)
+    - [Why Use asynctasq.print()?](#why-use-asynctasqprint)
+    - [Basic Usage](#basic-usage)
+    - [Advanced Examples](#advanced-examples)
+    - [Available Rich Markup Tags](#available-rich-markup-tags)
+    - [Console Output Features](#console-output-features)
+    - [Best Practices](#best-practices-1)
 
 AsyncTasQ supports two task definition styles: **function-based** (simple, inline) and **class-based** (reusable, testable).
 
@@ -79,10 +87,10 @@ task_id = await send_email(
 **With Configuration:**
 
 ```python
-@task(queue='emails', max_attempts=5, retry_delay=120, timeout=30)
+@task(queue='emails', max_attempts=5, retry_delay=120, timeout=30, visibility_timeout=600)
 async def send_welcome_email(user_id: int):
     # Task automatically retries up to 5 times with 120s delay
-    # Timeout after 30 seconds
+    # Timeout after 30 seconds, visibility timeout of 10 minutes for crash recovery
     print(f"Sending welcome email to user {user_id}")
 ```
 
@@ -461,6 +469,15 @@ task_id = await my_task().timeout(300).dispatch()
 task_id = await my_task().timeout(None).dispatch()
 ```
 
+#### `visibility_timeout(seconds: int) -> Self`
+
+Set visibility timeout for crash recovery (seconds a task is invisible before auto-recovery).
+
+```python
+# Set 10-minute visibility timeout
+task_id = await my_task().visibility_timeout(600).dispatch()
+```
+
 ### Combining Config Dict with Method Chaining
 
 You can set defaults via `config` dict (with `TaskConfig` for type safety) and override them with method chaining:
@@ -491,6 +508,7 @@ await SendNotification(user_id=456, message="URGENT") \
     .on_queue("critical") \
     .max_attempts(10) \
     .timeout(60) \
+    .visibility_timeout(300) \
     .dispatch()
 ```
 

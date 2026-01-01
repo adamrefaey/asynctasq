@@ -383,6 +383,46 @@ class TestTaskRetryAfter:
         # Assert
         assert task_instance.config.get("timeout") is None
 
+
+@mark.unit
+class TestTaskVisibilityTimeout:
+    """Test Task.visibility_timeout() method."""
+
+    def test_visibility_timeout_sets_value(self) -> None:
+        # Arrange
+        task_instance = ConcreteTask()
+
+        # Act
+        result = task_instance.visibility_timeout(600)
+
+        # Assert
+        assert task_instance.config.get("visibility_timeout") == 600
+        assert result is task_instance  # Returns self for chaining
+
+    def test_visibility_timeout_method_chaining(self) -> None:
+        # Arrange
+        task_instance = ConcreteTask()
+
+        # Act
+        result = task_instance.visibility_timeout(300).visibility_timeout(900)
+
+        # Assert
+        assert task_instance.config.get("visibility_timeout") == 900
+        assert result is task_instance
+
+    def test_visibility_timeout_with_zero(self) -> None:
+        # Arrange
+        task_instance = ConcreteTask()
+
+        # Act
+        task_instance.visibility_timeout(0)
+
+        # Assert
+        assert task_instance.config.get("visibility_timeout") == 0
+
+
+@mark.unit
+class TestTaskDispatch:
     """Test Task.dispatch() method."""
 
     @mark.asyncio
