@@ -12,11 +12,20 @@
 - [Driver Overrides](#driver-overrides)
 - [ORM Integration](#orm-integration)
 - [Method Chaining](#method-chaining)
+- [Beautiful Console Output](#beautiful-console-output)
+- [Lifecycle Hooks](#lifecycle-hooks)
 - [Real-World Examples](#real-world-examples)
 - [Complete Working Example](#complete-working-example)
 - [Common Patterns and Best Practices](#common-patterns-and-best-practices)
+- [Queue Driver Setup](#queue-driver-setup)
+- [Running Workers](#running-workers)
 
-This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of function-based tasks in AsyncTasQ.
+**Prerequisites:**
+- AsyncTasQ installed: `uv add asynctasq` or `pip install asynctasq`
+- A queue driver configured (Redis, PostgreSQL, MySQL, SQS, or RabbitMQ)
+- Workers running to execute tasks (see [Running Workers](#running-workers))
+
+**Note:** Example snippets use the project's event loop runner helper. Ibilities** of function-based tasks in AsyncTasQ. Everything you need is documented here - no need to visit other docs.
 
 Function-based tasks allow you to convert any Python function (async or sync) into a background task by simply adding the `@task` decorator. Tasks are automatically serialized, queued, and executed by workers.
 
@@ -132,7 +141,7 @@ if __name__ == "__main__":
     run(main())
 ```
 
-**Important:** After dispatching tasks, you must run a worker process to execute them. See [Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md) for details.
+**Important:** After dispatching tasks, you must run a worker process to execute them. Workers continuously poll the queue and execute tasks. See the [Running Workers](#running-workers) section below for details.
 
 ### Simple Sync Task
 
@@ -849,12 +858,22 @@ async def main():
 
 **Important Notes:**
 
-- **Simpler than context variables** - one line on Base class vs. per-model configuration
-- **Worker-friendly** - workers automatically create sessions from factory when fetching models
+- **Simpler than context variables** - One line on Base class vs. per-model configuration
+- **Worker-friendly** - Workers automatically create sessions from factory when fetching models
 - Models are fetched fresh from the database when the task executes, ensuring data consistency
 - Only the primary key is serialized, reducing queue payload size by 90%+ for large models
 - Multiple models in the same task are fetched in parallel for efficiency
-- See [ORM Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/orm-integrations.md) for complete setup instructions and worker configuration
+- **Multiprocessing Note:** For workers using process pools (`process=True` tasks), use `NullPool` to avoid connection sharing issues (see commented code above)
+
+**Complete ORM Setup Guide:**
+
+For advanced SQLAlchemy, Django, and Tortoise ORM configuration including:
+- Session factory configuration for workers
+- Connection pool settings for multiprocessing
+- Advanced model resolution patterns
+- Error handling for missing models
+
+See the ORM Integration sections above for common patterns, or refer to `docs/orm-integrations.md` in the repository for advanced use cases.
 
 ### Django ORM Integration
 
@@ -1048,6 +1067,216 @@ async def main():
 ```
 
 **Note:** Method chaining allows you to override ANY configuration parameter at dispatch time, including those set in the decorator. This provides maximum flexibility for different execution scenarios.
+
+---
+
+## Beautiful Console Output
+
+AsyncTasQ provides a beautiful Rich-enhanced `print()` function for task output with automatic syntax highlighting, colorization, and Rich markup support.
+
+### Why Use `asynctasq.print()`?
+
+- **Automatic syntax highlighting** for code, JSON, dicts, lists
+- **Colorized output** with Rich markup (`[bold]`, `[red]`, `[cyan]`, etc.)
+- **Beautiful formatting** for complex data structures
+- **Tables, panels, and other Rich renderables**
+- **Drop-in replacement** for built-in `print()`
+
+### Basic Usage
+
+```python
+from asynctasq import task, print
+
+@task(queue='notifications')
+async def send_notification(user_id: int, message: str):
+    """Send notification with beautiful console output."""
+    print(f"[cyan]Sending notification to user[/cyan] [yellow]{user_id}[/yellow]")
+    print(f"[bold]Message:[/bold] {message}")
+
+    # Automatic JSON formatting
+    data = {"user_id": user_id, "message": message, "sent_at": "2026-01-01"}
+    print(data)  # Pretty-printed with syntax highlighting
+
+    return f"Sent to user {user_id}"
+```
+
+### Available Rich Markup Tags
+
+Common markup tags you can use in strings:
+
+| Markup                    | Effect                         | Example                                          |
+| ------------------------- | ------------------------------ | ------------------------------------------------ |
+| `[bold]text[/bold]`       | Bold text                      | `print("[bold]Important![/bold]")`               |
+| `[italic]text[/italic]`   | Italic text                    | `print("[italic]Note:[/italic] details")`        |
+| `[red]text[/red]`         | Red text                       | `print("[red]Error![/red]")`                     |
+| `[green]text[/green]`     | Green text                     | `print("[green]Success![/green]")`               |
+| `[yellow]text[/yellow]`   | Yellow text                    | `print("[yellow]Warning[/yellow]")`              |
+| `[blue]text[/blue]`       | Blue text                      | `print("[blue]Info[/blue]")`                     |
+| `[cyan]text[/cyan]`       | Cyan text                      | `print("[cyan]Processing...[/cyan]")`            |
+| `[magenta]text[/magenta]` | Magenta text                   | `print("[magenta]Debug[/magenta]")`              |
+| `[bold red]text[/]`       | Combined styles (bold + color) | `print("[bold red]Critical Error![/]")`          |
+| `[link=url]text[/link]`   | Clickable link                 | `print("[link=https://example.com]Link[/link]")` |
+
+### Rich Console Features
+
+You can also use Rich's advanced features:
+
+```python
+from asynctasq import task, print
+from asynctasq.utils.console import Table, Panel, Syntax, console
+
+@task(queue='reports')
+async def generate_report(data: list[dict]):
+    """Generate report with rich formatting."""
+
+    # Tables
+    table = Table(title="User Report")
+    table.add_column("ID", style="cyan")
+    table.add_column("Name", style="green")
+    table.add_column("Email", style="yellow")
+
+    for user in data:
+        table.add_row(str(user["id"]), user["name"], user["email"])
+
+    console.print(table)
+
+    # Panels
+    console.print(Panel(
+        "[bold green]Report Generated Successfully![/bold green]",
+        title="Status",
+        border_style="green"
+    ))
+
+    # Syntax highlighting for code
+    code = '''
+    def hello():
+        print("Hello, World!")
+    '''
+    syntax = Syntax(code, "python", theme="monokai", line_numbers=True)
+    console.print(syntax)
+
+    return "Report complete"
+```
+
+### Examples in Tasks
+
+```python
+from asynctasq import task, print
+import asyncio
+import time
+
+@task(queue='emails')
+async def send_email(to: str, subject: str, body: str):
+    """Send email with beautiful output."""
+    print("[cyan]📧 Email Service[/cyan]")
+    print(f"[bold]To:[/bold] [yellow]{to}[/yellow]")
+    print(f"[bold]Subject:[/bold] {subject}")
+    print("[green]✓ Email sent successfully[/green]")
+    return f"Sent to {to}"
+
+@task(queue='payments')
+async def process_payment(user_id: int, amount: float, currency: str):
+    """Process payment with status indicators."""
+    print(f"[cyan]💳 Processing payment for user[/cyan] [yellow]{user_id}[/yellow]")
+    print(f"[bold]Amount:[/bold] {amount} {currency}")
+
+    # Simulate payment processing
+    await asyncio.sleep(1)
+
+    # Success message
+    print("[bold green]✓ Payment processed successfully![/bold green]")
+    return {"status": "completed", "user_id": user_id, "amount": amount}
+
+@task(queue='data-processing', process=True)
+def process_large_dataset(dataset_id: int):
+    """Process dataset with progress indication."""
+    print(f"[cyan]📊 Processing dataset[/cyan] [yellow]{dataset_id}[/yellow]")
+
+    # Simulate processing steps
+    steps = ["Loading data", "Validating", "Transforming", "Saving results"]
+
+    for i, step in enumerate(steps, 1):
+        print(f"[dim]Step {i}/{len(steps)}:[/dim] {step}")
+        time.sleep(0.5)
+
+    print("[bold green]✓ Dataset processed successfully![/bold green]")
+    return {"dataset_id": dataset_id, "records": 1000}
+```
+
+**Note:** Rich output works seamlessly in both local development and production environments. In environments without TTY support (like CI/CD), Rich automatically falls back to plain text output.
+
+---
+
+## Lifecycle Hooks
+
+Tasks support lifecycle hooks for custom error handling and cleanup logic. These are optional methods you can define within your task function to customize behavior.
+
+### `should_retry(exception: Exception) -> bool`
+
+**Note:** This is a method on the task instance, not directly accessible in function-based tasks. For function-based tasks with custom retry logic, consider using class-based tasks instead or handle errors within your function.
+
+For most use cases, the automatic retry mechanism with `max_attempts` and `retry_delay` is sufficient:
+
+```python
+from asynctasq import task
+import httpx
+
+@task(queue='api', max_attempts=5, retry_delay=60)
+async def call_external_api(url: str):
+    """Call external API with automatic retries."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError as e:
+        print(f"[red]API call failed: {e}[/red]")
+        # Re-raise to trigger automatic retry mechanism
+        raise
+
+# Task will automatically retry up to 5 times with 60 second delays
+# For custom retry logic based on exception type, use class-based tasks
+```
+
+### Error Handling Best Practices
+
+```python
+from asynctasq import task, print
+import httpx
+
+@task(queue='webhooks', max_attempts=5, retry_delay=120)
+async def deliver_webhook(url: str, payload: dict):
+    """Deliver webhook with error handling."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, timeout=10.0)
+            response.raise_for_status()
+
+            print(f"[green]✓ Webhook delivered to {url}[/green]")
+            return {"status": "delivered", "status_code": response.status_code}
+
+    except httpx.HTTPStatusError as e:
+        status = e.response.status_code
+
+        # Log different error types
+        if 400 <= status < 500:
+            print(f"[yellow]Client error {status} for {url}[/yellow]")
+        elif 500 <= status < 600:
+            print(f"[red]Server error {status} for {url}, will retry[/red]")
+
+        # Re-raise to trigger retry
+        raise
+
+    except (httpx.ConnectError, httpx.TimeoutException) as e:
+        print(f"[red]Network error for {url}: {e}[/red]")
+        raise
+
+    except Exception as e:
+        print(f"[bold red]Unexpected error for {url}: {e}[/bold red]")
+        raise
+
+# Framework automatically retries on exception up to max_attempts
+```
 
 ---
 
@@ -1343,21 +1572,22 @@ if __name__ == "__main__":
 
 ## Complete Working Example
 
-Here's a complete, runnable example demonstrating multiple function-based task patterns. This example shows:
+**Complete Working Example:**
+
+Here's a complete, runnable example demonstrating multiple function-based task patterns:
 
 - Different task configurations (queue, retries, timeout)
 - Async and sync functions
 - Direct dispatch and method chaining
-- Driver overrides
+- Driver overrides (commented - requires Redis)
 - Delayed execution
-
-**Important:** This example uses the `redis` driver. For production, you can also use `postgres`, `mysql`, or `sqs`. Also, remember to run workers to process the dispatched tasks (see [Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md)).
+- Beautiful console output with Rich
 
 ```python
 import asyncio
-from asynctasq import init, task, run
+from asynctasq import init, task, run, print
 
-# Configure (use 'redis' or 'postgres' for production)
+# Configure driver (Redis, PostgreSQL, MySQL, SQS, or RabbitMQ)
 init({'driver': 'redis'})
 
 # Define tasks with different configurations
@@ -1435,7 +1665,7 @@ async def main():
     # print(f"   Task ID: {task_id}\n")
 
     print("=== All tasks dispatched! ===")
-    print("Note: Run workers to process these tasks. See running-workers.md for details.")
+    print("Note: Run workers to process these tasks. See the 'Running Workers' section above.")
 
 if __name__ == "__main__":
     run(main())
@@ -1445,60 +1675,157 @@ if __name__ == "__main__":
 
 ## Summary
 
-Function-based tasks in AsyncTasQ provide a simple, powerful way to convert any Python function into a background task.
+Function-based tasks provide the simplest way to create background tasks in AsyncTasQ. This guide covered everything you need:
 
 ### Key Features
 
 ✅ **Simple syntax** - Just add `@task` decorator to any function
-✅ **Flexible configuration** - Queue, retries, timeout, driver via decorator
+✅ **All 4 execution modes** - Async/sync × I/O-bound/CPU-bound via function type + `process` flag
+✅ **Flexible configuration** - Queue, retries, timeout, driver, visibility_timeout via decorator
 ✅ **Multiple dispatch methods** - Direct dispatch, delayed execution, method chaining
-✅ **Async and sync support** - Automatic thread pool for sync functions
-✅ **ORM integration** - Automatic serialization for SQLAlchemy, Django, Tortoise
+✅ **Complete override capability** - All decorator settings can be overridden at dispatch time
+✅ **ORM integration** - Automatic serialization for SQLAlchemy, Django, Tortoise (90%+ payload reduction)
 ✅ **Driver overrides** - Per-task driver selection (string or instance)
-✅ **Method chaining** - Fluent API for runtime configuration overrides
+✅ **Beautiful console output** - Rich-enhanced print() with colors, tables, and formatting
+✅ **Error handling** - Automatic retries with configurable attempts and delays
 ✅ **Type safety** - Full type hints and Generic support
-✅ **Payload optimization** - ORM models serialized as lightweight references
+✅ **Production-ready** - Multiple queue drivers, monitoring, graceful shutdown
 
-### Quick Start
+### Complete Checklist
 
-1. **Configure your driver:**
+To use function-based tasks, you need:
 
-    ```python
-    from asynctasq import init
-    init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs'
-    ```
+1. ✅ **Install AsyncTasQ** with desired driver:
+   ```bash
+   uv add "asynctasq[redis]"  # or postgres, mysql, sqs, rabbitmq
+   ```
 
-2. **Define a task:**
+2. ✅ **Configure driver** in your application:
+   ```python
+   from asynctasq import init
+   init({'driver': 'redis'})
+   ```
 
+3. ✅ **Define tasks** with `@task` decorator:
    ```python
    from asynctasq import task
 
-   @task(queue='emails')
+   @task(queue='emails', max_attempts=5)
    async def send_email(to: str, subject: str):
        print(f"Sending email to {to}")
    ```
 
-3. **Dispatch it:**
-
+4. ✅ **Dispatch tasks** in your application:
    ```python
    task_id = await send_email(to="user@example.com", subject="Hello").dispatch()
-   print(f"Task ID: {task_id}")
    ```
 
-4. **Run workers** to process tasks (see [Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md))
+5. ✅ **Run workers** to execute tasks:
+   ```bash
+   asynctasq worker --queue emails --concurrency 20
+   ```
 
-**Note:** Tasks will not execute until a worker process is running. The `dispatch()` call returns immediately after queuing the task.
+### Quick Start
 
-### Next Steps
+1. **Install with your preferred driver:**
+   ```bash
+   uv add "asynctasq[redis]"
+   ```
 
-- Learn about [task definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md) for class-based tasks
-- Explore [queue drivers](https://github.com/adamrefaey/asynctasq/blob/main/docs/queue-drivers.md) for production setup
-- Check [ORM integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/orm-integrations.md) for database model support
-- Review [best practices](https://github.com/adamrefaey/asynctasq/blob/main/docs/best-practices.md) for production usage
+2. **Configure in your app:**
+   ```python
+   from asynctasq import init
+   init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs', 'rabbitmq'
+   ```
 
-All examples above are ready to use - just configure your driver and start dispatching tasks!
+3. **Define a task:**
+   ```python
+   from asynctasq import task, print
 
----
+   @task(queue='emails')
+   async def send_email(to: str, subject: str):
+       print(f"[cyan]Sending email to[/cyan] [yellow]{to}[/yellow]")
+       return f"Sent: {subject}"
+   ```
+
+4. **Dispatch it:**
+   ```python
+   task_id = await send_email(to="user@example.com", subject="Hello").dispatch()
+   ```
+
+5. **Run workers:**
+   ```bash
+   asynctasq worker --queue emails
+   ```
+
+### Configuration Reference
+
+**@task Decorator Parameters:**
+
+| Parameter            | Type                        | Default     | Description                                   |
+| -------------------- | --------------------------- | ----------- | --------------------------------------------- |
+| `queue`              | `str`                       | `"default"` | Queue name for task execution                 |
+| `max_attempts`       | `int`                       | `3`         | Maximum retry attempts on failure             |
+| `retry_delay`        | `int`                       | `60`        | Seconds to wait between retry attempts        |
+| `timeout`            | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout) |
+| `visibility_timeout` | `int`                       | `300`       | Crash recovery timeout in seconds (5 minutes) |
+| `driver`             | `str \| BaseDriver \| None` | `None`      | Driver override (`None` = use global config)  |
+| `process`            | `bool`                      | `False`     | Use process pool for CPU-intensive work       |
+
+**Method Chaining:**
+
+All configuration can be overridden at dispatch time:
+
+```python
+await task_func(args) \
+    .on_queue("high-priority") \
+    .max_attempts(10) \
+    .timeout(120) \
+    .retry_after(30) \
+    .visibility_timeout(600) \
+    .delay(60) \
+    .dispatch()
+```
+
+### Execution Modes
+
+| Mode                 | Function Type | `process=` | Best For                     | Concurrency      |
+| -------------------- | ------------- | ---------- | ---------------------------- | ---------------- |
+| **AsyncTask**        | `async def`   | `False`    | Async I/O (APIs, async DB)   | 1000s concurrent |
+| **SyncTask**         | `def`         | `False`    | Sync I/O (requests, sync DB) | 100s concurrent  |
+| **AsyncProcessTask** | `async def`   | `True`     | Async CPU-intensive          | CPU cores        |
+| **SyncProcessTask**  | `def`         | `True`     | Sync CPU-intensive           | CPU cores        |
+
+### Supported Queue Drivers
+
+- **Redis** - Recommended for most use cases (fast, simple)
+- **PostgreSQL** - When you need ACID guarantees or already use PostgreSQL
+- **MySQL** - When already in your infrastructure
+- **AWS SQS** - For AWS-native applications
+- **RabbitMQ** - For complex routing or existing RabbitMQ setup
+
+### What's Next?
+
+- **Monitoring:** Track task execution with built-in monitoring
+- **Advanced ORM:** Set up session factories for automatic model resolution
+- **Class-based tasks:** Use when you need lifecycle hooks or complex logic
+- **Production deployment:** Scale workers with Docker/Kubernetes
+- **Error handling:** Implement custom retry logic with lifecycle hooks
+
+### External Resources
+
+While this guide is complete, you may want to reference:
+
+- **GitHub Repository:** [github.com/adamrefaey/asynctasq](https://github.com/adamrefaey/asynctasq)
+- **Full Documentation:** [github.com/adamrefaey/asynctasq/blob/main/docs/](https://github.com/adamrefaey/asynctasq/blob/main/docs/)
+- **Issue Tracker:** [github.com/adamrefaey/asynctasq/issues](https://github.com/adamrefaey/asynctasq/issues)
+
+This guide contains everything you need to use function-based tasks effectively!
+
+For setup information:
+- **Queue Drivers:** See [Queue Drivers Documentation](../queue-drivers.md)
+- **Running Workers:** See [Running Workers Documentation](../running-workers.md)
+- **Configuration:** See [Configuration Documentation](../configuration.md)
 
 ## Common Patterns and Best Practices
 
