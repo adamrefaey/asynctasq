@@ -34,7 +34,7 @@ import pytest_asyncio
 from asynctasq.drivers.mysql_driver import MySQLDriver
 
 # Test configuration
-MYSQL_DSN = "mysql://test:test@localhost:3306/test_db"
+MYSQL_DSN = "mysql://test:test@127.0.0.1:3306/test_db"
 TEST_QUEUE_TABLE = f"test_queue_{uuid4().hex[:8]}"
 TEST_DLQ_TABLE = f"test_dlq_{uuid4().hex[:8]}"
 
