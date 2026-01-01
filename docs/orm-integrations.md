@@ -130,34 +130,6 @@ async def main():
         await send_welcome_email(user=user).dispatch()
 ```
 
-**For Production/Multiprocessing Workers:**
-
-When using multiprocessing (multiple worker processes), SQLAlchemy's connection pooling can cause issues with `os.fork()`. Workers inherit engine/pool from parent process, leading to connection conflicts.
-
-**Solution: Use NullPool for workers** (recommended by SQLAlchemy docs):
-
-```python
-from sqlalchemy.orm import DeclarativeBase
-from asynctasq import task, create_worker_session_factory
-
-class Base(DeclarativeBase):
-    pass
-
-# ✅ EASIEST: Use helper function (handles NullPool automatically)
-WorkerSessionFactory = create_worker_session_factory(
-    'postgresql+asyncpg://user:pass@localhost/db',
-    pool_pre_ping=True,      # Verify connections are alive
-)
-
-# Configure for workers
-Base._asynctasq_session_factory = WorkerSessionFactory
-
-@task(queue='users')
-async def send_welcome_email(user: User):
-    # Each worker process safely creates its own connections
-    print(f"Sending welcome email to {user.email}")
-```
-
 **Alternative: Manual configuration** (for advanced users):
 
 ```python
@@ -351,10 +323,16 @@ pip install "asynctasq[tortoise]"
 
 **Configuration:**
 
+AsyncTasQ supports two ways to use Tortoise ORM models in tasks:
+
+**Option 1: Automatic Initialization (Recommended)**
+
+Pass Tortoise configuration to `init()` - AsyncTasQ automatically initializes Tortoise when models are accessed in workers:
+
 ```python
 from tortoise import fields
 from tortoise.models import Model
-from asynctasq import task
+from asynctasq import init, task, RedisConfig
 
 # Define your Tortoise model
 class User(Model):
@@ -362,10 +340,58 @@ class User(Model):
     email = fields.CharField(max_length=255)
     name = fields.CharField(max_length=100)
 
-# Define task with Tortoise model parameter
+# Initialize AsyncTasQ with Tortoise auto-initialization
+init(
+    config_overrides={
+        'driver': 'redis',
+        'redis': RedisConfig(url='redis://localhost:6379')
+    },
+    tortoise_config={
+        'db_url': 'postgres://user:pass@localhost/db',
+        'modules': {'models': ['app.models']}
+    }
+)
+
+# Define task - Tortoise auto-initializes when user is accessed
 @task(queue='users')
 async def send_welcome_email(user: User):
     # Tortoise model automatically serialized as reference
+    # Model auto-fetched from database when accessed in worker
+    print(f"Sending welcome email to {user.email}")
+
+# Dispatch task
+async def main():
+    from tortoise import Tortoise
+    await Tortoise.init(
+        db_url='postgres://user:pass@localhost/db',
+        modules={'models': ['app.models']}
+    )
+    user = await User.get(id=1)
+    await send_welcome_email(user=user).dispatch()
+```
+
+**Option 2: Manual Initialization**
+
+Initialize Tortoise manually in your task function:
+
+```python
+from tortoise import Tortoise, fields
+from tortoise.models import Model
+from asynctasq import task
+
+class User(Model):
+    id = fields.IntField(pk=True)
+    email = fields.CharField(max_length=255)
+    name = fields.CharField(max_length=100)
+
+@task(queue='users')
+async def send_welcome_email(user: User):
+    # Initialize Tortoise in task if needed
+    if not Tortoise._inited:
+        await Tortoise.init(
+            db_url='postgres://user:pass@localhost/db',
+            modules={'models': ['app.models']}
+        )
     print(f"Sending welcome email to {user.email}")
 
 # Dispatch task
@@ -383,6 +409,9 @@ async def main():
 - Full async operations
 - Uses `pk` property for primary key access
 - Native Tortoise async methods
+- **Automatic initialization** via `init(tortoise_config=...)` for seamless worker setup
+- **Lazy loading** - models fetched on-demand when accessed in workers
+- **Manual initialization** - initialize Tortoise in task functions if preferred
 
 ---
 
