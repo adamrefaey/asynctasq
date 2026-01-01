@@ -77,6 +77,7 @@ init({
 **Parameters:**
 - `config_overrides` (optional): Configuration overrides as a dictionary
 - `event_emitters` (optional): List of additional event emitters to register
+- `tortoise_config` (optional): Tortoise ORM configuration dictionary for automatic initialization when lazy ORM proxies are resolved in workers
 
 **Example with custom event emitters:**
 ```python
@@ -92,6 +93,23 @@ init(
         'redis': RedisConfig(url='redis://localhost:6379')
     },
     event_emitters=[custom_emitter]
+)
+```
+
+**Example with Tortoise ORM configuration:**
+```python
+from asynctasq import init, RedisConfig
+
+# Initialize with Tortoise ORM auto-initialization
+init(
+    config_overrides={
+        'driver': 'redis',
+        'redis': RedisConfig(url='redis://localhost:6379')
+    },
+    tortoise_config={
+        "db_url": "postgres://user:pass@localhost/db",
+        "modules": {"models": ["myapp.models"]}
+    }
 )
 ```
 
@@ -125,6 +143,8 @@ AsyncTasQ uses a grouped configuration structure where related settings are orga
 - `process_pool`: Process pool settings (ProcessPoolConfig)
 - `repository`: Task repository settings (RepositoryConfig)
 - `sqlalchemy_engine`: SQLAlchemy engine for cleanup (top-level, optional)
+
+**Note:** Tortoise ORM configuration is passed via a separate `tortoise_config` parameter to `init()`, not via `config_overrides`.
 
 ---
 
@@ -397,17 +417,23 @@ AsyncProcessTask requires an event loop in each worker process. AsyncTasQ provid
 **Initializing Warm Event Loops:**
 
 ```python
-from asynctasq import ProcessPoolManager
+from asynctasq.tasks.infrastructure.process_pool_manager import (
+    ProcessPoolManager,
+    set_default_manager,
+)
 
 # Initialize the process pool with warm event loops
 async def init_worker():
     """Call this during worker startup (before processing tasks)."""
-    manager = ProcessPoolManager.get_default_manager()
-    await manager.initialize(
-        pool_size=4,  # Number of worker processes
-        max_tasks_per_child=100  # Recycle after 100 tasks
+    manager = ProcessPoolManager(
+        async_max_workers=4,  # Number of worker processes for async pool
+        async_max_tasks_per_child=100  # Recycle after 100 tasks
     )
+    await manager.initialize()
     # Event loops are now pre-initialized in all worker processes
+
+    # Set as default manager for this process
+    set_default_manager(manager)
 
 # In your worker startup code
 import asyncio
