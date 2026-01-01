@@ -881,3 +881,197 @@ class TestMySQLDriverStatsAndManagement:
         driver = MySQLDriver(dsn="mysql://user:pass@localhost:3306/dbname")
         res = await driver.get_worker_stats()
         assert res == []
+
+
+@mark.unit
+class TestMySQLDriverDSNParsing:
+    """Test MySQLDriver DSN parsing methods."""
+
+    def test_parse_host_with_full_dsn(self) -> None:
+        """Test _parse_host() with full DSN."""
+        driver = MySQLDriver(dsn="mysql://user:pass@myhost:3307/dbname")
+        assert driver._parse_host() == "myhost"
+
+    def test_parse_host_without_port(self) -> None:
+        """Test _parse_host() without port in DSN."""
+        driver = MySQLDriver(dsn="mysql://user:pass@myhost/dbname")
+        assert driver._parse_host() == "myhost"
+
+    def test_parse_host_default(self) -> None:
+        """Test _parse_host() returns default when no host in DSN."""
+        driver = MySQLDriver(dsn="mysql://user:pass@")
+        assert driver._parse_host() == ""
+
+    def test_parse_host_fallback(self) -> None:
+        """Test _parse_host() fallback to localhost."""
+        driver = MySQLDriver(dsn="invalid_dsn")
+        assert driver._parse_host() == "localhost"
+
+    def test_parse_port_with_full_dsn(self) -> None:
+        """Test _parse_port() with port in DSN."""
+        driver = MySQLDriver(dsn="mysql://user:pass@myhost:3307/dbname")
+        assert driver._parse_port() == 3307
+
+    def test_parse_port_default(self) -> None:
+        """Test _parse_port() returns default when no port in DSN."""
+        driver = MySQLDriver(dsn="mysql://user:pass@myhost/dbname")
+        assert driver._parse_port() == 3306
+
+    def test_parse_port_fallback(self) -> None:
+        """Test _parse_port() fallback to 3306."""
+        driver = MySQLDriver(dsn="invalid_dsn")
+        assert driver._parse_port() == 3306
+
+    def test_parse_user_with_password(self) -> None:
+        """Test _parse_user() with password in DSN."""
+        driver = MySQLDriver(dsn="mysql://myuser:mypass@localhost/db")
+        assert driver._parse_user() == "myuser"
+
+    def test_parse_user_without_password(self) -> None:
+        """Test _parse_user() without password in DSN."""
+        driver = MySQLDriver(dsn="mysql://myuser@localhost/db")
+        assert driver._parse_user() == "myuser"
+
+    def test_parse_user_default(self) -> None:
+        """Test _parse_user() returns default when no user in DSN."""
+        driver = MySQLDriver(dsn="invalid_dsn")
+        assert driver._parse_user() == "root"
+
+    def test_parse_password_with_password(self) -> None:
+        """Test _parse_password() with password in DSN."""
+        driver = MySQLDriver(dsn="mysql://user:mypassword@localhost/db")
+        assert driver._parse_password() == "mypassword"
+
+    def test_parse_password_empty(self) -> None:
+        """Test _parse_password() returns empty when no password in DSN."""
+        driver = MySQLDriver(dsn="mysql://user@localhost/db")
+        assert driver._parse_password() == ""
+
+    def test_parse_password_default(self) -> None:
+        """Test _parse_password() returns empty by default."""
+        driver = MySQLDriver(dsn="invalid_dsn")
+        assert driver._parse_password() == ""
+
+    def test_parse_database_with_query_params(self) -> None:
+        """Test _parse_database() with query parameters in DSN."""
+        driver = MySQLDriver(dsn="mysql://user:pass@localhost/mydb?charset=utf8")
+        assert driver._parse_database() == "mydb"
+
+    def test_parse_database_without_params(self) -> None:
+        """Test _parse_database() without query parameters."""
+        driver = MySQLDriver(dsn="mysql://user:pass@localhost/mydb")
+        assert driver._parse_database() == "mydb"
+
+    def test_parse_database_default(self) -> None:
+        """Test _parse_database() returns default when no database in DSN."""
+        driver = MySQLDriver(dsn="mysql://user:pass@localhost")
+        assert driver._parse_database() == "test_db"
+
+
+@mark.unit
+class TestMySQLDriverGetQueueSize:
+    """Test MySQLDriver.get_queue_size() with various parameter combinations."""
+
+    @mark.asyncio
+    async def test_get_queue_size_ready_only(self) -> None:
+        """Test get_queue_size() returns only ready tasks."""
+        driver = MySQLDriver(dsn="mysql://user:pass@localhost:3306/dbname")
+        mock_pool = AsyncMock()
+        mock_conn = AsyncMock()
+        mock_cursor = AsyncMock()
+
+        mock_acquire_context = MagicMock()
+        mock_acquire_context.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_acquire_context.__aexit__ = AsyncMock(return_value=None)
+        mock_pool.acquire = MagicMock(return_value=mock_acquire_context)
+
+        mock_cursor_context = MagicMock()
+        mock_cursor_context.__aenter__ = AsyncMock(return_value=mock_cursor)
+        mock_cursor_context.__aexit__ = AsyncMock(return_value=None)
+        mock_conn.cursor = MagicMock(return_value=mock_cursor_context)
+
+        mock_cursor.fetchone.return_value = (10,)
+        driver.pool = mock_pool
+
+        size = await driver.get_queue_size(
+            "test_queue", include_delayed=False, include_in_flight=False
+        )
+        assert size == 10
+
+    @mark.asyncio
+    async def test_get_queue_size_with_delayed(self) -> None:
+        """Test get_queue_size() includes delayed tasks."""
+        driver = MySQLDriver(dsn="mysql://user:pass@localhost:3306/dbname")
+        mock_pool = AsyncMock()
+        mock_conn = AsyncMock()
+        mock_cursor = AsyncMock()
+
+        mock_acquire_context = MagicMock()
+        mock_acquire_context.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_acquire_context.__aexit__ = AsyncMock(return_value=None)
+        mock_pool.acquire = MagicMock(return_value=mock_acquire_context)
+
+        mock_cursor_context = MagicMock()
+        mock_cursor_context.__aenter__ = AsyncMock(return_value=mock_cursor)
+        mock_cursor_context.__aexit__ = AsyncMock(return_value=None)
+        mock_conn.cursor = MagicMock(return_value=mock_cursor_context)
+
+        mock_cursor.fetchone.return_value = (15,)
+        driver.pool = mock_pool
+
+        size = await driver.get_queue_size(
+            "test_queue", include_delayed=True, include_in_flight=False
+        )
+        assert size == 15
+
+    @mark.asyncio
+    async def test_get_queue_size_with_in_flight(self) -> None:
+        """Test get_queue_size() includes in-flight tasks."""
+        driver = MySQLDriver(dsn="mysql://user:pass@localhost:3306/dbname")
+        mock_pool = AsyncMock()
+        mock_conn = AsyncMock()
+        mock_cursor = AsyncMock()
+
+        mock_acquire_context = MagicMock()
+        mock_acquire_context.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_acquire_context.__aexit__ = AsyncMock(return_value=None)
+        mock_pool.acquire = MagicMock(return_value=mock_acquire_context)
+
+        mock_cursor_context = MagicMock()
+        mock_cursor_context.__aenter__ = AsyncMock(return_value=mock_cursor)
+        mock_cursor_context.__aexit__ = AsyncMock(return_value=None)
+        mock_conn.cursor = MagicMock(return_value=mock_cursor_context)
+
+        mock_cursor.fetchone.return_value = (12,)
+        driver.pool = mock_pool
+
+        size = await driver.get_queue_size(
+            "test_queue", include_delayed=False, include_in_flight=True
+        )
+        assert size == 12
+
+    @mark.asyncio
+    async def test_get_queue_size_with_all(self) -> None:
+        """Test get_queue_size() includes all task types."""
+        driver = MySQLDriver(dsn="mysql://user:pass@localhost:3306/dbname")
+        mock_pool = AsyncMock()
+        mock_conn = AsyncMock()
+        mock_cursor = AsyncMock()
+
+        mock_acquire_context = MagicMock()
+        mock_acquire_context.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_acquire_context.__aexit__ = AsyncMock(return_value=None)
+        mock_pool.acquire = MagicMock(return_value=mock_acquire_context)
+
+        mock_cursor_context = MagicMock()
+        mock_cursor_context.__aenter__ = AsyncMock(return_value=mock_cursor)
+        mock_cursor_context.__aexit__ = AsyncMock(return_value=None)
+        mock_conn.cursor = MagicMock(return_value=mock_cursor_context)
+
+        mock_cursor.fetchone.return_value = (20,)
+        driver.pool = mock_pool
+
+        size = await driver.get_queue_size(
+            "test_queue", include_delayed=True, include_in_flight=True
+        )
+        assert size == 20
