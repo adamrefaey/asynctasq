@@ -55,12 +55,12 @@ AsyncTasQ supports two task definition styles: **function-based** (simple, inlin
 
 Use the `@task` decorator for simple, inline task definitions. The decorator provides **all 4 execution modes** through a combination of function type and the `process` parameter:
 
-| Mode | Function Type | `process=` | Execution | Best For |
-|------|---------------|-----------|-----------|----------|
-| **AsyncTask** | `async def` | `False` (default) | Event loop | Async I/O-bound |
-| **SyncTask** | `def` | `False` (default) | Thread pool | Sync/blocking I/O |
-| **AsyncProcessTask** | `async def` | `True` | Process pool (async) | Async CPU-intensive |
-| **SyncProcessTask** | `def` | `True` | Process pool (sync) | Sync CPU-intensive |
+| Mode                 | Function Type | `process=`        | Execution            | Best For            |
+| -------------------- | ------------- | ----------------- | -------------------- | ------------------- |
+| **AsyncTask**        | `async def`   | `False` (default) | Event loop           | Async I/O-bound     |
+| **SyncTask**         | `def`         | `False` (default) | Thread pool          | Sync/blocking I/O   |
+| **AsyncProcessTask** | `async def`   | `True`            | Process pool (async) | Async CPU-intensive |
+| **SyncProcessTask**  | `def`         | `True`            | Process pool (sync)  | Sync CPU-intensive  |
 
 **Basic Function Task:**
 
@@ -161,12 +161,12 @@ AsyncTasQ provides **4 base classes** for different execution patterns:
 
 ### Quick Selection Guide
 
-| Task Type | Use For | Execution Context | Example |
-|-----------|---------|-------------------|----------|
-| `AsyncTask` | I/O-bound async operations | Event loop | API calls, async DB queries, file I/O |
-| `SyncTask` | I/O-bound sync/blocking operations | Thread pool | `requests` library, sync DB drivers |
-| `AsyncProcessTask` | CPU-bound async operations | Process pool with async | ML inference with async preprocessing |
-| `SyncProcessTask` | CPU-bound sync operations | Process pool | Data processing, encryption, video encoding |
+| Task Type          | Use For                            | Execution Context       | Example                                     |
+| ------------------ | ---------------------------------- | ----------------------- | ------------------------------------------- |
+| `AsyncTask`        | I/O-bound async operations         | Event loop              | API calls, async DB queries, file I/O       |
+| `SyncTask`         | I/O-bound sync/blocking operations | Thread pool             | `requests` library, sync DB drivers         |
+| `AsyncProcessTask` | CPU-bound async operations         | Process pool with async | ML inference with async preprocessing       |
+| `SyncProcessTask`  | CPU-bound sync operations          | Process pool            | Data processing, encryption, video encoding |
 
 ### AsyncTask - Async I/O-Bound (Default Choice)
 
@@ -349,13 +349,15 @@ AsyncTasQ provides flexible task configuration through **class attributes** (for
 
 All tasks have access to these configuration attributes via `task.config`:
 
-| Attribute | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `queue` | `str` | `"default"` | Target queue name for task execution |
-| `max_attempts` | `int` | `3` | Maximum execution attempts (including initial attempt) |
-| `retry_delay` | `int` | `60` | Delay in seconds between retry attempts |
-| `timeout` | `int \| None` | `None` | Task execution timeout in seconds (None = no timeout) |
-| `driver` | `DriverType \| None` | `None` | Override default queue driver for this task |
+| Attribute            | Type                 | Default     | Description                                                                         |
+| -------------------- | -------------------- | ----------- | ----------------------------------------------------------------------------------- |
+| `queue`              | `str`                | `"default"` | Target queue name for task execution                                                |
+| `max_attempts`       | `int`                | `3`         | Maximum execution attempts (including initial attempt)                              |
+| `retry_delay`        | `int`                | `60`        | Delay in seconds between retry attempts                                             |
+| `timeout`            | `int \| None`        | `None`      | Task execution timeout in seconds (None = no timeout)                               |
+| `visibility_timeout` | `int`                | `300`       | Crash recovery timeout - seconds task is invisible before auto-recovery (5 minutes) |
+| `driver`             | `DriverType \| None` | `None`      | Override default queue driver for this task                                         |
+| `correlation_id`     | `str \| None`        | `None`      | Correlation ID for distributed tracing                                              |
 
 ### Pattern 1: Using `config` Dict with `TaskConfig`
 
@@ -533,17 +535,17 @@ task_id = await send_email(to="user@example.com", subject="Hi") \
 
 ### Accessing Configuration
 
-Configuration is stored in `task.config` (a `TaskConfig` object):
+Configuration is stored in `task.config` (a `TaskConfig` TypedDict - access via dict syntax):
 
 ```python
 task = SendEmail(to="user@example.com", subject="Welcome")
-print(task.config.queue)          # "emails"
-print(task.config.max_attempts)   # 5
-print(task.config.timeout)        # 30
+print(task.config["queue"])          # "emails"
+print(task.config["max_attempts"])   # 5
+print(task.config["timeout"])        # 30
 
 # After chaining
 task = task.max_attempts(10)
-print(task.config.max_attempts)   # 10
+print(task.config["max_attempts"])   # 10
 ```
 
 ---
@@ -561,12 +563,12 @@ AsyncTasQ provides **4 task execution modes** optimized for different workloads.
 
 ### Comparison Table
 
-| Task Type | Execution Context | Best For | Concurrency | Example Use Cases |
-|-----------|-------------------|----------|-------------|-------------------|
-| `AsyncTask` | Event loop (async) | Async I/O-bound | 1000s concurrent | API calls, async DB queries, WebSocket, async file I/O |
-| `SyncTask` | Thread pool | Sync/blocking I/O | 100s concurrent | `requests` library, sync DB drivers, file operations |
-| `AsyncProcessTask` | Process pool (async) | Async CPU-intensive | CPU cores | ML inference with async I/O, async video processing |
-| `SyncProcessTask` | Process pool (sync) | Sync CPU-intensive | CPU cores | NumPy/Pandas processing, encryption, image processing |
+| Task Type          | Execution Context    | Best For            | Concurrency      | Example Use Cases                                      |
+| ------------------ | -------------------- | ------------------- | ---------------- | ------------------------------------------------------ |
+| `AsyncTask`        | Event loop (async)   | Async I/O-bound     | 1000s concurrent | API calls, async DB queries, WebSocket, async file I/O |
+| `SyncTask`         | Thread pool          | Sync/blocking I/O   | 100s concurrent  | `requests` library, sync DB drivers, file operations   |
+| `AsyncProcessTask` | Process pool (async) | Async CPU-intensive | CPU cores        | ML inference with async I/O, async video processing    |
+| `SyncProcessTask`  | Process pool (sync)  | Sync CPU-intensive  | CPU cores        | NumPy/Pandas processing, encryption, image processing  |
 
 ### Quick Decision Matrix
 
@@ -606,12 +608,12 @@ class ProcessDataset(SyncProcessTask[dict]):
 
 ### Performance Characteristics
 
-| Mode | Concurrency | Memory Overhead | Best Throughput |
-|------|------------|-----------------|------------------|
-| **AsyncTask** | 1000s concurrent | Minimal (~KB per task) | I/O-bound async workloads |
-| **SyncTask** | 100s concurrent | Low (~MB per thread) | I/O-bound sync/blocking workloads |
-| **AsyncProcessTask** | CPU cores | High (~50MB+ per process) | CPU-intensive with async I/O |
-| **SyncProcessTask** | CPU cores | High (~50MB+ per process) | CPU-intensive sync workloads |
+| Mode                 | Concurrency      | Memory Overhead           | Best Throughput                   |
+| -------------------- | ---------------- | ------------------------- | --------------------------------- |
+| **AsyncTask**        | 1000s concurrent | Minimal (~KB per task)    | I/O-bound async workloads         |
+| **SyncTask**         | 100s concurrent  | Low (~MB per thread)      | I/O-bound sync/blocking workloads |
+| **AsyncProcessTask** | CPU cores        | High (~50MB+ per process) | CPU-intensive with async I/O      |
+| **SyncProcessTask**  | CPU cores        | High (~50MB+ per process) | CPU-intensive sync workloads      |
 
 ### When to Use Each Type
 
@@ -662,15 +664,15 @@ class ProcessDataset(SyncProcessTask[dict]):
 
 **Available Configuration:**
 
-| Option             | Type                     | Default     | Description                                 |
-| ------------------ | ------------------------ | ----------- | ------------------------------------------- |
-| `queue`            | `str`                    | `"default"` | Queue name for task                         |
-| `max_attempts`     | `int`                    | `3`         | Maximum retry attempts                      |
-| `retry_delay`      | `int`                    | `60`        | Seconds to wait between retries             |
-| `timeout`          | `int \| None`            | `None`      | Task timeout in seconds (None = no timeout) |
-| `visibility_timeout` | `int`                 | `300`       | Visibility timeout for crash recovery in seconds |
-| `driver`           | `DriverType \| BaseDriver \| None` | `None` | Driver override for this task               |
-| `correlation_id`   | `str \| None`         | `None`      | Correlation ID for distributed tracing      |
+| Option               | Type                               | Default     | Description                                      |
+| -------------------- | ---------------------------------- | ----------- | ------------------------------------------------ |
+| `queue`              | `str`                              | `"default"` | Queue name for task                              |
+| `max_attempts`       | `int`                              | `3`         | Maximum retry attempts                           |
+| `retry_delay`        | `int`                              | `60`        | Seconds to wait between retries                  |
+| `timeout`            | `int \| None`                      | `None`      | Task timeout in seconds (None = no timeout)      |
+| `visibility_timeout` | `int`                              | `300`       | Visibility timeout for crash recovery in seconds |
+| `driver`             | `DriverType \| BaseDriver \| None` | `None`      | Driver override for this task                    |
+| `correlation_id`     | `str \| None`                      | `None`      | Correlation ID for distributed tracing           |
 
 #### Understanding Visibility Timeout (Crash Recovery)
 
@@ -750,10 +752,10 @@ AsyncTasQ provides **two distinct configuration systems** depending on your task
 
 ### Overview
 
-| Task Style | Configuration Source | Example |
-|-----------|---------------------|---------|
-| **Function-based** (`@task`) | Decorator arguments | `@task(queue='emails', max_attempts=5)` |
-| **Class-based** (`AsyncTask`, `SyncTask`) | Class attributes | `class MyTask: queue = 'emails'` |
+| Task Style                                | Configuration Source | Example                                 |
+| ----------------------------------------- | -------------------- | --------------------------------------- |
+| **Function-based** (`@task`)              | Decorator arguments  | `@task(queue='emails', max_attempts=5)` |
+| **Class-based** (`AsyncTask`, `SyncTask`) | Class attributes     | `class MyTask: queue = 'emails'`        |
 
 ### Function-Based Task Configuration
 
