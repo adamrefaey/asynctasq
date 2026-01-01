@@ -46,7 +46,7 @@ fastapi = ["fastapi>=0.115.0"]
 monitor = ["redis[hiredis]>=7.1.0"]                       # Required for real-time monitoring UI
 
 all = [
-    "asynctasq[uvloop,redis,sqs,postgres,mysql,rabbitmq,sqlalchemy,django,tortoise,fastapi,monitor]",
+    "asynctasq[redis,sqs,postgres,mysql,rabbitmq,sqlalchemy,django,tortoise,fastapi,monitor]",
 ]
 
 [project.urls]
