@@ -314,14 +314,15 @@ All configuration options can be set as class attributes. These settings apply t
 
 **Available Options:**
 
-| Option           | Type                        | Default     | Description                                                      |
-| ---------------- | --------------------------- | ----------- | ---------------------------------------------------------------- |
-| `queue`          | `str`                       | `"default"` | Queue name for task execution                                    |
-| `max_attempts`   | `int`                       | `3`         | Maximum retry attempts on failure                                |
-| `retry_delay`    | `int`                       | `60`        | Seconds to wait between retry attempts                           |
-| `timeout`        | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                    |
-| `driver`         | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config) |
-| `correlation_id` | `str \| None`               | `None`      | Correlation ID for distributed tracing                           |
+| Option               | Type                        | Default     | Description                                                                         |
+| -------------------- | --------------------------- | ----------- | ----------------------------------------------------------------------------------- |
+| `queue`              | `str`                       | `"default"` | Queue name for task execution                                                       |
+| `max_attempts`       | `int`                       | `3`         | Maximum retry attempts on failure                                                   |
+| `retry_delay`        | `int`                       | `60`        | Seconds to wait between retry attempts                                              |
+| `timeout`            | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                                       |
+| `visibility_timeout` | `int`                       | `300`       | Crash recovery timeout - seconds task is invisible before auto-recovery (5 minutes) |
+| `driver`             | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config)                    |
+| `correlation_id`     | `str \| None`               | `None`      | Correlation ID for distributed tracing                                              |
 
 ### Queue Configuration
 
@@ -1571,6 +1572,9 @@ Method chaining allows you to override task configuration at dispatch time. This
 - `.on_queue(queue_name)`: Override the queue name
 - `.delay(seconds)`: Add execution delay (in seconds, must be > 0)
 - `.retry_after(seconds)`: Override retry delay (in seconds)
+- `.max_attempts(attempts)`: Override maximum retry attempts (including initial attempt)
+- `.timeout(seconds)`: Override task execution timeout (in seconds, or `None` for no timeout)
+- `.visibility_timeout(seconds)`: Override crash recovery timeout (in seconds)
 - `.dispatch()`: Final method that actually dispatches the task
 
 **Note:** Method chaining methods return `self` for fluent API usage. The order of chaining doesn't matter, but `.dispatch()` must be called last.
@@ -1663,12 +1667,11 @@ async def main():
         .retry_after(120) \
         .dispatch()
     # Will retry with 120 second delays instead of default 60
-    # Note: max_attempts (3) is still from the class attribute
 ```
 
-**Important:** Method chaining can only override `queue`, `delay`, and `retry_delay`. The `max_attempts` and `timeout` values are set at class definition time and cannot be overridden via chaining. If you need different `max_attempts` or `timeout` values, create separate task classes.
+### Complex Chaining - Override All Parameters
 
-### Complex Chaining
+You can override **all** task configuration parameters at dispatch time using method chaining:
 
 ```python
 from asynctasq import AsyncTask, TaskConfig
@@ -1676,6 +1679,10 @@ from asynctasq import AsyncTask, TaskConfig
 class ComplexTask(AsyncTask[None]):
     config: TaskConfig = {
         "queue": "default",
+        "max_attempts": 3,
+        "retry_delay": 60,
+        "timeout": 30,
+        "visibility_timeout": 300,
     }
 
     def __init__(self, data: dict, **kwargs):
@@ -1685,15 +1692,31 @@ class ComplexTask(AsyncTask[None]):
     async def execute(self) -> None:
         print(f"Processing: {self.data}")
 
-# Chain multiple configuration methods
+# Override ALL parameters via chaining
 async def main():
     task_id = await ComplexTask(data={"key": "value"}) \
         .on_queue("critical") \
+        .max_attempts(10) \
+        .timeout(120) \
         .retry_after(180) \
+        .visibility_timeout(600) \
         .delay(30) \
         .dispatch()
-    # Queued on 'critical' queue, 30s delay, 180s retry delay
+    # All parameters overridden:
+    # - Queue: 'critical' (was 'default')
+    # - Max attempts: 10 (was 3)
+    # - Timeout: 120s (was 30s)
+    # - Retry delay: 180s (was 60s)
+    # - Visibility timeout: 600s (was 300s)
+    # - Execution delay: 30s
 ```
+
+**Important Notes:**
+
+- **All parameters overridable**: `queue`, `max_attempts`, `timeout`, `retry_delay`, `visibility_timeout`, and `delay` can all be overridden via chaining
+- **Method order doesn't matter**: Chain methods in any order (except `.dispatch()` must be last)
+- **Type safety**: All chain methods return `Self` for fluent API usage
+- **Runtime flexibility**: Override configuration without creating new task classes
 
 ---
 
