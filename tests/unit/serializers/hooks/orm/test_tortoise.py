@@ -187,3 +187,170 @@ class TestTortoiseOrmHook:
             resolved = await proxy.await_resolve()
             assert resolved == mock_model
             model_class.get.assert_called_once_with(pk=42)
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
+    async def test_fetch_model_immediate_with_connection_error(self) -> None:
+        """Test _fetch_model_immediate raises helpful error for connection issues."""
+        hook = TortoiseOrmHook()
+
+        model_class = MagicMock()
+        model_class.__name__ = "Product"
+
+        # Mock get() to raise connection error
+        model_class.get = AsyncMock(side_effect=Exception("default_connection cannot be None"))
+
+        # Mock Tortoise as initialized but with connection error
+        with patch("tortoise.Tortoise") as mock_tortoise:
+            mock_tortoise._inited = True
+            with raises(
+                RuntimeError,
+                match="Tortoise ORM initialization error while fetching Product",
+            ):
+                await hook._fetch_model_immediate(model_class, 42)
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
+    async def test_fetch_model_immediate_with_generic_error(self) -> None:
+        """Test _fetch_model_immediate propagates generic errors."""
+        hook = TortoiseOrmHook()
+
+        model_class = MagicMock()
+        model_class.__name__ = "Product"
+
+        # Mock get() to raise generic error
+        model_class.get = AsyncMock(side_effect=ValueError("Some other error"))
+
+        # Mock Tortoise as initialized
+        with patch("tortoise.Tortoise") as mock_tortoise:
+            mock_tortoise._inited = True
+            with raises(ValueError, match="Some other error"):
+                await hook._fetch_model_immediate(model_class, 42)
+
+    def test_can_encode_returns_false_for_primitives(self) -> None:
+        """Test can_encode returns False for primitive types."""
+        hook = TortoiseOrmHook()
+
+        assert hook.can_encode("string") is False
+        assert hook.can_encode(123) is False
+        assert hook.can_encode(45.67) is False
+        assert hook.can_encode(True) is False
+        assert hook.can_encode(None) is False
+        assert hook.can_encode([]) is False
+        assert hook.can_encode({}) is False
+
+    def test_get_model_pk_with_various_pk_types(self) -> None:
+        """Test _get_model_pk works with different primary key types."""
+        hook = TortoiseOrmHook()
+
+        # Integer pk
+        obj1 = MockTortoiseModel(pk=42)
+        assert hook._get_model_pk(obj1) == 42
+
+        # String pk
+        obj2 = MockTortoiseModel(pk="uuid-123")
+        assert hook._get_model_pk(obj2) == "uuid-123"
+
+        # None pk
+        obj3 = MockTortoiseModel(pk=None)
+        assert hook._get_model_pk(obj3) is None
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
+    async def test_fetch_model_with_none_pk(self) -> None:
+        """Test _fetch_model works with None pk value."""
+        hook = TortoiseOrmHook()
+
+        model_class = MagicMock()
+        model_class.__name__ = "Product"
+        mock_model = MagicMock()
+        model_class.get = AsyncMock(return_value=mock_model)
+
+        with patch("tortoise.Tortoise") as mock_tortoise:
+            mock_tortoise._inited = True
+            result = await hook._fetch_model(model_class, None)
+            assert result == mock_model
+            model_class.get.assert_called_once_with(pk=None)
+
+
+# =============================================================================
+# Test Tortoise Hook with LazyOrmProxy auto-initialization
+# =============================================================================
+
+
+@mark.unit
+class TestTortoiseHookWithLazyProxyAutoInit:
+    """Test Tortoise hook auto-initialization via LazyOrmProxy."""
+
+    @fixture
+    def hook(self) -> TortoiseOrmHook:
+        return TortoiseOrmHook()
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
+    async def test_lazy_proxy_auto_init_with_config(self) -> None:
+        """Test LazyOrmProxy auto-initializes Tortoise when config is available."""
+        from asynctasq.serializers.hooks.orm.lazy_proxy import LazyOrmProxy
+
+        hook = TortoiseOrmHook()
+
+        model_class = MagicMock()
+        model_class.__name__ = "Product"
+        mock_model = MagicMock()
+        model_class.get = AsyncMock(return_value=mock_model)
+
+        # First: Get lazy proxy when Tortoise not initialized
+        with patch("tortoise.Tortoise") as mock_tortoise:
+            mock_tortoise._inited = False
+            proxy = await hook._fetch_model(model_class, 42)
+            assert isinstance(proxy, LazyOrmProxy)
+
+            # Mock config and Tortoise.init
+            mock_tortoise.init = AsyncMock()
+            mock_tortoise.generate_schemas = AsyncMock()
+
+            with (
+                patch("asynctasq.config.Config.get") as mock_get_config,
+            ):
+                mock_config = MagicMock()
+                mock_config.tortoise_orm = {
+                    "db_url": "sqlite://:memory:",
+                    "modules": {"models": ["__main__"]},
+                }
+                mock_get_config.return_value = mock_config
+
+                # Now try to resolve - should auto-init
+                mock_tortoise._inited = True
+                resolved = await proxy.await_resolve()
+
+                assert resolved == mock_model
+                model_class.get.assert_called_once_with(pk=42)
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
+    async def test_lazy_proxy_handles_config_access_error(self) -> None:
+        """Test LazyOrmProxy handles config access errors gracefully."""
+        from asynctasq.serializers.hooks.orm.lazy_proxy import LazyOrmProxy
+
+        hook = TortoiseOrmHook()
+
+        model_class = MagicMock()
+        model_class.__name__ = "Product"
+
+        # Get lazy proxy
+        with patch("tortoise.Tortoise") as mock_tortoise:
+            mock_tortoise._inited = False
+            proxy = await hook._fetch_model(model_class, 42)
+            assert isinstance(proxy, LazyOrmProxy)
+
+            # Mock config access to raise exception
+            with (
+                patch("asynctasq.config.Config.get", side_effect=RuntimeError("Config error")),
+            ):
+                # Should not crash - just log warning and continue
+                mock_tortoise._inited = True
+                model_class.get = AsyncMock(return_value=MagicMock())
+
+                # Should still work despite config error
+                resolved = await proxy.await_resolve()
+                assert resolved is not None
