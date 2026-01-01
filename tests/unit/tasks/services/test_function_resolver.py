@@ -1,10 +1,11 @@
 """Unit tests for asynctasq.tasks.services.function_resolver module."""
 
+import gc
 import os
 from pathlib import Path
 import sys
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -21,6 +22,8 @@ class TestFunctionResolver:
     def teardown_method(self):
         """Clean up after each test."""
         FunctionResolver.clear_cache()
+        # Force garbage collection to prevent semaphore leaks from mock objects
+        gc.collect()
 
     def test_get_module_regular_module(self):
         """Test get_module with regular module."""
@@ -324,7 +327,8 @@ class TestFunctionResolver:
             ):
                 with patch("importlib.util.spec_from_file_location", return_value=mock_spec):
                     with patch("importlib.util.module_from_spec") as mock_module_from_spec:
-                        mock_module = MagicMock()
+                        # Use Mock instead of MagicMock to avoid semaphore leaks
+                        mock_module = Mock()
                         mock_module_from_spec.return_value = mock_module
                         with pytest.raises(ImportError, match="has missing dependencies"):
                             FunctionResolver.get_module("test_module", module_file=temp_file)
@@ -349,7 +353,8 @@ class TestFunctionResolver:
             ):
                 with patch("importlib.util.spec_from_file_location", return_value=mock_spec):
                     with patch("importlib.util.module_from_spec") as mock_module_from_spec:
-                        mock_module = MagicMock()
+                        # Use Mock instead of MagicMock to avoid semaphore leaks
+                        mock_module = Mock()
                         mock_module_from_spec.return_value = mock_module
                         with pytest.raises(ValueError, match="some error"):
                             FunctionResolver.get_module("test_module", module_file=temp_file)
