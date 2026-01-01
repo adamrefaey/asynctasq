@@ -550,3 +550,178 @@ class TestPostgresDriverEnqueueDequeue:
 
         # Should have inserted into dead_letter and deleted from queue
         assert mock_conn.execute.call_count == 2
+
+
+@mark.unit
+class TestPostgresDriverGetQueueSize:
+    """Test PostgresDriver.get_queue_size() with various parameter combinations."""
+
+    @mark.asyncio
+    async def test_get_queue_size_ready_only(self) -> None:
+        """Test get_queue_size() returns only ready tasks."""
+        driver = PostgresDriver(dsn="postgresql://user:pass@localhost/db")
+        mock_pool = AsyncMock()
+        driver.pool = mock_pool
+
+        mock_pool.fetchrow.return_value = {"count": 10}
+
+        size = await driver.get_queue_size(
+            "test_queue", include_delayed=False, include_in_flight=False
+        )
+        assert size == 10
+
+    @mark.asyncio
+    async def test_get_queue_size_with_delayed(self) -> None:
+        """Test get_queue_size() includes delayed tasks."""
+        driver = PostgresDriver(dsn="postgresql://user:pass@localhost/db")
+        mock_pool = AsyncMock()
+        driver.pool = mock_pool
+
+        mock_pool.fetchrow.return_value = {"count": 15}
+
+        size = await driver.get_queue_size(
+            "test_queue", include_delayed=True, include_in_flight=False
+        )
+        assert size == 15
+
+    @mark.asyncio
+    async def test_get_queue_size_with_in_flight(self) -> None:
+        """Test get_queue_size() includes in-flight tasks."""
+        driver = PostgresDriver(dsn="postgresql://user:pass@localhost/db")
+        mock_pool = AsyncMock()
+        driver.pool = mock_pool
+
+        mock_pool.fetchrow.return_value = {"count": 12}
+
+        size = await driver.get_queue_size(
+            "test_queue", include_delayed=False, include_in_flight=True
+        )
+        assert size == 12
+
+    @mark.asyncio
+    async def test_get_queue_size_with_all(self) -> None:
+        """Test get_queue_size() includes all task types."""
+        driver = PostgresDriver(dsn="postgresql://user:pass@localhost/db")
+        mock_pool = AsyncMock()
+        driver.pool = mock_pool
+
+        mock_pool.fetchrow.return_value = {"count": 20}
+
+        size = await driver.get_queue_size(
+            "test_queue", include_delayed=True, include_in_flight=True
+        )
+        assert size == 20
+
+
+@mark.unit
+class TestPostgresDriverAckWithKeepCompleted:
+    """Test PostgresDriver.ack() with keep_completed_tasks flag."""
+
+    @mark.asyncio
+    async def test_ack_updates_status_when_keep_completed_true(self) -> None:
+        """Test ack() updates status to completed when keep_completed_tasks is True."""
+        driver = PostgresDriver(
+            dsn="postgresql://user:pass@localhost/db", keep_completed_tasks=True
+        )
+        mock_pool = AsyncMock()
+        driver.pool = mock_pool
+        driver._receipt_handles = {b"receipt": 1}
+
+        await driver.ack("test_queue", b"receipt")
+
+        # Should have called execute to update status
+        mock_pool.execute.assert_called_once()
+        call_args = mock_pool.execute.call_args[0][0]
+        assert "UPDATE" in call_args
+        assert "status = 'completed'" in call_args
+
+    @mark.asyncio
+    async def test_ack_deletes_task_when_keep_completed_false(self) -> None:
+        """Test ack() deletes task when keep_completed_tasks is False."""
+        driver = PostgresDriver(
+            dsn="postgresql://user:pass@localhost/db", keep_completed_tasks=False
+        )
+        mock_pool = AsyncMock()
+        driver.pool = mock_pool
+        driver._receipt_handles = {b"receipt": 1}
+
+        await driver.ack("test_queue", b"receipt")
+
+        # Should have called execute to delete
+        mock_pool.execute.assert_called_once()
+        call_args = mock_pool.execute.call_args[0][0]
+        assert "DELETE" in call_args
+
+
+@mark.unit
+class TestPostgresDriverNackEdgeCases:
+    """Test PostgresDriver.nack() edge cases."""
+
+    @mark.asyncio
+    async def test_nack_handles_missing_receipt_handle(self) -> None:
+        """Test nack() handles missing receipt handle gracefully."""
+        driver = PostgresDriver(dsn="postgresql://user:pass@localhost/db")
+        mock_pool = AsyncMock()
+        driver.pool = mock_pool
+        driver._receipt_handles = {}
+
+        # Should not raise
+        await driver.nack("test_queue", b"unknown_receipt")
+
+        # Should not have called execute
+        mock_pool.execute.assert_not_called()
+
+    @mark.asyncio
+    async def test_nack_requeues_task_below_max_attempts(self) -> None:
+        """Test nack() requeues task when below max attempts."""
+        driver = PostgresDriver(dsn="postgresql://user:pass@localhost/db")
+        mock_pool = AsyncMock()
+        mock_conn = AsyncMock()
+
+        mock_acquire_context = MagicMock()
+        mock_acquire_context.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_acquire_context.__aexit__ = AsyncMock(return_value=None)
+        mock_pool.acquire = MagicMock(return_value=mock_acquire_context)
+
+        tx_ctx = MagicMock()
+        tx_ctx.__aenter__ = AsyncMock(return_value=None)
+        tx_ctx.__aexit__ = AsyncMock(return_value=None)
+        mock_conn.transaction = MagicMock(return_value=tx_ctx)
+
+        driver.pool = mock_pool
+        driver._receipt_handles = {b"receipt": 1}
+
+        # Mock fetchrow to return task below max attempts
+        mock_conn.fetchrow.return_value = {
+            "current_attempt": 1,
+            "max_attempts": 3,
+            "visibility_timeout_seconds": 300,
+            "queue_name": "test_queue",
+            "payload": b"task_data",
+        }
+
+        await driver.nack("test_queue", b"receipt")
+
+        # Should have called execute to update task
+        assert mock_conn.execute.call_count == 1
+        call_args = mock_conn.execute.call_args[0][0]
+        assert "UPDATE" in call_args
+
+
+@mark.unit
+class TestPostgresDriverMarkFailedEdgeCases:
+    """Test PostgresDriver.mark_failed() edge cases."""
+
+    @mark.asyncio
+    async def test_mark_failed_handles_missing_receipt_handle(self) -> None:
+        """Test mark_failed() handles missing receipt handle gracefully."""
+        driver = PostgresDriver(dsn="postgresql://user:pass@localhost/db")
+        mock_pool = AsyncMock()
+        driver.pool = mock_pool
+        driver._receipt_handles = {}
+
+        # Should not raise
+        await driver.mark_failed("test_queue", b"unknown_receipt")
+
+        # Should not have called execute
+        mock_pool.execute.assert_not_called()
