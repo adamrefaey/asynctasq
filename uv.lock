@@ -314,6 +314,7 @@ source = { editable = "." }
 dependencies = [
     { name = "msgpack" },
     { name = "rich" },
+    { name = "uvloop" },
 ]
 
 [package.optional-dependencies]
@@ -332,7 +333,6 @@ all = [
     { name = "sqlalchemy" },
     { name = "tortoise-orm" },
     { name = "types-aioboto3", extra = ["sqs"] },
-    { name = "uvloop" },
 ]
 django = [
     { name = "django" },
@@ -368,9 +368,6 @@ sqs = [
 ]
 tortoise = [
     { name = "tortoise-orm" },
-]
-uvloop = [
-    { name = "uvloop" },
 ]
 
 [package.dev-dependencies]
@@ -411,9 +408,9 @@ requires-dist = [
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=2.0.44" },
     { name = "tortoise-orm", marker = "extra == 'tortoise'", specifier = ">=0.25.1" },
     { name = "types-aioboto3", extras = ["sqs"], marker = "extra == 'sqs'", specifier = ">=15.5.0" },
-    { name = "uvloop", marker = "extra == 'uvloop'", specifier = ">=0.22.1" },
+    { name = "uvloop", specifier = ">=0.22.1" },
 ]
-provides-extras = ["uvloop", "redis", "sqs", "postgres", "mysql", "rabbitmq", "sqlalchemy", "django", "tortoise", "fastapi", "monitor", "all"]
+provides-extras = ["redis", "sqs", "postgres", "mysql", "rabbitmq", "sqlalchemy", "django", "tortoise", "fastapi", "monitor", "all"]
 
 [package.metadata.requires-dev]
 dev = [

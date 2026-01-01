@@ -1,7 +1,7 @@
 [project]
 name = "asynctasq"
 version = "1.0.0"
-description = "AsyncTasQ: A modern, async-first, type-safe task queue Python package inspired by Laravel. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic, smart ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+."
+description = "AsyncTasQ: A modern, async-first, type-safe task queue Python package inspired by Laravel. Runs on uvloop for maximum performance. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic, smart ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
@@ -31,10 +31,9 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-dependencies = ["msgpack>=1.1.0", "rich>=14.2.0"]
+dependencies = ["msgpack>=1.1.0", "rich>=14.2.0", "uvloop>=0.22.1"]
 
 [project.optional-dependencies]
-uvloop = ["uvloop>=0.22.1"]
 redis = ["redis[hiredis]>=7.1.0"]
 sqs = ["aioboto3>=15.5.0", "types-aioboto3[sqs]>=15.5.0"]
 postgres = ["asyncpg>=0.30.0", "asyncpg-stubs>=0.30.0"]
