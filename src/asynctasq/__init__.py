@@ -160,6 +160,7 @@ async def ensure_cleanup_registered():
 def init(
     config_overrides: ConfigOverrides | None = None,
     event_emitters: list[EventEmitter] | None = None,
+    tortoise_config: dict | None = None,
 ) -> None:
     """Initialize AsyncTasQ with configuration and event emitters.
 
@@ -177,6 +178,16 @@ def init(
             AsyncTasQ behavior (driver settings, timeouts, etc.)
         event_emitters: Optional list of additional event emitters to register
             for monitoring and logging task/worker events
+        tortoise_config: Optional Tortoise ORM configuration dictionary.
+            When provided, Tortoise will be automatically initialized when
+            lazy ORM proxies are resolved in the worker. This allows tasks
+            to use ORM models without manual initialization.
+
+            Example:
+                tortoise_config={
+                    "db_url": "postgres://user:pass@localhost/db",
+                    "modules": {"models": ["myapp.models"]}
+                }
 
     Note:
         AsyncTasQ now works seamlessly with any event loop:
@@ -215,6 +226,12 @@ def init(
     else:
         # Ensure config is initialized even without overrides
         Config.get()
+
+    # Store Tortoise config if provided (separate from config_overrides)
+    if tortoise_config is not None:
+        config = Config.get()
+        config.tortoise_orm = tortoise_config
+        logger.debug("Registered Tortoise ORM configuration for automatic initialization")
 
     # Initialize default event emitters based on config
     EventRegistry.init()

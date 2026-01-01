@@ -279,9 +279,10 @@ def create_default_registry() -> HookRegistry:
     """Create a registry with all built-in type hooks.
 
     Returns:
-        HookRegistry with datetime, date, Decimal, UUID, and set hooks
+        HookRegistry with datetime, date, Decimal, UUID, set, and LazyOrmProxy hooks
     """
     from .builtin import DateHook, DatetimeHook, DecimalHook, SetHook, UUIDHook
+    from .orm.lazy_proxy_hook import LazyOrmProxyHook
 
     registry = HookRegistry()
 
@@ -291,6 +292,7 @@ def create_default_registry() -> HookRegistry:
     registry.register(DecimalHook())
     registry.register(UUIDHook())
     registry.register(SetHook())
+    registry.register(LazyOrmProxyHook())
 
     return registry
 

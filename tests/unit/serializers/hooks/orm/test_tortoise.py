@@ -112,20 +112,23 @@ class TestTortoiseOrmHook:
     @mark.asyncio
     @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
     async def test_fetch_model_not_initialized(self) -> None:
-        """Test _fetch_model raises helpful error when Tortoise not initialized."""
+        """Test _fetch_model returns LazyOrmProxy when Tortoise not initialized."""
+        from asynctasq.serializers.hooks.orm.lazy_proxy import LazyOrmProxy
+
         hook = TortoiseOrmHook()
 
         model_class = MagicMock()
         model_class.__name__ = "Product"
 
-        # Mock Tortoise._inited to False to trigger the initialization check
+        # Mock Tortoise._inited to False - should return lazy proxy
         with patch("tortoise.Tortoise") as mock_tortoise:
             mock_tortoise._inited = False
-            with raises(
-                RuntimeError,
-                match="Tortoise ORM is not initialized. Cannot fetch Product instance",
-            ):
-                await hook._fetch_model(model_class, 42)
+            result = await hook._fetch_model(model_class, 42)
+
+            # Should return a lazy proxy instead of raising
+            assert isinstance(result, LazyOrmProxy)
+            assert result._model_class == model_class
+            assert result._pk == 42
 
     @mark.asyncio
     @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
@@ -141,3 +144,46 @@ class TestTortoiseOrmHook:
             mock_tortoise._inited = True
             with raises(RuntimeError, match="Database error"):
                 await hook._fetch_model(model_class, 42)
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
+    async def test_fetch_model_immediate_not_initialized(self) -> None:
+        """Test _fetch_model_immediate raises error when Tortoise still not initialized."""
+        hook = TortoiseOrmHook()
+
+        model_class = MagicMock()
+        model_class.__name__ = "Product"
+
+        # Mock Tortoise._inited to False
+        with patch("tortoise.Tortoise") as mock_tortoise:
+            mock_tortoise._inited = False
+            with raises(
+                RuntimeError,
+                match="Tortoise ORM is not initialized. Cannot fetch Product instance",
+            ):
+                await hook._fetch_model_immediate(model_class, 42)
+
+    @mark.asyncio
+    @patch("asynctasq.serializers.hooks.orm.tortoise.TORTOISE_AVAILABLE", True)
+    async def test_lazy_proxy_resolution(self) -> None:
+        """Test that LazyOrmProxy resolves correctly when Tortoise is initialized."""
+        from asynctasq.serializers.hooks.orm.lazy_proxy import LazyOrmProxy
+
+        hook = TortoiseOrmHook()
+
+        model_class = MagicMock()
+        model_class.__name__ = "Product"
+        mock_model = MagicMock()
+        model_class.get = AsyncMock(return_value=mock_model)
+
+        # First: Tortoise not initialized - should return lazy proxy
+        with patch("tortoise.Tortoise") as mock_tortoise:
+            mock_tortoise._inited = False
+            proxy = await hook._fetch_model(model_class, 42)
+            assert isinstance(proxy, LazyOrmProxy)
+
+            # Second: Initialize Tortoise and resolve the proxy
+            mock_tortoise._inited = True
+            resolved = await proxy.await_resolve()
+            assert resolved == mock_model
+            model_class.get.assert_called_once_with(pk=42)

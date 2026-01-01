@@ -91,9 +91,24 @@ class FunctionTask[T](BaseTask[T]):
 
     async def run(self) -> T:
         """Execute via appropriate executor (async/sync × thread/process)."""
+        # Resolve any LazyOrmProxy parameters before executing the task
+        await self._resolve_lazy_proxies()
+
         if inspect.iscoroutinefunction(self.func):
             return await self._execute_async()
         return await self._execute_sync()
+
+    async def _resolve_lazy_proxies(self) -> None:
+        """Resolve all LazyOrmProxy instances in args and kwargs."""
+        from asynctasq.serializers.hooks.orm.lazy_proxy import resolve_lazy_proxies
+
+        # Resolve args
+        if self.args:
+            self.args = await resolve_lazy_proxies(self.args)
+
+        # Resolve kwargs
+        if self.kwargs:
+            self.kwargs = await resolve_lazy_proxies(self.kwargs)
 
     async def _execute_async(self) -> T:
         """Execute async function (direct await or via process pool)."""

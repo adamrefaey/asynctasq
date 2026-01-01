@@ -19,6 +19,7 @@ class ConfigOverrides(TypedDict, total=False):
     process_pool: ProcessPoolConfig
     repository: RepositoryConfig
     sqlalchemy_engine: Any
+    tortoise_orm: dict[str, Any]
 
 
 @dataclass
@@ -215,6 +216,9 @@ class Config:
 
     # SQLAlchemy engine for ORM cleanup
     sqlalchemy_engine: Any = None
+
+    # Tortoise ORM configuration for automatic initialization
+    tortoise_orm: dict[str, Any] | None = None
 
     def __post_init__(self):
         """Initialize nested config objects with defaults if not provided."""
