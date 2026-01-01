@@ -2,37 +2,40 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Architecture Diagram](#architecture-diagram)
-- [Layer Responsibilities](#layer-responsibilities)
-  - [1. Framework Layer (TaskExecutor)](#1-framework-layer-taskexecutor)
-  - [2. User Layer (BaseTask)](#2-user-layer-basetask)
-- [Error Flow Examples](#error-flow-examples)
-  - [Example 1: Successful Execution (No Error)](#example-1-successful-execution-no-error)
-  - [Example 2: Transient Error with Retry](#example-2-transient-error-with-retry)
-  - [Example 3: Permanent Failure (Retries Exhausted)](#example-3-permanent-failure-retries-exhausted)
-  - [Example 4: Custom Retry Logic (Fail Fast)](#example-4-custom-retry-logic-fail-fast)
-  - [Example 5: Custom Failure Handling](#example-5-custom-failure-handling)
-- [Common Patterns](#common-patterns)
-  - [Pattern 1: Retry Only on Specific Errors](#pattern-1-retry-only-on-specific-errors)
-  - [Pattern 2: Exponential Backoff (Framework Handles)](#pattern-2-exponential-backoff-framework-handles)
-  - [Pattern 3: Compensation Logic on Failure](#pattern-3-compensation-logic-on-failure)
-  - [Pattern 4: No Retry for Business Logic Errors](#pattern-4-no-retry-for-business-logic-errors)
-- [Exception Types](#exception-types)
-  - [Framework-Raised Exceptions](#framework-raised-exceptions)
-  - [User-Raised Exceptions](#user-raised-exceptions)
-- [Best Practices](#best-practices)
-  - [✅ DO](#-do)
-  - [❌ DON'T](#-dont)
-- [Configuration](#configuration)
-  - [Task-Level Configuration](#task-level-configuration)
-  - [Runtime Configuration](#runtime-configuration)
-- [Observability](#observability)
-  - [Logging](#logging)
-  - [Events (if enabled)](#events-if-enabled)
-- [Testing Error Handling](#testing-error-handling)
-  - [Unit Test Example](#unit-test-example)
-- [Summary](#summary)
+- [Error Handling Architecture](#error-handling-architecture)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Architecture Diagram](#architecture-diagram)
+  - [Layer Responsibilities](#layer-responsibilities)
+    - [1. Framework Layer (TaskExecutor)](#1-framework-layer-taskexecutor)
+    - [2. User Layer (BaseTask)](#2-user-layer-basetask)
+  - [Error Flow Examples](#error-flow-examples)
+    - [Example 1: Successful Execution (No Error)](#example-1-successful-execution-no-error)
+    - [Example 2: Transient Error with Retry](#example-2-transient-error-with-retry)
+    - [Example 3: Permanent Failure (Retries Exhausted)](#example-3-permanent-failure-retries-exhausted)
+    - [Example 4: Custom Retry Logic (Fail Fast)](#example-4-custom-retry-logic-fail-fast)
+    - [Example 5: Custom Failure Handling](#example-5-custom-failure-handling)
+  - [Common Patterns](#common-patterns)
+    - [Pattern 1: Retry Only on Specific Errors](#pattern-1-retry-only-on-specific-errors)
+    - [Pattern 2: Exponential Backoff (Framework Handles)](#pattern-2-exponential-backoff-framework-handles)
+    - [Pattern 3: Compensation Logic on Failure](#pattern-3-compensation-logic-on-failure)
+    - [Pattern 4: No Retry for Business Logic Errors](#pattern-4-no-retry-for-business-logic-errors)
+  - [Exception Types](#exception-types)
+    - [Framework-Raised Exceptions](#framework-raised-exceptions)
+    - [User-Raised Exceptions](#user-raised-exceptions)
+    - [Dead Letter Queue](#dead-letter-queue)
+  - [Best Practices](#best-practices)
+    - [✅ DO](#-do)
+    - [❌ DON'T](#-dont)
+  - [Configuration](#configuration)
+    - [Task-Level Configuration](#task-level-configuration)
+    - [Runtime Configuration](#runtime-configuration)
+  - [Observability](#observability)
+    - [Logging](#logging)
+    - [Events (if enabled)](#events-if-enabled)
+  - [Testing Error Handling](#testing-error-handling)
+    - [Unit Test Example](#unit-test-example)
+  - [Summary](#summary)
 
 ## Overview
 
@@ -54,28 +57,33 @@ The asynctasq error handling system is designed with clear separation of concern
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │  try:                                                    │   │
 │  │      result = await asyncio.wait_for(                    │   │
-│  │          task.execute(),                                 │   │
-│  │          timeout=task.config.timeout                     │   │
+│  │          task.run(),  # Calls task.execute()            │   │
+│  │          timeout=task.config.get("timeout")              │   │
 │  │      )                                                   │   │
 │  │      return SUCCESS                                      │   │
 │  │  except asyncio.TimeoutError:                            │   │
-│  │      # Framework handles timeout                         │   │
+│  │      # Framework handles timeout → retry                 │   │
 │  │  except Exception as e:                                  │   │
 │  │      # Framework catches all exceptions                  │   │
-│  │      return await handle_failed(task, e)                 │   │
+│  │      raise (propagated to Worker)                        │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └─────────────────┬───────────────────────────────────────────────┘
-                  │ (Exception caught)
+                  │ (Exception propagates to Worker)
                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                 TaskExecutor.handle_failed()                    │
+│                 Worker._handle_task_failure()                   │
 │  Framework Error Recovery Logic                                 │
 │                                                                 │
-│  1. Check if task.should_retry(exception) → User Hook           │
-│  2. Check if current_attempt < max_attempts                      │
-│  3. If retry: Re-queue task with incremented current_attempt    │
-│  4. If exhausted: Call task.failed(exception) → User Hook       │
-│  5. Return appropriate status (RETRY or FAILED)                 │
+│  1. Check TaskExecutor.should_retry(task, exception)            │
+│     → Combines current_attempt < max_attempts AND               │
+│       task.should_retry(exception) → User Hook                  │
+│  2. If retry: Emit task_reenqueued event                        │
+│              Calculate retry delay (fixed/exponential)          │
+│              Re-queue task with delay                           │
+│  3. If exhausted: Emit task_failed event                        │
+│                   Call TaskExecutor.handle_failed()             │
+│                   → task.failed(exception) → User Hook          │
+│                   Move to dead letter queue (if supported)      │
 └─────────────────────────────────────────────────────────────────┘
                   │
                   ▼
@@ -86,7 +94,7 @@ The asynctasq error handling system is designed with clear separation of concern
 │  │  BaseTask.should_retry(exception: Exception) -> bool     │   │
 │  │  ─────────────────────────────────────────────────────   │   │
 │  │  Purpose: Decide if task should retry after failure      │   │
-│  │  Default: Always return True (retry until max_attempts)   │   │
+│  │  Default: Always return True (retry until max_attempts)  │   │
 │  │  Override: Custom retry logic (e.g., fail fast on        │   │
 │  │           validation errors, retry on network errors)    │   │
 │  └──────────────────────────────────────────────────────────┘   │
@@ -133,7 +141,7 @@ The asynctasq error handling system is designed with clear separation of concern
 **File:** `src/asynctasq/tasks/core/base_task.py`
 
 **Responsibilities:**
-- Implement business logic in `execute()` (for AsyncTask/SyncTask) or `run()` (for custom task types)
+- Implement business logic in `execute()` method (called by framework via `run()`)
 - Optionally override `should_retry()` for custom retry decisions
 - Optionally override `failed()` for custom failure handling
 - Let exceptions propagate to framework (don't catch unless recovering in-place)
@@ -143,9 +151,9 @@ The asynctasq error handling system is designed with clear separation of concern
 - `failed(exception)` - User hook for exhausted retries
 
 **Error Handling Rules:**
-1. Users implement business logic; framework handles errors
+1. Users implement business logic in `execute()`; framework handles errors via `run()`
 2. Override `should_retry()` ONLY if custom retry logic needed
-3. Override `failed()` ONLY if custom failure handling needed
+3. Override `failed()` ONLY if custom failure handling needed (called via `TaskExecutor.handle_failed()`)
 4. Don't catch exceptions in `execute()` unless recovering in-place
 
 ## Error Flow Examples
@@ -154,8 +162,8 @@ The asynctasq error handling system is designed with clear separation of concern
 
 ```
 Worker → TaskExecutor.execute()
-       → task.execute()
-       → task.handle() [User Code]
+       → task.run()
+       → task.execute() [User Code]
        ← Returns result
        ← SUCCESS
        → Mark task complete
@@ -165,29 +173,30 @@ Worker → TaskExecutor.execute()
 
 ```
 Worker → TaskExecutor.execute()
-       → task.execute()
-       → task.handle() [User Code]
+       → task.run()
+       → task.execute() [User Code]
        ← Raises ConnectionError
-       → TaskExecutor.handle_failed()
-       → Check task.should_retry(ConnectionError) → True (default)
-    → Check current_attempt < max_attempts → True
-       → Re-queue task with current_attempt++
-       ← RETRY
+       → Worker._handle_task_failure()
+       → Check TaskExecutor.should_retry(ConnectionError) → True (default)
+       → Check current_attempt < max_attempts → True
+       → Re-queue task with retry delay
+       ← RETRY (task_reenqueued event emitted)
 ```
 
 ### Example 3: Permanent Failure (Retries Exhausted)
 
 ```
 Worker → TaskExecutor.execute()
-       → task.execute()
-       → task.handle() [User Code]
+       → task.run()
+       → task.execute() [User Code]
        ← Raises ValueError
-       → TaskExecutor.handle_failed()
-       → Check task.should_retry(ValueError) → True (default)
-    → Check current_attempt < max_attempts → False (exhausted)
-       → Call task.failed(ValueError) [User Hook]
+       → Worker._handle_task_failure()
+       → Check TaskExecutor.should_retry(ValueError) → True (default)
+       → Check current_attempt < max_attempts → False (exhausted)
+       → Call TaskExecutor.handle_failed() → task.failed(ValueError) [User Hook]
+       → Emit task_failed event
+       → Move to dead letter queue (PostgreSQL/MySQL) or mark failed (Redis)
        ← FAILED
-       → Mark task failed
 ```
 
 ### Example 4: Custom Retry Logic (Fail Fast)
@@ -207,11 +216,13 @@ class ValidateDataTask(AsyncTask[None]):
 
 # Execution flow:
 Worker → TaskExecutor.execute()
+       → task.run()
        → task.execute() [User Code]
        ← Raises ValueError("Invalid data")
-       → TaskExecutor.handle_failed()
-       → Check task.should_retry(ValueError) → False (custom logic)
-       → Call task.failed(ValueError) immediately
+       → Worker._handle_task_failure()
+       → Check TaskExecutor.should_retry(ValueError) → False (custom logic)
+       → Call TaskExecutor.handle_failed() → task.failed(ValueError) immediately
+       → Emit task_failed event
        ← FAILED (no retry)
 ```
 
@@ -232,14 +243,16 @@ class SendEmailTask(AsyncTask[None]):
 
 # Execution flow:
 Worker → TaskExecutor.execute()
-       → task.execute()
-       → task.handle() [User Code]
+       → task.run()
+       → task.execute() [User Code]
        ← Raises ConnectionError
-       → TaskExecutor.handle_failed()
-       → Retry logic... (exhausted after 3 attempts)
-       → Call task.failed(ConnectionError) [User Hook]
-         → alert_team() called
-         → log_to_monitoring() called
+       → Worker._handle_task_failure()
+       → Retry logic... (retries with exponential backoff)
+       → After max_attempts exhausted:
+         → Call TaskExecutor.handle_failed() → task.failed(ConnectionError) [User Hook]
+           → alert_team() called
+           → log_to_monitoring() called
+         → Emit task_failed event
        ← FAILED
 ```
 
@@ -257,8 +270,16 @@ class ResilientTask(AsyncTask[int]):
 ### Pattern 2: Exponential Backoff (Framework Handles)
 
 ```python
-# Framework automatically re-queues with retry_delay
-task = MyTask().retry_after(60)  # 60s between retries
+# Framework automatically calculates retry delay using exponential backoff
+# Default retry_strategy is 'exponential', base delay is 60 seconds
+# Attempt 1 fails -> retry after 60s
+# Attempt 2 fails -> retry after 120s (60 * 2^1)
+# Attempt 3 fails -> retry after 240s (60 * 2^2)
+task = MyTask().retry_after(60).dispatch()  # Base retry delay of 60s
+
+# For fixed delay (same delay every time):
+from asynctasq import init, TaskDefaultsConfig
+init(task_defaults=TaskDefaultsConfig(retry_strategy='fixed', retry_delay=60))
 ```
 
 ### Pattern 3: Compensation Logic on Failure
@@ -288,20 +309,29 @@ class ProcessOrderTask(AsyncTask[None]):
 
 ### Framework-Raised Exceptions
 
-- `asyncio.TimeoutError` - Task exceeded timeout (retriable)
-- `SerializationError` - Task serialization/deserialization failed
+- `asyncio.TimeoutError` - Task exceeded timeout (retriable by default)
+- `SerializationError` - Task serialization/deserialization failed (re-enqueued with delay)
 - `DriverError` - Queue driver error (connection, etc.)
 
 ### User-Raised Exceptions
 
-- Any exception from `task.handle()` is caught by framework
+- Any exception from `task.execute()` is caught by framework via `task.run()`
 - Framework doesn't interpret exception types (delegates to `should_retry()`)
+- All exceptions are logged with full context (task_id, attempt, exception type/message)
+
+### Dead Letter Queue
+
+When tasks permanently fail (retries exhausted), behavior depends on driver:
+
+- **PostgreSQL/MySQL**: Failed tasks are moved to a `dead_letter_queue` table for manual inspection
+- **Redis**: Failed tasks are marked in a separate failed tasks list (if `mark_failed()` is implemented)
+- **RabbitMQ/SQS**: Tasks are acknowledged and removed (use `failed()` hook for custom DLQ)
 
 ## Best Practices
 
 ### ✅ DO
 
-1. **Let exceptions propagate** - Don't catch in `handle()` unless recovering
+1. **Let exceptions propagate** - Don't catch in `execute()` unless recovering
 2. **Override `should_retry()` for custom logic** - Framework calls it
 3. **Override `failed()` for cleanup** - Compensation, alerts, logging
 4. **Use specific exception types** - Easier to distinguish in `should_retry()`
@@ -309,7 +339,7 @@ class ProcessOrderTask(AsyncTask[None]):
 
 ### ❌ DON'T
 
-1. **Don't catch all exceptions in `handle()`** - Defeats retry mechanism
+1. **Don't catch all exceptions in `execute()`** - Defeats retry mechanism
 2. **Don't raise exceptions in `failed()`** - They're logged but ignored
 3. **Don't depend on `failed()` for critical logic** - It's best-effort
 4. **Don't use `should_retry()` for side effects** - It's a decision function
@@ -360,9 +390,8 @@ logger.error(
 
 ### Events (if enabled)
 
-- `task_failed` - Emitted on each failure (includes retry status)
-- `task_retry` - Emitted when task is re-queued
-- `task_exhausted` - Emitted when retries exhausted
+- `task_failed` - Emitted when task permanently fails after retries exhausted
+- `task_reenqueued` - Emitted when task is re-queued for retry (includes attempt number and error)
 
 ## Testing Error Handling
 
@@ -398,9 +427,10 @@ async def test_task_retries():
 
 ## Summary
 
-| Component        | Responsibility                                 | Entry Points                             |
-| ---------------- | ---------------------------------------------- | ---------------------------------------- |
-| **TaskExecutor** | Framework error handling, retry logic, timeout | `execute()`, `handle_failed()`           |
-| **BaseTask**     | Business logic, custom error decisions         | `handle()`, `should_retry()`, `failed()` |
+| Component        | Responsibility                                 | Entry Points                                     |
+| ---------------- | ---------------------------------------------- | ------------------------------------------------ |
+| **TaskExecutor** | Framework error handling, retry logic, timeout | `execute()`, `should_retry()`, `handle_failed()` |
+| **BaseTask**     | Business logic, custom error decisions         | `execute()`, `should_retry()`, `failed()`        |
+| **Worker**       | Task polling, deserialization, lifecycle       | `_process_task()`, `_handle_task_failure()`      |
 
 **Key Principle:** Framework manages error recovery; users implement business logic and custom error decisions via hooks.
