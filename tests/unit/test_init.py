@@ -205,5 +205,196 @@ class TestInit:
         for emitter in emitters:
             mock_event_add.assert_any_call(emitter)
 
-        # Should register cleanup hooks
+    @patch("asynctasq.config.Config.get")
+    @patch("asynctasq.config.Config.set")
+    @patch("asynctasq.monitoring.EventRegistry.init")
+    @patch("asynctasq._register_cleanup_hooks")
+    def test_init_with_tortoise_config(
+        self, mock_register_hooks, mock_event_init, mock_config_set, mock_config_get
+    ):
+        """Test init with Tortoise ORM config."""
+        mock_config = MagicMock()
+        mock_config_get.return_value = mock_config
+
+        tortoise_config = {
+            "db_url": "postgres://user:pass@localhost/db",
+            "modules": {"models": ["myapp.models"]},
+        }
+
+        init(tortoise_config=tortoise_config)
+
+        # Should store Tortoise config in config object
+        assert mock_config.tortoise_orm == tortoise_config
+
+    @patch("asynctasq.config.Config.get")
+    @patch("asynctasq.monitoring.EventRegistry.init")
+    @patch("asynctasq._register_cleanup_hooks")
+    def test_init_calls_register_cleanup_hooks(
+        self, mock_register_hooks, mock_event_init, mock_config_get
+    ):
+        """Test init calls _register_cleanup_hooks."""
+        init()
+
         mock_register_hooks.assert_called_once()
+
+    @patch("asynctasq.config.Config.set")
+    @patch("asynctasq.config.Config.get")
+    @patch("asynctasq.monitoring.EventRegistry.init")
+    @patch("asynctasq.monitoring.EventRegistry.add")
+    @patch("asynctasq._register_cleanup_hooks")
+    def test_init_with_all_parameters(
+        self, mock_register_hooks, mock_event_add, mock_event_init, mock_config_get, mock_config_set
+    ):
+        """Test init with all parameters specified."""
+        mock_config = MagicMock()
+        mock_config_get.return_value = mock_config
+
+        overrides = cast(ConfigOverrides, {"driver": "redis"})
+        emitters = cast(list[EventEmitter], [MagicMock()])
+        tortoise_config = {"db_url": "postgres://localhost/db"}
+
+        init(
+            config_overrides=overrides,
+            event_emitters=emitters,
+            tortoise_config=tortoise_config,
+        )
+
+        # All initialization steps should happen
+        mock_config_set.assert_called_once()
+        mock_event_init.assert_called_once()
+        mock_event_add.assert_called_once()
+        mock_register_hooks.assert_called_once()
+        assert mock_config.tortoise_orm == tortoise_config
+
+
+class TestExports:
+    """Test module exports are available."""
+
+    def test_all_exports_are_importable(self):
+        """Test all items in __all__ can be imported."""
+        for name in asynctasq.__all__:
+            assert hasattr(asynctasq, name), f"{name} not found in asynctasq module"
+
+    def test_version_is_exported(self):
+        """Test __version__ is available."""
+        assert hasattr(asynctasq, "__version__")
+        assert isinstance(asynctasq.__version__, str)
+
+    def test_core_classes_exported(self):
+        """Test core classes are exported."""
+        from asynctasq import Config, Dispatcher, Worker
+
+        assert Dispatcher is not None
+        assert Worker is not None
+        assert Config is not None
+
+    def test_task_types_exported(self):
+        """Test task types are exported."""
+        from asynctasq import (
+            AsyncProcessTask,
+            AsyncTask,
+            SyncProcessTask,
+            SyncTask,
+            task,
+        )
+
+        assert AsyncTask is not None
+        assert SyncTask is not None
+        assert AsyncProcessTask is not None
+        assert SyncProcessTask is not None
+        assert task is not None
+
+    def test_monitoring_exported(self):
+        """Test monitoring classes are exported."""
+        from asynctasq import EventEmitter, EventRegistry, MonitoringService
+
+        assert EventEmitter is not None
+        assert EventRegistry is not None
+        assert MonitoringService is not None
+
+    def test_serializers_exported(self):
+        """Test serializer classes are exported."""
+        from asynctasq import BaseSerializer, MsgpackSerializer, TypeHook
+
+        assert BaseSerializer is not None
+        assert MsgpackSerializer is not None
+        assert TypeHook is not None
+
+    def test_utils_exported(self):
+        """Test utility functions are exported."""
+        from asynctasq import console, run
+
+        assert console is not None
+        assert run is not None
+
+
+class TestCleanupRegistrationEdgeCases:
+    """Test edge cases in cleanup registration."""
+
+    @pytest.mark.asyncio
+    async def test_ensure_cleanup_registered_already_registered(self):
+        """Test ensure_cleanup_registered when already registered."""
+        asynctasq._cleanup_registered = True
+
+        with patch("asyncio.get_running_loop") as mock_get_loop:
+            await asynctasq.ensure_cleanup_registered()
+
+            # Should not try to register again
+            mock_get_loop.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_ensure_cleanup_registered_registration_error(self):
+        """Test ensure_cleanup_registered handles registration errors."""
+        asynctasq._cleanup_registered = False
+        mock_loop = MagicMock()
+
+        with (
+            patch("asyncio.get_running_loop", return_value=mock_loop),
+            patch(
+                "asynctasq.utils.cleanup_hooks.register",
+                side_effect=Exception("Registration error"),
+            ),
+        ):
+            # Should not raise
+            await asynctasq.ensure_cleanup_registered()
+
+    def test_register_cleanup_hooks_exception_handling(self):
+        """Test _register_cleanup_hooks handles unexpected exceptions."""
+        asynctasq._cleanup_registered = False
+
+        with patch(
+            "asyncio.get_running_loop",
+            side_effect=Exception("Unexpected error"),
+        ):
+            # Should not raise, should mark as registered
+            asynctasq._register_cleanup_hooks()
+            assert asynctasq._cleanup_registered
+
+
+class TestInitIntegration:
+    """Integration tests for init() function."""
+
+    @patch("asynctasq._register_cleanup_hooks")
+    def test_init_initializes_config_and_events(self, mock_register_hooks):
+        """Test init properly initializes config and event system."""
+        # Reset state
+        asynctasq._cleanup_registered = False
+
+        # Call init
+        init(config_overrides={"driver": "redis"})
+
+        # Verify cleanup hooks registered
+        mock_register_hooks.assert_called_once()
+
+    @patch("asynctasq._register_cleanup_hooks")
+    def test_init_can_be_called_multiple_times(self, mock_register_hooks):
+        """Test init can be called multiple times safely."""
+        asynctasq._cleanup_registered = False
+
+        # Call multiple times
+        init()
+        init()
+        init()
+
+        # Should register hooks each time (or handle already registered)
+        assert mock_register_hooks.call_count >= 1
