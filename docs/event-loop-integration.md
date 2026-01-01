@@ -125,17 +125,18 @@ AsyncTasQ provides a dedicated `AsyncTasQIntegration` class for FastAPI with aut
 
 ```python
 from fastapi import FastAPI, Depends
-from asynctasq import AsyncTasQIntegration, init, RedisConfig, task
+from asynctasq import AsyncTasQIntegration, RedisConfig, task
 from asynctasq.core.dispatcher import Dispatcher
+from asynctasq.config import Config
 
-# Initialize AsyncTasQ configuration
-init({
-    'driver': 'redis',
-    'redis': RedisConfig(url='redis://localhost:6379')
-})
+# Configure AsyncTasQ
+config = Config(
+    driver='redis',
+    redis=RedisConfig(url='redis://localhost:6379')
+)
 
-# Create integration instance
-asynctasq = AsyncTasQIntegration()
+# Create integration instance with config
+asynctasq = AsyncTasQIntegration(config=config)
 
 # Use lifespan for automatic driver management
 app = FastAPI(lifespan=asynctasq.lifespan)
@@ -145,15 +146,9 @@ async def process_order(order_id: int):
     # Process order logic
     return f"Order {order_id} processed"
 
+# Use dependency injection for dispatcher access
 @app.post("/orders/{order_id}/process")
-async def trigger_processing(order_id: int):
-    """Dispatch a background task."""
-    task_id = await process_order(order_id).dispatch()
-    return {"task_id": task_id, "status": "dispatched"}
-
-# Optional: Use dependency injection for dispatcher access
-@app.post("/orders/{order_id}/process-with-di")
-async def trigger_with_di(
+async def trigger_processing(
     order_id: int,
     dispatcher: Dispatcher = Depends(asynctasq.get_dispatcher)
 ):
@@ -286,8 +281,8 @@ AsyncTasQ automatically handles cleanup in all contexts:
    - Runs when the framework shuts down the event loop
 
 2. **Script contexts** (`asyncio.run()`, `uvloop.run()`, etc.):
-   - Cleanup runs as part of loop shutdown
-   - Also registers `atexit` handler as fallback
+   - Cleanup runs as part of loop shutdown via the patched `loop.close()` method
+   - No separate atexit handler needed - cleanup is guaranteed when the loop closes
 
 ### Manual Cleanup
 
@@ -324,10 +319,11 @@ try:
     # Try to get the running event loop
     loop = asyncio.get_running_loop()
     # Running loop found - register cleanup hook
-    register_cleanup_hook(loop)
+    register_cleanup_hook(loop)  # Patches loop.close()
 except RuntimeError:
-    # No running loop - register atexit handler
-    atexit.register(cleanup_handler)
+    # No running loop - cleanup will be registered when first async call happens
+    # via ensure_cleanup_registered() in dispatchers
+    pass
 ```
 
 ## Best Practices
@@ -430,7 +426,7 @@ AsyncTasQ's event loop integration works with:
 - **uvloop 0.22+** - High-performance event loop (via `asyncio.Runner` with loop factory)
 - **Any asyncio-compatible loop** - Follows standard event loop protocol
 
-**Note:** AsyncTasQ uses `asyncio.Runner` (introduced in Python 3.11) which is why Python 3.12+ is required as the minimum version. This provides proper cleanup sequencing and modern event loop management.
+**Note:** AsyncTasQ uses `asyncio.Runner` (introduced in Python 3.11) for proper cleanup sequencing and modern event loop management. Python 3.12+ is required as the minimum version per the package's requirements.
 
 ## Related Documentation
 
