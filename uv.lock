@@ -395,7 +395,7 @@ requires-dist = [
     { name = "asyncmy", marker = "extra == 'mysql'", specifier = ">=0.2.10" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.30.0" },
     { name = "asyncpg-stubs", marker = "extra == 'postgres'", specifier = ">=0.30.0" },
-    { name = "asynctasq", extras = ["uvloop", "redis", "sqs", "postgres", "mysql", "rabbitmq", "sqlalchemy", "django", "tortoise", "fastapi", "monitor"], marker = "extra == 'all'" },
+    { name = "asynctasq", extras = ["redis", "sqs", "postgres", "mysql", "rabbitmq", "sqlalchemy", "django", "tortoise", "fastapi", "monitor"], marker = "extra == 'all'" },
     { name = "cryptography", marker = "extra == 'mysql'", specifier = ">=46.0.0" },
     { name = "django", marker = "extra == 'django'", specifier = ">=5.2.8" },
     { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.115.0" },
