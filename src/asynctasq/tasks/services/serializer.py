@@ -53,9 +53,13 @@ class TaskSerializer:
             func = task.func  # type: ignore[attr-defined]
             func_module = func.__module__
             func_name = func.__name__
-            # Store func_file if it's __main__ module
-            if func_module == "__main__":
+            # Always store func_file to support modules not in Python path
+            # This allows workers to load the module from file if import fails
+            try:
                 func_file = func.__code__.co_filename
+            except AttributeError:
+                # Built-in or C extension functions don't have __code__
+                pass
 
             # IMPORTANT: For FunctionTask, individual kwargs are stored as instance attributes
             # (e.g., self.user = user_value) but they're also in self.kwargs.

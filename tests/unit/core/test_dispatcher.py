@@ -582,7 +582,9 @@ class TestDispatcherSerializeTask:
         assert call_arg["class"] == f"{FunctionTask.__module__}.{FunctionTask.__name__}"
         assert call_arg["metadata"]["func_name"] == "test_func"
         assert call_arg["metadata"]["func_module"] == test_func.__module__
-        assert "func_file" not in call_arg["metadata"]  # Not __main__ module
+        # func_file is now always included to support modules not in Python path
+        assert "func_file" in call_arg["metadata"]
+        assert call_arg["metadata"]["func_file"].endswith("test_dispatcher.py")
 
     def test_serialize_function_task_handles_main_module_with_file_path(self) -> None:
         # Arrange
@@ -673,9 +675,13 @@ class TestDispatcherSerializeTask:
         task._current_attempt = 0
         task._dispatched_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
-        # Act & Assert - should raise AttributeError when trying to access __code__
-        with raises(AttributeError):
-            dispatcher._task_serializer.serialize(task)
+        # Act - should handle AttributeError gracefully and not include func_file
+        dispatcher._task_serializer.serialize(task)
+
+        # Assert - func_file should not be present when __code__ is unavailable
+        mock_serializer.serialize.assert_called_once()
+        call_arg = mock_serializer.serialize.call_args[0][0]
+        assert "func_file" not in call_arg["metadata"]
 
     def test_serialize_function_task_excludes_func_from_params(self) -> None:
         # Arrange
