@@ -1,82 +1,38 @@
 # Class-Based Tasks: Complete Examples Guide
 
-## Table of Contents
+## Overview
 
-- [Four Execution Modes](#four-execution-modes)
-- [Key Features](#key-features)
-- [Basic Usage](#basic-usage)
-- [Class Definition Syntax](#class-definition-syntax)
-- [Configuration Options](#configuration-options)
-- [Lifecycle Hooks](#lifecycle-hooks)
-- [Dispatching Tasks](#dispatching-tasks)
-- [Async vs Sync vs Process Tasks](#async-vs-sync-vs-process-tasks)
-- [Driver Overrides](#driver-overrides)
-- [ORM Integration](#orm-integration)
-- [Method Chaining](#method-chaining)
-- [Task Metadata](#task-metadata)
-- [Real-World Examples](#real-world-examples)
-- [Complete Working Example](#complete-working-example)
-- [Common Patterns and Best Practices](#common-patterns-and-best-practices)
+This guide provides concrete, ready-to-use code examples for class-based tasks in AsyncTasQ. Class-based tasks use base classes (`AsyncTask`, `SyncTask`, `AsyncProcessTask`, or `SyncProcessTask`) to create reusable, testable tasks with lifecycle hooks and advanced configuration.
 
-This guide provides concrete, ready-to-use code examples demonstrating all scenarios, options, and capabilities of class-based tasks in AsyncTasQ.
+For conceptual information about task types and execution modes, see [Task Definitions](../task-definitions.md).
 
-## Four Execution Modes
-
-AsyncTasQ provides **four task execution modes** optimized for different workloads:
-
-1. **`AsyncTask`** - Event loop execution for async I/O-bound operations (90% of use cases)
-2. **`SyncTask`** - Thread pool execution for sync/blocking I/O operations
-3. **`AsyncProcessTask`** - Process pool execution for async CPU-intensive operations
-4. **`SyncProcessTask`** - Process pool execution for sync CPU-intensive operations
-
-See [Async vs Sync vs Process Tasks](#async-vs-sync-vs-process-tasks) for detailed comparison and examples.
-
-## Key Features
-
-Class-based tasks use the `AsyncTask`, `SyncTask`, `AsyncProcessTask`, or `SyncProcessTask` base classes to create reusable, testable tasks with lifecycle hooks, custom retry logic, and advanced configuration options.
-
-Note: Example snippets in this guide use the project's event loop runner helper. For runnable examples, import it as:
+Note: Example snippets use the project's event loop runner helper:
 
 ```python
 from asynctasq import run
 ```
 
-**Core Capabilities:**
-
-- **Four execution modes** - Choose async, sync thread pool, async process pool, or sync process pool based on workload
-- **Lifecycle hooks** - `execute()`, `failed()`, `should_retry()` for complete control
-- **Reusable and testable** - Class-based design for better organization
-- **Flexible configuration** - Queue, retries, timeout, driver via class attributes or method chaining
-- **Method chaining** - Override configuration at dispatch time with fluent API
-- **ORM model serialization** - Automatic lightweight references for SQLAlchemy, Django, Tortoise
-- **Type-safe** - Full type hints and Generic support
-- **Task metadata** - Access task ID, attempts, dispatched time
-
----
-
 ## Table of Contents
 
 - [Basic Usage](#basic-usage)
 - [Class Definition Syntax](#class-definition-syntax)
-- [Configuration Options](#configuration-options)
+- [Configuration](#configuration)
 - [Lifecycle Hooks](#lifecycle-hooks)
 - [Dispatching Tasks](#dispatching-tasks)
-- [Async vs Sync vs Process Tasks](#async-vs-sync-vs-process-tasks)
-- [Driver Overrides](#driver-overrides)
-- [ORM Integration](#orm-integration)
+- [All Four Task Types](#all-four-task-types)
 - [Method Chaining](#method-chaining)
 - [Task Metadata](#task-metadata)
 - [Real-World Examples](#real-world-examples)
 - [Complete Working Example](#complete-working-example)
-- [Common Patterns and Best Practices](#common-patterns-and-best-practices)
+- [Best Practices](#best-practices)
 
 ---
 
 ## Basic Usage
 
-### Simple AsyncTasQ
+### Simple AsyncTask
 
-The simplest class-based task extends `Task` and implements the `execute()` method. All parameters passed to the constructor are automatically available as instance attributes:
+The simplest class-based task extends `AsyncTask` and implements the `execute()` method. All parameters passed to the constructor are automatically available as instance attributes:
 
 ```python
 import asyncio
@@ -308,157 +264,43 @@ class ProcessOrder(AsyncTask[Dict[str, Any]]):
 
 ---
 
-## Configuration Options
+## Configuration
 
-All configuration options can be set as class attributes. These settings apply to all instances of the task unless overridden at dispatch time using method chaining.
+Configuration options are set via the `config` class attribute. For complete details on all options, see [Task Definitions - Task Configuration](../task-definitions.md#task-configuration).
 
-**Available Options:**
-
-| Option               | Type                        | Default     | Description                                                                         |
-| -------------------- | --------------------------- | ----------- | ----------------------------------------------------------------------------------- |
-| `queue`              | `str`                       | `"default"` | Queue name for task execution                                                       |
-| `max_attempts`       | `int`                       | `3`         | Maximum retry attempts on failure                                                   |
-| `retry_delay`        | `int`                       | `60`        | Seconds to wait between retry attempts                                              |
-| `timeout`            | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                                       |
-| `visibility_timeout` | `int`                       | `300`       | Crash recovery timeout - seconds task is invisible before auto-recovery (5 minutes) |
-| `driver`             | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config)                    |
-| `correlation_id`     | `str \| None`               | `None`      | Correlation ID for distributed tracing                                              |
-
-### Queue Configuration
-
-Use different queues to organize tasks by priority, type, or processing requirements:
+### Example Configurations
 
 ```python
 from asynctasq import AsyncTask, TaskConfig
 
-# Different queues for different task types
+# Basic queue configuration
 class SendEmail(AsyncTask[None]):
     config: TaskConfig = {"queue": "emails"}
 
-    async def execute(self) -> None:
-        pass
-
-class ProcessPayment(AsyncTask[None]):
-    config: TaskConfig = {"queue": "payments"}
-
-    async def execute(self) -> None:
-        pass
-
-class SendPushNotification(AsyncTask[None]):
-    config: TaskConfig = {"queue": "notifications"}
-
-    async def execute(self) -> None:
-        pass
-```
-
-**Tips:**
-
-- Run separate workers for different queues to control resource allocation and priority
-- Use descriptive queue names that indicate the task type or priority level
-- Consider queue naming conventions: `high-priority`, `low-priority`, `critical`, `background`
-
-### Retry Configuration
-
-```python
-from asynctasq import AsyncTask, TaskConfig
-
 # High retry count for critical operations
-class ChargeCreditCard(AsyncTask[bool]):
+class ProcessPayment(AsyncTask[bool]):
     config: TaskConfig = {
         "queue": "payments",
         "max_attempts": 10,
         "retry_delay": 30,
     }
 
-    async def execute(self) -> bool:
-        # Payment processing logic
-        return True
-
-# No retries for validation tasks
-class ValidateData(AsyncTask[bool]):
-    config: TaskConfig = {
-        "queue": "validation",
-        "max_attempts": 0,
-    }
-
-    async def execute(self) -> bool:
-        # Validation logic
-        return True
-
-# Custom retry delay
-class CallExternalAPI(AsyncTask[dict]):
-    config: TaskConfig = {
-        "queue": "api-calls",
-        "max_attempts": 5,
-        "retry_delay": 300,  # 5 minutes (for rate-limited APIs)
-    }
-
-    async def execute(self) -> dict:
-        # API call logic
-        return {}
-```
-
-### Timeout Configuration
-
-```python
-from asynctasq import AsyncTask, TaskConfig
-
-# Short timeout for quick operations
-class QuickOperation(AsyncTask[None]):
-    config: TaskConfig = {
-        "queue": "quick",
-        "timeout": 5,
-    }
-
-    async def execute(self) -> None:
-        # Fast operation
-        pass
-
-# Long timeout for heavy operations
+# With timeout
 class GenerateReport(AsyncTask[str]):
     config: TaskConfig = {
         "queue": "reports",
         "timeout": 3600,  # 1 hour
     }
 
-    async def execute(self) -> str:
-        # Report generation logic
-        return "report.pdf"
-
-# No timeout (default)
-class BackgroundCleanup(AsyncTask[None]):
-    config: TaskConfig = {
-        "queue": "background",
-        "timeout": None,
-    }
-
-    async def execute(self) -> None:
-        # Cleanup logic
-        pass
-```
-
-### Combined Configuration
-
-```python
-from asynctasq import AsyncTask
-
-class CriticalOperation(AsyncTask[dict]):
-    """Fully configured critical task."""
-
+# Full configuration
+class CriticalTask(AsyncTask[dict]):
     config: TaskConfig = {
         "queue": "critical",
         "max_attempts": 10,
         "retry_delay": 60,
         "timeout": 300,
+        "visibility_timeout": 600,
     }
-
-    def __init__(self, data: dict, **kwargs):
-        super().__init__(**kwargs)
-        self.data = data
-
-    async def execute(self) -> dict:
-        # Critical operation logic
-        return {"status": "completed"}
 ```
 
 ---
@@ -827,739 +669,97 @@ async def main():
 
 ---
 
-## Async vs Sync vs Process Tasks
+## All Four Task Types
 
-AsyncTasQ supports **four task execution modes** optimized for different workloads. **Choosing the correct mode is critical for optimal performance.**
+AsyncTasQ provides four task execution modes. For detailed information on when to use each, see [Task Definitions - Task Types](../task-definitions.md#task-types-and-execution-modes).
 
-### The Four Modes
+Quick reference:
+- **`AsyncTask`** - Async I/O-bound (API calls, async DB) - Use for 90% of tasks
+- **`SyncTask`** - Sync/blocking I/O (`requests`, sync DB drivers)
+- **`AsyncProcessTask`** - Async CPU-intensive work
+- **`SyncProcessTask`** - Sync CPU-intensive work (>80% CPU utilization)
 
-1. **`AsyncTask`** - Runs directly in the event loop
-   - Best for: Async I/O-bound operations (API calls, async database queries, async file I/O)
-   - Concurrency: 1000s of concurrent tasks
-   - Use when: Async libraries available, waiting for I/O
+### Examples of Each Type
 
-2. **`SyncTask`** - Automatically runs in thread pool
-   - Best for: Sync/blocking I/O operations
-   - Concurrency: 100s of concurrent tasks (limited by thread pool size)
-   - Use when: Using sync-only libraries (`requests`, sync DB drivers), blocking file I/O
-
-3. **`AsyncProcessTask`** - Runs in separate process with async support
-   - Best for: CPU-intensive async operations
-   - Concurrency: Limited by CPU cores
-   - Use when: Heavy computation + async I/O (ML inference with async preprocessing)
-
-4. **`SyncProcessTask`** - Runs in separate process with independent GIL
-   - Best for: Heavy CPU-intensive sync computation
-   - Concurrency: Limited by CPU cores
-   - Use when: Video encoding, NumPy/Pandas processing, encryption
-
-### Decision Table
-
-| Use Case                              | Task Type              | Reason                            |
-| ------------------------------------- | ---------------------- | --------------------------------- |
-| Async API calls, async DB queries     | **`AsyncTask`**        | Best performance, non-blocking    |
-| Sync I/O with `requests` library      | **`SyncTask`**         | No async conversion needed        |
-| Heavy CPU + async I/O                 | **`AsyncProcessTask`** | True parallelism + async support  |
-| Heavy CPU only (>80% util)            | **`SyncProcessTask`**  | True parallelism, bypasses GIL    |
-| Network requests with httpx           | **`AsyncTask`**        | Native async support              |
-| Web scraping with requests            | **`SyncTask`**         | Works with blocking library       |
-| ML inference with async preprocessing | **`AsyncProcessTask`** | Process pool + async support      |
-| Video encoding, data encryption       | **`SyncProcessTask`**  | Process pool provides parallelism |
-| Async file operations                 | **`AsyncTask`**        | Event loop handles efficiently    |
-| Sync file operations                  | **`SyncTask`**         | Thread pool prevents blocking     |
-
-### AsyncTask (Default - Use 90% of the time)
-
-Use `AsyncTask` for async I/O-bound operations (API calls, async database queries, async file operations):
+#### AsyncTask (Async I/O - Most Common)
 
 ```python
 from asynctasq import AsyncTask, TaskConfig
-import asyncio
 import httpx
 
 class FetchUserData(AsyncTask[dict]):
-    """AsyncTask - runs directly in event loop."""
-    config: TaskConfig = {
-        "queue": "api",
-    }
+    config: TaskConfig = {"queue": "api"}
 
     def __init__(self, user_id: int, **kwargs):
         super().__init__(**kwargs)
         self.user_id = user_id
 
     async def execute(self) -> dict:
-        """Can use await here."""
         async with httpx.AsyncClient() as client:
             response = await client.get(f"https://api.example.com/users/{self.user_id}")
             return response.json()
 ```
 
-**Benefits:**
-
-- Best performance for I/O-bound operations
-- Can use `await` for async libraries (httpx, aiohttp, asyncpg, aiofiles, etc.)
-- More efficient resource usage (no thread/process overhead)
-- Better scalability for concurrent operations (1000s of tasks)
-
-### SyncTask (For blocking I/O)
-
-Use `SyncTask` for sync/blocking I/O operations:
+#### SyncTask (Sync/Blocking I/O)
 
 ```python
 from asynctasq import SyncTask, TaskConfig
 import requests
 
 class FetchWebPage(SyncTask[str]):
-    """SyncTask - automatically runs in thread pool."""
-    config: TaskConfig = {
-        "queue": "web-scraping",
-    }
+    config: TaskConfig = {"queue": "web-scraping"}
 
     def __init__(self, url: str, **kwargs):
         super().__init__(**kwargs)
         self.url = url
 
     def execute(self) -> str:
-        """Synchronous execution - blocking operations OK."""
         response = requests.get(self.url)
         return response.text
 ```
 
-**Important:** Sync tasks implement `execute()`. The framework automatically wraps it in a thread pool executor. You cannot use `await` in `execute()` - it must be a synchronous method.
-
-**Benefits:**
-
-- No need to convert blocking code to async
-- Automatic thread pool execution (managed by the framework)
-- Works with any synchronous library (requests, PIL, pandas, etc.)
-- Simpler code for blocking operations
-
-### AsyncProcessTask (Async CPU-intensive work)
-
-Use `AsyncProcessTask` for CPU-intensive operations that also need async I/O:
+#### AsyncProcessTask (Async CPU-intensive)
 
 ```python
 from asynctasq import AsyncProcessTask, TaskConfig
 import aiofiles
 
 class ProcessVideoAsync(AsyncProcessTask[dict]):
-    """AsyncProcessTask - runs in subprocess with async support."""
-    config: TaskConfig = {
-        "queue": "video-processing",
-        "timeout": 600,  # 10 minutes
-    }
+    config: TaskConfig = {"queue": "video-processing", "timeout": 600}
 
     def __init__(self, video_path: str, **kwargs):
         super().__init__(**kwargs)
         self.video_path = video_path
 
     async def execute(self) -> dict:
-        """Runs in subprocess with async support."""
-        # Async I/O
         async with aiofiles.open(self.video_path, 'rb') as f:
             data = await f.read()
-
-        # CPU-intensive work (bypasses GIL)
         frames_processed = await self._process_frames(data)
-
         return {"frames": frames_processed}
 
     async def _process_frames(self, data: bytes) -> int:
-        # Heavy CPU work here
         return len(data) // 1024
 ```
 
-**Benefits:**
-
-- True multi-core parallelism (bypasses Python's GIL)
-- Async I/O support within subprocess
-- Best for ML inference with async preprocessing/postprocessing
-- Automatic warm event loop in subprocess for better performance
-
-**Limitations:**
-
-- All arguments and return values must be serializable (msgpack-compatible)
-- Higher memory footprint (~50MB+ per process)
-- Higher startup overhead (~50ms per task)
-
-### SyncProcessTask (Sync CPU-intensive work)
-
-Use `SyncProcessTask` for heavy CPU-intensive sync operations:
+#### SyncProcessTask (Sync CPU-intensive)
 
 ```python
 from asynctasq import SyncProcessTask, TaskConfig
 import numpy as np
 
 class ProcessLargeDataset(SyncProcessTask[dict]):
-    """SyncProcessTask - runs in separate process with independent GIL."""
-    config: TaskConfig = {
-        "queue": "data-processing",
-        "timeout": 600,  # 10 minutes
-    }
+    config: TaskConfig = {"queue": "data-processing", "timeout": 600}
 
     def __init__(self, data: list[float], **kwargs):
         super().__init__(**kwargs)
         self.data = data
 
     def execute(self) -> dict:
-        """Runs in subprocess - true parallelism."""
-        # Heavy CPU computation
         arr = np.array(self.data)
         result = np.fft.fft(arr)
-
-        return {
-            "mean": float(result.mean()),
-            "std": float(result.std())
-        }
+        return {"mean": float(result.mean()), "std": float(result.std())}
 ```
 
-**Benefits:**
-
-- True multi-core parallelism (bypasses Python's GIL)
-- Each process has independent interpreter and memory
-- Best performance for CPU-intensive workloads (>80% CPU utilization)
-- Automatic process recycling prevents memory leaks
-
-**Limitations:**
-
-- All arguments and return values must be serializable (no lambdas, file handles, sockets, etc.)
-- Higher memory footprint (~50MB+ per process)
-- Higher startup overhead (~50ms per task)
-- No shared memory between processes
-
-**Configuration:**
-
-```python
-# Configure process pool size (default: CPU count)
-from asynctasq import Worker
-
-worker = Worker(
-    queue_driver=driver,
-    process_pool_size=8,  # Number of worker processes
-    process_pool_max_tasks_per_child=1000  # Recycle after 1000 tasks
-)
-await worker.start()
-```
-
-**Real-World Examples:**
-
-```python
-# Example 1: ML Model Inference (Sync)
-from asynctasq import SyncProcessTask, TaskConfig
-
-class RunInference(SyncProcessTask[dict]):
-    """Run ML model inference in isolated process."""
-    config: TaskConfig = {
-        "queue": "ml-inference",
-        "timeout": 300,
-    }
-
-    def __init__(self, model_path: str, input_data: list[float], **kwargs):
-        super().__init__(**kwargs)
-        self.model_path = model_path
-        self.input_data = input_data
-
-    def execute(self) -> dict:
-        import numpy as np
-        import joblib
-
-        # Load model
-        model = joblib.load(self.model_path)
-
-        # Heavy CPU computation
-        predictions = model.predict(np.array(self.input_data))
-
-        return {
-            "predictions": predictions.tolist(),
-            "confidence": float(np.mean(predictions))
-        }
-
-# Example 2: Image Processing with PIL (Sync)
-from asynctasq import SyncProcessTask, TaskConfig
-
-class ProcessImageBatch(SyncProcessTask[list[str]]):
-    """Process batch of images in separate process."""
-    config: TaskConfig = {
-        "queue": "image-processing",
-    }
-
-    def __init__(self, image_paths: list[str], **kwargs):
-        super().__init__(**kwargs)
-        self.image_paths = image_paths
-
-    def execute(self) -> list[str]:
-        from PIL import Image, ImageFilter
-
-        output_paths = []
-        for path in self.image_paths:
-            img = Image.open(path)
-            # CPU-intensive filters
-            img = img.filter(ImageFilter.SHARPEN)
-            img = img.filter(ImageFilter.EDGE_ENHANCE)
-            output = path.replace('.jpg', '_processed.jpg')
-            img.save(output, quality=95)
-            output_paths.append(output)
-
-        return output_paths
-
-# Example 3: Data Encryption (Sync)
-from asynctasq import SyncProcessTask, TaskConfig
-
-class EncryptData(SyncProcessTask[bytes]):
-    """Encrypt large data in separate process."""
-    config: TaskConfig = {
-        "queue": "encryption",
-    }
-
-    def __init__(self, data: bytes, key: bytes, **kwargs):
-        super().__init__(**kwargs)
-        self.data = data
-        self.key = key
-
-    def execute(self) -> bytes:
-        from cryptography.fernet import Fernet
-
-        # CPU-intensive encryption
-        cipher = Fernet(self.key)
-        encrypted = cipher.encrypt(self.data)
-
-        return encrypted
-```
-
-**Performance Tuning:**
-
-```python
-# Pool sizing for different workloads
-import os
-
-# CPU-only workload: match core count
-process_pool_size = os.cpu_count()
-
-# Mixed CPU+I/O: add extra workers
-process_pool_size = os.cpu_count() + 1
-
-# Shared machine: reduce to avoid contention
-process_pool_size = os.cpu_count() // 2
-
-# Process recycling (Python 3.11+)
-process_pool_max_tasks_per_child = 100  # Lower = more overhead, better memory
-process_pool_max_tasks_per_child = 1000  # Higher = better performance, potential leaks
-```
-
-**When to Use Each Task Type:**
-
-```python
-# ✅ Use AsyncTask for I/O-bound work (API calls, DB, files)
-class FetchAPI(AsyncTask[dict]):
-    async def execute(self) -> dict:
-        async with httpx.AsyncClient() as client:
-            return (await client.get(url)).json()
-
-# ⚠️ Use SyncTask for moderate CPU or blocking libs
-class ParseCSV(SyncTask[list]):
-    def execute(self) -> list:
-        import pandas as pd
-        df = pd.read_csv(self.path)
-        return df.to_dict('records')
-
-# 🚀 Use SyncProcessTask for heavy CPU work (>80% utilization)
-class TrainModel(SyncProcessTask[float]):
-    def execute(self) -> float:
-        import numpy as np
-        # Heavy matrix operations bypass GIL
-        result = np.linalg.inv(large_matrix @ large_matrix.T)
-        return float(np.trace(result))
-```
-
-### Summary: Choosing the Right Mode
-
-**Quick Reference:**
-
-| Your Task Does...                          | Use This          | Method Name           | Example                  |
-| ------------------------------------------ | ----------------- | --------------------- | ------------------------ |
-| API calls, database queries, file I/O      | `AsyncTask`       | `async def execute()` | Fetch user data from API |
-| Image resize, data parsing, sync libraries | `SyncTask`        | `def execute()`       | Resize image with PIL    |
-| Video encoding, ML training, heavy math    | `SyncProcessTask` | `def execute()`       | Train neural network     |
-
-**Rule of Thumb:**
-- **Default to AsyncTask** - Use for 90% of tasks (I/O-bound)
-- **Switch to SyncTask** - Only when using blocking libraries or moderate CPU work
-- **Switch to SyncProcessTask** - Only when profiling shows >80% CPU usage
-
-**Performance Tips:**
-- ⚡ **AsyncTask**: Can handle 1000s concurrently, minimal memory
-- 🔄 **SyncTask**: Limited by thread pool, ~1MB per thread
-- 💪 **SyncProcessTask**: Limited by CPU cores, ~50MB+ per process
-
-### Mixed Async/Sync/Process in Same Application
-
-```python
-from asynctasq import AsyncTask, SyncTask, SyncProcessTask, TaskConfig
-import asyncio
-import time
-
-# Async task for I/O
-class AsyncOperation(AsyncTask[str]):
-    config: TaskConfig = {
-        "queue": "io-tasks",
-    }
-
-    def __init__(self, data: str, **kwargs):
-        super().__init__(**kwargs)
-        self.data = data
-
-    async def execute(self) -> str:
-        await asyncio.sleep(0.1)
-        return f"Fetched: {self.data}"
-
-# Sync task for moderate CPU
-class SyncOperation(SyncTask[str]):
-    config: TaskConfig = {
-        "queue": "sync-tasks",
-    }
-
-    def __init__(self, data: str, **kwargs):
-        super().__init__(**kwargs)
-        self.data = data
-
-    def execute(self) -> str:
-        time.sleep(1)
-        return f"Computed: {self.data}"
-
-# Process task for heavy CPU
-class ProcessOperation(SyncProcessTask[str]):
-    config: TaskConfig = {
-        "queue": "cpu-tasks",
-    }
-
-    def __init__(self, data: str, **kwargs):
-        super().__init__(**kwargs)
-        self.data = data
-
-    def execute(self) -> str:
-        import hashlib
-        # Simulate CPU-intensive work
-        result = hashlib.pbkdf2_hmac('sha256', self.data.encode(), b'salt', 100000)
-        return result.hex()
-
-# All can be dispatched the same way
-async def main():
-    task1_id = await AsyncOperation(data="async").dispatch()
-    task2_id = await SyncOperation(data="sync").dispatch()
-    task3_id = await ProcessOperation(data="process").dispatch()
-```
-
----
-
-## Driver Overrides
-
-### Per-Task Driver Override (String)
-
-```python
-from asynctasq import init, AsyncTask
-
-# Global config uses redis driver
-init({'driver': 'redis'})
-
-# This task uses Redis regardless of global config
-class CriticalTask(AsyncTask[None]):
-    config = {"queue": "critical", "driver": "redis"}
-
-    async def execute(self) -> None:
-        print("Processing critical task")
-
-# This task uses SQS
-class AWSTask(AsyncTask[None]):
-    config = {"queue": "aws-tasks", "driver": "sqs"}
-
-    async def execute(self) -> None:
-        print("Processing AWS task")
-
-# This task uses global config (redis)
-class NormalTask(AsyncTask[None]):
-    config = {"queue": "normal"}
-    # No driver - uses global config
-
-    async def execute(self) -> None:
-        print("Processing normal task")
-```
-
-### Per-Task Driver Override (Driver Instance)
-
-You can also pass a driver instance directly for complete control over driver configuration:
-
-```python
-from asynctasq import AsyncTask
-from asynctasq.drivers.redis_driver import RedisDriver
-
-# Create a custom driver instance with specific configuration
-custom_redis = RedisDriver(
-    url='redis://custom-host:6379',
-    password='secret',
-    db=1,
-    max_connections=20
-)
-
-# Use the custom driver instance
-class CustomDriverTask(AsyncTask[dict]):
-    config = {"queue": "custom", "driver": custom_redis}
-
-    def __init__(self, data: dict, **kwargs):
-        super().__init__(**kwargs)
-        self.data = data
-
-    async def execute(self) -> dict:
-        print(f"Using custom driver: {self.data}")
-        return self.data
-
-# Dispatch task
-async def main():
-    task_id = await CustomDriverTask(data={"key": "value"}).dispatch()
-    print(f"Task dispatched: {task_id}")
-```
-
-**Important Notes:**
-
-- **Shared driver:** When using a driver instance, the driver is shared across all tasks using it
-- **Isolation:** For per-task isolation, use string-based driver selection instead
-- **Efficiency:** Driver instances are cached and reused, so creating multiple instances with the same configuration is inefficient
-- **Initialization:** Ensure driver instances are properly initialized before task dispatch
-- **Configuration:** Driver instances use their own configuration and ignore global config settings
-
-### Multiple Drivers in Same Application
-
-```python
-from asynctasq import init, AsyncTask
-
-# Default driver
-init({'driver': 'redis'})
-
-# Tasks using different drivers
-class RedisTask(AsyncTask[None]):
-    config = {"queue": "redis-queue", "driver": "redis"}
-
-    async def execute(self) -> None:
-        pass
-
-class PostgresTask(AsyncTask[None]):
-    config = {"queue": "postgres-queue", "driver": "postgres"}
-
-    async def execute(self) -> None:
-        pass
-
-class SQSTask(AsyncTask[None]):
-    config = {"queue": "sqs-queue", "driver": "sqs"}
-
-    async def execute(self) -> None:
-        pass
-
-class DefaultTask(AsyncTask[None]):
-    config = {"queue": "default-queue"}
-    # No driver - uses global config (redis)
-
-    async def execute(self) -> None:
-        pass
-```
-
----
-
-## ORM Integration
-
-### SQLAlchemy Integration
-
-**How it works:** SQLAlchemy models are automatically detected and serialized as lightweight references. Only the primary key is stored in the queue, and models are fetched fresh from the database when the task executes. This ensures data consistency and reduces queue payload size significantly.
-
-**Configuration:** Set the session factory once on your Base class - workers will automatically create sessions as needed.
-
-```python
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from asynctasq import AsyncTask
-
-# Define models
-class Base(DeclarativeBase):
-    pass
-
-class User(Base):
-    __tablename__ = 'users'
-    id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str]
-    name: Mapped[str]
-
-class Order(Base):
-    __tablename__ = 'orders'
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int]
-    total: Mapped[float]
-
-# Setup SQLAlchemy
-engine = create_async_engine(
-    'postgresql+asyncpg://user:pass@localhost/db',
-    pool_pre_ping=True,  # Verify connections are alive
-    pool_recycle=3600,   # Recycle connections after 1 hour
-)
-async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-# Configure session factory - one line! Workers create sessions automatically
-Base._asynctasq_session_factory = async_session
-
-# For multiprocessing workers, use NullPool instead:
-# from sqlalchemy.pool import NullPool
-# engine = create_async_engine(dsn, poolclass=NullPool, pool_pre_ping=True)
-# async_session = async_sessionmaker(engine, expire_on_commit=False)
-# Base._asynctasq_session_factory = async_session
-
-# Task with ORM model parameter
-from asynctasq import AsyncTask, TaskConfig
-
-class SendWelcomeEmail(AsyncTask[None]):
-    config: TaskConfig = {
-        "queue": "emails",
-    }
-
-    def __init__(self, user: User, **kwargs):
-        super().__init__(**kwargs)
-        self.user = user
-
-    async def execute(self) -> None:
-        """User is automatically serialized as reference and fetched fresh."""
-        print(f"Sending welcome email to {self.user.email} (ID: {self.user.id})")
-        # User data is fresh from database when task executes
-
-class ProcessOrder(AsyncTask[None]):
-    config: TaskConfig = {
-        "queue": "orders",
-    }
-
-    def __init__(self, order: Order, user: User, **kwargs):
-        super().__init__(**kwargs)
-        self.order = order
-        self.user = user
-
-    async def execute(self) -> None:
-        """Multiple ORM models supported."""
-        print(f"Processing order {self.order.id} for user {self.user.name}")
-        # Both models are fetched fresh in parallel
-
-# Dispatch tasks
-async def main():
-    async with async_session() as session:
-        # Fetch user
-        user = await session.get(User, 1)
-
-        # Only user.id is serialized to queue (90%+ payload reduction)
-        task_id = await SendWelcomeEmail(user=user).dispatch()
-
-        # Multiple models
-        order = await session.get(Order, 100)
-        task_id = await ProcessOrder(order=order, user=user).dispatch()
-```
-
-**Important Notes:**
-
-- **Simple setup:** One line on Base class - all models inherit automatically
-- **Worker-friendly:** Workers automatically create sessions from factory when fetching models
-- **Fresh data:** Models are fetched fresh from the database when the task executes, ensuring data consistency
-- **Payload optimization:** Only the primary key is serialized, reducing queue payload size by 90%+ for large models
-- **Parallel fetching:** Multiple models in the same task are fetched in parallel for efficiency
-- See [ORM Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/orm-integrations.md) for complete setup instructions and worker configuration
-
-### Django ORM Integration
-
-```python
-from django.db import models
-from asynctasq import AsyncTask
-
-# Define Django model
-class User(models.Model):
-    email = models.EmailField()
-    name = models.CharField(max_length=100)
-
-class Product(models.Model):
-    name = models.CharField(max_length=200)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-
-# Task with Django model
-from asynctasq import AsyncTask, TaskConfig
-
-class SendWelcomeEmail(AsyncTask[None]):
-    config: TaskConfig = {
-        "queue": "emails",
-    }
-
-    def __init__(self, user: User, **kwargs):
-        super().__init__(**kwargs)
-        self.user = user
-
-    async def execute(self) -> None:
-        """Django model automatically serialized as reference."""
-        print(f"Sending welcome email to {self.user.email}")
-
-class UpdateProductPrice(AsyncTask[None]):
-    config: TaskConfig = {
-        "queue": "products",
-    }
-
-    def __init__(self, product: Product, new_price: float, **kwargs):
-        super().__init__(**kwargs)
-        self.product = product
-        self.new_price = new_price
-
-    async def execute(self) -> None:
-        """Django model with additional parameters."""
-        print(f"Updating {self.product.name} to ${self.new_price}")
-
-# Dispatch tasks
-async def main():
-    # Django async methods (Django 3.1+)
-    user = await User.objects.aget(id=1)
-    await SendWelcomeEmail(user=user).dispatch()
-
-    product = await Product.objects.aget(id=5)
-    await UpdateProductPrice(product=product, new_price=99.99).dispatch()
-```
-
-### Tortoise ORM Integration
-
-```python
-from tortoise import fields
-from tortoise.models import Model
-from asynctasq import AsyncTask
-
-# Define Tortoise model
-class User(Model):
-    id = fields.IntField(pk=True)
-    email = fields.CharField(max_length=255)
-    name = fields.CharField(max_length=100)
-
-class Post(Model):
-    id = fields.IntField(pk=True)
-    title = fields.CharField(max_length=200)
-    author = fields.ForeignKeyField('models.User', related_name='posts')
-
-# Task with Tortoise model
-class NotifyNewPost(AsyncTask[None]):
-    config: TaskConfig = {
-        "queue": "notifications",
-    }
-
-    def __init__(self, post: Post, author: User, **kwargs):
-        super().__init__(**kwargs)
-        self.post = post
-        self.author = author
-
-    async def execute(self) -> None:
-        """Tortoise models automatically serialized as references."""
-        print(f"New post '{self.post.title}' by {self.author.name}")
-
-# Dispatch tasks
-async def main():
-    # Tortoise async methods
-    user = await User.get(id=1)
-    post = await Post.get(id=10)
-
-    await NotifyNewPost(post=post, author=user).dispatch()
-```
 
 ---
 
