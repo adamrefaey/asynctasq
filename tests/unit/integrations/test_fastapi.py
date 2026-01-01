@@ -194,3 +194,162 @@ class TestAsyncTasQIntegration:
 
         # Shutdown should still be called
         mock_driver.disconnect.assert_called_once()
+
+    @mark.asyncio
+    async def test_startup_failure_propagates_exception(self, mock_driver, mock_fastapi_app):
+        """Test that startup failures propagate exceptions."""
+        mock_driver.connect.side_effect = ConnectionError("Connection failed")
+        integration = AsyncTasQIntegration(driver=mock_driver)
+
+        with raises(ConnectionError, match="Connection failed"):
+            async with integration.lifespan(mock_fastapi_app):
+                pass
+
+    @mark.asyncio
+    async def test_shutdown_error_logged_not_raised(self, mock_driver, mock_fastapi_app):
+        """Test that shutdown errors are logged but not raised."""
+        mock_driver.disconnect.side_effect = Exception("Disconnect error")
+        integration = AsyncTasQIntegration(driver=mock_driver)
+
+        # Should not raise exception
+        async with integration.lifespan(mock_fastapi_app):
+            pass
+
+        # Disconnect should have been called
+        mock_driver.disconnect.assert_called_once()
+
+    @mark.asyncio
+    async def test_lifespan_driver_priority_over_config(self, mock_driver, mock_fastapi_app):
+        """Test that provided driver takes precedence over config."""
+        config = Config(driver="redis")
+        integration = AsyncTasQIntegration(config=config, driver=mock_driver)
+
+        with patch("asynctasq.integrations.fastapi.DriverFactory.create") as mock_factory:
+            async with integration.lifespan(mock_fastapi_app):
+                # Factory should not be called since driver was provided
+                mock_factory.assert_not_called()
+                assert integration._dispatcher is not None
+                assert integration._dispatcher.driver == mock_driver
+
+    @mark.asyncio
+    async def test_get_dispatcher_type_hint(self, mock_driver, mock_fastapi_app):
+        """Test get_dispatcher returns correct type."""
+        integration = AsyncTasQIntegration(driver=mock_driver)
+
+        async with integration.lifespan(mock_fastapi_app):
+            dispatcher = integration.get_dispatcher()
+            # Type check
+            assert isinstance(dispatcher, Dispatcher)
+
+    @mark.asyncio
+    async def test_get_driver_type_hint(self, mock_driver, mock_fastapi_app):
+        """Test get_driver returns correct type."""
+        integration = AsyncTasQIntegration(driver=mock_driver)
+
+        async with integration.lifespan(mock_fastapi_app):
+            driver = integration.get_driver()
+            # Type check
+            assert isinstance(driver, BaseDriver)
+
+    @mark.asyncio
+    async def test_multiple_lifespan_contexts_sequential(self, mock_driver, mock_fastapi_app):
+        """Test using lifespan multiple times sequentially."""
+        integration = AsyncTasQIntegration(driver=mock_driver)
+
+        # First lifespan
+        async with integration.lifespan(mock_fastapi_app):
+            assert integration._initialized
+            dispatcher1 = integration.get_dispatcher()
+
+        assert not integration._initialized
+
+        # Reset mock call counts
+        mock_driver.connect.reset_mock()
+        mock_driver.disconnect.reset_mock()
+
+        # Second lifespan - should work again
+        async with integration.lifespan(mock_fastapi_app):
+            assert integration._initialized
+            dispatcher2 = integration.get_dispatcher()
+            # Should be different instances
+            assert dispatcher2 is not dispatcher1
+
+        mock_driver.connect.assert_called_once()
+        mock_driver.disconnect.assert_called_once()
+
+    @mark.asyncio
+    async def test_integration_with_custom_driver_instance(self, mock_fastapi_app):
+        """Test integration with custom driver instance."""
+        custom_driver = MagicMock(spec=BaseDriver)
+        custom_driver.connect = AsyncMock()
+        custom_driver.disconnect = AsyncMock()
+
+        integration = AsyncTasQIntegration(driver=custom_driver)
+
+        async with integration.lifespan(mock_fastapi_app):
+            assert integration._dispatcher is not None
+            assert integration._dispatcher.driver == custom_driver
+
+        custom_driver.connect.assert_called_once()
+        custom_driver.disconnect.assert_called_once()
+
+    @mark.asyncio
+    async def test_lifespan_logging(self, mock_driver, mock_fastapi_app):
+        """Test that lifespan logs startup and shutdown."""
+        integration = AsyncTasQIntegration(driver=mock_driver)
+
+        with patch("asynctasq.integrations.fastapi.logger") as mock_logger:
+            async with integration.lifespan(mock_fastapi_app):
+                pass
+
+            # Check that info logs were called
+            assert mock_logger.info.call_count >= 2
+
+    @mark.asyncio
+    async def test_get_dispatcher_error_message_clarity(self):
+        """Test get_dispatcher error message is helpful."""
+        integration = AsyncTasQIntegration()
+
+        with raises(RuntimeError) as exc_info:
+            integration.get_dispatcher()
+
+        assert "not initialized" in str(exc_info.value)
+        assert "lifespan" in str(exc_info.value).lower()
+
+    @mark.asyncio
+    async def test_get_driver_error_message_clarity(self):
+        """Test get_driver error message is helpful."""
+        integration = AsyncTasQIntegration()
+
+        with raises(RuntimeError) as exc_info:
+            integration.get_driver()
+
+        assert "not initialized" in str(exc_info.value)
+        assert "lifespan" in str(exc_info.value).lower()
+
+    @mark.asyncio
+    async def test_config_factory_interaction(self, mock_fastapi_app):
+        """Test config is properly passed to DriverFactory."""
+        config = Config(driver="redis")
+        integration = AsyncTasQIntegration(config=config)
+
+        with patch("asynctasq.integrations.fastapi.DriverFactory.create") as mock_factory:
+            mock_driver = MagicMock(spec=BaseDriver)
+            mock_driver.connect = AsyncMock()
+            mock_driver.disconnect = AsyncMock()
+            mock_factory.return_value = mock_driver
+
+            async with integration.lifespan(mock_fastapi_app):
+                # Verify factory was called with correct config
+                mock_factory.assert_called_once_with("redis", config)
+
+    @mark.asyncio
+    async def test_shutdown_with_none_dispatcher(self):
+        """Test shutdown handles None dispatcher gracefully."""
+        integration = AsyncTasQIntegration()
+
+        # Call shutdown directly without initialization
+        await integration._shutdown()
+
+        # Should not raise exception
+        assert not integration._initialized
