@@ -8,6 +8,7 @@
   - [Programmatic Workers](#programmatic-workers)
   - [Multiple Workers for Different Queues](#multiple-workers-for-different-queues)
   - [Graceful Shutdown](#graceful-shutdown)
+  - [Error Handling \& Reliability](#error-handling--reliability)
 
 Workers continuously poll queues and execute tasks. Run workers via CLI (recommended) or programmatically.
 
@@ -47,6 +48,13 @@ python -m asynctasq worker \
     --queues default,emails \
     --concurrency 10
 
+# RabbitMQ worker
+python -m asynctasq worker \
+    --driver rabbitmq \
+    --rabbitmq-url amqp://user:pass@localhost:5672/ \
+    --queues default,emails \
+    --concurrency 10
+
 # AWS SQS worker
 python -m asynctasq worker \
     --driver sqs \
@@ -62,17 +70,118 @@ python -m asynctasq worker \
 python -m asynctasq worker --queues high,default,low --concurrency 20
 ```
 
+**Advanced CLI Options:**
+
+```bash
+# Worker with process pool for CPU-bound tasks
+python -m asynctasq worker \
+    --driver redis \
+    --queues default \
+    --concurrency 10 \
+    --process-pool-size 4 \
+    --process-pool-max-tasks-per-child 100
+
+# Worker with monitoring enabled
+python -m asynctasq worker \
+    --driver redis \
+    --queues default \
+    --events-enable-event-emitter-redis \
+    --events-redis-url redis://localhost:6379 \
+    --events-channel asynctasq:prod:events
+
+# Worker with completed task retention (for PostgreSQL/MySQL/Redis)
+python -m asynctasq worker \
+    --driver postgres \
+    --postgres-dsn postgresql://user:pass@localhost/db \
+    --queues default \
+    --repository-keep-completed-tasks
+```
+
 **Worker Options:**
 
-| Option          | Description                                      | Default   |
-| --------------- | ------------------------------------------------ | --------- |
-| `--driver`      | Queue driver (redis/postgres/mysql/rabbitmq/sqs) | `redis`   |
-| `--queues`      | Comma-separated queue names (priority order)     | `default` |
-| `--concurrency` | Max concurrent tasks                             | `10`      |
+| Option                                | Description                                      | Default            |
+| ------------------------------------- | ------------------------------------------------ | ------------------ |
+| `--driver`                            | Queue driver (redis/postgres/mysql/rabbitmq/sqs) | `redis`            |
+| `--queues`                            | Comma-separated queue names (priority order)     | `default`          |
+| `--concurrency`                       | Max concurrent tasks                             | `10`               |
+| `--process-pool-size`                 | Process pool size for CPU-bound tasks            | `None`             |
+| `--process-pool-max-tasks-per-child`  | Recycle worker processes after N tasks           | `None`             |
+| `--repository-keep-completed-tasks`   | Keep completed tasks for history/audit           | `False`            |
+| `--events-enable-event-emitter-redis` | Enable Redis event pub/sub for monitoring        | `False`            |
+| `--events-redis-url`                  | Redis URL for event pub/sub                      | `None`             |
+| `--events-channel`                    | Redis Pub/Sub channel name for events            | `asynctasq:events` |
+| `--task-defaults-queue`               | Default queue name for tasks                     | `default`          |
+| `--task-defaults-max-attempts`        | Default maximum retry attempts                   | `3`                |
+| `--task-defaults-retry-strategy`      | Retry delay strategy (fixed/exponential)         | `exponential`      |
+| `--task-defaults-retry-delay`         | Base retry delay in seconds                      | `60`               |
+| `--task-defaults-timeout`             | Default task timeout in seconds                  | `None`             |
+| `--task-defaults-visibility-timeout`  | Visibility timeout for crash recovery (seconds)  | `300`              |
 
 **Driver-Specific Options:**
 
-See [Configuration](configuration.md) section for complete list of driver-specific CLI options.
+<details>
+<summary><strong>Redis Options</strong></summary>
+
+| Option                    | Description           | Default                  |
+| ------------------------- | --------------------- | ------------------------ |
+| `--redis-url`             | Redis connection URL  | `redis://localhost:6379` |
+| `--redis-password`        | Redis password        | `None`                   |
+| `--redis-db`              | Redis database number | `0`                      |
+| `--redis-max-connections` | Redis max connections | `100`                    |
+
+</details>
+
+<details>
+<summary><strong>PostgreSQL Options</strong></summary>
+
+| Option                         | Description                        | Default                                         |
+| ------------------------------ | ---------------------------------- | ----------------------------------------------- |
+| `--postgres-dsn`               | PostgreSQL connection DSN          | `postgresql://test:test@localhost:5432/test_db` |
+| `--postgres-queue-table`       | Queue table name                   | `task_queue`                                    |
+| `--postgres-dead-letter-table` | Dead letter table name             | `dead_letter_queue`                             |
+| `--postgres-max-attempts`      | Max attempts before dead-lettering | `3`                                             |
+| `--postgres-min-pool-size`     | Minimum connection pool size       | `10`                                            |
+| `--postgres-max-pool-size`     | Maximum connection pool size       | `10`                                            |
+
+</details>
+
+<details>
+<summary><strong>MySQL Options</strong></summary>
+
+| Option                      | Description                        | Default                                    |
+| --------------------------- | ---------------------------------- | ------------------------------------------ |
+| `--mysql-dsn`               | MySQL connection DSN               | `mysql://test:test@localhost:3306/test_db` |
+| `--mysql-queue-table`       | Queue table name                   | `task_queue`                               |
+| `--mysql-dead-letter-table` | Dead letter table name             | `dead_letter_queue`                        |
+| `--mysql-max-attempts`      | Max attempts before dead-lettering | `3`                                        |
+| `--mysql-min-pool-size`     | Minimum connection pool size       | `10`                                       |
+| `--mysql-max-pool-size`     | Maximum connection pool size       | `10`                                       |
+
+</details>
+
+<details>
+<summary><strong>RabbitMQ Options</strong></summary>
+
+| Option                      | Description             | Default                              |
+| --------------------------- | ----------------------- | ------------------------------------ |
+| `--rabbitmq-url`            | RabbitMQ connection URL | `amqp://guest:guest@localhost:5672/` |
+| `--rabbitmq-exchange-name`  | RabbitMQ exchange name  | `asynctasq`                          |
+| `--rabbitmq-prefetch-count` | Consumer prefetch count | `1`                                  |
+
+</details>
+
+<details>
+<summary><strong>AWS SQS Options</strong></summary>
+
+| Option                    | Description                       | Default                              |
+| ------------------------- | --------------------------------- | ------------------------------------ |
+| `--sqs-region`            | AWS SQS region                    | `us-east-1`                          |
+| `--sqs-queue-url-prefix`  | SQS queue URL prefix              | `None`                               |
+| `--sqs-endpoint-url`      | SQS endpoint URL (for LocalStack) | `None`                               |
+| `--aws-access-key-id`     | AWS access key ID                 | From `AWS_ACCESS_KEY_ID` env var     |
+| `--aws-secret-access-key` | AWS secret access key             | From `AWS_SECRET_ACCESS_KEY` env var |
+
+</details>
 
 ---
 
@@ -92,7 +201,7 @@ async def main():
     )
 
     # Create driver and connect
-    driver = DriverFactory.create(config)
+    driver = DriverFactory.create('redis', config)
     await driver.connect()
 
     try:
@@ -224,4 +333,75 @@ TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
+```
+
+---
+
+## Error Handling & Reliability
+
+**Automatic Retry:**
+
+Tasks that fail are automatically retried with configurable backoff strategies:
+
+```python
+from asynctasq import task
+
+@task(max_attempts=5, retry_delay=30, retry_strategy='exponential')
+async def process_order(order_id: int):
+    # Task will retry up to 5 times with exponential backoff
+    # Retry delays: 30s, 60s, 120s, 240s, 480s
+    pass
+```
+
+**Dead Letter Queue:**
+
+After exceeding `max_attempts`, failed tasks move to a dead letter queue (PostgreSQL/MySQL only). This prevents poison messages from blocking queue processing.
+
+**Crash Recovery (Visibility Timeout):**
+
+AsyncTasQ uses visibility timeout to handle worker crashes:
+
+- **Default:** 300 seconds (5 minutes)
+- **Behavior:** If a worker crashes mid-task, the task becomes visible again after the timeout
+- **Configuration:** Set via `visibility_timeout` parameter on tasks
+
+```python
+@task(visibility_timeout=600)  # 10 minutes
+async def long_running_task():
+    # If worker crashes, task reappears after 10 minutes
+    pass
+```
+
+**Task Timeout:**
+
+Prevent tasks from running indefinitely:
+
+```python
+@task(timeout=300)  # 5 minutes
+async def api_call():
+    # Task raises TimeoutError if exceeds 5 minutes
+    pass
+```
+
+**Health Monitoring:**
+
+Workers emit events for monitoring:
+
+- `worker_online` - Worker started
+- `worker_heartbeat` - Periodic health check (default: every 60s)
+- `worker_offline` - Worker shutdown
+- `task_enqueued` - Task added to queue
+- `task_started` - Task execution began
+- `task_completed` - Task finished successfully
+- `task_failed` - Task failed with error
+- `task_retrying` - Task being retried
+
+Enable Redis event emission for real-time monitoring:
+
+```bash
+python -m asynctasq worker \
+    --driver redis \
+    --events-enable-event-emitter-redis \
+    --events-redis-url redis://localhost:6379 \
+    --events-channel asynctasq:events
 ```
