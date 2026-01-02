@@ -246,6 +246,14 @@ Configuration group: `postgres` (type: `PostgresConfig`)
 
 **Context: Both dispatch and worker contexts** – Used for queue connections in both task dispatching and processing.
 
+**⚠️ Migration Required:** Before using the PostgreSQL driver, you must run migrations to create the required database tables:
+
+```bash
+uv run asynctasq migrate --driver postgres
+```
+
+This creates the `task_queue` and `dead_letter_queue` tables with the necessary schema.
+
 | Option              | Type | Description                            | Default                                         |
 | ------------------- | ---: | -------------------------------------- | ----------------------------------------------- |
 | `dsn`               |  str | PostgreSQL connection DSN              | `postgresql://test:test@localhost:5432/test_db` |
@@ -278,6 +286,14 @@ init({
 Configuration group: `mysql` (type: `MySQLConfig`)
 
 **Context: Both dispatch and worker contexts** – Used for queue connections in both task dispatching and processing.
+
+**⚠️ Migration Required:** Before using the MySQL driver, you must run migrations to create the required database tables:
+
+```bash
+uv run asynctasq migrate --driver mysql
+```
+
+This creates the `task_queue` and `dead_letter_queue` tables with the necessary schema.
 
 | Option              | Type | Description                            | Default                                    |
 | ------------------- | ---: | -------------------------------------- | ------------------------------------------ |
