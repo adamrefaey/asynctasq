@@ -161,7 +161,7 @@ async def trigger_processing(
 ```
 
 **Benefits:**
-- Uses modern FastAPI `lifespan` context manager (FastAPI 0.115.0+)
+- Uses modern FastAPI `lifespan` context manager (FastAPI 0.109.0+)
 - Automatic driver connection on startup
 - Graceful driver disconnection on shutdown
 - Dependency injection support for `Dispatcher` and `BaseDriver`
@@ -197,7 +197,7 @@ async def trigger_processing(order_id: int):
 # until the first dispatch, ensuring proper attachment to the running loop
 ```
 
-**Note:** The `@app.on_event("startup")` decorator is deprecated in FastAPI 0.115.0+. Use the `lifespan` pattern shown above instead.
+**Note:** The `@app.on_event("startup")` decorator is deprecated in FastAPI 0.109.0+. Use the `lifespan` pattern shown above instead.
 
 ### Pattern 4: uvloop Direct Usage
 
@@ -395,7 +395,7 @@ app = FastAPI(lifespan=asynctasq.lifespan)
 **Solution:** Migrate to the modern `lifespan` pattern:
 
 ```python
-# ❌ Old way (deprecated in FastAPI 0.115.0+)
+# ❌ Old way (deprecated in FastAPI 0.109.0+)
 @app.on_event("startup")
 async def startup():
     init(...)

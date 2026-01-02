@@ -22,7 +22,7 @@ pip install "asynctasq[fastapi]"
 
 **Requirements:**
 
-- fastapi >= 0.115.0
+- fastapi >= 0.109.0
 
 **Basic Setup:**
 
