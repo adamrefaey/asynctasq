@@ -535,8 +535,21 @@ class TestSQSDriverWithLocalStack:
         # Assert - Queue URL should be cached now
         assert TEST_QUEUE_NAME in driver._queue_urls
 
-        # Verify message was enqueued
-        result = await driver.dequeue(TEST_QUEUE_NAME)
+        # Verify message was enqueued - drain all messages to handle delayed messages from other tests
+        result = None
+        found_our_message = False
+        for _ in range(20):  # Try up to 20 messages to find ours
+            msg = await driver.dequeue(TEST_QUEUE_NAME)
+            if msg is None:
+                break
+            if msg == task_data:
+                found_our_message = True
+                result = msg
+                break
+            # Acknowledge and discard messages from other tests
+            await driver.ack(TEST_QUEUE_NAME, msg)
+
+        assert found_our_message, "Our enqueued message was not found in the queue"
         assert result == task_data
 
         # Cleanup
