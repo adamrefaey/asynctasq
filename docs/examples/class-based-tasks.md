@@ -38,9 +38,17 @@ The simplest class-based task extends `AsyncTask` and implements the `execute()`
 import asyncio
 from asynctasq import init, AsyncTask
 
-# Configure the queue driver
-# Note: Use 'redis', 'postgres', 'mysql', or 'sqs' for production
+# Configure the queue driver - choose one of three options:
+# Option 1: Code configuration
 init({'driver': 'redis'})
+
+# Option 2: Environment variables
+# Set: ASYNCTASQ_DRIVER=redis
+# init()  # Loads from environment
+
+# Option 3: .env file (recommended for production)
+# Create .env with: ASYNCTASQ_DRIVER=redis
+# init()  # Automatically loads from .env
 
 # Define a simple task class
 class SendNotification(AsyncTask[str]):
@@ -80,6 +88,7 @@ The simplest approach is to let AsyncTasQ automatically handle parameter assignm
 ```python
 from asynctasq import init, AsyncTask
 
+# Configure (code, environment variables, or .env file)
 init({'driver': 'redis'})
 
 class ProcessData(AsyncTask[int]):
@@ -109,6 +118,7 @@ Use a custom `__init__` when you need to validate, transform, or provide default
 ```python
 from asynctasq import init, AsyncTask
 
+# Configure (code, environment variables, or .env file)
 init({'driver': 'redis'})
 
 class ProcessData(AsyncTask[int]):
@@ -1499,8 +1509,13 @@ Here's a complete, runnable example demonstrating multiple class-based task patt
 import asyncio
 from asynctasq import init, AsyncTask, run
 
-# Configure (use 'redis' or 'postgres' for production)
+# Configure - choose one:
+# Option 1: Code config
 init({'driver': 'redis'})
+# Option 2: Environment (set ASYNCTASQ_DRIVER=redis)
+# init()
+# Option 3: .env file (create .env with ASYNCTASQ_DRIVER=redis)
+# init()
 
 # Define tasks with different configurations
 class SendEmail(AsyncTask[str]):
@@ -1651,11 +1666,16 @@ Class-based tasks in AsyncTasQ provide a powerful, flexible way to create reusab
 
 ### Quick Start
 
-1. **Configure your driver:**
+1. **Configure your driver (choose one method):**
 
     ```python
     from asynctasq import init
+    # Option 1: Code
     init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs'
+    # Option 2: Environment variable (ASYNCTASQ_DRIVER=redis)
+    # init()
+    # Option 3: .env file (ASYNCTASQ_DRIVER=redis in .env)
+    # init()
     ```
 
 2. **Define a task class:**

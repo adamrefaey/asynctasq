@@ -121,7 +121,7 @@ class ProcessPayment(AsyncTask[bool]):
 ```python
 from asynctasq import init, RedisConfig, TaskDefaultsConfig, EventsConfig, ProcessPoolConfig, Worker, DriverFactory, Config
 
-# Option 1: Programmatic configuration
+# Option 1: Code configuration
 init({
     'driver': 'redis',
     'redis': RedisConfig(
@@ -145,14 +145,23 @@ init({
     )
 })
 
-# Option 2: Environment variables (recommended for production)
-# See environment-variables.md for complete list of env vars
+# Option 2: Environment variables (set in your shell/container)
+# See environment-variables.md for complete list
 # ASYNCTASQ_DRIVER=redis
 # ASYNCTASQ_REDIS_URL=redis://redis-master:6379
 # ASYNCTASQ_REDIS_PASSWORD=your-redis-password
 # ASYNCTASQ_TASK_DEFAULTS_MAX_ATTEMPTS=5
 # ASYNCTASQ_EVENTS_ENABLE_EVENT_EMITTER_REDIS=true
-init()  # Loads from environment variables or .env file
+init()  # Loads from environment variables
+
+# Option 3: .env file (recommended for production)
+# Create a .env file in project root with:
+# ASYNCTASQ_DRIVER=redis
+# ASYNCTASQ_REDIS_URL=redis://redis-master:6379
+# ASYNCTASQ_REDIS_PASSWORD=your-redis-password
+# ASYNCTASQ_TASK_DEFAULTS_MAX_ATTEMPTS=5
+# ASYNCTASQ_EVENTS_ENABLE_EVENT_EMITTER_REDIS=true
+init()  # Automatically loads from .env file
 
 # Option 1: Using CLI (Recommended for production)
 # Deploy multiple worker processes using systemd, supervisor, or Kubernetes

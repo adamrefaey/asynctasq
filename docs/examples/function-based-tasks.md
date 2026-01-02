@@ -117,9 +117,17 @@ The simplest way to create a task is to add the `@task` decorator to an async fu
 import asyncio
 from asynctasq import init, task
 
-# Configure the queue driver
-# Note: Use 'redis', 'postgres', 'mysql', or 'sqs' for production
+# Configure the queue driver - choose one of three options:
+# Option 1: Code configuration
 init({'driver': 'redis'})
+
+# Option 2: Environment variables
+# Set: ASYNCTASQ_DRIVER=redis
+# init()  # Loads from environment
+
+# Option 3: .env file (recommended for production)
+# Create .env with: ASYNCTASQ_DRIVER=redis
+# init()  # Automatically loads from .env
 
 # Define a simple task
 @task
@@ -150,6 +158,7 @@ Synchronous functions are automatically executed in a thread pool, so you can us
 ```python
 from asynctasq import init, task
 
+# Configure (code, environment variables, or .env file)
 init({'driver': 'redis'})
 
 # Synchronous function (automatically runs in thread pool)
@@ -1587,8 +1596,13 @@ Here's a complete, runnable example demonstrating multiple function-based task p
 import asyncio
 from asynctasq import init, task, run, print
 
-# Configure driver (Redis, PostgreSQL, MySQL, SQS, or RabbitMQ)
+# Configure driver - choose one:
+# Option 1: Code config
 init({'driver': 'redis'})
+# Option 2: Environment (set ASYNCTASQ_DRIVER=redis)
+# init()
+# Option 3: .env file (create .env with ASYNCTASQ_DRIVER=redis)
+# init()
 
 # Define tasks with different configurations
 @task(queue='emails', max_attempts=3, retry_delay=60)
@@ -1700,10 +1714,15 @@ To use function-based tasks, you need:
    uv add "asynctasq[redis]"  # or postgres, mysql, sqs, rabbitmq
    ```
 
-2. ✅ **Configure driver** in your application:
+2. ✅ **Configure driver** in your application (choose one method):
    ```python
    from asynctasq import init
+   # Option 1: Code
    init({'driver': 'redis'})
+   # Option 2: Environment variable (ASYNCTASQ_DRIVER=redis)
+   # init()
+   # Option 3: .env file (ASYNCTASQ_DRIVER=redis in .env)
+   # init()
    ```
 
 3. ✅ **Define tasks** with `@task` decorator:
@@ -1732,10 +1751,13 @@ To use function-based tasks, you need:
    uv add "asynctasq[redis]"
    ```
 
-2. **Configure in your app:**
+2. **Configure in your app (choose one method):**
    ```python
    from asynctasq import init
+   # Code config (Option 1)
    init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs', 'rabbitmq'
+   # Environment variable (Option 2): Set ASYNCTASQ_DRIVER=redis, then init()
+   # .env file (Option 3): Add ASYNCTASQ_DRIVER=redis to .env, then init()
    ```
 
 3. **Define a task:**

@@ -52,8 +52,14 @@ from asynctasq import AsyncTask, RedisConfig, TaskConfig, init, print, task
 # Option A: Via code
 init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
 
-# Option B: Via environment variables (recommended for production)
-# Create a .env file with: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://localhost:6379
+# Option B: Via environment variables
+# Set environment variables: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://localhost:6379
+# Then simply call: init()
+
+# Option C: Via .env file (recommended for production)
+# Create a .env file with:
+#   ASYNCTASQ_DRIVER=redis
+#   ASYNCTASQ_REDIS_URL=redis://localhost:6379
 # Then simply call: init()
 
 
