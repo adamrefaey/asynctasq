@@ -275,5 +275,15 @@ def create_parser() -> argparse.ArgumentParser:
         help="Initialize database schema",
     )
     add_driver_args(migrate_parser, default_driver="postgres")
+    migrate_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be created without making changes (default: False)",
+    )
+    migrate_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force migration even if tables already exist (default: False)",
+    )
 
     return parser
