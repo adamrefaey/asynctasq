@@ -1,6 +1,11 @@
 # Configuration
 
-AsyncTasQ uses the `init()` function as the primary configuration interface. This function initializes both configuration and event emitters.
+AsyncTasQ uses the `init()` function as the primary configuration interface. Configuration can be provided via:
+- **Code** (passing a dictionary to `init()`)
+- **Environment variables** (with `ASYNCTASQ_` prefix)
+- **.env files** (automatically loaded from project root)
+
+See [Environment Variables](environment-variables.md) for complete details on environment-based configuration.
 
 ## Configuration Contexts
 
@@ -64,54 +69,65 @@ The **worker context** refers to when the worker process is running and processi
 
 Initialize AsyncTasQ with configuration and event emitters. **This function must be called before using any AsyncTasQ functionality.** It is recommended to call it as early as possible in your main script.
 
+**Configuration Priority (highest to lowest):**
+1. Arguments passed to `init()` (highest priority)
+2. Environment variables
+3. `.env` file
+4. Default values (lowest priority)
+
 ```python
 from asynctasq import init, RedisConfig
 
-# Initialize with Redis driver
+# Option 1: Code configuration
 init({
     'driver': 'redis',
     'redis': RedisConfig(url='redis://localhost:6379')
 })
+
+# Option 2: Environment variables (recommended)
+# Set ASYNCTASQ_DRIVER=redis and ASYNCTASQ_REDIS_URL=redis://localhost:6379
+init()  # Loads from environment automatically
+
+# Option 3: .env file (recommended for multiple environments)
+# Create .env with: ASYNCTASQ_DRIVER=redis
+init()  # Loads from .env automatically
 ```
 
 **Parameters:**
-- `config_overrides` (optional): Configuration overrides as a dictionary
+- `config` (optional): Configuration dictionary. Values passed here override environment variables and .env settings
 - `event_emitters` (optional): List of additional event emitters to register
 - `tortoise_config` (optional): Tortoise ORM configuration dictionary for automatic initialization when lazy ORM proxies are resolved in workers
 
 **Example with custom event emitters:**
 ```python
-from asynctasq import init, LoggingEventEmitter, RedisConfig
+from asynctasq import init, LoggingEventEmitter
 
 # Create custom emitter
 custom_emitter = LoggingEventEmitter()
 
-# Initialize with config and additional emitters
+# Initialize with additional emitters
+# Config can come from environment variables or .env file
 init(
-    config_overrides={
-        'driver': 'redis',
-        'redis': RedisConfig(url='redis://localhost:6379')
-    },
     event_emitters=[custom_emitter]
 )
 ```
 
-**Example with Tortoise ORM configuration:**
+**Example with Tortoise ORM:**
 ```python
-from asynctasq import init, RedisConfig
+from asynctasq import init
 
-# Initialize with Tortoise ORM auto-initialization
+# Tortoise ORM config for automatic initialization
 init(
-    config_overrides={
-        'driver': 'redis',
-        'redis': RedisConfig(url='redis://localhost:6379')
-    },
     tortoise_config={
-        "db_url": "postgres://user:pass@localhost/db",
-        "modules": {"models": ["myapp.models"]}
+        'db_url': 'postgres://user:pass@localhost/db',
+        'modules': {'models': ['myapp.models']}
     }
 )
 ```
+
+For more configuration examples and environment variable usage, see:
+- [Environment Variables Guide](environment-variables.md) - Complete guide to .env files and environment variables
+- [Queue Drivers](queue-drivers.md) - Driver-specific configuration examples
 
 ### `Config.get()`
 
@@ -145,13 +161,11 @@ AsyncTasQ uses a grouped configuration structure where related settings are orga
 - `sqlalchemy_engine`: SQLAlchemy engine for cleanup (top-level, optional)
 - `tortoise_orm`: Tortoise ORM configuration dictionary (top-level, optional)
 
-**Note:** While `tortoise_orm` can be set via `config_overrides`, it's more commonly passed via the separate `tortoise_config` parameter to `init()` for clarity.
-
 ---
 
 ## Configuration Options
 
-All configuration options are set via the `config_overrides` parameter of `init()`.
+All configuration options are set via the `config` parameter of `init()` (a dictionary), environment variables, or .env file.
 
 ### Driver Selection
 

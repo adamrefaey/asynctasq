@@ -49,7 +49,12 @@ import asyncio
 from asynctasq import AsyncTask, RedisConfig, TaskConfig, init, print, task
 
 # 1. Configure AsyncTasQ
+# Option A: Via code
 init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
+
+# Option B: Via environment variables (recommended for production)
+# Create a .env file with: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://localhost:6379
+# Then simply call: init()
 
 
 # 2. Define tasks (function-based or class-based)
@@ -169,6 +174,7 @@ Comprehensive guides to get you started:
   - Configuration properties apply to different contexts: **dispatch** (when enqueuing tasks) vs **worker** (when processing tasks)
   - Driver configs (redis, postgres, mysql, rabbitmq, sqs) and events config apply to **both contexts**
   - Properties like `timeout` and `visibility_timeout` are configured **per-task** via TaskConfig
+- **[Environment Variables](https://github.com/adamrefaey/asynctasq/blob/main/docs/environment-variables.md)** – Complete guide to .env file support and environment variable configuration
 - **[Task Definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md)** – Function-based and class-based tasks
 - **[Queue Drivers](https://github.com/adamrefaey/asynctasq/blob/main/docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
 - **[Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md)** – CLI and programmatic workers
@@ -248,6 +254,8 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
   - ✅ **Async-first design** with asyncio throughout the stack
 
   - ✅ **Multiple queue drivers**: Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
+
+  - ✅ **Environment variables & .env file support** for easy configuration across environments
 
   - ✅ **High-performance msgpack serialization** with binary support
 

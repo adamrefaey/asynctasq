@@ -143,7 +143,7 @@ async def send_email_route(to: str, subject: str, body: str):
 
 1. **Explicit driver instance** - Highest priority (passed via `driver` parameter)
 2. **Explicit config** - Medium priority (passed via `config` parameter)
-3. **Global config** - Lowest priority (set via `init()` or defaults to Redis localhost)
+3. **Global config** - Lowest priority (set via `init()`, environment variables, .env file, or defaults to Redis localhost)
 
 ```python
 # Priority 1: Explicit driver (highest)
@@ -155,8 +155,15 @@ config = Config(driver='redis', redis=RedisConfig(url='redis://prod:6379'))
 AsyncTasQIntegration(config=config)
 
 # Priority 3: Global config (lowest)
+# Option A: Programmatic
 init({'driver': 'redis'})  # Set global config first
 AsyncTasQIntegration()      # Uses global config
+
+# Option B: Environment variables (see environment-variables.md)
+# ASYNCTASQ_DRIVER=redis
+# ASYNCTASQ_REDIS_URL=redis://prod:6379
+init()  # Loads from env vars
+AsyncTasQIntegration()  # Uses env-loaded config
 ```
 
 **Important Notes:**

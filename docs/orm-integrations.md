@@ -342,7 +342,7 @@ class User(Model):
 
 # Initialize AsyncTasQ with Tortoise auto-initialization
 init(
-    config_overrides={
+    {
         'driver': 'redis',
         'redis': RedisConfig(url='redis://localhost:6379')
     },

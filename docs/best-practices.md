@@ -121,7 +121,7 @@ class ProcessPayment(AsyncTask[bool]):
 ```python
 from asynctasq import init, RedisConfig, TaskDefaultsConfig, EventsConfig, ProcessPoolConfig, Worker, DriverFactory, Config
 
-# Initialize AsyncTasQ with configuration
+# Option 1: Programmatic configuration
 init({
     'driver': 'redis',
     'redis': RedisConfig(
@@ -144,6 +144,15 @@ init({
         max_tasks_per_child=100
     )
 })
+
+# Option 2: Environment variables (recommended for production)
+# See environment-variables.md for complete list of env vars
+# ASYNCTASQ_DRIVER=redis
+# ASYNCTASQ_REDIS_URL=redis://redis-master:6379
+# ASYNCTASQ_REDIS_PASSWORD=your-redis-password
+# ASYNCTASQ_TASK_DEFAULTS_MAX_ATTEMPTS=5
+# ASYNCTASQ_EVENTS_ENABLE_EVENT_EMITTER_REDIS=true
+init()  # Loads from environment variables or .env file
 
 # Option 1: Using CLI (Recommended for production)
 # Deploy multiple worker processes using systemd, supervisor, or Kubernetes

@@ -31,6 +31,14 @@
 
 AsyncTasQ supports five production-ready queue drivers with identical APIs. This guide provides complete configuration details, setup instructions, and best practices for each driver.
 
+**Configuration Methods:**
+All drivers can be configured via:
+1. **Code** - Pass configuration dictionary to `init()`
+2. **Environment variables** - Set `ASYNCTASQ_` prefixed variables
+3. **.env file** - Automatically loaded from project root
+
+See [Environment Variables](environment-variables.md) for complete details.
+
 ## Overview
 
 All drivers implement the same `BaseDriver` interface, providing:
@@ -72,12 +80,12 @@ pip install "asynctasq[redis]"
 **Configuration:**
 
 ```python
-# Simple configuration (defaults)
+# Option 1: Simple configuration (using defaults)
 from asynctasq import init
 
 init({'driver': 'redis'})
 
-# Full configuration with all options
+# Option 2: Full configuration with all options
 from asynctasq import init, RedisConfig
 
 init({
@@ -89,6 +97,10 @@ init({
         max_connections=100                 # Connection pool size
     )
 })
+
+# Option 3: Environment variables (recommended)
+# Set: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://localhost:6379
+init()  # Loads from environment automatically
 
 # Or use dict syntax
 init({
@@ -149,10 +161,9 @@ pip install "asynctasq[postgres]"
 **Configuration:**
 
 ```python
-# Programmatic configuration
+# Option 1: Using PostgresConfig
 from asynctasq import init, PostgresConfig
 
-# Using PostgresConfig (recommended)
 init({
     'driver': 'postgres',
     'postgres': PostgresConfig(
@@ -165,7 +176,7 @@ init({
     )
 })
 
-# Using dict (alternative)
+# Option 2: Using dict
 init({
     'driver': 'postgres',
     'postgres': {
@@ -177,6 +188,11 @@ init({
         'max_pool_size': 10
     }
 })
+
+# Option 3: Environment variables (recommended)
+# Set: ASYNCTASQ_DRIVER=postgres
+#      ASYNCTASQ_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
+init()  # Loads from environment
 ```
 
 **Configuration Parameters:**
@@ -232,10 +248,9 @@ pip install "asynctasq[mysql]"
 **Configuration:**
 
 ```python
-# Programmatic configuration
+# Option 1: Programmatic configuration with MySQLConfig (recommended)
 from asynctasq import init, MySQLConfig
 
-# Using MySQLConfig (recommended)
 init({
     'driver': 'mysql',
     'mysql': MySQLConfig(
@@ -248,7 +263,7 @@ init({
     )
 })
 
-# Using dict (alternative)
+# Option 2: Using dict (alternative)
 init({
     'driver': 'mysql',
     'mysql': {
@@ -260,6 +275,14 @@ init({
         'max_pool_size': 10
     }
 })
+
+# Option 3: Environment variables (.env file or system env)
+# See environment-variables.md for complete list
+# ASYNCTASQ_DRIVER=mysql
+# ASYNCTASQ_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
+# ASYNCTASQ_MYSQL_QUEUE_TABLE=task_queue
+# ASYNCTASQ_MYSQL_MAX_ATTEMPTS=3
+init()  # Loads from env vars automatically
 ```
 
 **Configuration Parameters:**
@@ -315,10 +338,9 @@ pip install "asynctasq[sqs]"
 **Configuration:**
 
 ```python
-# Programmatic configuration
+# Option 1: Programmatic configuration with SQSConfig (recommended)
 from asynctasq import init, SQSConfig
 
-# Using SQSConfig (recommended)
 init({
     'driver': 'sqs',
     'sqs': SQSConfig(
@@ -330,7 +352,7 @@ init({
     )
 })
 
-# Using dict (alternative)
+# Option 2: Using dict (alternative)
 init({
     'driver': 'sqs',
     'sqs': {
@@ -341,6 +363,14 @@ init({
         'endpoint_url': 'http://localhost:4566'  # Optional (LocalStack)
     }
 })
+
+# Option 3: Environment variables (.env file or system env)
+# See environment-variables.md for complete list
+# ASYNCTASQ_DRIVER=sqs
+# ASYNCTASQ_SQS_REGION_NAME=us-east-1
+# ASYNCTASQ_SQS_QUEUE_URL_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
+# ASYNCTASQ_SQS_AWS_ACCESS_KEY_ID=your_key
+init()  # Loads from env vars automatically
 ```
 
 **Configuration Parameters:**
@@ -395,10 +425,9 @@ pip install "asynctasq[rabbitmq]"
 **Configuration:**
 
 ```python
-# Programmatic configuration
+# Option 1: Programmatic configuration with RabbitMQConfig (recommended)
 from asynctasq import init, RabbitMQConfig
 
-# Using RabbitMQConfig (recommended)
 init({
     'driver': 'rabbitmq',
     'rabbitmq': RabbitMQConfig(
@@ -408,7 +437,7 @@ init({
     )
 })
 
-# Using dict (alternative)
+# Option 2: Using dict (alternative)
 init({
     'driver': 'rabbitmq',
     'rabbitmq': {
@@ -417,6 +446,13 @@ init({
         'prefetch_count': 1
     }
 })
+
+# Option 3: Environment variables (.env file or system env)
+# See environment-variables.md for complete list
+# ASYNCTASQ_DRIVER=rabbitmq
+# ASYNCTASQ_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+# ASYNCTASQ_RABBITMQ_EXCHANGE_NAME=asynctasq
+init()  # Loads from env vars automatically
 ```
 
 **Configuration Parameters:**
