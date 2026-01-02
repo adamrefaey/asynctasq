@@ -45,8 +45,8 @@ pip install "asynctasq[sqlalchemy]"
 
 **Requirements:**
 
-- SQLAlchemy >= 2.0.44
-- greenlet >= 3.2.4
+- SQLAlchemy >= 2.0.22
+- greenlet >= 3.0.0
 
 **Configuration:**
 
@@ -269,8 +269,8 @@ pip install "asynctasq[django]"
 
 **Requirements:**
 
-- Django >= 5.2.8 (for full async support)
-- psycopg2-binary >= 2.9.11
+- Django >= 5.0 (for full async support)
+- psycopg2-binary >= 2.9.9
 
 **Configuration:**
 
@@ -291,13 +291,13 @@ async def send_welcome_email(user: User):
 
 # Dispatch task
 async def main():
-    user = await User.objects.aget(id=1)  # Django 3.1+ async support
+    user = await User.objects.aget(id=1)  # Django 4.1+ async ORM methods
     await send_welcome_email(user=user).dispatch()
 ```
 
 **Supports:**
 
-- Django 3.1+ async methods (`aget`, `acreate`, etc.)
+- Django 4.1+ async ORM methods (`aget`, `acreate`, etc.)
 - Fallback to sync with executor for older Django versions
 - Uses `pk` property for primary key access
 
@@ -319,7 +319,7 @@ pip install "asynctasq[tortoise]"
 
 **Requirements:**
 
-- tortoise-orm >= 0.25.1
+- tortoise-orm >= 0.21.0
 
 **Configuration:**
 
