@@ -33,6 +33,24 @@ class AsyncGetPIDTask(AsyncProcessTask[int]):
         return os.getpid()
 
 
+class AsyncZeroTask(AsyncProcessTask[int]):
+    """Test task that returns 0 (falsy value)."""
+
+    async def execute(self) -> int:
+        """Return zero after async sleep."""
+        await asyncio.sleep(0.001)
+        return 0
+
+
+class AsyncNoneTask(AsyncProcessTask[None]):
+    """Test task that returns None."""
+
+    async def execute(self) -> None:
+        """Return None after async sleep."""
+        await asyncio.sleep(0.001)
+        return None
+
+
 class AsyncRaiseExceptionTask(AsyncProcessTask[None]):
     """Test task that raises an exception asynchronously."""
 
@@ -519,7 +537,6 @@ async def test_async_process_task_reduce_without_file():
         assert class_file is None
 
 
-@pytest.mark.skip(reason="Fails due to patching complexities with subprocess")
 @pytest.mark.asyncio
 async def test_async_process_task_reconstruct_normalizes_main_module():
     """Test reconstruction normalizes __asynctasq_main_ back to __main__."""
@@ -528,15 +545,14 @@ async def test_async_process_task_reconstruct_normalizes_main_module():
     from asynctasq.tasks.types.async_process_task import _reconstruct_async_process_task
 
     # Arrange - simulate internal module name
-    mock_resolver = MagicMock()
     mock_module = MagicMock()
     mock_module.SharedAsyncFactorialTask = SharedAsyncFactorialTask
-    mock_resolver.get_module.return_value = mock_module
 
+    # Patch the get_module method directly on the FunctionResolver class
     with patch(
-        "asynctasq.tasks.types.async_process_task.FunctionResolver",
-        return_value=mock_resolver,
-    ):
+        "asynctasq.tasks.services.function_resolver.FunctionResolver.get_module",
+        return_value=mock_module,
+    ) as mock_get_module:
         # Act
         _reconstruct_async_process_task(
             "__asynctasq_main_abc123__",
@@ -546,7 +562,7 @@ async def test_async_process_task_reconstruct_normalizes_main_module():
         )
 
         # Assert - should call get_module with __main__
-        mock_resolver.get_module.assert_called_once_with("__main__", "/path/to/file.py")
+        mock_get_module.assert_called_once_with("__main__", "/path/to/file.py")
 
 
 @pytest.mark.asyncio
@@ -599,18 +615,11 @@ async def test_async_process_task_with_complex_attributes():
     assert result["count"] == 2
 
 
-@pytest.mark.skip(reason="Local class cannot be pickled for subprocess")
 @pytest.mark.asyncio
 async def test_async_process_task_zero_result():
     """Test task that returns 0 (falsy value)."""
-
-    class ZeroTask(AsyncProcessTask[int]):
-        async def execute(self) -> int:
-            await asyncio.sleep(0.001)
-            return 0
-
     # Arrange
-    task = ZeroTask()
+    task = AsyncZeroTask()
 
     # Act
     result = await task.run()
@@ -620,18 +629,11 @@ async def test_async_process_task_zero_result():
     assert isinstance(result, int)
 
 
-@pytest.mark.skip(reason="Local class cannot be pickled for subprocess")
 @pytest.mark.asyncio
 async def test_async_process_task_none_result():
     """Test task that returns None."""
-
-    class NoneTask(AsyncProcessTask[None]):
-        async def execute(self) -> None:
-            await asyncio.sleep(0.001)
-            return None
-
     # Arrange
-    task = NoneTask()
+    task = AsyncNoneTask()
 
     # Act
     result = await task.run()

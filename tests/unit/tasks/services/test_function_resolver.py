@@ -435,32 +435,6 @@ class TestFunctionResolver:
         finally:
             Path(temp_file).unlink()
 
-    @pytest.mark.skip(reason="Django settings RuntimeError in test environment")
-    def test_get_module_main_django_configure_already_configured_error(self):
-        """Test Django patching silently handles 'already configured' errors."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write(
-                "import sys\n"
-                "if 'django' in sys.modules and 'django.conf' in sys.modules:\n"
-                "    raise RuntimeError('Settings already configured')\n"
-            )
-            temp_file = f.name
-
-        try:
-            # Mock Django being loaded
-            mock_django = MagicMock()
-            mock_settings = MagicMock()
-            mock_django.conf.settings = mock_settings
-
-            with patch.dict(
-                "sys.modules", {"django": mock_django, "django.conf": mock_django.conf}
-            ):
-                # Should not raise, patch should suppress the error
-                module = FunctionResolver.get_module("__main__", temp_file)
-                assert module is not None
-        finally:
-            Path(temp_file).unlink()
-
     def test_get_module_main_django_patch_restoration(self):
         """Test Django settings.configure is restored after loading."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
