@@ -767,8 +767,10 @@ class TestGetDispatcher:
             patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
+            patch("asynctasq.core.dispatcher.EventRegistry.init") as mock_event_init,
         ):
             mock_config = MagicMock(spec=Config)
+            mock_config.driver = "redis"
             mock_get_config.return_value = mock_config
             mock_driver = MagicMock(spec=BaseDriver)
             mock_create.return_value = mock_driver
@@ -783,6 +785,7 @@ class TestGetDispatcher:
             mock_get_config.assert_called()
             mock_create.assert_called_once_with(mock_config.driver, mock_config)
             mock_dispatcher_class.assert_called_once_with(mock_driver)
+            mock_event_init.assert_called_once()
 
     def test_get_dispatcher_with_string_creates_from_config(self) -> None:
         # Arrange
@@ -790,6 +793,7 @@ class TestGetDispatcher:
             patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
+            patch("asynctasq.core.dispatcher.EventRegistry.init") as mock_event_init,
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
@@ -805,6 +809,7 @@ class TestGetDispatcher:
             assert result == mock_dispatcher
             mock_create.assert_called_once_with("redis", mock_config)
             mock_dispatcher_class.assert_called_once_with(mock_driver)
+            mock_event_init.assert_called_once()
 
     def test_get_dispatcher_with_base_driver_instance(self) -> None:
         # Arrange
@@ -830,6 +835,7 @@ class TestGetDispatcher:
             patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
+            patch("asynctasq.core.dispatcher.EventRegistry.init"),
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
@@ -859,6 +865,7 @@ class TestGetDispatcher:
             patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
+            patch("asynctasq.core.dispatcher.EventRegistry.init"),
         ):
             mock_config = MagicMock(spec=Config)
             mock_get_config.return_value = mock_config
@@ -912,8 +919,10 @@ class TestGetDispatcher:
             patch("asynctasq.core.dispatcher.Config.get") as mock_get_config,
             patch("asynctasq.core.dispatcher.DriverFactory.create") as mock_create,
             patch("asynctasq.core.dispatcher.Dispatcher") as mock_dispatcher_class,
+            patch("asynctasq.core.dispatcher.EventRegistry.init"),
         ):
             mock_config = MagicMock(spec=Config)
+            mock_config.driver = "redis"
             mock_get_config.return_value = mock_config
             mock_driver = MagicMock(spec=BaseDriver)
             mock_create.return_value = mock_driver

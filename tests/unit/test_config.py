@@ -1,5 +1,6 @@
 """Unit tests for asynctasq.config module."""
 
+from pydantic_core import ValidationError
 import pytest
 
 from asynctasq.config import (
@@ -28,77 +29,87 @@ class TestConfigValidation:
     @pytest.mark.parametrize("invalid_value", [-1, -5])
     def test_default_max_attempts_validation(self, invalid_value):
         """Test default_max_attempts validation."""
-        with pytest.raises(ValueError, match="max_attempts must be non-negative"):
+        with pytest.raises(
+            (ValueError, ValidationError), match="max_attempts must be non-negative"
+        ):
             TaskDefaultsConfig(max_attempts=invalid_value)
 
-    @pytest.mark.parametrize("invalid_value", [-1, -0.5])
+    @pytest.mark.parametrize("invalid_value", [-1, -5])
     def test_default_retry_delay_validation(self, invalid_value):
         """Test default_retry_delay validation."""
-        with pytest.raises(ValueError, match="retry_delay must be non-negative"):
+        with pytest.raises((ValueError, ValidationError), match="retry_delay must be non-negative"):
             TaskDefaultsConfig(retry_delay=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", ["linear", "random", ""])
     def test_default_retry_strategy_validation(self, invalid_value):
         """Test default_retry_strategy validation."""
-        with pytest.raises(ValueError, match="retry_strategy must be 'fixed' or 'exponential'"):
+        with pytest.raises(
+            (ValueError, ValidationError), match="retry_strategy must be 'fixed' or 'exponential'"
+        ):
             TaskDefaultsConfig(retry_strategy=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [-1, 16, 100])
     def test_redis_db_validation(self, invalid_value):
         """Test redis_db validation."""
-        with pytest.raises(ValueError, match="db must be between 0 and 15"):
+        with pytest.raises((ValueError, ValidationError), match="db must be between 0 and 15"):
             RedisConfig(db=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_redis_max_connections_validation(self, invalid_value):
         """Test redis_max_connections validation."""
-        with pytest.raises(ValueError, match="max_connections must be positive"):
+        with pytest.raises((ValueError, ValidationError), match="max_connections must be positive"):
             RedisConfig(max_connections=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_postgres_max_attempts_validation(self, invalid_value):
         """Test postgres_max_attempts validation."""
-        with pytest.raises(ValueError, match="max_attempts must be positive"):
+        with pytest.raises((ValueError, ValidationError), match="max_attempts must be positive"):
             PostgresConfig(max_attempts=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_postgres_min_pool_size_validation(self, invalid_value):
         """Test postgres_min_pool_size validation."""
-        with pytest.raises(ValueError, match="min_pool_size must be positive"):
+        with pytest.raises((ValueError, ValidationError), match="min_pool_size must be positive"):
             PostgresConfig(min_pool_size=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_postgres_max_pool_size_validation(self, invalid_value):
         """Test postgres_max_pool_size validation."""
-        with pytest.raises(ValueError, match="max_pool_size must be positive"):
+        with pytest.raises((ValueError, ValidationError), match="max_pool_size must be positive"):
             PostgresConfig(max_pool_size=invalid_value)
 
     def test_postgres_pool_size_ordering_validation(self):
         """Test postgres pool size ordering validation."""
-        with pytest.raises(ValueError, match="min_pool_size cannot be greater than max_pool_size"):
+        with pytest.raises(
+            (ValueError, ValidationError),
+            match="min_pool_size cannot be greater than max_pool_size",
+        ):
             PostgresConfig(min_pool_size=10, max_pool_size=5)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_mysql_max_attempts_validation(self, invalid_value):
         """Test mysql_max_attempts validation."""
-        with pytest.raises(ValueError, match="max_attempts must be positive"):
+        with pytest.raises((ValueError, ValidationError), match="max_attempts must be positive"):
             MySQLConfig(max_attempts=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_mysql_min_pool_size_validation(self, invalid_value):
         """Test mysql_min_pool_size validation."""
-        with pytest.raises(ValueError, match="min_pool_size must be positive"):
+        with pytest.raises((ValueError, ValidationError), match="min_pool_size must be positive"):
             MySQLConfig(min_pool_size=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_mysql_max_pool_size_validation(self, invalid_value):
         """Test mysql_max_pool_size validation."""
-        with pytest.raises(ValueError, match="max_pool_size must be positive"):
+        with pytest.raises((ValueError, ValidationError), match="max_pool_size must be positive"):
             MySQLConfig(max_pool_size=invalid_value)
 
     def test_mysql_pool_size_ordering_validation(self):
         """Test mysql pool size ordering validation."""
-        with pytest.raises(ValueError, match="min_pool_size cannot be greater than max_pool_size"):
+        with pytest.raises(
+            (ValueError, ValidationError),
+            match="min_pool_size cannot be greater than max_pool_size",
+        ):
             MySQLConfig(min_pool_size=10, max_pool_size=5)
 
 

@@ -362,89 +362,94 @@ class TestDriverFactoryErrorHandling:
         with raises(ValueError, match=f"Supported types: {', '.join(list(get_args(DriverType)))}"):
             DriverFactory.create("invalid", config)
 
-    @patch(
-        "builtins.__import__",
-        side_effect=lambda name, *args, **kwargs: (_ for _ in ()).throw(
-            ImportError(f"No module named '{name}'")
-        )
-        if name == "asynctasq.drivers.redis_driver"
-        else __import__(name, *args, **kwargs),
-    )
-    def test_create_redis_driver_import_error(self, mock_import: MagicMock) -> None:
-        # Arrange
+    def test_create_redis_driver_import_error(self) -> None:
+        # Arrange - create config before patching
         config = Config(driver="redis")
 
-        # Act & Assert
-        with raises(ImportError, match="Redis driver requires the 'redis' optional dependency"):
-            DriverFactory.create("redis", config)
+        # Patch import after config is created
+        with patch(
+            "builtins.__import__",
+            side_effect=lambda name, *args, **kwargs: (_ for _ in ()).throw(
+                ImportError(f"No module named '{name}'")
+            )
+            if name == "asynctasq.drivers.redis_driver"
+            else __import__(name, *args, **kwargs),
+        ):
+            # Act & Assert
+            with raises(ImportError, match="Redis driver requires the 'redis' optional dependency"):
+                DriverFactory.create("redis", config)
 
-    @patch(
-        "builtins.__import__",
-        side_effect=lambda name, *args, **kwargs: (_ for _ in ()).throw(
-            ImportError(f"No module named '{name}'")
-        )
-        if name == "asynctasq.drivers.sqs_driver"
-        else __import__(name, *args, **kwargs),
-    )
-    def test_create_sqs_driver_import_error(self, mock_import: MagicMock) -> None:
-        # Arrange
+    def test_create_sqs_driver_import_error(self) -> None:
+        # Arrange - create config before patching
         config = Config(driver="sqs")
 
-        # Act & Assert
-        with raises(ImportError, match="SQS driver requires the 'sqs' optional dependency"):
-            DriverFactory.create("sqs", config)
+        # Patch import after config is created
+        with patch(
+            "builtins.__import__",
+            side_effect=lambda name, *args, **kwargs: (_ for _ in ()).throw(
+                ImportError(f"No module named '{name}'")
+            )
+            if name == "asynctasq.drivers.sqs_driver"
+            else __import__(name, *args, **kwargs),
+        ):
+            # Act & Assert
+            with raises(ImportError, match="SQS driver requires the 'sqs' optional dependency"):
+                DriverFactory.create("sqs", config)
 
-    @patch(
-        "builtins.__import__",
-        side_effect=lambda name, *args, **kwargs: (_ for _ in ()).throw(
-            ImportError(f"No module named '{name}'")
-        )
-        if name == "asynctasq.drivers.postgres_driver"
-        else __import__(name, *args, **kwargs),
-    )
-    def test_create_postgres_driver_import_error(self, mock_import: MagicMock) -> None:
-        # Arrange
+    def test_create_postgres_driver_import_error(self) -> None:
+        # Arrange - create config before patching
         config = Config(driver="postgres")
 
-        # Act & Assert
-        with raises(
-            ImportError, match="PostgreSQL driver requires the 'postgres' optional dependency"
+        # Patch import after config is created
+        with patch(
+            "builtins.__import__",
+            side_effect=lambda name, *args, **kwargs: (_ for _ in ()).throw(
+                ImportError(f"No module named '{name}'")
+            )
+            if name == "asynctasq.drivers.postgres_driver"
+            else __import__(name, *args, **kwargs),
         ):
-            DriverFactory.create("postgres", config)
+            # Act & Assert
+            with raises(
+                ImportError, match="PostgreSQL driver requires the 'postgres' optional dependency"
+            ):
+                DriverFactory.create("postgres", config)
 
-    @patch(
-        "builtins.__import__",
-        side_effect=lambda name, *args, **kwargs: (_ for _ in ()).throw(
-            ImportError(f"No module named '{name}'")
-        )
-        if name == "asynctasq.drivers.mysql_driver"
-        else __import__(name, *args, **kwargs),
-    )
-    def test_create_mysql_driver_import_error(self, mock_import: MagicMock) -> None:
-        # Arrange
+    def test_create_mysql_driver_import_error(self) -> None:
+        # Arrange - create config before patching
         config = Config(driver="mysql")
 
-        # Act & Assert
-        with raises(ImportError, match="MySQL driver requires the 'mysql' optional dependency"):
-            DriverFactory.create("mysql", config)
+        # Patch import after config is created
+        with patch(
+            "builtins.__import__",
+            side_effect=lambda name, *args, **kwargs: (_ for _ in ()).throw(
+                ImportError(f"No module named '{name}'")
+            )
+            if name == "asynctasq.drivers.mysql_driver"
+            else __import__(name, *args, **kwargs),
+        ):
+            # Act & Assert
+            with raises(ImportError, match="MySQL driver requires the 'mysql' optional dependency"):
+                DriverFactory.create("mysql", config)
 
-    @patch(
-        "builtins.__import__",
-        side_effect=lambda name, *args, **kwargs: (_ for _ in ()).throw(
-            ImportError(f"No module named '{name}'")
-        )
-        if name == "asynctasq.drivers.rabbitmq_driver"
-        else __import__(name, *args, **kwargs),
-    )
-    def test_create_rabbitmq_driver_import_error(self, mock_import: MagicMock) -> None:
-        # Arrange
+    def test_create_rabbitmq_driver_import_error(self) -> None:
+        # Arrange - create config before patching
         config = Config(driver="rabbitmq")
 
-        # Act & Assert
-        with raises(
-            ImportError, match="RabbitMQ driver requires the 'rabbitmq' optional dependency"
+        # Patch import after config is created
+        with patch(
+            "builtins.__import__",
+            side_effect=lambda name, *args, **kwargs: (_ for _ in ()).throw(
+                ImportError(f"No module named '{name}'")
+            )
+            if name == "asynctasq.drivers.rabbitmq_driver"
+            else __import__(name, *args, **kwargs),
         ):
-            DriverFactory.create("rabbitmq", config)
+            # Act & Assert
+            with raises(
+                ImportError, match="RabbitMQ driver requires the 'rabbitmq' optional dependency"
+            ):
+                DriverFactory.create("rabbitmq", config)
 
 
 @mark.unit

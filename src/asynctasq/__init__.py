@@ -3,6 +3,7 @@
 import asyncio
 import importlib.metadata
 import logging
+from typing import Any
 
 try:
     __version__ = importlib.metadata.version("asynctasq")
@@ -12,7 +13,6 @@ except importlib.metadata.PackageNotFoundError:
 # Configuration
 from asynctasq.config import (
     Config,
-    ConfigOverrides,
     EventsConfig,
     MySQLConfig,
     PostgresConfig,
@@ -158,7 +158,7 @@ async def ensure_cleanup_registered():
 
 
 def init(
-    config_overrides: ConfigOverrides | None = None,
+    config_overrides: dict[str, Any] | None = None,
     event_emitters: list[EventEmitter] | None = None,
     tortoise_config: dict | None = None,
 ) -> None:
@@ -167,6 +167,11 @@ def init(
     This function must be called before using any AsyncTasQ functionality.
     It is recommended to call it as early as possible in your main script.
 
+    Configuration can be provided in three ways (in order of precedence):
+    1. Constructor arguments via config_overrides (highest priority)
+    2. Environment variables with ASYNCTASQ_ prefix
+    3. .env file in the current directory
+
     This function automatically registers cleanup hooks that work with any
     event loop (asyncio, uvloop, or custom):
     - If called from within a running event loop, cleanup is attached to
@@ -174,10 +179,30 @@ def init(
     - If called outside an event loop, atexit handlers are registered
 
     Args:
-        config_overrides: Optional configuration overrides to customize
-            AsyncTasQ behavior (driver settings, timeouts, etc.)
+        config_overrides: Optional dictionary of configuration overrides.
+            Keys can include: driver, redis, sqs, postgres, mysql, rabbitmq,
+            events, task_defaults, process_pool, repository.
+            Values passed here override environment variables.
+
+            Examples:
+                # Simple driver selection
+                init({'driver': 'redis'})
+
+                # Override specific settings
+                init({
+                    'driver': 'redis',
+                    'redis': {'url': 'redis://localhost:6379', 'db': 1}
+                })
+
+                # Or use full config objects
+                init({
+                    'driver': 'postgres',
+                    'postgres': PostgresConfig(dsn='postgresql://localhost/db')
+                })
+
         event_emitters: Optional list of additional event emitters to register
             for monitoring and logging task/worker events
+
         tortoise_config: Optional Tortoise ORM configuration dictionary.
             When provided, Tortoise will be automatically initialized when
             lazy ORM proxies are resolved in the worker. This allows tasks
@@ -188,6 +213,17 @@ def init(
                     "db_url": "postgres://user:pass@localhost/db",
                     "modules": {"models": ["myapp.models"]}
                 }
+
+    Environment Variables:
+        Configuration can be set via environment variables with ASYNCTASQ_ prefix.
+        See Config class documentation for full list of available variables.
+
+        Example .env file:
+            ASYNCTASQ_DRIVER=redis
+            ASYNCTASQ_REDIS_URL=redis://localhost:6379
+            ASYNCTASQ_REDIS_DB=1
+            ASYNCTASQ_TASK_DEFAULTS_QUEUE=my_queue
+            ASYNCTASQ_TASK_DEFAULTS_MAX_ATTEMPTS=5
 
     Note:
         AsyncTasQ now works seamlessly with any event loop:
@@ -200,10 +236,12 @@ def init(
         >>> import asyncio
         >>>
         >>> # Initialize with Redis driver
-        >>> init({
-        ...     'driver': 'redis',
-        ...     'redis_url': 'redis://localhost:6379',
-        ... })
+        >>> init({'driver': 'redis'})
+        >>>
+        >>> # Or with environment variables in .env:
+        >>> # ASYNCTASQ_DRIVER=redis
+        >>> # ASYNCTASQ_REDIS_URL=redis://localhost:6379
+        >>> init()  # Loads from .env
         >>>
         >>> # Works with any event loop
         >>> async def main():
@@ -250,7 +288,6 @@ __all__ = [
     "__version__",
     # Configuration
     "Config",
-    "ConfigOverrides",
     "RedisConfig",
     "SQSConfig",
     "PostgresConfig",

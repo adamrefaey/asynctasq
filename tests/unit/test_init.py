@@ -9,7 +9,7 @@ import pytest
 
 import asynctasq
 from asynctasq import init
-from asynctasq.config import ConfigOverrides, RedisConfig
+from asynctasq.config import RedisConfig
 from asynctasq.monitoring.emitters import EventEmitter
 
 
@@ -149,9 +149,7 @@ class TestInit:
         self, mock_register_hooks, mock_event_add, mock_event_init, mock_config_get, mock_config_set
     ):
         """Test init with config overrides."""
-        overrides = cast(
-            ConfigOverrides, {"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")}
-        )
+        overrides = {"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")}
         emitters = cast(list[EventEmitter], [MagicMock()])
 
         init(config_overrides=overrides, event_emitters=emitters)
@@ -249,7 +247,7 @@ class TestInit:
         mock_config = MagicMock()
         mock_config_get.return_value = mock_config
 
-        overrides = cast(ConfigOverrides, {"driver": "redis"})
+        overrides = {"driver": "redis"}
         emitters = cast(list[EventEmitter], [MagicMock()])
         tortoise_config = {"db_url": "postgres://localhost/db"}
 
