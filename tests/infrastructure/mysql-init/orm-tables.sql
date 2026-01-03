@@ -1,11 +1,21 @@
--- MySQL 8.0+ Migration script to create tables for ORM integration tests
--- This script creates test tables for SQLAlchemy, Django, and Tortoise ORM models
--- Run automatically during Docker container initialization
+-- ORM Integration Test Tables for MySQL 8.0+
+--
+-- Purpose:
+--   Creates test tables for ORM serialization hook integration tests.
+--   Supports SQLAlchemy, Django ORM, and Tortoise ORM test fixtures.
+--
+-- Execution:
+--   Automatically run when MySQL container starts via Docker init.
+--   Tables are idempotent (safe to re-run).
 --
 -- Requirements:
 --   - MySQL 8.0+ (for DATETIME(6) microsecond precision)
 --   - InnoDB storage engine (default in MySQL 8.0)
 --   - utf8mb4 charset (for full Unicode support)
+--
+-- Note:
+--   Queue tables (task_queue, dead_letter_queue) are created by the
+--   'asynctasq migrate' command, not this script. See tests/conftest.py.
 
 -- SQLAlchemy test table
 CREATE TABLE IF NOT EXISTS sqlalchemy_test_users (

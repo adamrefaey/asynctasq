@@ -1,6 +1,16 @@
--- Migration script to create tables for ORM integration tests
--- This script creates test tables for SQLAlchemy, Django, and Tortoise ORM models
--- Run automatically during Docker container initialization
+-- ORM Integration Test Tables for PostgreSQL
+--
+-- Purpose:
+--   Creates test tables for ORM serialization hook integration tests.
+--   Supports SQLAlchemy, Django ORM, and Tortoise ORM test fixtures.
+--
+-- Execution:
+--   Automatically run when PostgreSQL container starts via Docker init.
+--   Tables are idempotent (safe to re-run).
+--
+-- Note:
+--   Queue tables (task_queue, dead_letter_queue) are created by the
+--   'asynctasq migrate' command, not this script. See tests/conftest.py.
 
 -- SQLAlchemy test table
 CREATE TABLE IF NOT EXISTS sqlalchemy_test_users (

@@ -42,7 +42,12 @@ pre-commit-update:
 # Start Docker services for testing
 docker-up:
 	docker-compose -f tests/infrastructure/docker-compose.yml up -d
-	@echo "✅ Docker services started"
+	@echo "⏳ Waiting for services to be healthy..."
+	@sleep 8
+	@echo "🚀 Running database migrations..."
+	-uv run python -m asynctasq migrate --driver postgres
+	-uv run python -m asynctasq migrate --driver mysql
+	@echo "✅ Docker services started and migrated"
 
 # Stop Docker services
 docker-down:
