@@ -359,7 +359,7 @@ class TestSQSDriverDequeue:
 
         # Assert
         call_kwargs = mock_client.change_message_visibility.call_args[1]
-        assert call_kwargs["VisibilityTimeout"] == 300  # Default
+        assert call_kwargs["VisibilityTimeout"] == 3600  # Default
 
     @mark.asyncio
     async def test_dequeue_returns_none_when_body_is_none(self) -> None:

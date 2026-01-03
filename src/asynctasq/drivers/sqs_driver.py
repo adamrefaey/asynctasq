@@ -112,7 +112,7 @@ class SQSDriver(BaseDriver):
         task_data: bytes,
         delay_seconds: int = 0,
         current_attempt: int = 0,
-        visibility_timeout: int = 300,
+        visibility_timeout: int = 3600,
     ) -> None:
         """Add task to queue with optional delay.
 
@@ -123,7 +123,7 @@ class SQSDriver(BaseDriver):
             task_data: Serialized task data (will be Base64-encoded)
             delay_seconds: Delay in seconds (0-900 max, SQS limit)
             current_attempt: Current attempt number (ignored by SQS driver)
-            visibility_timeout: Crash recovery timeout in seconds (default: 300)
+            visibility_timeout: Crash recovery timeout in seconds (default: 3600)
 
         Raises:
             ValueError: If delay_seconds > 900
@@ -205,7 +205,7 @@ class SQSDriver(BaseDriver):
             return None
 
         # Extract per-task visibility_timeout from message attributes
-        visibility_timeout = 300  # Default
+        visibility_timeout = 3600  # Default
         if "visibility_timeout" in message_attrs:
             vis_timeout_attr = message_attrs["visibility_timeout"]
             if "StringValue" in vis_timeout_attr:

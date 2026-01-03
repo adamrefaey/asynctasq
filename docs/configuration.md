@@ -401,7 +401,7 @@ Default settings for all tasks.
 
 Per-task configuration always takes precedence over global defaults. The following are **only** configurable per-task:
 - `timeout`: Task execution timeout (not a global default)
-- `visibility_timeout`: Crash recovery timeout (not a global default)
+- `visibility_timeout`: **⚠️ CRITICAL - Default: 3600s (1 hour)** - Crash recovery timeout. Must be longer than task execution time to prevent duplicate processing.
 - `correlation_id`: Distributed tracing ID (per-task only)
 - `driver`: Driver override for routing specific tasks
 

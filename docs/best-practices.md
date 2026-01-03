@@ -16,6 +16,7 @@
 
 - Keep tasks small and focused (single responsibility principle)
 - Make tasks idempotent when possible (safe to run multiple times with same result)
+- **⚠️ CRITICAL: Set `visibility_timeout` longer than task execution time** - Default is 3600s (1 hour). If your task takes 10 minutes, set it to at least 30 minutes to prevent duplicate processing.
 - Use timeouts for long-running tasks to prevent resource exhaustion
 - Implement custom `failed()` handlers for cleanup, logging, and alerting
 - Use `should_retry()` for intelligent retry logic based on exception type
@@ -103,6 +104,7 @@ class ProcessPayment(AsyncTask[bool]):
 ✅ **Do:**
 
 - **Use Redis for high-throughput** or **PostgreSQL/MySQL for ACID guarantees** in production
+- **⚠️ Configure visibility_timeout properly** - Default is 3600s (1 hour). Set to (expected_duration × 2) + buffer for each task to prevent duplicate processing on crashes.
 - **Configure proper retry delays** to avoid overwhelming systems during outages (exponential backoff recommended)
 - **Set up monitoring and alerting** for queue sizes, worker health, failed tasks, and retry rates
 - **Use environment variables** for configuration (never hardcode credentials)

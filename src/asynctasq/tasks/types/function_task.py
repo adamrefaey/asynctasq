@@ -291,7 +291,7 @@ def task[T](
     max_attempts: int = 3,
     retry_delay: int = 60,
     timeout: int | None = None,
-    visibility_timeout: int = 300,
+    visibility_timeout: int = 3600,
     driver: str | BaseDriver | None = None,
     process: bool = False,
 ) -> Callable[[Callable[..., T]], TaskFunction[T]]:
@@ -307,7 +307,7 @@ def task[T](
     max_attempts: int = 3,
     retry_delay: int = 60,
     timeout: int | None = None,
-    visibility_timeout: int = 300,
+    visibility_timeout: int = 3600,
     driver: str | BaseDriver | None = None,
     process: bool = False,
 ) -> TaskFunction[T] | Callable[[Callable[..., T]], TaskFunction[T]]:
@@ -321,7 +321,7 @@ def task[T](
         max_attempts: Max attempt count (default: 3)
         retry_delay: Retry delay in seconds (default: 60)
         timeout: Task timeout in seconds (default: None)
-        visibility_timeout: Visibility timeout for crash recovery in seconds (default: 300)
+        visibility_timeout: Visibility timeout for crash recovery in seconds (default: 3600)
         driver: Driver override (default: None)
         process: Use process pool for CPU-bound work (default: False)
 

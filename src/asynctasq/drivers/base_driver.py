@@ -42,7 +42,7 @@ class BaseDriver(ABC):
         task_data: bytes,
         delay_seconds: int = 0,
         current_attempt: int = 0,
-        visibility_timeout: int = 300,
+        visibility_timeout: int = 3600,
     ) -> None:
         """Add a task to the queue.
 
@@ -51,7 +51,7 @@ class BaseDriver(ABC):
             task_data: Serialized task data (msgpack bytes)
             delay_seconds: Optional delay before task becomes visible (default: 0)
             current_attempt: Current attempt number for the task (default: 0)
-            visibility_timeout: Crash recovery timeout in seconds (default: 300)
+            visibility_timeout: Crash recovery timeout in seconds (default: 3600)
 
         Raises:
             ValueError: If delay_seconds exceeds driver limits

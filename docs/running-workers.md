@@ -115,7 +115,7 @@ python -m asynctasq worker \
 | `--task-defaults-retry-strategy`      | Retry delay strategy (fixed/exponential)         | `exponential`      |
 | `--task-defaults-retry-delay`         | Base retry delay in seconds                      | `60`               |
 | `--task-defaults-timeout`             | Default task timeout in seconds                  | `None`             |
-| `--task-defaults-visibility-timeout`  | Visibility timeout for crash recovery (seconds)  | `300`              |
+| `--task-defaults-visibility-timeout`  | **⚠️ CRITICAL:** Visibility timeout for crash recovery (seconds) - Must exceed task execution time | `3600` (1 hour) |
 
 **Driver-Specific Options:**
 
@@ -359,16 +359,19 @@ After exceeding `max_attempts`, failed tasks move to a dead letter queue (Postgr
 
 **Crash Recovery (Visibility Timeout):**
 
+> **⚠️ CRITICAL:** Visibility timeout controls how long crashed tasks remain locked before auto-recovery. Always set this **significantly longer** than your task's expected execution time.
+
 AsyncTasQ uses visibility timeout to handle worker crashes:
 
-- **Default:** 300 seconds (5 minutes)
+- **Default:** `3600` seconds (1 hour)
 - **Behavior:** If a worker crashes mid-task, the task becomes visible again after the timeout
 - **Configuration:** Set via `visibility_timeout` parameter on tasks
+- **Risk:** If timeout is too short, tasks may be processed multiple times
 
 ```python
-@task(visibility_timeout=600)  # 10 minutes
+@task(visibility_timeout=7200)  # 2 hours for long-running tasks
 async def long_running_task():
-    # If worker crashes, task reappears after 10 minutes
+    # If worker crashes, task reappears after 2 hours
     pass
 ```
 

@@ -113,7 +113,7 @@ class Dispatcher:
         serialized_task = self._task_serializer.serialize(task)
 
         # Get visibility_timeout from task config or use default
-        visibility_timeout = task.config.get("visibility_timeout", 300)
+        visibility_timeout = task.config.get("visibility_timeout", 3600)
 
         # Enqueue with current attempt number and visibility timeout
         await driver.enqueue(

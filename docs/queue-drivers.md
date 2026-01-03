@@ -677,7 +677,7 @@ No schema setup required - Redis is schemaless. Queues are created automatically
 
 Queues are created automatically with default settings:
 - Message retention: 14 days
-- Visibility timeout: 30 seconds (overridden per task)
+- Visibility timeout: 30 seconds (queue default, overridden per task with 3600s/1 hour default)
 - Long polling: 20 seconds
 - Delivery delay: 0 seconds (overridden per task)
 
@@ -737,7 +737,7 @@ Exchanges and queues are declared automatically:
 **AWS SQS:**
 - Use batch operations when possible (not yet implemented in driver)
 - Monitor CloudWatch metrics for queue depth
-- Set appropriate visibility timeout per task
+- **⚠️ CRITICAL: Set `visibility_timeout` per task** - Default is 3600s (1 hour). Must be longer than task execution time to prevent duplicate processing.
 
 ### Security
 
@@ -844,7 +844,7 @@ GROUP BY queue_name;
 - Use standard queues unless FIFO required
 
 **All Drivers:**
-- Set appropriate visibility timeouts (avoid too short)
+- **⚠️ Set appropriate visibility timeouts** - Default: 3600s (1 hour). Configure per task: (expected_duration × 2) + buffer. Too short causes duplicate processing.
 - Clean up completed tasks if not needed
 - Monitor and optimize task payload sizes
 - Use task-level delays instead of polling

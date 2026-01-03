@@ -230,7 +230,7 @@ All configuration options can be set via the `@task` decorator. These settings a
 | `max_attempts`       | `int`                       | `3`         | Maximum retry attempts on failure                                                                 |
 | `retry_delay`        | `int`                       | `60`        | Seconds to wait between retry attempts                                                            |
 | `timeout`            | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                                                     |
-| `visibility_timeout` | `int`                       | `300`       | Visibility timeout for crash recovery in seconds (time before task is auto-recovered)             |
+| `visibility_timeout` | `int`                       | `3600`      | **⚠️ IMPORTANT:** Crash recovery timeout in seconds (1 hour) - must exceed task execution time             |
 | `driver`             | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config)                                  |
 | `process`            | `bool`                      | `False`     | Use process pool for CPU-intensive work (`True` = process pool, `False` = event loop/thread pool) |
 
@@ -1790,7 +1790,7 @@ To use function-based tasks, you need:
 | `max_attempts`       | `int`                       | `3`         | Maximum retry attempts on failure             |
 | `retry_delay`        | `int`                       | `60`        | Seconds to wait between retry attempts        |
 | `timeout`            | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout) |
-| `visibility_timeout` | `int`                       | `300`       | Crash recovery timeout in seconds (5 minutes) |
+| `visibility_timeout` | `int`                       | `3600`      | Crash recovery timeout in seconds (1 hour) |
 | `driver`             | `str \| BaseDriver \| None` | `None`      | Driver override (`None` = use global config)  |
 | `process`            | `bool`                      | `False`     | Use process pool for CPU-intensive work       |
 

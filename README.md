@@ -179,7 +179,7 @@ Comprehensive guides to get you started:
 - **[Configuration](https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md)** – Complete configuration guide with `asynctasq.init()` and `Config.get()`
   - Configuration properties apply to different contexts: **dispatch** (when enqueuing tasks) vs **worker** (when processing tasks)
   - Driver configs (redis, postgres, mysql, rabbitmq, sqs) and events config apply to **both contexts**
-  - Properties like `timeout` and `visibility_timeout` are configured **per-task** via TaskConfig
+  - **⚠️ IMPORTANT:** `visibility_timeout` (default: 3600s/1 hour) must be configured **per-task** via TaskConfig. Set it longer than task execution time to prevent duplicate processing.
 - **[Environment Variables](https://github.com/adamrefaey/asynctasq/blob/main/docs/environment-variables.md)** – Complete guide to .env file support and environment variable configuration
 - **[Task Definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md)** – Function-based and class-based tasks
 - **[Queue Drivers](https://github.com/adamrefaey/asynctasq/blob/main/docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS

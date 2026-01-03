@@ -88,7 +88,7 @@ class RedisDriver(BaseDriver):
         task_data: bytes,
         delay_seconds: int = 0,
         current_attempt: int = 0,
-        visibility_timeout: int = 300,
+        visibility_timeout: int = 3600,
     ) -> None:
         """Add task to queue.
 

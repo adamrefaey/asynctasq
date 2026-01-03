@@ -207,7 +207,7 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
     task_defaults_group.add_argument(
         "--task-defaults-visibility-timeout",
         type=int,
-        help="Visibility timeout for crash recovery in seconds (worker context only, default: 300)",
+        help="Visibility timeout for crash recovery in seconds (worker context only, default: 3600)",
     )
 
     # Process pool options (worker context only)

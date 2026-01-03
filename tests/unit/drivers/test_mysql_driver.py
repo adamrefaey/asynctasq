@@ -334,7 +334,7 @@ class TestMySQLDriverEnqueueDequeue:
             0,  # delay_seconds
             0,  # current_attempt
             3,  # max_attempts
-            300,  # visibility_timeout (default)
+            3600,  # visibility_timeout (default)
         )  # queue_name, payload, delay, current_attempt, max_attempts
         mock_conn.commit.assert_called_once()
 
@@ -365,7 +365,7 @@ class TestMySQLDriverEnqueueDequeue:
         mock_cursor.execute.assert_called_once()
         args = mock_cursor.execute.call_args[0]
         assert "DATE_ADD(NOW(6), INTERVAL %s SECOND)" in args[0]
-        assert args[1] == ("test_queue", b"task_data", 60, 0, 3, 300)
+        assert args[1] == ("test_queue", b"task_data", 60, 0, 3, 3600)
 
     @mark.asyncio
     @patch("asynctasq.drivers.mysql_driver.create_pool", new_callable=AsyncMock)

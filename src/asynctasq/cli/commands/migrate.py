@@ -101,7 +101,7 @@ class PostgresMigrator:
                     status TEXT NOT NULL DEFAULT 'pending',
                     current_attempt INTEGER NOT NULL DEFAULT 0,
                     max_attempts INTEGER NOT NULL DEFAULT 3,
-                    visibility_timeout_seconds INTEGER NOT NULL DEFAULT 300,
+                    visibility_timeout_seconds INTEGER NOT NULL DEFAULT 3600,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
@@ -122,7 +122,7 @@ class PostgresMigrator:
                         AND column_name = 'visibility_timeout_seconds'
                     ) THEN
                         ALTER TABLE {self.queue_table}
-                        ADD COLUMN visibility_timeout_seconds INTEGER NOT NULL DEFAULT 300;
+                        ADD COLUMN visibility_timeout_seconds INTEGER NOT NULL DEFAULT 3600;
                     END IF;
                 END $$;
                 """,
@@ -274,7 +274,7 @@ class MySQLMigrator:
                     status VARCHAR(50) NOT NULL DEFAULT 'pending',
                     current_attempt INT NOT NULL DEFAULT 0,
                     max_attempts INT NOT NULL DEFAULT 3,
-                    visibility_timeout_seconds INT NOT NULL DEFAULT 300,
+                    visibility_timeout_seconds INT NOT NULL DEFAULT 3600,
                     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                     updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                     INDEX idx_{self.queue_table}_lookup (queue_name, status, available_at, locked_until)

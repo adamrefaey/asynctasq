@@ -86,7 +86,7 @@ class PostgresDriver(BaseDriver):
                     status TEXT NOT NULL DEFAULT 'pending',
                     current_attempt INTEGER NOT NULL DEFAULT 0,
                     max_attempts INTEGER NOT NULL DEFAULT 3,
-                    visibility_timeout_seconds INTEGER NOT NULL DEFAULT 300,
+                    visibility_timeout_seconds INTEGER NOT NULL DEFAULT 3600,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
@@ -102,7 +102,7 @@ class PostgresDriver(BaseDriver):
                         AND column_name = 'visibility_timeout_seconds'
                     ) THEN
                         ALTER TABLE {self.queue_table}
-                        ADD COLUMN visibility_timeout_seconds INTEGER NOT NULL DEFAULT 300;
+                        ADD COLUMN visibility_timeout_seconds INTEGER NOT NULL DEFAULT 3600;
                     END IF;
                 END $$;
             """)
@@ -133,7 +133,7 @@ class PostgresDriver(BaseDriver):
         task_data: bytes,
         delay_seconds: int = 0,
         current_attempt: int = 0,
-        visibility_timeout: int = 300,
+        visibility_timeout: int = 3600,
     ) -> None:
         """Add task to queue with optional delay.
 
@@ -142,7 +142,7 @@ class PostgresDriver(BaseDriver):
             task_data: Serialized task data
             delay_seconds: Seconds to delay task visibility (0 = immediate)
             current_attempt: Current attempt number (0 for first attempt)
-            visibility_timeout: Crash recovery timeout in seconds (default: 300)
+            visibility_timeout: Crash recovery timeout in seconds (default: 3600)
         """
         if self.pool is None:
             await self.connect()

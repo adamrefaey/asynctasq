@@ -182,7 +182,7 @@ All tasks support the following configuration options:
 | `max_attempts`       | `int`                              | `3`         | Maximum execution attempts (including initial attempt)                              |
 | `retry_delay`        | `int`                              | `60`        | Delay in seconds between retry attempts                                             |
 | `timeout`            | `int \| None`                      | `None`      | Task execution timeout in seconds (None = no timeout)                               |
-| `visibility_timeout` | `int`                              | `300`       | Crash recovery timeout - seconds task is invisible before auto-recovery (5 minutes) |
+| `visibility_timeout` | `int`                              | `3600`      | **⚠️ IMPORTANT:** Crash recovery timeout - seconds task is invisible before auto-recovery (1 hour) |
 | `driver`             | `DriverType \| BaseDriver \| None` | `None`      | Override default queue driver for this task                                         |
 | `correlation_id`     | `str \| None`                      | `None`      | Correlation ID for distributed tracing                                              |
 
@@ -248,7 +248,11 @@ task_id = await send_email(to="user@example.com", subject="Hi") \
 
 ### Understanding Visibility Timeout
 
-Visibility timeout is AsyncTasQ's automatic crash recovery mechanism. When a worker crashes before completing a task, the task automatically becomes available again after the timeout expires.
+> **⚠️ CRITICAL CONFIGURATION:** Visibility timeout is AsyncTasQ's automatic crash recovery mechanism. Understanding and properly configuring this value is essential for production deployments.
+
+**Default Value:** `3600` seconds (1 hour)
+
+Visibility timeout determines how long a task remains invisible to other workers after being dequeued. When a worker crashes before completing a task, the task automatically becomes available again after the timeout expires.
 
 **How it works:**
 1. Worker dequeues task → Task locked for `visibility_timeout` seconds
@@ -260,18 +264,26 @@ Visibility timeout is AsyncTasQ's automatic crash recovery mechanism. When a wor
 - **Too long**: Slow recovery from crashes
 - **Recommended**: `visibility_timeout = (expected_duration × 2) + buffer`
 
+> **⚠️ IMPORTANT:** Always configure `visibility_timeout` to be **significantly longer** than your task's expected execution time. If a task regularly takes 10 minutes, set the visibility timeout to at least 30 minutes to prevent duplicate processing.
+
 **Example:**
 ```python
-# Quick task
+# Quick task (completes in ~1 minute)
 config: TaskConfig = {
-    "timeout": 60,
-    "visibility_timeout": 180,  # (60 × 2) + 60
+    "timeout": 120,  # 2 minute hard timeout
+    "visibility_timeout": 300,  # 5 minute crash recovery (120 × 2 + 60)
 }
 
-# Long task
+# Medium task (completes in ~10 minutes)
 config: TaskConfig = {
-    "timeout": 600,
-    "visibility_timeout": 1500,  # (600 × 2) + 300
+    "timeout": 900,  # 15 minute hard timeout
+    "visibility_timeout": 2100,  # 35 minute crash recovery (900 × 2 + 300)
+}
+
+# Long task (completes in ~30 minutes)
+config: TaskConfig = {
+    "timeout": 2400,  # 40 minute hard timeout
+    "visibility_timeout": 5400,  # 90 minute crash recovery (2400 × 2 + 600)
 }
 ```
 
