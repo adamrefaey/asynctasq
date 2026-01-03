@@ -653,19 +653,37 @@ class TestSQSDriverEdgeCases:
         # Wait for large message to be available in SQS (eventual consistency)
         await asyncio.sleep(0.5)
 
-        # Assert - retry dequeue to handle SQS eventual consistency
+        # Assert - drain queue until we find our message or exhaust retries
+        # This handles delayed messages from other tests that may have become visible
         dequeued_data = None
-        for _ in range(5):  # Retry up to 5 times
-            dequeued_data = await sqs_driver.dequeue(TEST_QUEUE_NAME)
-            if dequeued_data is not None:
-                break
+        dequeued_payload = None
+        messages_to_ack = []
+
+        for _attempt in range(20):  # Increased retries to handle queue pollution
+            data = await sqs_driver.dequeue(TEST_QUEUE_NAME)
+            if data is not None:
+                payload = json.loads(data.decode("utf-8"))
+                if payload.get("task") == "large_task":
+                    dequeued_data = data
+                    dequeued_payload = payload
+                    break
+                else:
+                    # Wrong message (likely from another test), ack it and continue
+                    messages_to_ack.append(data)
             await asyncio.sleep(0.3)
 
-        assert dequeued_data is not None, "Failed to dequeue message after multiple attempts"
-        dequeued_payload = json.loads(dequeued_data.decode("utf-8"))
-        assert dequeued_payload.get("task") == "large_task", (
-            f"Wrong message dequeued: {dequeued_payload}"
+        # Cleanup: ack all the wrong messages we dequeued
+        for msg in messages_to_ack:
+            try:
+                await sqs_driver.ack(TEST_QUEUE_NAME, msg)
+            except Exception:
+                pass  # Ignore ack failures during cleanup
+
+        assert dequeued_data is not None, (
+            "Failed to dequeue large_task message after multiple attempts"
         )
+        assert dequeued_payload is not None
+        assert dequeued_payload.get("task") == "large_task"
         assert dequeued_payload["data"] == large_data
 
     @mark.parametrize("operation", ["ack", "nack"])
