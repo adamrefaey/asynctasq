@@ -307,7 +307,7 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 
   - ✅ **SQLAlchemy** – Async and sync model serialization
 
-  - ✅ **Django ORM** – Native async support (Django 3.1+)
+  - ✅ **Django ORM** – Native async support (Django 5.0+)
 
   - ✅ **Tortoise ORM** – Full async ORM integration
 

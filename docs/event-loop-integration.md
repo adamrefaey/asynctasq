@@ -117,7 +117,7 @@ if __name__ == "__main__":
 - Handles proper cleanup of AsyncTasQ resources
 - Mimics `asyncio.run()` semantics
 
-**Note:** uvloop (>=0.22.1) is included as a core dependency of AsyncTasQ, so it's available by default. The `run()` function is exported directly from `asynctasq` (not `asynctasq.utils.loop.run`), though both import paths work.
+**Note:** uvloop (>=0.19.0) is included as a core dependency of AsyncTasQ, so it's available by default. The `run()` function is exported directly from `asynctasq` (not `asynctasq.utils.loop.run`), though both import paths work.
 
 ### Pattern 3: FastAPI Integration (Recommended)
 
