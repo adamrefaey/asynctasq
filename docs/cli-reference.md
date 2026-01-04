@@ -6,6 +6,7 @@
   - [Table of Contents](#table-of-contents)
   - [Worker Command](#worker-command)
   - [Migrate Command](#migrate-command)
+  - [Publish Command](#publish-command)
 
 ## Worker Command
 
@@ -210,3 +211,70 @@ uv run asynctasq migrate --driver postgres --postgres-dsn postgresql://user:pass
 - Creates dead-letter table for failed tasks
 - Idempotent (safe to run multiple times)
 - Only works with PostgreSQL and MySQL drivers
+
+---
+
+## Publish Command
+
+Publish the `.env.example` configuration file to your project root. This command copies the comprehensive environment variables template from AsyncTasQ to your project, making it easy to configure the library.
+
+```bash
+# Using Python module
+python -m asynctasq publish [OPTIONS]
+
+# Or using installed command
+asynctasq publish [OPTIONS]
+
+# Or with uv
+uv run asynctasq publish [OPTIONS]
+```
+
+**Options:**
+
+| Option               | Description                                   | Default             |
+| -------------------- | --------------------------------------------- | ------------------- |
+| `--output-dir DIR`   | Output directory for .env.example file        | Current directory   |
+| `--force`            | Overwrite existing .env.example file          | `False`             |
+
+**Examples:**
+
+```bash
+# Publish to current directory
+asynctasq publish
+
+# Publish to a specific directory
+asynctasq publish --output-dir /path/to/project
+
+# Overwrite existing .env.example file
+asynctasq publish --force
+
+# Publish to project and create .env from it
+asynctasq publish --output-dir ~/my-project
+cp ~/my-project/.env.example ~/my-project/.env
+# Edit .env with your actual configuration values
+
+# With uv
+uv run asynctasq publish --output-dir .
+```
+
+**What it does:**
+
+- Copies the `.env.example` file from AsyncTasQ package to your project
+- Provides a complete template with all available environment variables
+- Includes documentation and examples for each configuration option
+- Safe by default - won't overwrite existing files unless `--force` is used
+
+**Next Steps After Publishing:**
+
+1. Copy `.env.example` to `.env` in your project root
+2. Update the values in `.env` with your actual configuration
+3. Add `.env` to your `.gitignore` to keep secrets safe
+4. Use `.env.example` as a template for team members
+
+**Why Use This Command:**
+
+- **Quick Setup**: Get started with configuration in seconds
+- **Complete Reference**: All environment variables documented in one place
+- **Best Practices**: Examples show recommended configurations
+- **Team Collaboration**: Share `.env.example` with your team via git
+- **Multiple Environments**: Easy to create `.env.dev`, `.env.prod`, etc.

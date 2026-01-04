@@ -57,10 +57,10 @@ init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
 # Then simply call: init()
 
 # Option C: Via .env file (recommended for production)
-# Create a .env file with:
-#   ASYNCTASQ_DRIVER=redis
-#   ASYNCTASQ_REDIS_URL=redis://localhost:6379
-# Then simply call: init()
+# Use the publish command to get a complete configuration template:
+#   asynctasq publish
+#   cp .env.example .env
+# Then edit .env with your settings and call: init()
 
 
 # 2. Define tasks (function-based or class-based)

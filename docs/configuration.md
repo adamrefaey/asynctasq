@@ -89,9 +89,14 @@ init({
 init()  # Loads from environment automatically
 
 # Option 3: .env file (recommended for multiple environments)
-# Create .env with: ASYNCTASQ_DRIVER=redis
+# Use the publish command to get a complete template:
+#   asynctasq publish
+#   cp .env.example .env
+# Then edit .env with: ASYNCTASQ_DRIVER=redis
 init()  # Loads from .env automatically
 ```
+
+**💡 Tip:** Use `asynctasq publish` to generate a complete `.env.example` template with all available configuration options and documentation. See the [CLI Reference](cli-reference.md#publish-command) for details.
 
 **Parameters:**
 - `config` (optional): Configuration dictionary. Values passed here override environment variables and .env settings

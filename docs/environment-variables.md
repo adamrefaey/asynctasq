@@ -2,6 +2,28 @@
 
 AsyncTasQ supports configuration through environment variables and `.env` files, making it easy to configure your application for different environments without changing code.
 
+## Getting Started with .env Files
+
+The quickest way to set up environment-based configuration is to use the `publish` command:
+
+```bash
+# Publish the .env.example template to your project
+asynctasq publish
+
+# Copy it to create your environment file
+cp .env.example .env
+
+# Edit .env with your actual configuration values
+```
+
+The published `.env.example` file contains:
+- All available environment variables with descriptions
+- Recommended default values
+- Examples for each driver configuration
+- Best practices and usage tips
+
+For more details on the publish command, see the [CLI Reference](cli-reference.md#publish-command).
+
 ## Configuration Priority
 
 AsyncTasQ uses the following configuration priority (highest to lowest):
