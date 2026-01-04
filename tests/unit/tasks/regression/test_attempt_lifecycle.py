@@ -52,6 +52,7 @@ class DummyDriver(BaseDriver):
         delay_seconds: int = 0,
         current_attempt: int = 0,
         visibility_timeout: int = 0,
+        max_attempts: int = 3,
     ) -> None:
         """Store serialized payloads for inspection."""
         self.enqueued.append(

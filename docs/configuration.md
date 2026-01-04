@@ -259,7 +259,6 @@ This creates the `task_queue` and `dead_letter_queue` tables with the necessary 
 | `dsn`               |  str | PostgreSQL connection DSN              | `postgresql://test:test@localhost:5432/test_db` |
 | `queue_table`       |  str | Queue table name                       | `task_queue`                                    |
 | `dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`                             |
-| `max_attempts`      |  int | Maximum attempts before dead-lettering | `3`                                             |
 | `min_pool_size`     |  int | Minimum connection pool size           | `10`                                            |
 | `max_pool_size`     |  int | Maximum connection pool size           | `10`                                            |
 
@@ -272,7 +271,6 @@ init({
         dsn='postgresql://user:pass@localhost:5432/mydb',
         queue_table='task_queue',
         dead_letter_table='dead_letter_queue',
-        max_attempts=5,
         min_pool_size=10,
         max_pool_size=50
     )
@@ -300,7 +298,6 @@ This creates the `task_queue` and `dead_letter_queue` tables with the necessary 
 | `dsn`               |  str | MySQL connection DSN                   | `mysql://test:test@localhost:3306/test_db` |
 | `queue_table`       |  str | Queue table name                       | `task_queue`                               |
 | `dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`                        |
-| `max_attempts`      |  int | Maximum attempts before dead-lettering | `3`                                        |
 | `min_pool_size`     |  int | Minimum connection pool size           | `10`                                       |
 | `max_pool_size`     |  int | Maximum connection pool size           | `10`                                       |
 
@@ -313,7 +310,6 @@ init({
         dsn='mysql://user:pass@localhost:3306/mydb',
         queue_table='task_queue',
         dead_letter_table='dead_letter_queue',
-        max_attempts=5,
         min_pool_size=10,
         max_pool_size=50
     )

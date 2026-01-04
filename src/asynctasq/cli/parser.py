@@ -92,11 +92,6 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
         help="PostgreSQL dead letter table name (default: 'dead_letter_queue')",
     )
     postgres_group.add_argument(
-        "--postgres-max-attempts",
-        type=int,
-        help="PostgreSQL maximum attempts before dead-lettering (default: 3)",
-    )
-    postgres_group.add_argument(
         "--postgres-min-pool-size",
         type=int,
         help="PostgreSQL minimum connection pool size (default: 10)",
@@ -123,11 +118,6 @@ def add_driver_args(parser: argparse.ArgumentParser, default_driver: str | None 
         "--mysql-dead-letter-table",
         type=str,
         help="MySQL dead letter table name (default: 'dead_letter_queue')",
-    )
-    mysql_group.add_argument(
-        "--mysql-max-attempts",
-        type=int,
-        help="MySQL maximum attempts before dead-lettering (default: 3)",
     )
     mysql_group.add_argument(
         "--mysql-min-pool-size",

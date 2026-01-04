@@ -43,6 +43,7 @@ class BaseDriver(ABC):
         delay_seconds: int = 0,
         current_attempt: int = 0,
         visibility_timeout: int = 3600,
+        max_attempts: int = 3,
     ) -> None:
         """Add a task to the queue.
 
@@ -52,6 +53,7 @@ class BaseDriver(ABC):
             delay_seconds: Optional delay before task becomes visible (default: 0)
             current_attempt: Current attempt number for the task (default: 0)
             visibility_timeout: Crash recovery timeout in seconds (default: 3600)
+            max_attempts: Maximum retry attempts for this task (default: 3)
 
         Raises:
             ValueError: If delay_seconds exceeds driver limits
@@ -61,6 +63,7 @@ class BaseDriver(ABC):
             Delay implementation is driver-specific.
             current_attempt is used by drivers with rich schemas (Postgres/MySQL) for monitoring.
             visibility_timeout determines how long a task is locked during processing.
+            max_attempts is stored per-task in Postgres/MySQL drivers; ignored by others.
         """
         ...
 

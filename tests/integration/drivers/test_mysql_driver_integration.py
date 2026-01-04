@@ -81,7 +81,6 @@ async def mysql_driver(mysql_dsn: str) -> AsyncGenerator[MySQLDriver, None]:
         dsn=mysql_dsn,
         queue_table=TEST_QUEUE_TABLE,
         dead_letter_table=TEST_DLQ_TABLE,
-        max_attempts=3,
         retry_delay_seconds=60,
         min_pool_size=5,
         max_pool_size=10,
@@ -489,14 +488,15 @@ class TestMySQLDriverWithRealMySQL:
         task_data = b"failing_task"
         await mysql_driver.enqueue("default", task_data)
 
-        # Act - nack max_attempts times
-        for attempt in range(mysql_driver.max_attempts):
+        # Act - nack max_attempts times (default is 3)
+        max_attempts = 3
+        for attempt in range(max_attempts):
             receipt = await mysql_driver.dequeue("default", poll_seconds=0)
             assert receipt is not None
             await mysql_driver.nack("default", receipt)
 
             # Make task available again for next iteration (except last one which goes to DLQ)
-            if attempt < mysql_driver.max_attempts - 1:
+            if attempt < max_attempts - 1:
                 async with mysql_conn.cursor() as cursor:
                     await cursor.execute(
                         f"UPDATE {TEST_QUEUE_TABLE} SET available_at = DATE_SUB(NOW(6), INTERVAL 1 SECOND), locked_until = NULL WHERE queue_name = %s",
@@ -512,7 +512,7 @@ class TestMySQLDriverWithRealMySQL:
             dlq_result = await cursor.fetchone()
             assert dlq_result is not None
             assert dlq_result[2] == task_data  # payload
-            assert dlq_result[3] == mysql_driver.max_attempts  # attempts
+            assert dlq_result[3] == max_attempts  # attempts
             assert dlq_result[4] == "Max attempts exceeded"  # error_message
 
             # Task should not be in main queue
@@ -1012,10 +1012,11 @@ class TestMySQLDriverWithRealMySQL:
         assert receipt is not None
 
         # Force max attempts exceeded by updating current_attempt to max in DB then nack
+        max_attempts = 3  # Default task max_attempts
         async with mysql_conn.cursor() as cursor:
             await cursor.execute(
                 f"UPDATE {TEST_QUEUE_TABLE} SET current_attempt = %s WHERE id = %s",
-                (mysql_driver.max_attempts, mysql_driver._receipt_handles[receipt]),
+                (max_attempts, mysql_driver._receipt_handles[receipt]),
             )
 
         await mysql_driver.nack("mqueue", receipt)

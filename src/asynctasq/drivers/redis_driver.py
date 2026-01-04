@@ -89,6 +89,7 @@ class RedisDriver(BaseDriver):
         delay_seconds: int = 0,
         current_attempt: int = 0,
         visibility_timeout: int = 3600,
+        max_attempts: int = 3,
     ) -> None:
         """Add task to queue.
 
@@ -97,11 +98,13 @@ class RedisDriver(BaseDriver):
             task_data: Serialized task data
             delay_seconds: Seconds to delay task visibility (0 = immediate)
             current_attempt: Current attempt number (ignored by Redis driver)
+            visibility_timeout: Crash recovery timeout (ignored by Redis driver)
+            max_attempts: Maximum retry attempts (ignored by Redis driver, stored in task)
 
         Implementation:
             - Immediate: LPUSH to list for O(1) insertion
             - Delayed: ZADD to sorted set with score = current_time + delay_seconds
-            - current_attempt is tracked in serialized task, not in Redis
+            - current_attempt and max_attempts are tracked in serialized task, not in Redis
         """
         if self.client is None:
             await self.connect()

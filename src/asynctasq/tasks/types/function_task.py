@@ -187,11 +187,14 @@ class TaskFunctionWrapper[T]:
         Args:
             func: The wrapped function with _task_* attributes
         """
+        from asynctasq.config import Config
+
         self._func = func
+        config = Config.get()
         # Cache task configuration to avoid repeated attribute lookups
         self._task_config = {
             "queue": getattr(func, "_task_queue", "default"),
-            "max_attempts": getattr(func, "_task_max_attempts", 3),
+            "max_attempts": getattr(func, "_task_max_attempts", config.task_defaults.max_attempts),
             "retry_delay": getattr(func, "_task_retry_delay", 60),
             "timeout": getattr(func, "_task_timeout", None),
             "driver": getattr(func, "_task_driver", None),

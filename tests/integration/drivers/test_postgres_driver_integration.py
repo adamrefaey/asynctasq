@@ -67,7 +67,6 @@ async def postgres_driver(postgres_dsn: str) -> AsyncGenerator[PostgresDriver, N
         dsn=postgres_dsn,
         queue_table=TEST_QUEUE_TABLE,
         dead_letter_table=TEST_DLQ_TABLE,
-        max_attempts=3,
         retry_delay_seconds=60,
         min_pool_size=5,
         max_pool_size=10,
@@ -621,14 +620,15 @@ class TestPostgresDriverWithRealPostgres:
         task_data = b"failing_task"
         await postgres_driver.enqueue("default", task_data)
 
-        # Act - nack max_attempts times
-        for attempt in range(postgres_driver.max_attempts):
+        # Act - nack max_attempts times (default is 3)
+        max_attempts = 3
+        for attempt in range(max_attempts):
             receipt = await postgres_driver.dequeue("default", poll_seconds=0)
             assert receipt is not None
             await postgres_driver.nack("default", receipt)
 
             # Make task available again for next iteration (except last one which goes to DLQ)
-            if attempt < postgres_driver.max_attempts - 1:
+            if attempt < max_attempts - 1:
                 await postgres_conn.execute(
                     f"UPDATE {TEST_QUEUE_TABLE} SET available_at = NOW() - INTERVAL '1 second', locked_until = NULL WHERE queue_name = $1",
                     "default",
@@ -640,7 +640,7 @@ class TestPostgresDriverWithRealPostgres:
         )
         assert dlq_result is not None
         assert dlq_result["payload"] == task_data
-        assert dlq_result["current_attempt"] == postgres_driver.max_attempts
+        assert dlq_result["current_attempt"] == max_attempts
         assert dlq_result["error_message"] == "Max attempts exceeded"
 
         # Task should not be in main queue

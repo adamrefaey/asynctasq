@@ -61,12 +61,6 @@ class TestConfigValidation:
             RedisConfig(max_connections=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
-    def test_postgres_max_attempts_validation(self, invalid_value):
-        """Test postgres_max_attempts validation."""
-        with pytest.raises((ValueError, ValidationError), match="max_attempts must be positive"):
-            PostgresConfig(max_attempts=invalid_value)
-
-    @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_postgres_min_pool_size_validation(self, invalid_value):
         """Test postgres_min_pool_size validation."""
         with pytest.raises((ValueError, ValidationError), match="min_pool_size must be positive"):
@@ -85,12 +79,6 @@ class TestConfigValidation:
             match="min_pool_size cannot be greater than max_pool_size",
         ):
             PostgresConfig(min_pool_size=10, max_pool_size=5)
-
-    @pytest.mark.parametrize("invalid_value", [0, -1])
-    def test_mysql_max_attempts_validation(self, invalid_value):
-        """Test mysql_max_attempts validation."""
-        with pytest.raises((ValueError, ValidationError), match="max_attempts must be positive"):
-            MySQLConfig(max_attempts=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_mysql_min_pool_size_validation(self, invalid_value):

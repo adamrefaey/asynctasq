@@ -101,7 +101,6 @@ class TestDriverFactoryCreate:
                 dsn="postgresql://user:pass@testdb:5432/taskdb",
                 queue_table="custom_queue",
                 dead_letter_table="custom_dlq",
-                max_attempts=5,
                 min_pool_size=5,
                 max_pool_size=20,
             ),
@@ -121,7 +120,6 @@ class TestDriverFactoryCreate:
             dsn="postgresql://user:pass@testdb:5432/taskdb",
             queue_table="custom_queue",
             dead_letter_table="custom_dlq",
-            max_attempts=5,
             retry_delay_seconds=120,
             min_pool_size=5,
             max_pool_size=20,
@@ -138,7 +136,6 @@ class TestDriverFactoryCreate:
                 dsn="mysql://user:pass@testdb:3306/taskdb",
                 queue_table="custom_queue",
                 dead_letter_table="custom_dlq",
-                max_attempts=5,
                 min_pool_size=5,
                 max_pool_size=20,
             ),
@@ -158,7 +155,6 @@ class TestDriverFactoryCreate:
             dsn="mysql://user:pass@testdb:3306/taskdb",
             queue_table="custom_queue",
             dead_letter_table="custom_dlq",
-            max_attempts=5,
             retry_delay_seconds=120,
             min_pool_size=5,
             max_pool_size=20,
@@ -528,7 +524,6 @@ class TestDriverFactoryParameterPassing:
             dsn="postgresql://minimal:pass@localhost/db",
             queue_table="task_queue",  # Default
             dead_letter_table="dead_letter_queue",  # Default
-            max_attempts=3,  # Default
             retry_delay_seconds=60,  # Default
             min_pool_size=10,  # Default
             max_pool_size=10,  # Default
@@ -556,7 +551,6 @@ class TestDriverFactoryParameterPassing:
             dsn="mysql://minimal:pass@localhost:3306/db",
             queue_table="task_queue",  # Default
             dead_letter_table="dead_letter_queue",  # Default
-            max_attempts=3,  # Default
             retry_delay_seconds=60,  # Default
             min_pool_size=10,  # Default
             max_pool_size=10,  # Default
@@ -618,7 +612,6 @@ class TestDriverFactoryConfigIntegration:
                 dsn="postgresql://test:test@testhost:5432/testdb",
                 queue_table="test_queue",
                 dead_letter_table="test_dlq",
-                max_attempts=7,
                 min_pool_size=15,
                 max_pool_size=50,
             ),
@@ -641,7 +634,6 @@ class TestDriverFactoryConfigIntegration:
             dsn="postgresql://test:test@testhost:5432/testdb",
             queue_table="test_queue",
             dead_letter_table="test_dlq",
-            max_attempts=7,
             retry_delay_seconds=180,
             min_pool_size=15,
             max_pool_size=50,
@@ -714,7 +706,6 @@ class TestDriverFactoryConfigIntegration:
                 dsn="mysql://test:test@testhost:3306/testdb",
                 queue_table="test_queue",
                 dead_letter_table="test_dlq",
-                max_attempts=7,
                 min_pool_size=15,
                 max_pool_size=50,
             ),
@@ -737,7 +728,6 @@ class TestDriverFactoryConfigIntegration:
             dsn="mysql://test:test@testhost:3306/testdb",
             queue_table="test_queue",
             dead_letter_table="test_dlq",
-            max_attempts=7,
             retry_delay_seconds=180,
             min_pool_size=15,
             max_pool_size=50,
@@ -901,7 +891,6 @@ class TestDriverFactoryParameterized:
                     "dsn": "postgresql://test:test@localhost:5432/test_db",
                     "queue_table": "task_queue",
                     "dead_letter_table": "dead_letter_queue",
-                    "max_attempts": 3,
                     "retry_delay_seconds": 60,
                     "min_pool_size": 1,
                     "max_pool_size": 1,
@@ -917,7 +906,6 @@ class TestDriverFactoryParameterized:
                     "dsn": "mysql://test:test@localhost:3306/test_db",
                     "queue_table": "task_queue",
                     "dead_letter_table": "dead_letter_queue",
-                    "max_attempts": 3,
                     "retry_delay_seconds": 60,
                     "min_pool_size": 1,
                     "max_pool_size": 1,

@@ -85,9 +85,12 @@ class TaskExecutor:
         Returns:
             True to retry, False if permanently failed
         """
-        return task._current_attempt < task.config.get("max_attempts", 3) and task.should_retry(
-            exception
-        )
+        from asynctasq.config import Config
+
+        config = Config.get()
+        return task._current_attempt < task.config.get(
+            "max_attempts", config.task_defaults.max_attempts
+        ) and task.should_retry(exception)
 
     async def handle_failed(self, task: BaseTask, exception: Exception) -> None:
         """Call task.failed() hook when retries exhausted (best-effort).

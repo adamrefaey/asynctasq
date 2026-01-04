@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from asynctasq.config import Config
 from asynctasq.core.models import TaskInfo
 from asynctasq.serializers.base_serializer import BaseSerializer
 
@@ -74,7 +75,10 @@ class TaskInfoConverter:
                 "attempt", task_dict.get("metadata", {}).get("current_attempt", 1)
             ),
             max_attempts=task_dict.get(
-                "max_attempts", task_dict.get("metadata", {}).get("max_attempts", 3)
+                "max_attempts",
+                task_dict.get("metadata", {}).get(
+                    "max_attempts", Config.get().task_defaults.max_attempts
+                ),
             ),
             args=task_dict.get("args", task_dict.get("params")),
             kwargs=task_dict.get("kwargs"),

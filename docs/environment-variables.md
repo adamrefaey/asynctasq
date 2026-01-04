@@ -100,9 +100,6 @@ ASYNCTASQ_POSTGRES_DSN=postgresql://user:password@localhost:5432/dbname
 ASYNCTASQ_POSTGRES_QUEUE_TABLE=task_queue
 ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
 
-# Retry configuration
-ASYNCTASQ_POSTGRES_MAX_ATTEMPTS=3
-
 # Connection pool settings
 ASYNCTASQ_POSTGRES_MIN_POOL_SIZE=10
 ASYNCTASQ_POSTGRES_MAX_POOL_SIZE=10
@@ -117,9 +114,6 @@ ASYNCTASQ_MYSQL_DSN=mysql://user:password@localhost:3306/dbname
 # Table names
 ASYNCTASQ_MYSQL_QUEUE_TABLE=task_queue
 ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
-
-# Retry configuration
-ASYNCTASQ_MYSQL_MAX_ATTEMPTS=3
 
 # Connection pool settings
 ASYNCTASQ_MYSQL_MIN_POOL_SIZE=10

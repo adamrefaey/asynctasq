@@ -71,8 +71,6 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
         postgres_overrides["queue_table"] = args.postgres_queue_table
     if hasattr(args, "postgres_dead_letter_table") and args.postgres_dead_letter_table is not None:
         postgres_overrides["dead_letter_table"] = args.postgres_dead_letter_table
-    if hasattr(args, "postgres_max_attempts") and args.postgres_max_attempts is not None:
-        postgres_overrides["max_attempts"] = args.postgres_max_attempts
     if hasattr(args, "postgres_min_pool_size") and args.postgres_min_pool_size is not None:
         postgres_overrides["min_pool_size"] = args.postgres_min_pool_size
     if hasattr(args, "postgres_max_pool_size") and args.postgres_max_pool_size is not None:
@@ -88,8 +86,6 @@ def build_config_overrides(args: argparse.Namespace) -> dict[str, Any]:
         mysql_overrides["queue_table"] = args.mysql_queue_table
     if hasattr(args, "mysql_dead_letter_table") and args.mysql_dead_letter_table is not None:
         mysql_overrides["dead_letter_table"] = args.mysql_dead_letter_table
-    if hasattr(args, "mysql_max_attempts") and args.mysql_max_attempts is not None:
-        mysql_overrides["max_attempts"] = args.mysql_max_attempts
     if hasattr(args, "mysql_min_pool_size") and args.mysql_min_pool_size is not None:
         mysql_overrides["min_pool_size"] = args.mysql_min_pool_size
     if hasattr(args, "mysql_max_pool_size") and args.mysql_max_pool_size is not None:

@@ -88,7 +88,6 @@ class PostgresConfig(BaseSettings):
         ASYNCTASQ_POSTGRES_DSN: PostgreSQL connection DSN
         ASYNCTASQ_POSTGRES_QUEUE_TABLE: Queue table name (default: task_queue)
         ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE: Dead letter table name (default: dead_letter_queue)
-        ASYNCTASQ_POSTGRES_MAX_ATTEMPTS: Maximum retry attempts (default: 3)
         ASYNCTASQ_POSTGRES_MIN_POOL_SIZE: Minimum pool size (default: 10)
         ASYNCTASQ_POSTGRES_MAX_POOL_SIZE: Maximum pool size (default: 10)
     """
@@ -103,17 +102,8 @@ class PostgresConfig(BaseSettings):
     dsn: str = "postgresql://test:test@localhost:5432/test_db"
     queue_table: str = "task_queue"
     dead_letter_table: str = "dead_letter_queue"
-    max_attempts: int = 3
     min_pool_size: int = 10
     max_pool_size: int = 10
-
-    @field_validator("max_attempts")
-    @classmethod
-    def validate_max_attempts(cls, v: int) -> int:
-        """Validate max attempts."""
-        if v < 1:
-            raise ValueError("max_attempts must be positive")
-        return v
 
     @field_validator("min_pool_size")
     @classmethod
@@ -147,7 +137,6 @@ class MySQLConfig(BaseSettings):
         ASYNCTASQ_MYSQL_DSN: MySQL connection DSN
         ASYNCTASQ_MYSQL_QUEUE_TABLE: Queue table name (default: task_queue)
         ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE: Dead letter table name (default: dead_letter_queue)
-        ASYNCTASQ_MYSQL_MAX_ATTEMPTS: Maximum retry attempts (default: 3)
         ASYNCTASQ_MYSQL_MIN_POOL_SIZE: Minimum pool size (default: 10)
         ASYNCTASQ_MYSQL_MAX_POOL_SIZE: Maximum pool size (default: 10)
     """
@@ -162,17 +151,8 @@ class MySQLConfig(BaseSettings):
     dsn: str = "mysql://test:test@localhost:3306/test_db"
     queue_table: str = "task_queue"
     dead_letter_table: str = "dead_letter_queue"
-    max_attempts: int = 3
     min_pool_size: int = 10
     max_pool_size: int = 10
-
-    @field_validator("max_attempts")
-    @classmethod
-    def validate_max_attempts(cls, v: int) -> int:
-        """Validate max attempts."""
-        if v < 1:
-            raise ValueError("max_attempts must be positive")
-        return v
 
     @field_validator("min_pool_size")
     @classmethod

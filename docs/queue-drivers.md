@@ -170,7 +170,6 @@ init({
         dsn='postgresql://user:pass@localhost:5432/dbname',
         queue_table='task_queue',
         dead_letter_table='dead_letter_queue',
-        max_attempts=3,
         min_pool_size=10,
         max_pool_size=10
     )
@@ -183,7 +182,6 @@ init({
         'dsn': 'postgresql://user:pass@localhost:5432/dbname',
         'queue_table': 'task_queue',
         'dead_letter_table': 'dead_letter_queue',
-        'max_attempts': 3,
         'min_pool_size': 10,
         'max_pool_size': 10
     }
@@ -202,7 +200,6 @@ init()  # Loads from environment
 | `dsn`               | `str` | **Required**          | PostgreSQL connection string (e.g., `postgresql://user:pass@host/db`) |
 | `queue_table`       | `str` | `'task_queue'`        | Main queue table name                                                 |
 | `dead_letter_table` | `str` | `'dead_letter_queue'` | Dead-letter queue table name for failed tasks                         |
-| `max_attempts`      | `int` | `3`                   | Maximum retry attempts before moving to dead-letter queue             |
 | `min_pool_size`     | `int` | `10`                  | Minimum number of connections in the pool                             |
 | `max_pool_size`     | `int` | `10`                  | Maximum number of connections in the pool                             |
 
@@ -257,7 +254,6 @@ init({
         dsn='mysql://user:pass@localhost:3306/dbname',
         queue_table='task_queue',
         dead_letter_table='dead_letter_queue',
-        max_attempts=3,
         min_pool_size=10,
         max_pool_size=10
     )
@@ -270,7 +266,6 @@ init({
         'dsn': 'mysql://user:pass@localhost:3306/dbname',
         'queue_table': 'task_queue',
         'dead_letter_table': 'dead_letter_queue',
-        'max_attempts': 3,
         'min_pool_size': 10,
         'max_pool_size': 10
     }
@@ -281,7 +276,6 @@ init({
 # ASYNCTASQ_DRIVER=mysql
 # ASYNCTASQ_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
 # ASYNCTASQ_MYSQL_QUEUE_TABLE=task_queue
-# ASYNCTASQ_MYSQL_MAX_ATTEMPTS=3
 init()  # Loads from env vars automatically
 ```
 
@@ -292,7 +286,6 @@ init()  # Loads from env vars automatically
 | `dsn`               | `str` | **Required**          | MySQL connection string (e.g., `mysql://user:pass@host:port/db`) |
 | `queue_table`       | `str` | `'task_queue'`        | Main queue table name                                            |
 | `dead_letter_table` | `str` | `'dead_letter_queue'` | Dead-letter queue table name for failed tasks                    |
-| `max_attempts`      | `int` | `3`                   | Maximum retry attempts before moving to dead-letter queue        |
 | `min_pool_size`     | `int` | `10`                  | Minimum number of connections in the pool                        |
 | `max_pool_size`     | `int` | `10`                  | Maximum number of connections in the pool                        |
 
@@ -530,7 +523,6 @@ init({
         dsn='postgresql://user:pass@localhost:5432/dbname',
         queue_table='task_queue',
         dead_letter_table='dead_letter_queue',
-        max_attempts=3,
         min_pool_size=10,
         max_pool_size=10
     )
@@ -547,7 +539,6 @@ init({
         dsn='mysql://user:pass@localhost:3306/dbname',
         queue_table='task_queue',
         dead_letter_table='dead_letter_queue',
-        max_attempts=3,
         min_pool_size=10,
         max_pool_size=10
     )
@@ -708,12 +699,12 @@ Exchanges and queues are declared automatically:
 ### Error Handling
 
 **PostgreSQL/MySQL:**
-- Failed tasks automatically moved to dead-letter queue after `max_attempts`
+- Failed tasks automatically moved to dead-letter queue after task's `max_attempts` is reached
 - Dead-letter queue includes: original payload, attempt count, error message, timestamp
 - Query dead-letter queue for debugging: `SELECT * FROM dead_letter_queue WHERE queue_name = 'your_queue'`
 
 **All Drivers:**
-- Tasks retry automatically up to `max_attempts`
+- Tasks retry automatically up to task's `max_attempts` (set via `ASYNCTASQ_TASK_DEFAULTS_MAX_ATTEMPTS` or per-task)
 - Use task-level `timeout` to prevent hung tasks
 - Monitor queue depths to detect processing bottlenecks
 

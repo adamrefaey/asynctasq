@@ -313,6 +313,7 @@ class RabbitMQDriver(BaseDriver):
         delay_seconds: int = 0,
         current_attempt: int = 0,
         visibility_timeout: int = 3600,
+        max_attempts: int = 3,
     ) -> None:
         """Add task to queue with optional delay.
 
@@ -321,6 +322,8 @@ class RabbitMQDriver(BaseDriver):
             task_data: Serialized task data
             delay_seconds: Seconds to delay task visibility (0 = immediate)
             current_attempt: Current attempt number (ignored by RabbitMQ driver)
+            visibility_timeout: Crash recovery timeout (ignored by RabbitMQ driver)
+            max_attempts: Maximum retry attempts (ignored by RabbitMQ driver, stored in task)
 
         Implementation:
             - Immediate (delay_seconds <= 0):
@@ -334,7 +337,7 @@ class RabbitMQDriver(BaseDriver):
               - Publishes to delayed queue (auto-created if needed)
               - _process_delayed_tasks() will manually check timestamps and move to main queue
             - All messages use PERSISTENT delivery mode for durability
-            - current_attempt is tracked in serialized task, not in RabbitMQ
+            - current_attempt and max_attempts are tracked in serialized task, not in RabbitMQ
         """
         if self.channel is None:
             await self.connect()

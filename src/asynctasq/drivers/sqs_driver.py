@@ -113,6 +113,7 @@ class SQSDriver(BaseDriver):
         delay_seconds: int = 0,
         current_attempt: int = 0,
         visibility_timeout: int = 3600,
+        max_attempts: int = 3,
     ) -> None:
         """Add task to queue with optional delay.
 
@@ -124,13 +125,14 @@ class SQSDriver(BaseDriver):
             delay_seconds: Delay in seconds (0-900 max, SQS limit)
             current_attempt: Current attempt number (ignored by SQS driver)
             visibility_timeout: Crash recovery timeout in seconds (default: 3600)
+            max_attempts: Maximum retry attempts (ignored by SQS driver, stored in task)
 
         Raises:
             ValueError: If delay_seconds > 900
             ClientError: If AWS API call fails
 
         Note:
-            current_attempt is tracked in serialized task, not in SQS.
+            current_attempt and max_attempts are tracked in serialized task, not in SQS.
         """
 
         if self.client is None:

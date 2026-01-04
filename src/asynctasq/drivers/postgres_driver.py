@@ -36,7 +36,6 @@ class PostgresDriver(BaseDriver):
     dsn: str = "postgresql://user:pass@localhost/dbname"
     queue_table: str = "task_queue"
     dead_letter_table: str = "dead_letter_queue"
-    max_attempts: int = 3
     retry_strategy: RetryStrategy = "exponential"
     retry_delay_seconds: int = 60
     min_pool_size: int = 10
@@ -134,6 +133,7 @@ class PostgresDriver(BaseDriver):
         delay_seconds: int = 0,
         current_attempt: int = 0,
         visibility_timeout: int = 3600,
+        max_attempts: int = 3,
     ) -> None:
         """Add task to queue with optional delay.
 
@@ -143,6 +143,7 @@ class PostgresDriver(BaseDriver):
             delay_seconds: Seconds to delay task visibility (0 = immediate)
             current_attempt: Current attempt number (0 for first attempt)
             visibility_timeout: Crash recovery timeout in seconds (default: 3600)
+            max_attempts: Maximum retry attempts for this task (default: 3)
         """
         if self.pool is None:
             await self.connect()
@@ -159,7 +160,7 @@ class PostgresDriver(BaseDriver):
             task_data,
             delay_seconds,
             current_attempt,
-            self.max_attempts,
+            max_attempts,
             visibility_timeout,
         )
 
@@ -636,12 +637,16 @@ class PostgresDriver(BaseDriver):
                 # that insert into dead-letter always write an integer. Assert
                 # the invariant for clarity and pass the value directly.
                 assert current_attempt is not None
+                # Default max_attempts from TaskDefaultsConfig when retrying from DLQ
+                from asynctasq.config import Config
+
+                config = Config.get()
                 await conn.execute(
                     ins,
                     queue_name,
                     payload,
                     current_attempt,
-                    self.max_attempts,
+                    config.task_defaults.max_attempts,
                 )
                 await conn.execute(del_q, task_id)
                 return True

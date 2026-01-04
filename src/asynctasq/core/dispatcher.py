@@ -112,12 +112,19 @@ class Dispatcher:
         driver_type = driver.__class__.__name__
         serialized_task = self._task_serializer.serialize(task)
 
-        # Get visibility_timeout from task config or use default
+        # Get visibility_timeout and max_attempts from task config or use defaults
+        config = Config.get()
         visibility_timeout = task.config.get("visibility_timeout", 3600)
+        max_attempts = task.config.get("max_attempts", config.task_defaults.max_attempts)
 
-        # Enqueue with current attempt number and visibility timeout
+        # Enqueue with current attempt number, visibility timeout, and max_attempts
         await driver.enqueue(
-            target_queue, serialized_task, delay_seconds, task._current_attempt, visibility_timeout
+            target_queue,
+            serialized_task,
+            delay_seconds,
+            task._current_attempt,
+            visibility_timeout,
+            max_attempts,
         )
 
         # Emit task_enqueued event via global emitters

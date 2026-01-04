@@ -198,7 +198,6 @@ class TestBuildConfigOverrides:
         assert result["mysql"].dsn == "mysql://user:pass@localhost/db"
         assert result["mysql"].queue_table == "custom_queue"
         assert result["mysql"].dead_letter_table == "custom_dlq"
-        assert result["mysql"].max_attempts == 3
         assert result["mysql"].min_pool_size == 1
         assert result["mysql"].max_pool_size == 10
 
@@ -223,7 +222,6 @@ class TestBuildConfigOverrides:
         # Other postgres attributes should use defaults since hasattr returns False
         assert result["postgres"].queue_table == "task_queue"
         assert result["postgres"].dead_letter_table == "dead_letter_queue"
-        assert result["postgres"].max_attempts == 3
 
     def test_build_config_overrides_with_mysql_partial_options(self) -> None:
         # Arrange - test mysql options without driver to ensure hasattr checks are covered
@@ -245,7 +243,6 @@ class TestBuildConfigOverrides:
         assert result["mysql"].queue_table == "custom_queue"
         # Others should use defaults
         assert result["mysql"].dead_letter_table == "dead_letter_queue"
-        assert result["mysql"].max_attempts == 3
 
     def test_build_config_overrides_with_rabbitmq_options(self) -> None:
         # Arrange
