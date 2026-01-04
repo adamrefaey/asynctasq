@@ -70,26 +70,4 @@ pip install "asynctasq[monitor]"
 pip install "asynctasq[all]"
 ```
 
-## Quick Configuration Setup
-
-After installation, publish the `.env.example` file to your project to get started with configuration:
-
-```bash
-# Publish the configuration template
-asynctasq publish
-
-# Copy it to create your environment file
-cp .env.example .env
-
-# Edit .env with your settings
-# Then load it automatically:
-```
-
-```python
-from asynctasq import init
-
-# Configuration is automatically loaded from .env
-init()
-```
-
-See [Environment Variables Configuration](environment-variables.md) for more details and the [CLI Reference](cli-reference.md#publish-command) for advanced publish options.
+**Next:** Configure your driver via [Environment Variables](environment-variables.md) or [Configuration Guide](configuration.md).

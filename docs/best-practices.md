@@ -97,7 +97,7 @@ class ProcessPayment(AsyncTask[bool]):
 - Use connection pooling (configured automatically)
 - Monitor queue sizes and adjust worker count accordingly
 - Consider task batching for high-volume operations
-- Prefer `redis` for general production use; use `postgres` or `mysql` when you need ACID guarantees
+- **Prefer Redis for general use** or **PostgreSQL/MySQL for ACID guarantees**. See [Queue Drivers](queue-drivers.md) for complete comparison.
 
 ## Production Deployment
 
@@ -123,99 +123,10 @@ class ProcessPayment(AsyncTask[bool]):
 ```python
 from asynctasq import init, RedisConfig, TaskDefaultsConfig, EventsConfig, ProcessPoolConfig, Worker, DriverFactory, Config
 
-# Option 1: Code configuration
-init({
-    'driver': 'redis',
-    'redis': RedisConfig(
-        url='redis://redis-master:6379',
-        password='your-redis-password'
-    ),
-    'task_defaults': TaskDefaultsConfig(
-        max_attempts=5,
-        retry_delay=120  # 2 minutes
-    ),
-    # Event streaming for monitoring (asynctasq-monitor)
-    'events': EventsConfig(
-        enable_event_emitter_redis=True,
-        redis_url='redis://redis-master:6379',
-        channel='asynctasq:events'
-    ),
-    # Process pool configuration (for CPU-bound tasks)
-    'process_pool': ProcessPoolConfig(
-        size=4,
-        max_tasks_per_child=100
-    )
-})
+# Configuration - See configuration.md for complete options
+init()  # Loads from .env file (recommended) or environment variables
 
-# Option 2: Environment variables (set in your shell/container)
-# See environment-variables.md for complete list
-# ASYNCTASQ_DRIVER=redis
-# ASYNCTASQ_REDIS_URL=redis://redis-master:6379
-# ASYNCTASQ_REDIS_PASSWORD=your-redis-password
-# ASYNCTASQ_TASK_DEFAULTS_MAX_ATTEMPTS=5
-# ASYNCTASQ_EVENTS_ENABLE_EVENT_EMITTER_REDIS=true
-init()  # Loads from environment variables
-
-# Option 3: .env file (recommended for production)
-# Create a .env file in project root with:
-# ASYNCTASQ_DRIVER=redis
-# ASYNCTASQ_REDIS_URL=redis://redis-master:6379
-# ASYNCTASQ_REDIS_PASSWORD=your-redis-password
-# ASYNCTASQ_TASK_DEFAULTS_MAX_ATTEMPTS=5
-# ASYNCTASQ_EVENTS_ENABLE_EVENT_EMITTER_REDIS=true
-init()  # Automatically loads from .env file
-
-# Option 1: Using CLI (Recommended for production)
-# Deploy multiple worker processes using systemd, supervisor, or Kubernetes
-# Example:
-#   asynctasq worker --queues critical --concurrency 20
-#   asynctasq worker --queues default --concurrency 10
-#   asynctasq worker --queues low-priority --concurrency 5
-
-# Option 2: Programmatic worker (for custom integrations)
-async def run_worker(queues: list[str], concurrency: int):
-    """Start a worker programmatically."""
-    config = Config.get()
-    driver = DriverFactory.create(config.driver, config)
-
-    worker = Worker(
-        queue_driver=driver,
-        queues=queues,
-        concurrency=concurrency
-    )
-
-    await worker.start()
-
-# Example: Single worker in async context
-import asyncio
-await run_worker(["default"], 10)
-
-# For multiple workers, use process managers (systemd/supervisor/K8s) instead of multiprocessing.Process
+# See configuration.md and queue-drivers.md for driver config details
 ```
 
-**Deployment Recommendations:**
-
-1. **Use Process Managers** (systemd, supervisor, Kubernetes) to run multiple worker processes - this is the standard production approach
-2. **Use CLI** (`asynctasq worker`) for most deployments - it handles all configuration from environment variables
-3. **Use multiprocessing** only if you need programmatic control over worker lifecycle in the same Python process
-
-**Example systemd service:**
-
-```ini
-[Unit]
-Description=AsyncTasQ Worker - Critical Queue
-After=network.target redis.service
-
-[Service]
-Type=simple
-User=asynctasq
-WorkingDirectory=/app
-Environment="REDIS_URL=redis://redis-master:6379"
-Environment="REDIS_PASSWORD=your-password"
-ExecStart=/usr/local/bin/asynctasq worker --queues critical --concurrency 20
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
+**Deployment Recommendations:** Use process managers (systemd, supervisor, Kubernetes) for production. See [Running Workers](running-workers.md) for complete deployment examples.

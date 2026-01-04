@@ -7,6 +7,32 @@ AsyncTasQ uses the `init()` function as the primary configuration interface. Con
 
 See [Environment Variables](environment-variables.md) for complete details on environment-based configuration.
 
+## Table of Contents
+
+- [Configuration](#configuration)
+  - [Table of Contents](#table-of-contents)
+  - [Configuration Contexts](#configuration-contexts)
+    - [Dispatch Context](#dispatch-context)
+    - [Worker Context](#worker-context)
+    - [Context Applicability](#context-applicability)
+      - [Task Defaults Context Breakdown](#task-defaults-context-breakdown)
+  - [Configuration Functions](#configuration-functions)
+    - [`init()`](#init)
+    - [`Config.get()`](#configget)
+  - [Configuration Structure](#configuration-structure)
+  - [Configuration Options](#configuration-options)
+    - [Driver Selection](#driver-selection)
+    - [Redis Configuration](#redis-configuration)
+    - [SQS Configuration](#sqs-configuration)
+    - [PostgreSQL Configuration](#postgresql-configuration)
+    - [MySQL Configuration](#mysql-configuration)
+    - [RabbitMQ Configuration](#rabbitmq-configuration)
+    - [Events Configuration](#events-configuration)
+    - [Task Defaults Configuration](#task-defaults-configuration)
+    - [Process Pool Configuration](#process-pool-configuration)
+      - [Warm Event Loops for AsyncProcessTask](#warm-event-loops-for-asyncprocesstask)
+    - [Repository Configuration](#repository-configuration)
+
 ## Configuration Contexts
 
 AsyncTasQ configuration properties apply to different contexts depending on their usage:
@@ -36,32 +62,6 @@ The **worker context** refers to when the worker process is running and processi
 | `max_attempts`   | Both    | Set during dispatch, enforced by worker during retries |
 | `retry_strategy` | Both    | Set during dispatch, used by worker for retry logic    |
 | `retry_delay`    | Both    | Set during dispatch, used by worker for retry delays   |
-
-## Table of Contents
-
-- [Configuration](#configuration)
-  - [Configuration Contexts](#configuration-contexts)
-    - [Dispatch Context](#dispatch-context)
-    - [Worker Context](#worker-context)
-    - [Context Applicability](#context-applicability)
-      - [Task Defaults Context Breakdown](#task-defaults-context-breakdown)
-  - [Table of Contents](#table-of-contents)
-  - [Configuration Functions](#configuration-functions)
-    - [`init()`](#init)
-    - [`Config.get()`](#configget)
-  - [Configuration Structure](#configuration-structure)
-  - [Configuration Options](#configuration-options)
-    - [Driver Selection](#driver-selection)
-    - [Redis Configuration](#redis-configuration)
-    - [SQS Configuration](#sqs-configuration)
-    - [PostgreSQL Configuration](#postgresql-configuration)
-    - [MySQL Configuration](#mysql-configuration)
-    - [RabbitMQ Configuration](#rabbitmq-configuration)
-    - [Events Configuration](#events-configuration)
-    - [Task Defaults Configuration](#task-defaults-configuration)
-    - [Process Pool Configuration](#process-pool-configuration)
-      - [Warm Event Loops for AsyncProcessTask](#warm-event-loops-for-asyncprocesstask)
-    - [Repository Configuration](#repository-configuration)
 
 ## Configuration Functions
 

@@ -31,13 +31,7 @@
 
 AsyncTasQ supports five production-ready queue drivers with identical APIs. This guide provides complete configuration details, setup instructions, and best practices for each driver.
 
-**Configuration Methods:**
-All drivers can be configured via:
-1. **Code** - Pass configuration dictionary to `init()`
-2. **Environment variables** - Set `ASYNCTASQ_` prefixed variables
-3. **.env file** - Automatically loaded from project root
-
-See [Environment Variables](environment-variables.md) for complete details.
+**Configuration:** All drivers support code, environment variables, or .env files. See [Environment Variables](environment-variables.md) and [Configuration](configuration.md) for details.
 
 ## Overview
 

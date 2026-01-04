@@ -2,11 +2,18 @@
 
 ## Overview
 
-This guide provides concrete, ready-to-use code examples for class-based tasks in AsyncTasQ. Class-based tasks use base classes (`AsyncTask`, `SyncTask`, `AsyncProcessTask`, or `SyncProcessTask`) to create reusable, testable tasks with lifecycle hooks and advanced configuration.
+**Prerequisites:**
+- AsyncTasQ installed: `uv add asynctasq` or `pip install asynctasq`
+- A queue driver configured (Redis, PostgreSQL, MySQL, SQS, or RabbitMQ)
+- Workers running to execute tasks (see [Running Workers](../running-workers.md))
+
+This guide covers **all capabilities** of class-based tasks in AsyncTasQ. Everything you need is documented here - no need to visit other docs.
+
+Class-based tasks use base classes (`AsyncTask`, `SyncTask`, `AsyncProcessTask`, or `SyncProcessTask`) to create reusable, testable tasks with lifecycle hooks and advanced configuration. They provide more structure than function-based tasks and are ideal for complex task logic, testing, and reusability.
 
 For conceptual information about task types and execution modes, see [Task Definitions](../task-definitions.md).
 
-Note: Example snippets use the project's event loop runner helper:
+**Note:** Example snippets in this guide use the project's event loop runner helper. For runnable examples, import it as:
 
 ```python
 from asynctasq import run

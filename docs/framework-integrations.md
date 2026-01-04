@@ -109,33 +109,7 @@ app = FastAPI(lifespan=asynctasq.lifespan)
 
 **Note:** You don't need to call `connect()` on the driver manually. `AsyncTasQIntegration` handles connection during startup and disconnection during shutdown automatically.
 
-**Alternative Pattern: Using init() Without Integration**
-
-If you don't need dependency injection or managed driver lifecycle, you can use `init()` directly:
-
-```python
-from fastapi import FastAPI
-from asynctasq import init, RedisConfig, task
-
-# Initialize AsyncTasQ before creating the app
-init({
-    'driver': 'redis',
-    'redis': RedisConfig(url='redis://localhost:6379')
-})
-
-app = FastAPI()
-
-@task(queue='emails')
-async def send_email(to: str, subject: str, body: str):
-    return f"Email sent to {to}"
-
-@app.post("/send-email")
-async def send_email_route(to: str, subject: str, body: str):
-    task_id = await send_email(to=to, subject=subject, body=body).dispatch()
-    return {"task_id": task_id, "status": "queued"}
-```
-
-**Note:** When using `init()`, cleanup hooks are automatically registered when tasks are dispatched. This pattern doesn't provide dependency injection or explicit driver lifecycle management.
+**Alternative Pattern:** For simpler setups without dependency injection, you can use `init()` directly. See [Event Loop Integration](event-loop-integration.md#pattern-3-fastapi-integration-recommended) for this pattern.
 
 **Configuration Priority:**
 

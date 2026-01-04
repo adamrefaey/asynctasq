@@ -1,11 +1,5 @@
 # Task Definitions
 
-This document explains how to define tasks in AsyncTasQ, covering both function-based and class-based approaches, task types, and configuration options.
-
-For complete working examples, see:
-- [Function-Based Tasks Examples](examples/function-based-tasks.md)
-- [Class-Based Tasks Examples](examples/class-based-tasks.md)
-
 ## Table of Contents
 
 - [Function-Based Tasks](#function-based-tasks)
@@ -13,6 +7,12 @@ For complete working examples, see:
 - [Task Types and Execution Modes](#task-types-and-execution-modes)
 - [Task Configuration](#task-configuration)
 - [Configuration Approaches](#configuration-approaches)
+
+This document explains how to define tasks in AsyncTasQ, covering both function-based and class-based approaches, task types, and configuration options.
+
+For complete working examples, see:
+- [Function-Based Tasks Examples](examples/function-based-tasks.md)
+- [Class-Based Tasks Examples](examples/class-based-tasks.md)
 
 AsyncTasQ supports two task definition styles: **function-based** (simple, inline) and **class-based** (reusable, testable).
 
@@ -246,48 +246,9 @@ task_id = await send_email(to="user@example.com", subject="Hi") \
     .dispatch()
 ```
 
-### Understanding Visibility Timeout
+### Visibility Timeout
 
-> **⚠️ CRITICAL CONFIGURATION:** Visibility timeout is AsyncTasQ's automatic crash recovery mechanism. Understanding and properly configuring this value is essential for production deployments.
-
-**Default Value:** `3600` seconds (1 hour)
-
-Visibility timeout determines how long a task remains invisible to other workers after being dequeued. When a worker crashes before completing a task, the task automatically becomes available again after the timeout expires.
-
-**How it works:**
-1. Worker dequeues task → Task locked for `visibility_timeout` seconds
-2. Worker crashes → Task remains locked
-3. Timeout expires → Task becomes available for retry
-
-**Choosing the right value:**
-- **Too short**: Duplicate processing if task takes longer than timeout
-- **Too long**: Slow recovery from crashes
-- **Recommended**: `visibility_timeout = (expected_duration × 2) + buffer`
-
-> **⚠️ IMPORTANT:** Always configure `visibility_timeout` to be **significantly longer** than your task's expected execution time. If a task regularly takes 10 minutes, set the visibility timeout to at least 30 minutes to prevent duplicate processing.
-
-**Example:**
-```python
-# Quick task (completes in ~1 minute)
-config: TaskConfig = {
-    "timeout": 120,  # 2 minute hard timeout
-    "visibility_timeout": 300,  # 5 minute crash recovery (120 × 2 + 60)
-}
-
-# Medium task (completes in ~10 minutes)
-config: TaskConfig = {
-    "timeout": 900,  # 15 minute hard timeout
-    "visibility_timeout": 2100,  # 35 minute crash recovery (900 × 2 + 300)
-}
-
-# Long task (completes in ~30 minutes)
-config: TaskConfig = {
-    "timeout": 2400,  # 40 minute hard timeout
-    "visibility_timeout": 5400,  # 90 minute crash recovery (2400 × 2 + 600)
-}
-```
-
-**Driver support:** PostgreSQL, MySQL, SQS (Redis and RabbitMQ use different mechanisms)
+See the dedicated [Understanding Visibility Timeout](#understanding-visibility-timeout) section below for complete details.
 
 ---
 

@@ -70,12 +70,10 @@ For more details on the publish command, see the [CLI Reference](cli-reference.m
 
 ## Configuration Priority
 
-AsyncTasQ uses the following configuration priority (highest to lowest):
+For detailed information about configuration priority, see [Configuration Guide](configuration.md#configuration-functions).
 
-1. **Constructor arguments** - Values passed directly to `init()`
-2. **Environment variables** - Values from your system environment
-3. **`.env` file** - Values from a `.env` file in your project root
-4. **Default values** - Built-in defaults
+Quick summary (highest to lowest priority):
+1. Constructor arguments → 2. Environment variables → 3. `.env` file → 4. Defaults
 
 ## Using Environment Variables
 

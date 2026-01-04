@@ -1,24 +1,6 @@
 # Function-Based Tasks: Complete Examples Guide
 
-## Table of Contents
-
-- [Four Execution Modes](#four-execution-modes)
-- [Key Features](#key-features)
-- [Basic Usage](#basic-usage)
-- [Decorator Syntax](#decorator-syntax)
-- [Configuration Options](#configuration-options)
-- [Dispatching Tasks](#dispatching-tasks)
-- [Async vs Sync Functions](#async-vs-sync-functions)
-- [Driver Overrides](#driver-overrides)
-- [ORM Integration](#orm-integration)
-- [Method Chaining](#method-chaining)
-- [Beautiful Console Output](#beautiful-console-output)
-- [Lifecycle Hooks](#lifecycle-hooks)
-- [Real-World Examples](#real-world-examples)
-- [Complete Working Example](#complete-working-example)
-- [Common Patterns and Best Practices](#common-patterns-and-best-practices)
-- [Queue Driver Setup](#queue-driver-setup)
-- [Running Workers](#running-workers)
+## Overview
 
 **Prerequisites:**
 - AsyncTasQ installed: `uv add asynctasq` or `pip install asynctasq`
@@ -27,13 +9,17 @@
 
 This guide covers **all capabilities** of function-based tasks in AsyncTasQ. Everything you need is documented here - no need to visit other docs.
 
-Function-based tasks allow you to convert any Python function (async or sync) into a background task by simply adding the `@task` decorator. Tasks are automatically serialized, queued, and executed by workers.
+Function-based tasks allow you to convert any Python function (async or sync) into a background task by simply adding the `@task` decorator. Tasks are automatically serialized, queued, and executed by workers. They provide a simpler, more concise syntax than class-based tasks and are ideal for straightforward task logic.
+
+For conceptual information about task types and execution modes, see [Task Definitions](../task-definitions.md).
 
 **Note:** Example snippets in this guide use the project's event loop runner helper. For runnable examples, import it as:
 
 ```python
 from asynctasq import run
 ```
+
+## Table of Contents
 
 ## Four Execution Modes
 
@@ -88,22 +74,6 @@ def heavy_computation(data: list[float]):
 - **ORM model serialization** - Automatic lightweight references for SQLAlchemy, Django, Tortoise
 - **Type-safe** - Full type hints and Generic support
 - **Multiple dispatch methods** - Direct dispatch, delayed execution, or method chaining
-
----
-
-## Table of Contents
-
-- [Basic Usage](#basic-usage)
-- [Decorator Syntax](#decorator-syntax)
-- [Configuration Options](#configuration-options)
-- [Dispatching Tasks](#dispatching-tasks)
-- [Async vs Sync Functions](#async-vs-sync-functions)
-- [Driver Overrides](#driver-overrides)
-- [ORM Integration](#orm-integration)
-- [Method Chaining](#method-chaining)
-- [Real-World Examples](#real-world-examples)
-- [Complete Working Example](#complete-working-example)
-- [Common Patterns and Best Practices](#common-patterns-and-best-practices)
 
 ---
 
@@ -221,19 +191,9 @@ async def send_email(to: str, subject: str, body: str):
 
 ## Configuration Options
 
-All configuration options can be set via the `@task` decorator. These settings apply to all dispatches of the task unless overridden at dispatch time using method chaining.
+All configuration options can be set via the `@task` decorator. For complete details, see [Task Definitions - Task Configuration](../task-definitions.md#task-configuration).
 
-**Available Options:**
-
-| Option               | Type                        | Default     | Description                                                                                       |
-| -------------------- | --------------------------- | ----------- | ------------------------------------------------------------------------------------------------- |
-| `queue`              | `str`                       | `"default"` | Queue name for task execution                                                                     |
-| `max_attempts`       | `int`                       | `3`         | Maximum retry attempts on failure                                                                 |
-| `retry_delay`        | `int`                       | `60`        | Seconds to wait between retry attempts                                                            |
-| `timeout`            | `int \| None`               | `None`      | Task timeout in seconds (`None` = no timeout)                                                     |
-| `visibility_timeout` | `int`                       | `3600`      | **⚠️ IMPORTANT:** Crash recovery timeout in seconds (1 hour) - must exceed task execution time             |
-| `driver`             | `str \| BaseDriver \| None` | `None`      | Driver override (string or instance, `None` = use global config)                                  |
-| `process`            | `bool`                      | `False`     | Use process pool for CPU-intensive work (`True` = process pool, `False` = event loop/thread pool) |
+**Quick Reference:**
 
 ### Queue Configuration
 
@@ -482,44 +442,9 @@ The `@task` decorator provides **all 4 execution modes** through a combination o
 
 ### Execution Mode Selection
 
-```python
-# Async + process=False (default) → AsyncTask (event loop)
-@task
-async def io_async(): ...
+For detailed comparison of all 4 modes, see [Task Definitions - Task Types](../task-definitions.md#task-types-and-execution-modes).
 
-# Sync + process=False (default) → SyncTask (thread pool)
-@task
-def io_sync(): ...
-
-# Async + process=True → AsyncProcessTask (process pool with async)
-@task(process=True)
-async def cpu_async(): ...
-
-# Sync + process=True → SyncProcessTask (process pool)
-@task(process=True)
-def cpu_sync(): ...
-```
-
-### Mode Comparison Table
-
-| Mode                 | Function Type | `process=`        | Execution            | Best For                                        | Concurrency      |
-| -------------------- | ------------- | ----------------- | -------------------- | ----------------------------------------------- | ---------------- |
-| **AsyncTask**        | `async def`   | `False` (default) | Event loop           | Async I/O-bound (API calls, async DB queries)   | 1000s concurrent |
-| **SyncTask**         | `def`         | `False` (default) | Thread pool          | Sync/blocking I/O (`requests`, sync DB drivers) | 100s concurrent  |
-| **AsyncProcessTask** | `async def`   | `True`            | Process pool (async) | Async CPU-intensive work                        | CPU cores        |
-| **SyncProcessTask**  | `def`         | `True`            | Process pool (sync)  | Sync CPU-intensive work (>80% CPU)              | CPU cores        |
-
-**When to use each:**
-
-| Use Case                         | Function Type        | `process=` | Reason                                |
-| -------------------------------- | -------------------- | ---------- | ------------------------------------- |
-| API calls with httpx, aiohttp    | `async def`          | `False`    | Native async support, non-blocking    |
-| Database queries with asyncpg    | `async def`          | `False`    | Better performance for I/O-bound      |
-| Web scraping with `requests`     | `def`                | `False`    | Blocking library, runs in thread pool |
-| File I/O with blocking libraries | `def`                | `False`    | No async conversion needed            |
-| NumPy/Pandas computation         | `def`                | `True`     | CPU-intensive, bypasses GIL           |
-| ML inference, video encoding     | `def` or `async def` | `True`     | Heavy CPU work in subprocess          |
-| ML inference with async I/O      | `async def`          | `True`     | Async preprocessing + CPU work        |
+**Quick Decision Flow:**
 
 ### Mode 1: AsyncTask (Default for async functions)
 
@@ -875,15 +800,7 @@ async def main():
 - Multiple models in the same task are fetched in parallel for efficiency
 - **Multiprocessing Note:** For workers using process pools (`process=True` tasks), use `NullPool` to avoid connection sharing issues (see commented code above)
 
-**Complete ORM Setup Guide:**
-
-For advanced SQLAlchemy, Django, and Tortoise ORM configuration including:
-- Session factory configuration for workers
-- Connection pool settings for multiprocessing
-- Advanced model resolution patterns
-- Error handling for missing models
-
-See the ORM Integration sections above for common patterns, or refer to `docs/orm-integrations.md` in the repository for advanced use cases.
+**Complete ORM Setup Guide:** For detailed SQLAlchemy, Django, and Tortoise ORM setup including session factories, connection pools, and advanced patterns, see [ORM Integrations](../orm-integrations.md).
 
 ### Django ORM Integration
 
