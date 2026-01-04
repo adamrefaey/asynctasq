@@ -23,7 +23,9 @@ from asynctasq import run
 
 ## Four Execution Modes
 
-The `@task` decorator provides **all 4 execution modes** through a combination of function type and the `process` parameter:
+The `@task` decorator provides **all 4 execution modes** through a combination of function type and the `process` parameter.
+
+**Quick Reference:**
 
 | Mode                 | Function Type | `process=`        | Execution            | Best For                                        |
 | -------------------- | ------------- | ----------------- | -------------------- | ----------------------------------------------- |
@@ -31,6 +33,8 @@ The `@task` decorator provides **all 4 execution modes** through a combination o
 | **SyncTask**         | `def`         | `False` (default) | Thread pool          | Sync/blocking I/O (`requests`, sync DB drivers) |
 | **AsyncProcessTask** | `async def`   | `True`            | Process pool (async) | Async CPU-intensive work                        |
 | **SyncProcessTask**  | `def`         | `True`            | Process pool (sync)  | Sync CPU-intensive work (>80% CPU)              |
+
+For detailed comparison, concurrency details, and when to use each mode, see [Task Definitions - Task Types and Execution Modes](../task-definitions.md#task-types-and-execution-modes).
 
 **Examples:**
 
@@ -92,12 +96,10 @@ from asynctasq import init, task
 # Create .env with: ASYNCTASQ_DRIVER=redis
 # init()  # Automatically loads from .env
 
-# Option 2: Environment variables
-# Set: ASYNCTASQ_DRIVER=redis
-# init()  # Loads from environment
-
-# Option 3: Code configuration (for quick testing)
+# Option 2: Code configuration (for quick testing)
 init({'driver': 'redis'})
+
+# For all configuration options: https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md
 
 # Define a simple task
 @task
@@ -442,7 +444,7 @@ The `@task` decorator provides **all 4 execution modes** through a combination o
 
 ### Execution Mode Selection
 
-For detailed comparison of all 4 modes, see [Task Definitions - Task Types](../task-definitions.md#task-types-and-execution-modes).
+
 
 **Quick Decision Flow:**
 
@@ -1731,12 +1733,7 @@ await task_func(args) \
 
 ### Execution Modes
 
-| Mode                 | Function Type | `process=` | Best For                     | Concurrency      |
-| -------------------- | ------------- | ---------- | ---------------------------- | ---------------- |
-| **AsyncTask**        | `async def`   | `False`    | Async I/O (APIs, async DB)   | 1000s concurrent |
-| **SyncTask**         | `def`         | `False`    | Sync I/O (requests, sync DB) | 100s concurrent  |
-| **AsyncProcessTask** | `async def`   | `True`     | Async CPU-intensive          | CPU cores        |
-| **SyncProcessTask**  | `def`         | `True`     | Sync CPU-intensive           | CPU cores        |
+For complete details on execution modes, concurrency characteristics, and when to use each type, see [Task Definitions - Task Types and Execution Modes](../task-definitions.md#task-types-and-execution-modes).
 
 ### Supported Queue Drivers
 

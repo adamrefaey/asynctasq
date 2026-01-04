@@ -23,6 +23,8 @@ asynctasq worker [OPTIONS]
 uv run asynctasq worker [OPTIONS]
 ```
 
+**For comprehensive worker deployment guides, production patterns, and best practices, see [Running Workers](running-workers.md).**
+
 **Options:**
 
 | Option                                    | Description                                      | Default                              |

@@ -46,7 +46,7 @@
 - Consider worker capacity when designing queues
 - Use descriptive queue names
 
-**Example:**
+**Example Worker Configuration:**
 
 ```bash
 # Worker 1: Critical tasks
@@ -58,6 +58,8 @@ python -m asynctasq worker --queues default --concurrency 10
 # Worker 3: Background tasks
 python -m asynctasq worker --queues low-priority,batch --concurrency 5
 ```
+
+For complete worker deployment patterns, CLI options, and production deployment strategies, see [Running Workers](running-workers.md).
 
 ## Error Handling
 
@@ -129,4 +131,6 @@ init()  # Loads from .env file (recommended) or environment variables
 # See configuration.md and queue-drivers.md for driver config details
 ```
 
-**Deployment Recommendations:** Use process managers (systemd, supervisor, Kubernetes) for production. See [Running Workers](running-workers.md) for complete deployment examples.
+**Deployment Recommendations:**
+
+For complete worker deployment patterns including systemd, Docker, Kubernetes, and other process managers, see [Running Workers](running-workers.md).

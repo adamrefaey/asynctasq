@@ -734,6 +734,8 @@ Exchanges and queues are declared automatically:
 
 ## Best Practices
 
+**Worker Deployment:** For comprehensive guidance on running workers, deployment patterns, and production configurations, see [Running Workers](running-workers.md).
+
 ### Connection Pooling
 
 **Redis:**

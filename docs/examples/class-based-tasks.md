@@ -48,14 +48,12 @@ from asynctasq import init, AsyncTask
 # Configure the queue driver - choose one of three options:
 # Option 1: .env file (recommended)
 # Create .env with: ASYNCTASQ_DRIVER=redis
-# init()  # Automatically loads from .env
+init()  # Automatically loads from .env
 
-# Option 2: Environment variables
-# Set: ASYNCTASQ_DRIVER=redis
-# init()  # Loads from environment
-
-# Option 3: Code configuration (for quick testing)
+# Option 2: Code configuration (for quick testing)
 init({'driver': 'redis'})
+
+# For complete configuration options, see: https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md
 
 # Define a simple task class
 class SendNotification(AsyncTask[str]):
@@ -688,9 +686,9 @@ async def main():
 
 ## All Four Task Types
 
-AsyncTasQ provides four task execution modes. For detailed information on when to use each, see [Task Definitions - Task Types](../task-definitions.md#task-types-and-execution-modes).
+AsyncTasQ provides four task execution modes optimized for different workloads. For detailed comparison, concurrency characteristics, and comprehensive guidance on when to use each mode, see [Task Definitions - Task Types and Execution Modes](../task-definitions.md#task-types-and-execution-modes).
 
-Quick reference:
+**Quick Reference:**
 - **`AsyncTask`** - Async I/O-bound (API calls, async DB) - Use for 90% of tasks
 - **`SyncTask`** - Sync/blocking I/O (`requests`, sync DB drivers)
 - **`AsyncProcessTask`** - Async CPU-intensive work

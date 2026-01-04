@@ -134,14 +134,11 @@ AsyncTasQIntegration(config=config)
 init()  # Automatically loads from .env
 AsyncTasQIntegration()  # Uses .env-loaded config
 
-# Option 2: Environment variables
-# Set: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://prod:6379
-init()  # Loads from environment variables
-AsyncTasQIntegration()  # Uses env-loaded config
-
-# Option 3: Code configuration (for quick testing)
+# Option 2: Code configuration (for quick testing)
 init({'driver': 'redis'})  # Set global config first
 AsyncTasQIntegration()      # Uses global config
+
+# For all configuration options: https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md
 ```
 
 **Important Notes:**

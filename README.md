@@ -48,16 +48,12 @@ import asyncio
 
 from asynctasq import AsyncTask, RedisConfig, TaskConfig, init, print, task
 
-# 1. Configure AsyncTasQ (choose one approach)
+# 1. Configure AsyncTasQ
+# For all configuration options, see: https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md
 # Option 1: .env file (recommended for production)
-# Create .env with: ASYNCTASQ_DRIVER=redis
 init()  # Loads from .env automatically
 
-# Option 2: Environment variables
-# Set: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://localhost:6379
-init()  # Loads from environment automatically
-
-# Option 3: Code configuration (for quick testing)
+# Option 2: Code configuration (for quick testing)
 init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
 
 
@@ -206,7 +202,7 @@ Complete code examples:
 Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **designed from the ground up for asyncio**:
 
 - **Native async/await everywhere** – All core operations use asyncio, no threading or blocking on critical paths
-- **Multiple execution modes** – Choose between async I/O (event loop), sync I/O (thread pool), or CPU-bound (process pool) for each task
+- **Four execution modes** – Choose the right execution strategy for each task: async I/O (event loop), sync I/O (thread pool), async CPU-bound (process pool), or sync CPU-bound (process pool). See [Task Definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md#task-types-and-execution-modes) for detailed comparison.
 - **High-performance concurrency** – Process hundreds of tasks concurrently with minimal overhead using asyncio's efficient task scheduling
 - **Smart connection pooling** – All drivers use connection pools optimized for async operations
 - **Non-blocking by design** – Worker polling, task execution, and all I/O operations are truly non-blocking

@@ -112,6 +112,8 @@ init({
 
 ## Available Environment Variables
 
+This section documents the environment variable formats for AsyncTasQ configuration. For complete driver configuration examples, features, requirements, and best practices, see [Queue Drivers](queue-drivers.md).
+
 ### Core Configuration
 
 #### Driver Selection
@@ -122,6 +124,8 @@ ASYNCTASQ_DRIVER=redis  # Options: redis, sqs, postgres, mysql, rabbitmq
 ```
 
 ### Redis Driver
+
+For complete Redis driver documentation including features, setup, and best practices, see [Queue Drivers - Redis Driver](queue-drivers.md#redis-driver).
 
 ```bash
 # Redis connection URL
@@ -138,6 +142,8 @@ ASYNCTASQ_REDIS_MAX_CONNECTIONS=100
 ```
 
 ### AWS SQS Driver
+
+For complete AWS SQS driver documentation including features, IAM setup, and best practices, see [Queue Drivers - AWS SQS Driver](queue-drivers.md#aws-sqs-driver).
 
 ```bash
 # AWS region
@@ -156,6 +162,8 @@ ASYNCTASQ_SQS_AWS_SECRET_ACCESS_KEY=your_secret_key
 
 ### PostgreSQL Driver
 
+For complete PostgreSQL driver documentation including ACID guarantees, schema setup, and best practices, see [Queue Drivers - PostgreSQL Driver](queue-drivers.md#postgresql-driver).
+
 ```bash
 # PostgreSQL connection DSN
 ASYNCTASQ_POSTGRES_DSN=postgresql://user:password@localhost:5432/dbname
@@ -171,6 +179,8 @@ ASYNCTASQ_POSTGRES_MAX_POOL_SIZE=10
 
 ### MySQL Driver
 
+For complete MySQL driver documentation including features, schema setup, and best practices, see [Queue Drivers - MySQL Driver](queue-drivers.md#mysql-driver).
+
 ```bash
 # MySQL connection DSN
 ASYNCTASQ_MYSQL_DSN=mysql://user:password@localhost:3306/dbname
@@ -185,6 +195,8 @@ ASYNCTASQ_MYSQL_MAX_POOL_SIZE=10
 ```
 
 ### RabbitMQ Driver
+
+For complete RabbitMQ driver documentation including AMQP features, resilience, and best practices, see [Queue Drivers - RabbitMQ Driver](queue-drivers.md#rabbitmq-driver).
 
 ```bash
 # RabbitMQ connection URL

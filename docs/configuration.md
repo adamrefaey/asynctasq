@@ -198,6 +198,25 @@ Configuration group: `redis` (type: `RedisConfig`)
 | ----------------- | ----------: | --------------------------------- | ------------------------ |
 | `url`             |         str | Redis connection URL              | `redis://localhost:6379` |
 | `password`        | str \| None | Redis password                    | `None`                   |
+| `db`              |         int | Redis database number (0-15)      | `0`                      |
+| `max_connections` |         int | Maximum connections in pool       | `100`                    |
+
+**Example:**
+```python
+from asynctasq import init, RedisConfig
+
+init({
+    'driver': 'redis',
+    'redis': RedisConfig(
+        url='redis://localhost:6379',
+        password='secret',
+        db=0,
+        max_connections=100
+    )
+})
+```
+
+For complete Redis driver configuration patterns, including setup, migration, and best practices, see [Queue Drivers - Redis Driver](queue-drivers.md#redis-driver).
 | `db`              |         int | Redis database number (0–15)      | `0`                      |
 | `max_connections` |         int | Maximum connections in Redis pool | `100`                    |
 
@@ -223,27 +242,28 @@ Configuration group: `sqs` (type: `SQSConfig`)
 
 **Context: Both dispatch and worker contexts** – Used for queue connections in both task dispatching and processing.
 
-| Option                  |        Type | Description                                        | Default     |
-| ----------------------- | ----------: | -------------------------------------------------- | ----------- |
-| `region`                |         str | AWS SQS region                                     | `us-east-1` |
-| `queue_url_prefix`      | str \| None | SQS queue URL prefix                               | `None`      |
-| `endpoint_url`          | str \| None | Custom SQS endpoint URL (for LocalStack, etc.)     | `None`      |
-| `aws_access_key_id`     | str \| None | AWS access key ID (None uses credential chain)     | `None`      |
-| `aws_secret_access_key` | str \| None | AWS secret access key (None uses credential chain) | `None`      |
+| Option                  | Type | Description                                            | Default      |
+| ----------------------- | ---: | ------------------------------------------------------ | ------------ |
+| `region_name`           |  str | AWS region name                                        | **Required** |
+| `queue_url_prefix`      |  str | Base URL for queues                                    | **Required** |
+| `aws_access_key_id`     |  str | AWS access key (uses boto3 default chain if omitted)   | `None`       |
+| `aws_secret_access_key` |  str | AWS secret key (uses boto3 default chain if omitted)   | `None`       |
+| `endpoint_url`          |  str | Custom endpoint URL (for LocalStack or testing)        | `None`       |
 
+**Example:**
 ```python
 from asynctasq import init, SQSConfig
 
 init({
     'driver': 'sqs',
     'sqs': SQSConfig(
-        region='us-west-2',
-        queue_url_prefix='https://sqs.us-west-2.amazonaws.com/123456789/',
-        aws_access_key_id='your_key',
-        aws_secret_access_key='your_secret'
+        region_name='us-east-1',
+        queue_url_prefix='https://sqs.us-east-1.amazonaws.com/123456789/'
     )
 })
 ```
+
+For complete SQS driver configuration patterns, including LocalStack setup, credentials, and best practices, see [Queue Drivers - AWS SQS Driver](queue-drivers.md#aws-sqs-driver).
 
 ---
 
@@ -253,22 +273,15 @@ Configuration group: `postgres` (type: `PostgresConfig`)
 
 **Context: Both dispatch and worker contexts** – Used for queue connections in both task dispatching and processing.
 
-**⚠️ Migration Required:** Before using the PostgreSQL driver, you must run migrations to create the required database tables:
+| Option              | Type | Description                            | Default               |
+| ------------------- | ---: | -------------------------------------- | --------------------- |
+| `dsn`               |  str | PostgreSQL connection DSN              | **Required**          |
+| `queue_table`       |  str | Queue table name                       | `task_queue`          |
+| `dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`   |
+| `min_pool_size`     |  int | Minimum connection pool size           | `10`                  |
+| `max_pool_size`     |  int | Maximum connection pool size           | `10`                  |
 
-```bash
-uv run asynctasq migrate --driver postgres
-```
-
-This creates the `task_queue` and `dead_letter_queue` tables with the necessary schema.
-
-| Option              | Type | Description                            | Default                                         |
-| ------------------- | ---: | -------------------------------------- | ----------------------------------------------- |
-| `dsn`               |  str | PostgreSQL connection DSN              | `postgresql://test:test@localhost:5432/test_db` |
-| `queue_table`       |  str | Queue table name                       | `task_queue`                                    |
-| `dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`                             |
-| `min_pool_size`     |  int | Minimum connection pool size           | `10`                                            |
-| `max_pool_size`     |  int | Maximum connection pool size           | `10`                                            |
-
+**Example:**
 ```python
 from asynctasq import init, PostgresConfig
 
@@ -277,11 +290,17 @@ init({
     'postgres': PostgresConfig(
         dsn='postgresql://user:pass@localhost:5432/mydb',
         queue_table='task_queue',
-        dead_letter_table='dead_letter_queue',
-        min_pool_size=10,
-        max_pool_size=50
+        dead_letter_table='dead_letter_queue'
     )
 })
+```
+
+**⚠️ Migration Required:** Before using the PostgreSQL driver, run migrations:
+```bash
+uv run asynctasq migrate --driver postgres
+```
+
+For complete PostgreSQL driver configuration patterns, including ACID guarantees, schema setup, and best practices, see [Queue Drivers - PostgreSQL Driver](queue-drivers.md#postgresql-driver).
 ```
 
 ---
@@ -337,6 +356,7 @@ Configuration group: `rabbitmq` (type: `RabbitMQConfig`)
 | `exchange_name`  |  str | RabbitMQ exchange name  | `asynctasq`                          |
 | `prefetch_count` |  int | Consumer prefetch count | `1`                                  |
 
+**Example:**
 ```python
 from asynctasq import init, RabbitMQConfig
 
@@ -348,6 +368,9 @@ init({
         prefetch_count=10
     )
 })
+```
+
+For complete RabbitMQ driver configuration patterns, including AMQP setup, resilience features, and best practices, see [Queue Drivers - RabbitMQ Driver](queue-drivers.md#rabbitmq-driver).
 ```
 
 ---
