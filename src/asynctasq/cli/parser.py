@@ -276,4 +276,21 @@ def create_parser() -> argparse.ArgumentParser:
         help="Force migration even if tables already exist (default: False)",
     )
 
+    # Publish subcommand
+    publish_parser = subparsers.add_parser(
+        "publish",
+        description="Publish .env.example file to the consumer project root",
+        help="Publish .env.example configuration file",
+    )
+    publish_parser.add_argument(
+        "--output-dir",
+        type=str,
+        help="Output directory for .env.example file (default: current directory)",
+    )
+    publish_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing .env.example file (default: False)",
+    )
+
     return parser

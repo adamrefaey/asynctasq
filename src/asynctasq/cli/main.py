@@ -5,6 +5,7 @@ import logging
 import sys
 
 from .commands.migrate import MigrationError, run_migrate
+from .commands.publish import run_publish
 from .commands.worker import run_worker
 from .config import build_config
 from .parser import create_parser
@@ -24,6 +25,7 @@ def run_command(args: argparse.Namespace) -> None:
     command_handlers = {
         "worker": run_worker,
         "migrate": run_migrate,
+        "publish": run_publish,
     }
 
     handler = command_handlers.get(args.command)
