@@ -323,10 +323,9 @@ class TestPostgresMigrator:
         statements = await migrator.get_migration_sql()
 
         # Assert
-        assert len(statements) == 4
+        assert len(statements) == 3
         descriptions = [s[0] for s in statements]
         assert "Create queue table 'tasks'" in descriptions
-        assert "Add visibility_timeout_seconds column to 'tasks' (if missing)" in descriptions
         assert "Create index 'idx_tasks_lookup'" in descriptions
         assert "Create dead letter table 'dead_letters'" in descriptions
 
@@ -384,8 +383,8 @@ class TestPostgresMigrator:
 
         # Assert
         mock_conn.transaction.assert_called_once()
-        # Should execute 4 statements
-        assert mock_conn.execute.call_count == 4
+        # Should execute 3 statements
+        assert mock_conn.execute.call_count == 3
 
 
 @mark.unit
@@ -606,7 +605,7 @@ class TestRunPostgresMigration:
 
         # Assert
         mock_asyncpg.connect.assert_awaited_once()
-        assert mock_conn.execute.call_count == 4  # 4 migration statements
+        assert mock_conn.execute.call_count == 3  # 3 migration statements
         mock_conn.close.assert_awaited_once()
 
     @mark.asyncio
@@ -689,7 +688,7 @@ class TestRunPostgresMigration:
             await _run_postgres_migration(config, dry_run=False, force=True)
 
         # Assert
-        assert mock_conn.execute.call_count == 4  # Migration runs even if already up to date
+        assert mock_conn.execute.call_count == 3  # Migration runs even if already up to date
         mock_conn.close.assert_awaited_once()
 
     @mark.asyncio
