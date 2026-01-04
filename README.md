@@ -49,18 +49,18 @@ import asyncio
 from asynctasq import AsyncTask, RedisConfig, TaskConfig, init, print, task
 
 # 1. Configure AsyncTasQ
-# Option A: Via code
-init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
+# Option A: Via .env file (recommended)
+# Use the publish command to get a complete configuration template:
+#   asynctasq publish
+#   cp .env.example .env
+# Then edit .env with your settings and call: init()
 
 # Option B: Via environment variables
 # Set environment variables: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://localhost:6379
 # Then simply call: init()
 
-# Option C: Via .env file (recommended for production)
-# Use the publish command to get a complete configuration template:
-#   asynctasq publish
-#   cp .env.example .env
-# Then edit .env with your settings and call: init()
+# Option C: Via code (for quick testing)
+init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
 
 
 # 2. Define tasks (function-based or class-based)

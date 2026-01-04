@@ -118,16 +118,16 @@ import asyncio
 from asynctasq import init, task
 
 # Configure the queue driver - choose one of three options:
-# Option 1: Code configuration
-init({'driver': 'redis'})
+# Option 1: .env file (recommended)
+# Create .env with: ASYNCTASQ_DRIVER=redis
+# init()  # Automatically loads from .env
 
 # Option 2: Environment variables
 # Set: ASYNCTASQ_DRIVER=redis
 # init()  # Loads from environment
 
-# Option 3: .env file (recommended for production)
-# Create .env with: ASYNCTASQ_DRIVER=redis
-# init()  # Automatically loads from .env
+# Option 3: Code configuration (for quick testing)
+init({'driver': 'redis'})
 
 # Define a simple task
 @task
@@ -159,6 +159,7 @@ Synchronous functions are automatically executed in a thread pool, so you can us
 from asynctasq import init, task
 
 # Configure (code, environment variables, or .env file)
+# Recommended: Use .env file with: ASYNCTASQ_DRIVER=redis
 init({'driver': 'redis'})
 
 # Synchronous function (automatically runs in thread pool)
@@ -1597,12 +1598,13 @@ import asyncio
 from asynctasq import init, task, run, print
 
 # Configure driver - choose one:
-# Option 1: Code config
-init({'driver': 'redis'})
+# Option 1: .env file (recommended)
+# Create .env with: ASYNCTASQ_DRIVER=redis
+# init()
 # Option 2: Environment (set ASYNCTASQ_DRIVER=redis)
 # init()
-# Option 3: .env file (create .env with ASYNCTASQ_DRIVER=redis)
-# init()
+# Option 3: Code config (for quick testing)
+init({'driver': 'redis'})
 
 # Define tasks with different configurations
 @task(queue='emails', max_attempts=3, retry_delay=60)
@@ -1717,12 +1719,13 @@ To use function-based tasks, you need:
 2. ✅ **Configure driver** in your application (choose one method):
    ```python
    from asynctasq import init
-   # Option 1: Code
-   init({'driver': 'redis'})
+   # Option 1: .env file (recommended)
+   # Create .env with: ASYNCTASQ_DRIVER=redis
+   # init()
    # Option 2: Environment variable (ASYNCTASQ_DRIVER=redis)
    # init()
-   # Option 3: .env file (ASYNCTASQ_DRIVER=redis in .env)
-   # init()
+   # Option 3: Code (for quick testing)
+   init({'driver': 'redis'})
    ```
 
 3. ✅ **Define tasks** with `@task` decorator:

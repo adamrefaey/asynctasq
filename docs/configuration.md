@@ -76,24 +76,26 @@ Initialize AsyncTasQ with configuration and event emitters. **This function must
 4. Default values (lowest priority)
 
 ```python
-from asynctasq import init, RedisConfig
+from asynctasq import init
 
-# Option 1: Code configuration
-init({
-    'driver': 'redis',
-    'redis': RedisConfig(url='redis://localhost:6379')
-})
-
-# Option 2: Environment variables (recommended)
-# Set ASYNCTASQ_DRIVER=redis and ASYNCTASQ_REDIS_URL=redis://localhost:6379
-init()  # Loads from environment automatically
-
-# Option 3: .env file (recommended for multiple environments)
+# Option 1: .env file (recommended)
 # Use the publish command to get a complete template:
 #   asynctasq publish
 #   cp .env.example .env
 # Then edit .env with: ASYNCTASQ_DRIVER=redis
 init()  # Loads from .env automatically
+
+# Option 2: Environment variables
+# Set ASYNCTASQ_DRIVER=redis and ASYNCTASQ_REDIS_URL=redis://localhost:6379
+init()  # Loads from environment automatically
+
+# Option 3: Code configuration (for quick testing or overrides)
+from asynctasq import RedisConfig
+
+init({
+    'driver': 'redis',
+    'redis': RedisConfig(url='redis://localhost:6379')
+})
 ```
 
 **💡 Tip:** Use `asynctasq publish` to generate a complete `.env.example` template with all available configuration options and documentation. See the [CLI Reference](cli-reference.md#publish-command) for details.
