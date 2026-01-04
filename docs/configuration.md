@@ -404,9 +404,18 @@ Default settings for all tasks.
 
 Per-task configuration always takes precedence over global defaults. The following are **only** configurable per-task:
 - `timeout`: Task execution timeout (not a global default)
-- `visibility_timeout`: **⚠️ CRITICAL - Default: 3600s (1 hour)** - Crash recovery timeout. Must be longer than task execution time to prevent duplicate processing.
+- `visibility_timeout`: See the [Visibility Timeout Warning](#visibility-timeout-warning) below
 - `correlation_id`: Distributed tracing ID (per-task only)
 - `driver`: Driver override for routing specific tasks
+
+#### Visibility Timeout Warning
+
+**⚠️ CRITICAL:** The `visibility_timeout` (default: 3600 seconds / 1 hour) must be configured per-task and set **longer than your task's execution time** to prevent duplicate processing on worker crashes. Configure via TaskConfig: `visibility_timeout=7200` for a 2-hour timeout.
+
+**Why This Matters:**
+- If a worker crashes while processing a task, the `visibility_timeout` determines how long the task remains "locked" before becoming available again
+- If the timeout is shorter than your task's execution time, the task may be picked up by another worker while still running, causing duplicate processing
+- **Best practice:** Set `visibility_timeout` to at least 2× your task's expected execution time, plus a buffer
 
 See [Task Definitions](task-definitions.md) for complete TaskConfig documentation.
 

@@ -16,7 +16,7 @@
 
 - Keep tasks small and focused (single responsibility principle)
 - Make tasks idempotent when possible (safe to run multiple times with same result)
-- **⚠️ CRITICAL: Set `visibility_timeout` longer than task execution time** - Default is 3600s (1 hour). If your task takes 10 minutes, set it to at least 30 minutes to prevent duplicate processing.
+- **⚠️ CRITICAL: Configure `visibility_timeout` properly** - See [Configuration - Visibility Timeout Warning](configuration.md#visibility-timeout-warning) for complete details on preventing duplicate processing
 - Use timeouts for long-running tasks to prevent resource exhaustion
 - Implement custom `failed()` handlers for cleanup, logging, and alerting
 - Use `should_retry()` for intelligent retry logic based on exception type

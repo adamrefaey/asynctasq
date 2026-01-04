@@ -129,19 +129,17 @@ config = Config(driver='redis', redis=RedisConfig(url='redis://prod:6379'))
 AsyncTasQIntegration(config=config)
 
 # Priority 3: Global config (lowest)
-# Option A: .env file (recommended)
-# Create .env file with:
-#   ASYNCTASQ_DRIVER=redis
-#   ASYNCTASQ_REDIS_URL=redis://prod:6379
+# Option 1: .env file (recommended)
+# Create .env with: ASYNCTASQ_DRIVER=redis
 init()  # Automatically loads from .env
 AsyncTasQIntegration()  # Uses .env-loaded config
 
-# Option B: Environment variables
+# Option 2: Environment variables
 # Set: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://prod:6379
 init()  # Loads from environment variables
 AsyncTasQIntegration()  # Uses env-loaded config
 
-# Option C: Code configuration (for quick testing)
+# Option 3: Code configuration (for quick testing)
 init({'driver': 'redis'})  # Set global config first
 AsyncTasQIntegration()      # Uses global config
 ```

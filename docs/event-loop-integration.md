@@ -66,7 +66,11 @@ The most straightforward approach for simple scripts:
 import asyncio
 from asynctasq import init, RedisConfig, task
 
-# Initialize AsyncTasQ
+# Configure AsyncTasQ via .env file (recommended)
+# Create .env with: ASYNCTASQ_DRIVER=redis
+init()  # Loads from .env automatically
+
+# Or for quick testing:
 init({
     'driver': 'redis',
     'redis': RedisConfig(url='redis://localhost:6379')
@@ -95,7 +99,11 @@ For optimal performance, use AsyncTasQ's built-in runner that automatically uses
 ```python
 from asynctasq import init, run, task
 
-# Initialize AsyncTasQ
+# Configure AsyncTasQ via .env file (recommended)
+# Create .env with: ASYNCTASQ_DRIVER=redis
+init()  # Loads from .env automatically
+
+# Or for quick testing:
 init({'driver': 'redis'})
 
 @task()

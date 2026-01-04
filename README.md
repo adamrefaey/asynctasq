@@ -48,18 +48,16 @@ import asyncio
 
 from asynctasq import AsyncTask, RedisConfig, TaskConfig, init, print, task
 
-# 1. Configure AsyncTasQ
-# Option A: Via .env file (recommended)
-# Use the publish command to get a complete configuration template:
-#   asynctasq publish
-#   cp .env.example .env
-# Then edit .env with your settings and call: init()
+# 1. Configure AsyncTasQ (choose one approach)
+# Option 1: .env file (recommended for production)
+# Create .env with: ASYNCTASQ_DRIVER=redis
+init()  # Loads from .env automatically
 
-# Option B: Via environment variables
-# Set environment variables: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://localhost:6379
-# Then simply call: init()
+# Option 2: Environment variables
+# Set: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://localhost:6379
+init()  # Loads from environment automatically
 
-# Option C: Via code (for quick testing)
+# Option 3: Code configuration (for quick testing)
 init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
 
 
@@ -179,7 +177,7 @@ Comprehensive guides to get you started:
 - **[Configuration](https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md)** – Complete configuration guide with `asynctasq.init()` and `Config.get()`
   - Configuration properties apply to different contexts: **dispatch** (when enqueuing tasks) vs **worker** (when processing tasks)
   - Driver configs (redis, postgres, mysql, rabbitmq, sqs) and events config apply to **both contexts**
-  - **⚠️ IMPORTANT:** `visibility_timeout` (default: 3600s/1 hour) must be configured **per-task** via TaskConfig. Set it longer than task execution time to prevent duplicate processing.
+  - **⚠️ IMPORTANT:** See [Visibility Timeout Warning](https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md#visibility-timeout-warning) for critical `visibility_timeout` configuration details
 - **[Environment Variables](https://github.com/adamrefaey/asynctasq/blob/main/docs/environment-variables.md)** – Complete guide to .env file support and environment variable configuration
 - **[Task Definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md)** – Function-based and class-based tasks
 - **[Queue Drivers](https://github.com/adamrefaey/asynctasq/blob/main/docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
