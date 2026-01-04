@@ -34,7 +34,7 @@
 - Store large objects in task parameters (serialize references instead, e.g., database IDs)
 - Use reserved parameter names (`config`, `run`, `execute`, `dispatch`, `failed`, `should_retry`, `on_queue`, `delay`, `retry_after`, `max_attempts`, `timeout`)
 - Start parameter names with underscore (reserved for internal use)
-- Create new database connections in subprocesses without using proper ORM patterns (see [ORM Integrations](orm-integrations.md) for SQLAlchemy/Django/Tortoise best practices)
+- Create new database connections in subprocesses without using proper ORM patterns (see [ORM Integrations - Best Practices](orm-integrations.md#best-practices-for-all-orms) for SQLAlchemy/Django/Tortoise best practices)
 
 ## Queue Organization
 
@@ -99,7 +99,7 @@ class ProcessPayment(AsyncTask[bool]):
 - Use connection pooling (configured automatically)
 - Monitor queue sizes and adjust worker count accordingly
 - Consider task batching for high-volume operations
-- **Prefer Redis for general use** or **PostgreSQL/MySQL for ACID guarantees**. See [Queue Drivers](queue-drivers.md) for complete comparison.
+- **Prefer Redis for general use** or **PostgreSQL/MySQL for ACID guarantees**. See [Queue Drivers - Driver Comparison](queue-drivers.md#driver-comparison) for complete comparison.
 
 ## Production Deployment
 

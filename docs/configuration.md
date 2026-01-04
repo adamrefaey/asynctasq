@@ -1,13 +1,37 @@
 # Configuration
 
-AsyncTasQ uses the `init()` function as the primary configuration interface. Configuration can be provided via:
-- **Code** (passing a dictionary to `init()`)
-- **Environment variables** (with `ASYNCTASQ_` prefix)
-- **.env files** (automatically loaded from project root)
+## Quick Start
 
-See [Environment Variables](environment-variables.md) for complete details on environment-based configuration.
+AsyncTasQ uses the `init()` function as the primary configuration interface. For most use cases, you only need:
 
-## Table of Contents
+```python
+from asynctasq import init
+
+# Option 1: .env file (recommended for production)
+# Create .env with: ASYNCTASQ_DRIVER=redis
+init()  # Automatically loads configuration
+
+# Option 2: Quick testing with code configuration
+init({'driver': 'redis'})
+```
+
+**That's it for 80% of use cases!** AsyncTasQ uses sensible defaults for everything else.
+
+---
+
+## Configuration Methods
+
+AsyncTasQ supports three configuration approaches:
+
+1. **✅ .env files** (recommended) - Keep configuration separate from code
+2. **✅ Environment variables** - Perfect for Docker/Kubernetes deployments
+3. **✅ Code configuration** - Useful for testing or dynamic configuration
+
+See [Environment Variables Guide](environment-variables.md) for complete details on environment-based configuration including .env files, priority rules, and Docker/Kubernetes deployment patterns.
+
+**Configuration Priority:** Code arguments > Environment variables > .env file > Defaults
+
+---
 
 - [Configuration](#configuration)
   - [Table of Contents](#table-of-contents)
@@ -35,7 +59,14 @@ See [Environment Variables](environment-variables.md) for complete details on en
 
 ## Configuration Contexts
 
-AsyncTasQ configuration properties apply to different contexts depending on their usage:
+**Understanding Contexts:** AsyncTasQ operates in two distinct environments - when you're **dispatching tasks** from your application, and when **workers are processing** those tasks. Some configuration options apply to both contexts, while others are specific to one.
+
+**Why This Matters:**
+- **Dispatch-only settings** don't need to be configured on workers
+- **Worker-only settings** don't affect your application code
+- **Both contexts** need driver and event configurations
+
+This separation allows you to optimize configuration for each environment (e.g., different connection pools for API servers vs workers).
 
 ### Dispatch Context
 The **dispatch context** refers to when you're enqueuing/dispatching tasks to the queue (e.g., calling `task.dispatch()` in your application code).
@@ -440,7 +471,7 @@ Per-task configuration always takes precedence over global defaults. The followi
 - If the timeout is shorter than your task's execution time, the task may be picked up by another worker while still running, causing duplicate processing
 - **Best practice:** Set `visibility_timeout` to at least 2× your task's expected execution time, plus a buffer
 
-See [Task Definitions](task-definitions.md) for complete TaskConfig documentation.
+See [Task Definitions - Task Configuration](task-definitions.md#task-configuration) for complete TaskConfig documentation including all configuration options and examples.
 
 | Option           | Type | Context | Description                         | Choices                | Default       |
 | ---------------- | ---: | ------- | ----------------------------------- | ---------------------- | ------------- |
@@ -545,3 +576,12 @@ init({
     'repository': RepositoryConfig(keep_completed_tasks=True)
 })
 ```
+
+---
+
+## See Also
+
+- **[Environment Variables Guide](environment-variables.md)** - Complete .env file setup, Docker/Kubernetes deployment, and environment variable reference
+- **[Queue Drivers](queue-drivers.md)** - Driver-specific configuration, features, and best practices
+- **[Task Definitions](task-definitions.md)** - Task configuration options and TaskConfig reference
+- **[Running Workers](running-workers.md)** - Worker configuration, deployment patterns, and production setup

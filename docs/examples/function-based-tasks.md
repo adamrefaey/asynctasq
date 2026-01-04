@@ -11,13 +11,9 @@ This guide covers **all capabilities** of function-based tasks in AsyncTasQ. Eve
 
 Function-based tasks allow you to convert any Python function (async or sync) into a background task by simply adding the `@task` decorator. Tasks are automatically serialized, queued, and executed by workers. They provide a simpler, more concise syntax than class-based tasks and are ideal for straightforward task logic.
 
-For conceptual information about task types and execution modes, see [Task Definitions](../task-definitions.md).
+For conceptual information about task types and execution modes, see [Task Definitions - Task Types and Execution Modes](../task-definitions.md#task-types-and-execution-modes).
 
-**Note:** Example snippets in this guide use the project's event loop runner helper. For runnable examples, import it as:
-
-```python
-from asynctasq import run
-```
+**Note:** Examples use `from asynctasq import run` - AsyncTasQ's event loop runner that provides uvloop support with automatic fallback to asyncio.
 
 ## Table of Contents
 
@@ -1762,9 +1758,9 @@ While this guide is complete, you may want to reference:
 This guide contains everything you need to use function-based tasks effectively!
 
 For setup information:
-- **Queue Drivers:** See [Queue Drivers Documentation](../queue-drivers.md)
-- **Running Workers:** See [Running Workers Documentation](../running-workers.md)
-- **Configuration:** See [Configuration Documentation](../configuration.md)
+- **Queue Drivers:** See [Queue Drivers - Overview](../queue-drivers.md#overview)
+- **Running Workers:** See [Running Workers - CLI Workers](../running-workers.md#cli-workers-recommended)
+- **Configuration:** See [Configuration - init() Function](../configuration.md#init)
 
 ## Common Patterns and Best Practices
 

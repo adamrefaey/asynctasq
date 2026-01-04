@@ -443,3 +443,11 @@ async def process_order(
     # All types automatically serialized and deserialized
     print(f"Processing order {order_id} for ${amount}")
 ```
+
+---
+
+## See Also
+
+- **[Function-Based Tasks Examples](examples/function-based-tasks.md)** - Complete examples including ORM model usage patterns
+- **[Class-Based Tasks Examples](examples/class-based-tasks.md)** - Advanced ORM integration patterns with lifecycle hooks
+- **[Best Practices](best-practices.md)** - ORM-specific best practices and production deployment guidelines

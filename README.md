@@ -169,20 +169,20 @@ docker stop redis-test && docker rm redis-test
 
 Comprehensive guides to get you started:
 
-- **[Installation](https://github.com/adamrefaey/asynctasq/blob/main/docs/installation.md)** – Installation instructions for uv and pip
+- **[Installation](https://github.com/adamrefaey/asynctasq/blob/main/docs/installation.md#installation)** – Installation instructions for uv and pip
 - **[Configuration](https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md)** – Complete configuration guide with `asynctasq.init()` and `Config.get()`
   - Configuration properties apply to different contexts: **dispatch** (when enqueuing tasks) vs **worker** (when processing tasks)
   - Driver configs (redis, postgres, mysql, rabbitmq, sqs) and events config apply to **both contexts**
   - **⚠️ IMPORTANT:** See [Visibility Timeout Warning](https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md#visibility-timeout-warning) for critical `visibility_timeout` configuration details
 - **[Environment Variables](https://github.com/adamrefaey/asynctasq/blob/main/docs/environment-variables.md)** – Complete guide to .env file support and environment variable configuration
-- **[Task Definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md)** – Function-based and class-based tasks
-- **[Queue Drivers](https://github.com/adamrefaey/asynctasq/blob/main/docs/queue-drivers.md)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
-- **[Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md)** – CLI and programmatic workers
-- **[Monitoring](https://github.com/adamrefaey/asynctasq/blob/main/docs/monitoring.md)** – Event streaming and queue statistics
-- **[ORM Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/orm-integrations.md)** – SQLAlchemy, Django, Tortoise ORM
-- **[Framework Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/framework-integrations.md)** – FastAPI integration
-- **[CLI Reference](https://github.com/adamrefaey/asynctasq/blob/main/docs/cli-reference.md)** – Complete command reference
-- **[Best Practices](https://github.com/adamrefaey/asynctasq/blob/main/docs/best-practices.md)** – Task design, queue organization, production deployment
+- **[Task Definitions](https://github.com/adamrefaey/asynctasq/blob/main/docs/task-definitions.md#task-types-and-execution-modes)** – Function-based and class-based tasks with all four execution modes
+- **[Queue Drivers](https://github.com/adamrefaey/asynctasq/blob/main/docs/queue-drivers.md#overview)** – Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS with feature comparison
+- **[Running Workers](https://github.com/adamrefaey/asynctasq/blob/main/docs/running-workers.md#cli-workers-recommended)** – CLI and programmatic workers, deployment patterns
+- **[Monitoring](https://github.com/adamrefaey/asynctasq/blob/main/docs/monitoring.md#event-streaming)** – Real-time event streaming and queue statistics
+- **[ORM Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/orm-integrations.md#how-it-works)** – Automatic serialization for SQLAlchemy, Django ORM, Tortoise ORM
+- **[Framework Integrations](https://github.com/adamrefaey/asynctasq/blob/main/docs/framework-integrations.md#fastapi-integration)** – FastAPI lifespan integration and configuration
+- **[CLI Reference](https://github.com/adamrefaey/asynctasq/blob/main/docs/cli-reference.md#worker-command)** – Complete command reference for worker, migrate, and publish
+- **[Best Practices](https://github.com/adamrefaey/asynctasq/blob/main/docs/best-practices.md#task-design)** – Task design guidelines, error handling, queue organization, production deployment
 
 ---
 
@@ -190,8 +190,8 @@ Comprehensive guides to get you started:
 
 Complete code examples:
 
-- **[Function-Based Tasks Examples](https://github.com/adamrefaey/asynctasq/blob/main/docs/examples/function-based-tasks.md)** – Decorators, configuration, and best practices
-- **[Class-Based Tasks Examples](https://github.com/adamrefaey/asynctasq/blob/main/docs/examples/class-based-tasks.md)** – AsyncTask, SyncTask, ProcessTask variants
+- **[Function-Based Tasks Examples](https://github.com/adamrefaey/asynctasq/blob/main/docs/examples/function-based-tasks.md#basic-usage)** – Decorators, configuration, method chaining, and practical patterns
+- **[Class-Based Tasks Examples](https://github.com/adamrefaey/asynctasq/blob/main/docs/examples/class-based-tasks.md#all-four-task-types)** – All four task types, lifecycle hooks, and advanced patterns
 
 ---
 

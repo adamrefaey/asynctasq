@@ -66,7 +66,7 @@ task_id = await send_email(...).delay(60).dispatch()
 task_id = await send_email(...).on_queue("high").retry_after(120).dispatch()
 ```
 
-For detailed examples, see [Function-Based Tasks Guide](examples/function-based-tasks.md).
+For detailed examples, see [Function-Based Tasks Guide - Basic Usage](examples/function-based-tasks.md#basic-usage).
 
 ---
 
@@ -126,7 +126,7 @@ task_id = await ProcessPayment(user_id=123, amount=99.99) \
     .dispatch()
 ```
 
-For detailed examples including all task types and lifecycle hooks, see [Class-Based Tasks Guide](examples/class-based-tasks.md).
+For detailed examples including all task types and lifecycle hooks, see [Class-Based Tasks Guide - All Four Task Types](examples/class-based-tasks.md#all-four-task-types).
 
 ---
 
@@ -285,3 +285,12 @@ async def send_email(to: str):
 For comprehensive examples and best practices, see:
 - [Function-Based Tasks Guide](examples/function-based-tasks.md)
 - [Class-Based Tasks Guide](examples/class-based-tasks.md)
+
+---
+
+## See Also
+
+- **[Function-Based Tasks Examples](examples/function-based-tasks.md)** - Complete working examples with all decorator options, method chaining, and configuration patterns
+- **[Class-Based Tasks Examples](examples/class-based-tasks.md)** - Advanced task patterns, lifecycle hooks, and all four task types
+- **[Configuration Guide](configuration.md)** - Task configuration options, defaults, and TaskConfig reference
+- **[Best Practices](best-practices.md)** - Task design guidelines, error handling, and production deployment tips
