@@ -74,45 +74,20 @@ pip install "asynctasq[redis]"
 **Configuration:**
 
 ```python
-# Option 1: .env file (recommended)
-# Create .env with:
-#   ASYNCTASQ_DRIVER=redis
-#   ASYNCTASQ_REDIS_URL=redis://localhost:6379
-#   ASYNCTASQ_REDIS_PASSWORD=secret
-#   ASYNCTASQ_REDIS_DB=0
-#   ASYNCTASQ_REDIS_MAX_CONNECTIONS=100
-from asynctasq import init
-
+# Recommended: Use .env file (see Environment Variables Guide)
 init()  # Loads from .env automatically
 
-# Option 2: Environment variables
-# Set: ASYNCTASQ_DRIVER=redis, ASYNCTASQ_REDIS_URL=redis://localhost:6379
-from asynctasq import init
-
-init()  # Loads from environment automatically
-
-# Option 3: Code configuration (for quick testing or overrides)
+# Quick testing: Code configuration
 from asynctasq import init, RedisConfig
 
 init({
     'driver': 'redis',
     'redis': RedisConfig(
-        url='redis://localhost:6379',      # Redis connection URL
-        password='secret',                  # Optional: Redis password
-        db=0,                               # Redis database number (0-15)
-        max_connections=100                 # Connection pool size
+        url='redis://localhost:6379',
+        password='secret',
+        db=0,
+        max_connections=100
     )
-})
-
-# Or use dict syntax
-init({
-    'driver': 'redis',
-    'redis': {
-        'url': 'redis://localhost:6379',
-        'password': 'secret',
-        'db': 0,
-        'max_connections': 100
-    }
 })
 ```
 
@@ -163,26 +138,10 @@ pip install "asynctasq[postgres]"
 **Configuration:**
 
 ```python
-# Option 1: .env file (recommended)
-# Create .env with:
-#   ASYNCTASQ_DRIVER=postgres
-#   ASYNCTASQ_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
-#   ASYNCTASQ_POSTGRES_QUEUE_TABLE=task_queue
-#   ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
-#   ASYNCTASQ_POSTGRES_MIN_POOL_SIZE=10
-#   ASYNCTASQ_POSTGRES_MAX_POOL_SIZE=10
-from asynctasq import init
+# Recommended: Use .env file (see Environment Variables Guide)
+init()  # Loads from .env
 
-init()  # Loads from .env automatically
-
-# Option 2: Environment variables
-# Set: ASYNCTASQ_DRIVER=postgres
-#      ASYNCTASQ_POSTGRES_DSN=postgresql://user:pass@localhost:5432/dbname
-from asynctasq import init
-
-init()  # Loads from environment
-
-# Option 3: Code configuration (for quick testing or overrides)
+# Quick testing: Code configuration
 from asynctasq import init, PostgresConfig
 
 init({
@@ -194,18 +153,6 @@ init({
         min_pool_size=10,
         max_pool_size=10
     )
-})
-
-# Or using dict
-init({
-    'driver': 'postgres',
-    'postgres': {
-        'dsn': 'postgresql://user:pass@localhost:5432/dbname',
-        'queue_table': 'task_queue',
-        'dead_letter_table': 'dead_letter_queue',
-        'min_pool_size': 10,
-        'max_pool_size': 10
-    }
 })
 ```
 
@@ -261,26 +208,10 @@ pip install "asynctasq[mysql]"
 **Configuration:**
 
 ```python
-# Option 1: .env file (recommended)
-# Create .env with:
-#   ASYNCTASQ_DRIVER=mysql
-#   ASYNCTASQ_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
-#   ASYNCTASQ_MYSQL_QUEUE_TABLE=task_queue
-#   ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
-#   ASYNCTASQ_MYSQL_MIN_POOL_SIZE=10
-#   ASYNCTASQ_MYSQL_MAX_POOL_SIZE=10
-from asynctasq import init
+# Recommended: Use .env file (see Environment Variables Guide)
+init()  # Loads from .env
 
-init()  # Loads from .env automatically
-
-# Option 2: Environment variables
-# Set: ASYNCTASQ_DRIVER=mysql
-#      ASYNCTASQ_MYSQL_DSN=mysql://user:pass@localhost:3306/dbname
-from asynctasq import init
-
-init()  # Loads from environment automatically
-
-# Option 3: Code configuration (for quick testing or overrides)
+# Quick testing: Code configuration
 from asynctasq import init, MySQLConfig
 
 init({
@@ -292,18 +223,6 @@ init({
         min_pool_size=10,
         max_pool_size=10
     )
-})
-
-# Or using dict
-init({
-    'driver': 'mysql',
-    'mysql': {
-        'dsn': 'mysql://user:pass@localhost:3306/dbname',
-        'queue_table': 'task_queue',
-        'dead_letter_table': 'dead_letter_queue',
-        'min_pool_size': 10,
-        'max_pool_size': 10
-    }
 })
 ```
 
@@ -359,27 +278,10 @@ pip install "asynctasq[sqs]"
 **Configuration:**
 
 ```python
-# Option 1: .env file (recommended)
-# Create .env with:
-#   ASYNCTASQ_DRIVER=sqs
-#   ASYNCTASQ_SQS_REGION=us-east-1
-#   ASYNCTASQ_SQS_QUEUE_URL_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
-#   ASYNCTASQ_SQS_AWS_ACCESS_KEY_ID=your_key  # Optional
-#   ASYNCTASQ_SQS_AWS_SECRET_ACCESS_KEY=your_secret  # Optional
-#   ASYNCTASQ_SQS_ENDPOINT_URL=http://localhost:4566  # Optional (LocalStack)
-from asynctasq import init
+# Recommended: Use .env file (see Environment Variables Guide)
+init()  # Loads from .env
 
-init()  # Loads from .env automatically
-
-# Option 2: Environment variables
-# Set: ASYNCTASQ_DRIVER=sqs
-#      ASYNCTASQ_SQS_REGION=us-east-1
-#      ASYNCTASQ_SQS_QUEUE_URL_PREFIX=https://sqs.us-east-1.amazonaws.com/123456789/
-from asynctasq import init
-
-init()  # Loads from environment automatically
-
-# Option 3: Code configuration (for quick testing or overrides)
+# Quick testing: Code configuration
 from asynctasq import init, SQSConfig
 
 init({
@@ -391,18 +293,6 @@ init({
         aws_secret_access_key='your_secret',  # Optional
         endpoint_url='http://localhost:4566'  # Optional (LocalStack)
     )
-})
-
-# Or using dict
-init({
-    'driver': 'sqs',
-    'sqs': {
-        'region_name': 'us-east-1',
-        'queue_url_prefix': 'https://sqs.us-east-1.amazonaws.com/123456789/',
-        'aws_access_key_id': 'your_key',  # Optional
-        'aws_secret_access_key': 'your_secret',  # Optional
-        'endpoint_url': 'http://localhost:4566'  # Optional (LocalStack)
-    }
 })
 ```
 
@@ -458,24 +348,10 @@ pip install "asynctasq[rabbitmq]"
 **Configuration:**
 
 ```python
-# Option 1: .env file (recommended)
-# Create .env with:
-#   ASYNCTASQ_DRIVER=rabbitmq
-#   ASYNCTASQ_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-#   ASYNCTASQ_RABBITMQ_EXCHANGE_NAME=asynctasq
-#   ASYNCTASQ_RABBITMQ_PREFETCH_COUNT=1
-from asynctasq import init
+# Recommended: Use .env file (see Environment Variables Guide)
+init()  # Loads from .env
 
-init()  # Loads from .env automatically
-
-# Option 2: Environment variables
-# Set: ASYNCTASQ_DRIVER=rabbitmq
-#      ASYNCTASQ_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-from asynctasq import init
-
-init()  # Loads from environment automatically
-
-# Option 3: Code configuration (for quick testing or overrides)
+# Quick testing: Code configuration
 from asynctasq import init, RabbitMQConfig
 
 init({
@@ -485,16 +361,6 @@ init({
         exchange_name='asynctasq',
         prefetch_count=1
     )
-})
-
-# Or using dict
-init({
-    'driver': 'rabbitmq',
-    'rabbitmq': {
-        'url': 'amqp://guest:guest@localhost:5672/',
-        'exchange_name': 'asynctasq',
-        'prefetch_count': 1
-    }
 })
 ```
 

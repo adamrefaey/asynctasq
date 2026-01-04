@@ -138,7 +138,7 @@ AsyncTasQIntegration()  # Uses .env-loaded config
 init({'driver': 'redis'})  # Set global config first
 AsyncTasQIntegration()      # Uses global config
 
-# For all configuration options: https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md
+# For all configuration options, see environment-variables.md
 ```
 
 **Important Notes:**

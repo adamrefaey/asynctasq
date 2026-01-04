@@ -182,7 +182,7 @@ All tasks support the following configuration options:
 | `max_attempts`       | `int`                              | `3`         | Maximum execution attempts (including initial attempt)                              |
 | `retry_delay`        | `int`                              | `60`        | Delay in seconds between retry attempts                                             |
 | `timeout`            | `int \| None`                      | `None`      | Task execution timeout in seconds (None = no timeout)                               |
-| `visibility_timeout` | `int`                              | `3600`      | Crash recovery timeout in seconds. See [Configuration - Visibility Timeout Warning](configuration.md#visibility-timeout-warning) for critical details |
+| `visibility_timeout` | `int`                              | `3600`      | Crash recovery timeout. **⚠️ See [Configuration - Visibility Timeout Warning](configuration.md#visibility-timeout-warning)** |
 | `driver`             | `DriverType \| BaseDriver \| None` | `None`      | Override default queue driver for this task                                         |
 | `correlation_id`     | `str \| None`                      | `None`      | Correlation ID for distributed tracing                                              |
 

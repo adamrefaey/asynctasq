@@ -41,15 +41,8 @@ The simplest class-based task extends `AsyncTask` and implements the `execute()`
 import asyncio
 from asynctasq import init, AsyncTask
 
-# Configure the queue driver - choose one of three options:
-# Option 1: .env file (recommended)
-# Create .env with: ASYNCTASQ_DRIVER=redis
-init()  # Automatically loads from .env
-
-# Option 2: Code configuration (for quick testing)
-init({'driver': 'redis'})
-
-# For complete configuration options, see: https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md
+# Configure the queue driver (see environment-variables.md for details)
+init({'driver': 'redis'})  # or init() to load from .env
 
 # Define a simple task class
 class SendNotification(AsyncTask[str]):
@@ -1510,14 +1503,8 @@ Here's a complete, runnable example demonstrating multiple class-based task patt
 import asyncio
 from asynctasq import init, AsyncTask, run
 
-# Configure - choose one:
-# Option 1: .env file (recommended)
-# Create .env with: ASYNCTASQ_DRIVER=redis
-# init()
-# Option 2: Environment (set ASYNCTASQ_DRIVER=redis)
-# init()
-# Option 3: Code config (for quick testing)
-init({'driver': 'redis'})
+# Configuration (see environment-variables.md)
+init({'driver': 'redis'})  # or init() to load from .env
 
 # Define tasks with different configurations
 class SendEmail(AsyncTask[str]):
@@ -1675,10 +1662,8 @@ Class-based tasks in AsyncTasQ provide a powerful, flexible way to create reusab
     # Option 1: .env file (recommended)
     # Create .env with: ASYNCTASQ_DRIVER=redis
     # init()
-    # Option 2: Environment variable (ASYNCTASQ_DRIVER=redis)
-    # init()
-    # Option 3: Code (for quick testing)
-    init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs'
+    # Configuration (see environment-variables.md)
+    init()  # Loads from .env or environment variables
     ```
 
 2. **Define a task class:**

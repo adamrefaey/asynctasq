@@ -16,7 +16,7 @@
 
 - Keep tasks small and focused (single responsibility principle)
 - Make tasks idempotent when possible (safe to run multiple times with same result)
-- **⚠️ CRITICAL: Configure `visibility_timeout` properly** - See [Configuration - Visibility Timeout Warning](configuration.md#visibility-timeout-warning) for complete details on preventing duplicate processing
+- **⚠️ Configure `visibility_timeout` properly** - See [Configuration - Visibility Timeout Warning](configuration.md#visibility-timeout-warning) to prevent duplicate processing
 - Use timeouts for long-running tasks to prevent resource exhaustion
 - Implement custom `failed()` handlers for cleanup, logging, and alerting
 - Use `should_retry()` for intelligent retry logic based on exception type
@@ -24,11 +24,11 @@
 - Use type hints on task parameters for better IDE support and documentation
 - Name tasks descriptively (class name or function name should explain purpose)
 - Use `correlation_id` for distributed tracing and tracking related tasks across systems
-- For CPU-bound async tasks (`AsyncProcessTask`), initialize warm event loops in production for better performance (see [Configuration docs](configuration.md#warm-event-loops-for-asyncprocesstask))
+- For async CPU-bound tasks (`AsyncProcessTask`), initialize warm event loops in production for better performance (see [Configuration docs](configuration.md#warm-event-loops-for-asyncprocesstask))
 
 ❌ **Don't:**
 
-- Include blocking I/O in async tasks (use `SyncTask` with thread pool or `SyncProcessTask` for CPU-bound work)
+- Include blocking I/O in async tasks (use `SyncTask` with thread pool for sync I/O, or `SyncProcessTask` for CPU-bound work)
 - Share mutable state between tasks (each task execution should be isolated)
 - Perform network calls without timeouts (always use `timeout` parameter)
 - Store large objects in task parameters (serialize references instead, e.g., database IDs)

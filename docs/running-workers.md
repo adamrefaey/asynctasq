@@ -236,20 +236,7 @@ After exceeding `max_attempts`, failed tasks move to a dead letter queue (Postgr
 
 **Crash Recovery (Visibility Timeout):**
 
-> **⚠️ CRITICAL:** See [Configuration - Visibility Timeout Warning](configuration.md#visibility-timeout-warning) for complete details on configuring crash recovery.
-
-AsyncTasQ uses `visibility_timeout` to handle worker crashes:
-
-- **Default:** `3600` seconds (1 hour)
-- **Behavior:** If a worker crashes mid-task, the task becomes visible again after the timeout
-- **Configuration:** Set via `visibility_timeout` parameter on tasks (see canonical warning above for best practices)
-
-```python
-@task(visibility_timeout=7200)  # 2 hours for long-running tasks
-async def long_running_task():
-    # If worker crashes, task reappears after 2 hours
-    pass
-```
+AsyncTasQ uses `visibility_timeout` to handle worker crashes. If a worker crashes mid-task, the task becomes visible again after the timeout (default: 3600s/1 hour). **⚠️ CRITICAL:** See [Configuration - Visibility Timeout Warning](configuration.md#visibility-timeout-warning) for complete details on proper configuration to prevent duplicate processing.
 
 **Task Timeout:**
 

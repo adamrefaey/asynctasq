@@ -87,15 +87,8 @@ The simplest way to create a task is to add the `@task` decorator to an async fu
 import asyncio
 from asynctasq import init, task
 
-# Configure the queue driver - choose one of three options:
-# Option 1: .env file (recommended)
-# Create .env with: ASYNCTASQ_DRIVER=redis
-# init()  # Automatically loads from .env
-
-# Option 2: Code configuration (for quick testing)
-init({'driver': 'redis'})
-
-# For all configuration options: https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md
+# Configure the queue driver (see environment-variables.md for details)
+init({'driver': 'redis'})  # or init() to load from .env
 
 # Define a simple task
 @task
@@ -126,9 +119,8 @@ Synchronous functions are automatically executed in a thread pool, so you can us
 ```python
 from asynctasq import init, task
 
-# Configure (code, environment variables, or .env file)
-# Recommended: Use .env file with: ASYNCTASQ_DRIVER=redis
-init({'driver': 'redis'})
+# Configure (see environment-variables.md for all options)
+init({'driver': 'redis'})  # or init() to load from .env
 
 # Synchronous function (automatically runs in thread pool)
 @task
@@ -1512,14 +1504,8 @@ Here's a complete, runnable example demonstrating multiple function-based task p
 import asyncio
 from asynctasq import init, task, run, print
 
-# Configure driver - choose one:
-# Option 1: .env file (recommended)
-# Create .env with: ASYNCTASQ_DRIVER=redis
-# init()
-# Option 2: Environment (set ASYNCTASQ_DRIVER=redis)
-# init()
-# Option 3: Code config (for quick testing)
-init({'driver': 'redis'})
+# Configuration (see environment-variables.md)
+init({'driver': 'redis'})  # or init() to load from .env
 
 # Define tasks with different configurations
 @task(queue='emails', max_attempts=3, retry_delay=60)
@@ -1636,11 +1622,8 @@ To use function-based tasks, you need:
    from asynctasq import init
    # Option 1: .env file (recommended)
    # Create .env with: ASYNCTASQ_DRIVER=redis
-   # init()
-   # Option 2: Environment variable (ASYNCTASQ_DRIVER=redis)
-   # init()
-   # Option 3: Code (for quick testing)
-   init({'driver': 'redis'})
+   # Configuration (see environment-variables.md)
+   init()  # Loads from .env or environment variables
    ```
 
 3. ✅ **Define tasks** with `@task` decorator:
@@ -1674,16 +1657,9 @@ To use function-based tasks, you need:
    ```python
    from asynctasq import init
 
-   # Option 1: .env file (recommended)
-   # Create .env with: ASYNCTASQ_DRIVER=redis
-   init()  # Automatically loads from .env
-
-   # Option 2: Environment variables
-   # Set ASYNCTASQ_DRIVER=redis, then:
-   init()  # Loads from environment
-
-   # Option 3: Code config (for quick testing)
-   init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs', 'rabbitmq'
+   # Configuration (see environment-variables.md for all options)
+   init()  # Loads from .env or environment variables
+   # For quick testing: init({'driver': 'redis'})
    ```
 
 3. **Define a task:**

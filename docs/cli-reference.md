@@ -79,7 +79,7 @@ For complete `.env` file setup and examples, see [Environment Variables Guide](e
 | `--task-defaults-retry-strategy STRATEGY` | Retry delay strategy (fixed/exponential)         | `exponential`                        |
 | `--task-defaults-retry-delay N`           | Base retry delay in seconds                      | `60`                                 |
 | `--task-defaults-timeout N`               | Default task timeout in seconds                  | -                                    |
-| `--task-defaults-visibility-timeout N`    | Visibility timeout for crash recovery (seconds). See [Configuration - Visibility Timeout Warning](../configuration.md#visibility-timeout-warning) | `3600` (1 hour) |
+| `--task-defaults-visibility-timeout N`    | Visibility timeout for crash recovery. **⚠️ See [Configuration - Visibility Timeout Warning](configuration.md#visibility-timeout-warning)** | `3600` (1 hour) |
 | `--process-pool-size N`                   | Number of worker processes for CPU-bound tasks   | (auto-detect CPU count)              |
 | `--process-pool-max-tasks-per-child N`    | Recycle worker processes after N tasks           | -                                    |
 | `--repository-keep-completed-tasks`       | Keep completed tasks for history/audit           | `False`                              |

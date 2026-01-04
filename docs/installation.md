@@ -70,4 +70,8 @@ pip install "asynctasq[monitor]"
 pip install "asynctasq[all]"
 ```
 
-**Next:** Configure your driver via [Environment Variables](environment-variables.md) or [Configuration Guide](configuration.md).
+**Next Steps:**
+
+1. **Configuration:** Set up your queue driver via [Environment Variables Guide](environment-variables.md)
+2. **Task Definitions:** Learn how to define tasks in [Task Definitions](task-definitions.md)
+3. **Running Workers:** Start processing tasks with [Running Workers](running-workers.md)

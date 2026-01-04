@@ -59,14 +59,7 @@ See [Environment Variables Guide](environment-variables.md) for complete details
 
 ## Configuration Contexts
 
-**Understanding Contexts:** AsyncTasQ operates in two distinct environments - when you're **dispatching tasks** from your application, and when **workers are processing** those tasks. Some configuration options apply to both contexts, while others are specific to one.
-
-**Why This Matters:**
-- **Dispatch-only settings** don't need to be configured on workers
-- **Worker-only settings** don't affect your application code
-- **Both contexts** need driver and event configurations
-
-This separation allows you to optimize configuration for each environment (e.g., different connection pools for API servers vs workers).
+AsyncTasQ operates in two contexts: **dispatch** (enqueuing tasks) and **worker** (processing tasks). This separation allows optimized configuration for each environment (e.g., different connection pools for API servers vs workers).
 
 ### Dispatch Context
 The **dispatch context** refers to when you're enqueuing/dispatching tasks to the queue (e.g., calling `task.dispatch()` in your application code).

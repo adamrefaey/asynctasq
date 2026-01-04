@@ -6,7 +6,7 @@
 [![PyPI Version](https://img.shields.io/pypi/v/asynctasq)](https://pypi.org/project/asynctasq/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-AsyncTasQ: A modern, async-first, type-safe task queue Python package inspired by Laravel. Runs on uvloop for maximum performance. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic, smart ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+. Features ACID guarantees, dead-letter queues, crash recovery, and real-time event streaming.
+A modern, async-first, type-safe task queue Python package inspired by Laravel. Runs on uvloop for maximum performance. Native FastAPI integration. Switch between multiple queue backends (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with one config line. Automatic, smart ORM serialization (SQLAlchemy, Django, Tortoise) using msgpack reduces payloads by 90%+. Features ACID guarantees, dead-letter queues, crash recovery, and real-time event streaming.
 
 ---
 
@@ -27,12 +27,15 @@ AsyncTasQ: A modern, async-first, type-safe task queue Python package inspired b
 
 ## Quick Start
 
-Get started in 60 seconds:
-
-Install AsyncTasQ (Python 3.12+ required)
-
 ```bash
-uv add asynctasq[redis]
+# Install with your preferred driver
+uv add "asynctasq[redis]"
+
+# Generate .env.example template
+asynctasq publish
+
+# Configure your environment (see docs/environment-variables.md for details)
+cp .env.example .env  # Edit with your settings
 ```
 
 Note: This example requires a Redis server running on localhost:6379. If you don't have Redis installed, you can start one using Docker:
@@ -48,13 +51,11 @@ import asyncio
 
 from asynctasq import AsyncTask, RedisConfig, TaskConfig, init, print, task
 
-# 1. Configure AsyncTasQ
-# For all configuration options, see: https://github.com/adamrefaey/asynctasq/blob/main/docs/configuration.md
-# Option 1: .env file (recommended for production)
-init()  # Loads from .env automatically
+# 1. Configure AsyncTasQ (see docs/environment-variables.md for detailed setup)
+init()  # Loads from .env (recommended) or environment variables
 
-# Option 2: Code configuration (for quick testing)
-init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
+# For quick testing without .env file:
+# init({"driver": "redis", "redis": RedisConfig(url="redis://localhost:6379")})
 
 
 # 2. Define tasks (function-based or class-based)
@@ -264,7 +265,7 @@ Unlike Celery and RQ which are built on synchronous foundations, AsyncTasQ is **
 
   - ✅ **Type-safe** with full type hints and Generic support
 
-  - ✅ **Three execution modes**: Async (I/O), Thread pool (moderate CPU), Process pool (heavy CPU)
+  - ✅ **Four execution modes**: Async I/O (event loop), Sync I/O (thread pool), Async CPU-bound (process pool), Sync CPU-bound (process pool)
 
   - ✅ **Beautiful console output** with Rich library integration for colorized logs and formatted task output
 
