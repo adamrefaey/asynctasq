@@ -109,26 +109,6 @@ class PostgresMigrator:
             )
         )
 
-        # Visibility timeout column migration
-        statements.append(
-            (
-                f"Add visibility_timeout_seconds column to '{self.queue_table}' (if missing)",
-                f"""
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name = '{self.queue_table}'
-                        AND column_name = 'visibility_timeout_seconds'
-                    ) THEN
-                        ALTER TABLE {self.queue_table}
-                        ADD COLUMN visibility_timeout_seconds INTEGER NOT NULL DEFAULT 3600;
-                    END IF;
-                END $$;
-                """,
-            )
-        )
-
         # Queue table index
         statements.append(
             (
