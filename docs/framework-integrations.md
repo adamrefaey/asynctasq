@@ -156,11 +156,8 @@ AsyncTasQIntegration()      # Uses global config
 uvicorn app:app --host 0.0.0.0 --port 8000
 
 # Terminal 2: Start worker
-python -m asynctasq worker \
-    --driver redis \
-    --redis-url redis://localhost:6379 \
-    --queues default,emails \
-    --concurrency 10
+# Configuration loaded from .env file automatically
+uv run asynctasq worker --queues default,emails --concurrency 10
 ```
 
 **Features:**

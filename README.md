@@ -152,6 +152,7 @@ uv run python quick_start.py
 In a separate terminal, run the worker to process the tasks:
 
 ```bash
+# Worker uses the same .env configuration automatically
 uv run asynctasq worker --queues urgent,high-priority,payments,default
 ```
 

@@ -49,14 +49,18 @@
 **Example Worker Configuration:**
 
 ```bash
+# Configure in .env file first:
+# ASYNCTASQ_DRIVER=redis
+# ASYNCTASQ_REDIS_URL=redis://localhost:6379
+
 # Worker 1: Critical tasks
-python -m asynctasq worker --queues critical --concurrency 20
+uv run asynctasq worker --queues critical --concurrency 20
 
 # Worker 2: Normal tasks
-python -m asynctasq worker --queues default --concurrency 10
+uv run asynctasq worker --queues default --concurrency 10
 
 # Worker 3: Background tasks
-python -m asynctasq worker --queues low-priority,batch --concurrency 5
+uv run asynctasq worker --queues low-priority,batch --concurrency 5
 ```
 
 For complete worker deployment patterns, CLI options, and production deployment strategies, see [Running Workers](running-workers.md).

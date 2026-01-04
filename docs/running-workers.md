@@ -16,86 +16,43 @@ Workers continuously poll queues and execute tasks. Run workers via CLI (recomme
 
 **Basic Usage:**
 
-```bash
-# Start worker with default settings
-python -m asynctasq worker
+Configure AsyncTasQ using a `.env` file (recommended) or environment variables:
 
-# Or with uv
-uv run python -m asynctasq worker
+```bash
+# .env file
+ASYNCTASQ_DRIVER=redis
+ASYNCTASQ_REDIS_URL=redis://localhost:6379
 ```
 
-**With Driver Configuration:**
-
 ```bash
-# Redis worker
-python -m asynctasq worker \
-    --driver redis \
-    --redis-url redis://localhost:6379 \
-    --redis-password secret \
-    --redis-db 1
+# Start worker - configuration loaded from .env automatically
+python -m asynctasq worker --queues default
 
-# PostgreSQL worker
-python -m asynctasq worker \
-    --driver postgres \
-    --postgres-dsn postgresql://user:pass@localhost/dbname \
-    --queues default,emails \
-    --concurrency 10
-
-# MySQL worker
-python -m asynctasq worker \
-    --driver mysql \
-    --mysql-dsn mysql://user:pass@localhost:3306/dbname \
-    --queues default,emails \
-    --concurrency 10
-
-# RabbitMQ worker
-python -m asynctasq worker \
-    --driver rabbitmq \
-    --rabbitmq-url amqp://user:pass@localhost:5672/ \
-    --queues default,emails \
-    --concurrency 10
-
-# AWS SQS worker
-python -m asynctasq worker \
-    --driver sqs \
-    --sqs-region us-west-2 \
-    --sqs-queue-url-prefix https://sqs.us-west-2.amazonaws.com/123456789/ \
-    --queues default,emails
+# Or with uv
+uv run asynctasq worker --queues default
 ```
 
 **Multiple Queues with Priority:**
 
 ```bash
 # Process queues in priority order: high → default → low
-python -m asynctasq worker --queues high,default,low --concurrency 20
+# Worker uses .env configuration automatically
+uv run asynctasq worker --queues high,default,low --concurrency 20
 ```
 
-**Advanced CLI Options:**
+**Advanced Options:**
 
 ```bash
 # Worker with process pool for CPU-bound tasks
-python -m asynctasq worker \
-    --driver redis \
+# Configuration from .env, only specify worker-specific options
+uv run asynctasq worker \
     --queues default \
     --concurrency 10 \
     --process-pool-size 4 \
     --process-pool-max-tasks-per-child 100
-
-# Worker with monitoring enabled
-python -m asynctasq worker \
-    --driver redis \
-    --queues default \
-    --events-enable-event-emitter-redis \
-    --events-redis-url redis://localhost:6379 \
-    --events-channel asynctasq:prod:events
-
-# Worker with completed task retention (for PostgreSQL/MySQL/Redis)
-python -m asynctasq worker \
-    --driver postgres \
-    --postgres-dsn postgresql://user:pass@localhost/db \
-    --queues default \
-    --repository-keep-completed-tasks
 ```
+
+**Note:** For all driver-specific configuration options and CLI reference, see [CLI Reference](cli-reference.md#worker-command). The CLI supports inline configuration arguments for testing, but **production deployments should use `.env` files** for cleaner command signatures and better configuration management.
 
 For complete CLI options and parameters, see [CLI Reference](cli-reference.md#worker-command).
 
@@ -186,13 +143,14 @@ Run multiple worker processes for different queue priorities:
 
 ```bash
 # Terminal 1: High-priority queue with high concurrency
-python -m asynctasq worker --queues high-priority --concurrency 20
+# Configuration from .env file
+uv run asynctasq worker --queues high-priority --concurrency 20
 
 # Terminal 2: Default queue with moderate concurrency
-python -m asynctasq worker --queues default --concurrency 10
+uv run asynctasq worker --queues default --concurrency 10
 
 # Terminal 3: Low-priority and batch jobs with low concurrency
-python -m asynctasq worker --queues low-priority,batch --concurrency 5
+uv run asynctasq worker --queues low-priority,batch --concurrency 5
 ```
 
 **Benefits:**
@@ -244,7 +202,8 @@ After=network.target
 Type=simple
 User=www-data
 WorkingDirectory=/app
-ExecStart=/usr/bin/python -m asynctasq worker --driver redis --queues default
+EnvironmentFile=/app/.env
+ExecStart=/usr/bin/python -m asynctasq worker --queues default
 Restart=always
 KillSignal=SIGTERM
 TimeoutStopSec=30
@@ -319,9 +278,11 @@ Workers emit events for monitoring:
 Enable Redis event emission for real-time monitoring:
 
 ```bash
-python -m asynctasq worker \
-    --driver redis \
-    --events-enable-event-emitter-redis \
-    --events-redis-url redis://localhost:6379 \
-    --events-channel asynctasq:events
+# Configure in .env file:
+# ASYNCTASQ_EVENTS_ENABLE_EVENT_EMITTER_REDIS=true
+# ASYNCTASQ_EVENTS_REDIS_URL=redis://localhost:6379
+# ASYNCTASQ_EVENTS_CHANNEL=asynctasq:events
+
+# Then run worker with clean command signature
+uv run asynctasq worker --queues default
 ```

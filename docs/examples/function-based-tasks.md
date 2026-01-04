@@ -1659,7 +1659,8 @@ To use function-based tasks, you need:
 
 5. ✅ **Run workers** to execute tasks:
    ```bash
-   asynctasq worker --queue emails --concurrency 20
+   # Configuration loaded from .env automatically
+   uv run asynctasq worker --queues emails --concurrency 20
    ```
 
 ### Quick Start
@@ -1672,10 +1673,17 @@ To use function-based tasks, you need:
 2. **Configure in your app (choose one method):**
    ```python
    from asynctasq import init
-   # Code config (Option 1)
+
+   # Option 1: .env file (recommended)
+   # Create .env with: ASYNCTASQ_DRIVER=redis
+   init()  # Automatically loads from .env
+
+   # Option 2: Environment variables
+   # Set ASYNCTASQ_DRIVER=redis, then:
+   init()  # Loads from environment
+
+   # Option 3: Code config (for quick testing)
    init({'driver': 'redis'})  # or 'postgres', 'mysql', 'sqs', 'rabbitmq'
-   # Environment variable (Option 2): Set ASYNCTASQ_DRIVER=redis, then init()
-   # .env file (Option 3): Add ASYNCTASQ_DRIVER=redis to .env, then init()
    ```
 
 3. **Define a task:**
@@ -1695,7 +1703,8 @@ To use function-based tasks, you need:
 
 5. **Run workers:**
    ```bash
-   asynctasq worker --queue emails
+   # Configuration loaded from .env automatically
+   uv run asynctasq worker --queues emails
    ```
 
 ### Configuration Reference

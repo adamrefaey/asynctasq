@@ -434,3 +434,437 @@ async def test_task_retries():
 | **Worker**       | Task polling, deserialization, lifecycle       | `_process_task()`, `_handle_task_failure()`      |
 
 **Key Principle:** Framework manages error recovery; users implement business logic and custom error decisions via hooks.
+---
+
+## Common Error Scenarios
+
+This section covers real-world error scenarios and recommended handling patterns.
+
+### Scenario 1: External API Failures
+
+**Problem:** Task depends on external API that may be temporarily unavailable.
+
+**Pattern:** Retry with exponential backoff, fail fast on 4xx errors.
+
+```python
+from asynctasq import AsyncTask
+import httpx
+
+class FetchUserDataTask(AsyncTask[None]):
+    config = {
+        "queue": "api_calls",
+        "max_attempts": 5,
+        "retry_strategy": "exponential",
+        "retry_delay": 60,  # Start with 1 minute
+        "timeout": 30,
+    }
+
+    def should_retry(self, exception: Exception) -> bool:
+        """Retry on 5xx errors and network issues, fail fast on 4xx."""
+        if isinstance(exception, httpx.HTTPStatusError):
+            # 4xx = client error (bad request, not found, etc.) - don't retry
+            if 400 <= exception.response.status_code < 500:
+                return False
+            # 5xx = server error - retry
+            return True
+
+        # Network errors, timeouts - retry
+        if isinstance(exception, (httpx.ConnectError, httpx.TimeoutException)):
+            return True
+
+        return False  # Other errors - don't retry
+
+    async def execute(self, user_id: int) -> None:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.example.com/users/{user_id}",
+                timeout=25.0  # Slightly less than task timeout
+            )
+            response.raise_for_status()
+            data = response.json()
+            # Process user data...
+
+    async def failed(self, exception: Exception) -> None:
+        """Alert team if API is consistently failing."""
+        # Log to monitoring system
+        logger.error(
+            "User data fetch permanently failed",
+            extra={
+                "user_id": self.kwargs.get("user_id"),
+                "error": str(exception),
+                "attempts": self._current_attempt,
+            }
+        )
+        # Send alert to Slack/PagerDuty
+        # await alert_team(f"User data API failing: {exception}")
+```
+
+### Scenario 2: Database Connection Issues
+
+**Problem:** Database connections may be temporarily unavailable or experience deadlocks.
+
+**Pattern:** Retry on connection/deadlock errors, fail fast on constraint violations.
+
+```python
+from asynctasq import AsyncTask
+from sqlalchemy.exc import (
+    OperationalError,
+    IntegrityError,
+    DBAPIError,
+    DisconnectionError
+)
+import asyncio
+
+class UpdateUserTask(AsyncTask[None]):
+    config = {
+        "queue": "database",
+        "max_attempts": 5,
+        "retry_strategy": "exponential",
+        "retry_delay": 30,
+        "timeout": 60,
+    }
+
+    def should_retry(self, exception: Exception) -> bool:
+        """Retry on transient DB errors, fail fast on integrity violations."""
+        # Connection issues - retry
+        if isinstance(exception, (OperationalError, DisconnectionError)):
+            return True
+
+        # Deadlock or lock timeout - retry
+        if isinstance(exception, DBAPIError):
+            if "deadlock" in str(exception).lower():
+                return True
+            if "lock timeout" in str(exception).lower():
+                return True
+
+        # Integrity errors (unique constraint, foreign key) - don't retry
+        if isinstance(exception, IntegrityError):
+            return False
+
+        return False
+
+    async def execute(self, user_id: int, email: str) -> None:
+        # Add jitter to reduce thundering herd on retries
+        await asyncio.sleep(0.1 * self._current_attempt)
+
+        # Your SQLAlchemy session logic here
+        # async with async_session() as session:
+        #     user = await session.get(User, user_id)
+        #     user.email = email
+        #     await session.commit()
+        pass
+
+    async def failed(self, exception: Exception) -> None:
+        """Handle permanent database failures."""
+        if isinstance(exception, IntegrityError):
+            # Log data quality issue
+            logger.warning(
+                "Data integrity violation",
+                extra={"user_id": self.kwargs.get("user_id"), "email": self.kwargs.get("email")}
+            )
+        else:
+            # Alert on infrastructure issue
+            logger.error("Database operation permanently failed", exc_info=exception)
+```
+
+### Scenario 3: File Processing with Validation
+
+**Problem:** Processing uploaded files that may be corrupted or invalid.
+
+**Pattern:** Fail fast on validation errors, retry on I/O errors.
+
+```python
+from asynctasq import AsyncTask
+from pathlib import Path
+import aiofiles
+
+class ProcessImageTask(AsyncTask[None]):
+    config = {
+        "queue": "images",
+        "max_attempts": 3,
+        "retry_delay": 60,
+        "timeout": 300,
+    }
+
+    def should_retry(self, exception: Exception) -> bool:
+        """Retry on I/O errors, fail fast on validation errors."""
+        # Validation errors - user's fault, don't retry
+        if isinstance(exception, (ValueError, TypeError)):
+            return False
+
+        # I/O errors, transient issues - retry
+        if isinstance(exception, (IOError, OSError)):
+            return True
+
+        return True  # Default: retry
+
+    async def execute(self, file_path: str, user_id: int) -> None:
+        path = Path(file_path)
+
+        # Validate file exists
+        if not path.exists():
+            raise ValueError(f"File not found: {file_path}")
+
+        # Validate file size
+        file_size = path.stat().st_size
+        if file_size > 10 * 1024 * 1024:  # 10 MB
+            raise ValueError(f"File too large: {file_size} bytes")
+
+        # Validate file type
+        if not path.suffix.lower() in {'.jpg', '.jpeg', '.png'}:
+            raise ValueError(f"Invalid file type: {path.suffix}")
+
+        # Process image
+        async with aiofiles.open(path, 'rb') as f:
+            content = await f.read()
+            # Process image content...
+
+    async def failed(self, exception: Exception) -> None:
+        """Notify user of processing failure."""
+        user_id = self.kwargs.get("user_id")
+        file_path = self.kwargs.get("file_path")
+
+        if isinstance(exception, ValueError):
+            # Validation error - user action needed
+            # await notify_user(user_id, f"Invalid file: {exception}")
+            logger.info(f"User {user_id} uploaded invalid file: {file_path}")
+        else:
+            # System error - alert team
+            logger.error(f"Image processing failed for user {user_id}", exc_info=exception)
+```
+
+### Scenario 4: Rate-Limited Third-Party Service
+
+**Problem:** Third-party service has rate limits, need to back off appropriately.
+
+**Pattern:** Custom retry delay based on rate limit headers, with exponential backoff.
+
+```python
+from asynctasq import AsyncTask
+import httpx
+import asyncio
+
+class SendEmailTask(AsyncTask[None]):
+    config = {
+        "queue": "emails",
+        "max_attempts": 10,  # More attempts for rate-limited services
+        "retry_strategy": "exponential",
+        "retry_delay": 60,
+        "timeout": 30,
+    }
+
+    def should_retry(self, exception: Exception) -> bool:
+        """Always retry rate limit errors."""
+        if isinstance(exception, httpx.HTTPStatusError):
+            # 429 = Too Many Requests - always retry
+            if exception.response.status_code == 429:
+                return True
+            # 5xx errors - retry
+            if exception.response.status_code >= 500:
+                return True
+        return False
+
+    async def execute(self, to_email: str, subject: str, body: str) -> None:
+        # Add jitter to spread out requests
+        await asyncio.sleep(0.5 * self._current_attempt)
+
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    "https://api.emailservice.com/send",
+                    json={"to": to_email, "subject": subject, "body": body},
+                    headers={"Authorization": f"Bearer {API_KEY}"},
+                    timeout=25.0
+                )
+                response.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429:
+                    # Check for Retry-After header
+                    retry_after = e.response.headers.get("Retry-After")
+                    if retry_after:
+                        logger.warning(f"Rate limited, should retry after {retry_after}s")
+                raise
+
+    async def failed(self, exception: Exception) -> None:
+        """Move to dead letter queue or alternative service."""
+        logger.error(
+            f"Email delivery permanently failed",
+            extra={
+                "to_email": self.kwargs.get("to_email"),
+                "subject": self.kwargs.get("subject"),
+                "attempts": self._current_attempt,
+            }
+        )
+        # Try alternative email service or queue for manual review
+```
+
+### Scenario 5: Idempotent Operations
+
+**Problem:** Task may be executed multiple times due to failures/retries.
+
+**Pattern:** Check if work already done before executing.
+
+```python
+from asynctasq import AsyncTask
+
+class ChargeCustomerTask(AsyncTask[None]):
+    config = {
+        "queue": "payments",
+        "max_attempts": 3,
+        "retry_delay": 120,
+        "timeout": 60,
+    }
+
+    async def execute(self, order_id: str, amount: float, idempotency_key: str) -> None:
+        """Charge customer with idempotency guarantee."""
+        # Check if payment already processed
+        # existing_charge = await get_charge_by_idempotency_key(idempotency_key)
+        # if existing_charge:
+        #     logger.info(f"Payment already processed: {idempotency_key}")
+        #     return
+
+        # Process payment with idempotency key
+        # await stripe.Charge.create(
+        #     amount=int(amount * 100),
+        #     currency="usd",
+        #     source=token,
+        #     idempotency_key=idempotency_key,  # Prevents duplicate charges
+        # )
+
+        # Update order status
+        # await update_order_status(order_id, "paid")
+        pass
+
+    def should_retry(self, exception: Exception) -> bool:
+        """Don't retry payment errors that indicate permanent failure."""
+        # Example: Check for specific Stripe errors
+        if "card_declined" in str(exception).lower():
+            return False
+        if "insufficient_funds" in str(exception).lower():
+            return False
+        return True
+
+    async def failed(self, exception: Exception) -> None:
+        """Handle payment failure."""
+        order_id = self.kwargs.get("order_id")
+        # Update order status to failed
+        # await update_order_status(order_id, "payment_failed")
+        # Notify customer
+        # await notify_customer_payment_failed(order_id)
+```
+
+### Scenario 6: Batch Processing with Partial Failures
+
+**Problem:** Processing batch of items where some may fail.
+
+**Pattern:** Process items individually, track failures, retry only failed items.
+
+```python
+from asynctasq import AsyncTask
+import asyncio
+
+class ProcessBatchTask(AsyncTask[None]):
+    config = {
+        "queue": "batch",
+        "max_attempts": 3,
+        "retry_delay": 300,
+        "timeout": 600,
+    }
+
+    async def execute(self, item_ids: list[int]) -> None:
+        """Process batch of items, handling partial failures."""
+        failed_items = []
+
+        for item_id in item_ids:
+            try:
+                await self._process_single_item(item_id)
+            except Exception as e:
+                logger.warning(f"Item {item_id} failed: {e}")
+                failed_items.append(item_id)
+
+        if failed_items:
+            # Raise exception to trigger retry with only failed items
+            raise ValueError(f"{len(failed_items)} items failed: {failed_items}")
+
+    async def _process_single_item(self, item_id: int) -> None:
+        """Process a single item."""
+        # Your processing logic here
+        await asyncio.sleep(0.1)  # Simulate work
+
+    def should_retry(self, exception: Exception) -> bool:
+        """Always retry if any items failed."""
+        return True
+
+    async def failed(self, exception: Exception) -> None:
+        """Log permanently failed items."""
+        logger.error(
+            "Batch processing permanently failed",
+            extra={"item_ids": self.kwargs.get("item_ids"), "error": str(exception)}
+        )
+```
+
+### Scenario 7: Cascading Task Failures
+
+**Problem:** Task failure should trigger cleanup or compensation tasks.
+
+**Pattern:** Use `failed()` hook to dispatch cleanup tasks.
+
+```python
+from asynctasq import AsyncTask
+
+class CreateUserAccountTask(AsyncTask[None]):
+    config = {
+        "queue": "accounts",
+        "max_attempts": 3,
+        "retry_delay": 60,
+    }
+
+    async def execute(self, email: str, username: str) -> None:
+        """Create user account with multiple steps."""
+        # Step 1: Create database record
+        # user_id = await create_user_db_record(email, username)
+        user_id = 123
+
+        # Step 2: Create auth account
+        # await create_auth_account(user_id, email)
+
+        # Step 3: Setup user storage
+        # await create_user_storage(user_id)
+
+        # If any step fails, exception is raised and task retries
+        pass
+
+    async def failed(self, exception: Exception) -> None:
+        """Cleanup partial account creation."""
+        email = self.kwargs.get("email")
+
+        logger.error(f"Account creation failed for {email}: {exception}")
+
+        # Dispatch cleanup task
+        # await CleanupPartialAccountTask(email=email).dispatch()
+
+        # Or perform cleanup directly
+        # await cleanup_partial_account(email)
+```
+
+### Error Handling Best Practices Summary
+
+| Scenario                      | Retry Strategy                        | Error Handling                                    |
+| ----------------------------- | ------------------------------------- | ------------------------------------------------- |
+| **External API**              | Retry 5xx, fail fast 4xx              | Exponential backoff, timeout < task timeout       |
+| **Database**                  | Retry connection/deadlock errors      | Add jitter, fail fast on integrity violations     |
+| **File Processing**           | Retry I/O errors                      | Validate early, fail fast on validation errors    |
+| **Rate Limits**               | Many retries with backoff             | Respect Retry-After headers, add jitter           |
+| **Idempotent Operations**     | Safe to retry                         | Use idempotency keys, check if already done       |
+| **Batch Processing**          | Retry with failed items only          | Track partial failures, process individually      |
+| **Cascading Operations**      | Cleanup on permanent failure          | Use `failed()` hook to dispatch cleanup tasks     |
+
+**Key Principles:**
+
+1. **Fail Fast on User Errors** - Don't waste retries on 4xx errors or validation failures
+2. **Retry Transient Failures** - Network issues, timeouts, 5xx errors, deadlocks
+3. **Add Jitter** - Prevent thundering herd when many tasks retry simultaneously
+4. **Use Idempotency** - Ensure operations are safe to execute multiple times
+5. **Timeout Management** - Set task timeout > operation timeout to allow graceful error handling
+6. **Monitor and Alert** - Use `failed()` hook for production monitoring
+7. **Compensate on Failure** - Cleanup partial work in `failed()` hook

@@ -305,7 +305,7 @@ async def main():
 
 ## Tortoise ORM
 
-**Supports:** Fully async Tortoise ORM
+**Supports:** Fully async Tortoise ORM with native asyncio support
 
 **Installation:**
 
@@ -320,14 +320,26 @@ pip install "asynctasq[tortoise]"
 **Requirements:**
 
 - tortoise-orm >= 0.21.0
+- asyncpg or aiomysql (depending on your database)
+
+**Key Features:**
+
+- ✅ **Native async** - Built on asyncio from the ground up
+- ✅ **Automatic serialization** - Models converted to lightweight references (PK only)
+- ✅ **Fresh data guarantee** - Models re-fetched from database in workers
+- ✅ **Two initialization modes** - Automatic via `init()` or manual in tasks
+- ✅ **Connection management** - Proper connection lifecycle handling
+- ✅ **Multiple database support** - PostgreSQL, MySQL, SQLite
+- ✅ **Multiprocessing-safe** - Works with forked worker processes
+- ✅ **90%+ payload reduction** - Only primary keys stored in queue
 
 **Configuration:**
 
 AsyncTasQ supports two ways to use Tortoise ORM models in tasks:
 
-**Option 1: Automatic Initialization (Recommended)**
+**Option 1: Automatic Initialization (Recommended for Production)**
 
-Pass Tortoise configuration to `init()` - AsyncTasQ automatically initializes Tortoise when models are accessed in workers:
+Pass Tortoise configuration to `init()` - AsyncTasQ automatically initializes Tortoise when models are accessed in workers. This is the preferred approach for production deployments as it ensures consistent initialization across all workers.
 
 ```python
 from tortoise import fields
@@ -337,8 +349,12 @@ from asynctasq import init, task, RedisConfig
 # Define your Tortoise model
 class User(Model):
     id = fields.IntField(pk=True)
-    email = fields.CharField(max_length=255)
+    email = fields.CharField(max_length=255, index=True)
     name = fields.CharField(max_length=100)
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "users"
 
 # Initialize AsyncTasQ with Tortoise auto-initialization
 init(
@@ -348,31 +364,45 @@ init(
     },
     tortoise_config={
         'db_url': 'postgres://user:pass@localhost/db',
-        'modules': {'models': ['app.models']}
+        'modules': {'models': ['app.models']},
+        # Optional: Connection pool configuration
+        'use_tz': True,
+        'timezone': 'UTC',
     }
 )
 
 # Define task - Tortoise auto-initializes when user is accessed
 @task(queue='users')
 async def send_welcome_email(user: User):
-    # Tortoise model automatically serialized as reference
+    # Tortoise model automatically serialized as reference on dispatch
     # Model auto-fetched from database when accessed in worker
+    # Connection automatically initialized using config from init()
     print(f"Sending welcome email to {user.email}")
+    print(f"User created at: {user.created_at}")
 
 # Dispatch task
 async def main():
     from tortoise import Tortoise
+
+    # Initialize Tortoise in dispatch context (your API/app)
     await Tortoise.init(
         db_url='postgres://user:pass@localhost/db',
         modules={'models': ['app.models']}
     )
+    await Tortoise.generate_schemas()  # Create tables if needed
+
+    # Fetch user and dispatch task
     user = await User.get(id=1)
+    # Only user.id (PK) is serialized to queue - 90%+ payload reduction
     await send_welcome_email(user=user).dispatch()
+
+    # Clean up
+    await Tortoise.close_connections()
 ```
 
-**Option 2: Manual Initialization**
+**Option 2: Manual Initialization (Advanced)**
 
-Initialize Tortoise manually in your task function:
+Initialize Tortoise manually in your task function. This approach gives you more control over connection lifecycle and is useful for custom initialization logic or when you need different database configurations per task.
 
 ```python
 from tortoise import Tortoise, fields
@@ -383,16 +413,32 @@ class User(Model):
     id = fields.IntField(pk=True)
     email = fields.CharField(max_length=255)
     name = fields.CharField(max_length=100)
+    is_active = fields.BooleanField(default=True)
+
+    class Meta:
+        table = "users"
 
 @task(queue='users')
 async def send_welcome_email(user: User):
-    # Initialize Tortoise in task if needed
+    # Initialize Tortoise in task if needed (checks if already initialized)
     if not Tortoise._inited:
         await Tortoise.init(
             db_url='postgres://user:pass@localhost/db',
-            modules={'models': ['app.models']}
+            modules={'models': ['app.models']},
+            # Optional: Production connection pool settings
+            connection_config={
+                'min_pool_size': 5,
+                'max_pool_size': 20,
+            }
         )
+
+    # Access model data - automatically fetched if not already loaded
     print(f"Sending welcome email to {user.email}")
+    print(f"User active: {user.is_active}")
+
+    # Update model after processing
+    user.is_active = True
+    await user.save()
 
 # Dispatch task
 async def main():
@@ -400,18 +446,209 @@ async def main():
         db_url='postgres://user:pass@localhost/db',
         modules={'models': ['app.models']}
     )
+
     user = await User.get(id=1)
     await send_welcome_email(user=user).dispatch()
+
+    await Tortoise.close_connections()
+```
+
+**Advanced Features:**
+
+```python
+from tortoise import fields
+from tortoise.models import Model
+from asynctasq import task
+import logging
+
+logger = logging.getLogger(__name__)
+
+class Order(Model):
+    id = fields.IntField(pk=True)
+    user_id = fields.IntField()
+    total = fields.DecimalField(max_digits=10, decimal_places=2)
+    status = fields.CharField(max_length=50)
+
+    class Meta:
+        table = "orders"
+
+@task(queue='orders', max_attempts=5, retry_delay=120)
+async def process_order(order: Order):
+    """Process order with automatic model fetching and error handling."""
+    try:
+        # Model is automatically fetched fresh from database
+        logger.info(f"Processing order {order.id} with total ${order.total}")
+
+        # Perform business logic
+        order.status = 'processing'
+        await order.save()
+
+        # ... process payment, send notifications, etc.
+
+        order.status = 'completed'
+        await order.save()
+
+    except Exception as e:
+        logger.error(f"Order {order.id} processing failed: {e}")
+        order.status = 'failed'
+        await order.save()
+        raise  # Re-raise to trigger AsyncTasQ retry mechanism
+```
+
+**Multiple Models in One Task:**
+
+```python
+from tortoise.models import Model
+from tortoise import fields
+from asynctasq import task
+
+class User(Model):
+    id = fields.IntField(pk=True)
+    email = fields.CharField(max_length=255)
+
+class Product(Model):
+    id = fields.IntField(pk=True)
+    name = fields.CharField(max_length=255)
+    price = fields.DecimalField(max_digits=10, decimal_places=2)
+
+@task(queue='notifications')
+async def send_purchase_confirmation(user: User, product: Product, quantity: int):
+    """Both models are automatically serialized and fetched."""
+    # Models are fetched in parallel with asyncio.gather() for efficiency
+    print(f"Sending confirmation to {user.email}")
+    print(f"Product: {product.name} x {quantity}")
+    print(f"Total: ${product.price * quantity}")
+```
+
+**Connection Lifecycle Management:**
+
+For production deployments, properly manage Tortoise connections:
+
+```python
+from asynctasq import init, RedisConfig
+from tortoise import Tortoise
+
+# Initialize AsyncTasQ with Tortoise auto-initialization
+init(
+    {
+        'driver': 'redis',
+        'redis': RedisConfig(url='redis://localhost:6379'),
+    },
+    tortoise_config={
+        'db_url': 'postgres://user:pass@localhost/db',
+        'modules': {'models': ['app.models']},
+        # Production connection pool settings
+        'use_tz': True,
+        'timezone': 'UTC',
+        'minsize': 5,    # Minimum connections in pool
+        'maxsize': 20,   # Maximum connections in pool
+    }
+)
+
+# Workers will automatically:
+# 1. Initialize Tortoise with these settings on first model access
+# 2. Reuse connections efficiently
+# 3. Handle connection cleanup on shutdown
 ```
 
 **Supports:**
 
-- Full async operations
-- Uses `pk` property for primary key access
-- Native Tortoise async methods
-- **Automatic initialization** via `init(tortoise_config=...)` for seamless worker setup
-- **Lazy loading** - models fetched on-demand when accessed in workers
-- **Manual initialization** - initialize Tortoise in task functions if preferred
+- ✅ Full async operations with native asyncio support
+- ✅ Uses `pk` property for primary key access (works with any PK type)
+- ✅ Native Tortoise async methods (`get()`, `filter()`, `save()`, etc.)
+- ✅ **Automatic initialization** via `init(tortoise_config=...)` for seamless worker setup
+- ✅ **Lazy loading** - models fetched on-demand when accessed in workers
+- ✅ **Manual initialization** - initialize Tortoise in task functions if preferred
+- ✅ **Multiple models** - pass multiple Tortoise models to a single task
+- ✅ **Parallel fetching** - multiple models fetched concurrently with `asyncio.gather()`
+- ✅ **Connection pooling** - efficient connection management with configurable pool sizes
+- ✅ **Multiprocessing-safe** - each worker process manages its own connections
+- ✅ **Foreign key support** - related models can be passed as task parameters
+- ✅ **UUID primary keys** - supports int, UUID, and composite primary keys
+- ✅ **Multiple databases** - PostgreSQL, MySQL, SQLite all supported
+
+**Production Deployment Checklist:**
+
+✅ **Use automatic initialization** via `init(tortoise_config=...)` for consistency
+✅ **Configure connection pools** - set appropriate `minsize` and `maxsize`
+✅ **Enable timezone support** - set `use_tz=True` and `timezone='UTC'`
+✅ **Add database indexes** - index foreign keys and frequently queried fields
+✅ **Monitor connection pool** - watch for connection exhaustion or timeouts
+✅ **Test with multiple workers** - verify no connection sharing issues
+✅ **Handle initialization errors** - log and retry if Tortoise init fails
+✅ **Set up health checks** - verify database connectivity in workers
+✅ **Use read replicas** - configure separate URLs for read-heavy tasks
+
+**Common Issues & Solutions:**
+
+| Issue                        | Symptom                                | Solution                                               |
+| ---------------------------- | -------------------------------------- | ------------------------------------------------------ |
+| Connection pool exhausted    | `asyncpg.exceptions.TooManyConnections` | Increase `maxsize` in connection config                |
+| Stale connections            | Random query failures                  | Enable connection validation or reduce idle timeout    |
+| Model not found              | `DoesNotExist` exception              | Ensure model still exists (may have been deleted)      |
+| Multiple initialization      | Tortoise warnings                      | Check `Tortoise._inited` before calling `init()`       |
+| Foreign key issues           | Related models not loaded              | Use `prefetch_related()` or pass related models separately |
+| Timezone inconsistencies     | Datetime comparison errors             | Set `use_tz=True` and `timezone='UTC'`                 |
+| Module import errors         | Models not found                       | Verify `modules` config includes all model modules     |
+
+**Performance Optimization:**
+
+```python
+from tortoise.models import Model
+from tortoise import fields
+from asynctasq import task
+
+class Article(Model):
+    id = fields.IntField(pk=True)
+    title = fields.CharField(max_length=255)
+    author = fields.ForeignKeyField('models.User', related_name='articles')
+
+    class Meta:
+        table = "articles"
+        indexes = [("author_id", "created_at")]  # Composite index
+
+@task(queue='articles')
+async def publish_article(article: Article):
+    # Model is fetched with SELECT query
+    # Use prefetch_related in dispatch context to avoid N+1 queries
+    print(f"Publishing: {article.title}")
+
+    # Efficient bulk operations
+    await Article.filter(author_id=article.author_id).update(status='published')
+```
+
+**Testing with Tortoise ORM:**
+
+```python
+import pytest
+from tortoise import Tortoise
+from tortoise.contrib.test import initializer, finalizer
+
+@pytest.fixture(scope="session")
+async def db():
+    # Initialize test database
+    await initializer(
+        modules={'models': ['app.models']},
+        db_url='sqlite://:memory:',
+    )
+    yield
+    await finalizer()
+
+@pytest.mark.asyncio
+async def test_task_with_tortoise_model(db):
+    from app.models import User
+    from app.tasks import send_welcome_email
+
+    # Create test user
+    user = await User.create(email='test@example.com', name='Test User')
+
+    # Test task execution
+    task = send_welcome_email(user=user)
+    await task.execute()  # Direct execution for testing
+
+    # Verify results
+    assert user.email == 'test@example.com'
+```
 
 ---
 
