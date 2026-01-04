@@ -25,11 +25,11 @@
 - A queue driver configured (Redis, PostgreSQL, MySQL, SQS, or RabbitMQ)
 - Workers running to execute tasks (see [Running Workers](#running-workers))
 
-**Note:** Example snippets use the project's event loop runner helper. Ibilities** of function-based tasks in AsyncTasQ. Everything you need is documented here - no need to visit other docs.
+This guide covers **all capabilities** of function-based tasks in AsyncTasQ. Everything you need is documented here - no need to visit other docs.
 
 Function-based tasks allow you to convert any Python function (async or sync) into a background task by simply adding the `@task` decorator. Tasks are automatically serialized, queued, and executed by workers.
 
-Note: Example snippets in this guide use the project's event loop runner helper. For runnable examples, import it as:
+**Note:** Example snippets in this guide use the project's event loop runner helper. For runnable examples, import it as:
 
 ```python
 from asynctasq import run
