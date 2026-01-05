@@ -1260,3 +1260,327 @@ class TestMsgspecSyncHookBranch:
         # The sync hook should have decoded the custom type
         assert isinstance(decoded["params"]["custom"], CustomValue)
         assert decoded["params"]["custom"].value == 42
+
+
+class TestMsgspecEncHookNotImplemented:
+    """Test enc_hook raises NotImplementedError for unsupported types."""
+
+    @pytest.fixture
+    def serializer(self) -> MsgspecSerializer:
+        return MsgspecSerializer()
+
+    def test_enc_hook_raises_for_unsupported_type(self, serializer: MsgspecSerializer) -> None:
+        """Test that enc_hook raises NotImplementedError for unknown types."""
+        from asynctasq.serializers.msgspec_serializer import _create_enc_hook
+
+        enc_hook = _create_enc_hook(serializer.registry)
+
+        # A type that's not in the registry
+        class UnsupportedType:
+            pass
+
+        with pytest.raises(NotImplementedError, match="Object of type .* is not serializable"):
+            enc_hook(UnsupportedType())
+
+
+class TestMsgspecExtHookUnknownCode:
+    """Test ext_hook raises NotImplementedError for unknown extension codes."""
+
+    @pytest.fixture
+    def serializer(self) -> MsgspecSerializer:
+        return MsgspecSerializer()
+
+    def test_ext_hook_raises_for_unknown_code(self, serializer: MsgspecSerializer) -> None:
+        """Test that ext_hook raises NotImplementedError for unknown ext codes."""
+        from asynctasq.serializers.msgspec_serializer import _create_ext_hook
+
+        ext_hook = _create_ext_hook(serializer.registry)
+
+        # Use an unknown extension code (99)
+        with pytest.raises(NotImplementedError, match="Extension type code 99 is not supported"):
+            ext_hook(99, memoryview(b"test"))
+
+
+class TestMsgspecListEncodingChanges:
+    """Test list encoding with first-change detection."""
+
+    @pytest.fixture
+    def serializer(self) -> MsgspecSerializer:
+        return MsgspecSerializer()
+
+    @pytest.mark.asyncio
+    async def test_list_with_first_item_changed(self, serializer: MsgspecSerializer) -> None:
+        """Test list processing when first item needs encoding."""
+        ts = datetime.now(UTC)
+        data: dict[str, list[Any]] = {"items": [ts, "plain", 123]}
+        encoded = serializer.serialize(data)
+        decoded = await serializer.deserialize(encoded)
+        assert decoded["items"][0] == ts
+        assert decoded["items"][1] == "plain"
+        assert decoded["items"][2] == 123
+
+    @pytest.mark.asyncio
+    async def test_list_with_middle_item_changed(self, serializer: MsgspecSerializer) -> None:
+        """Test list processing when middle item needs encoding."""
+        ts = datetime.now(UTC)
+        data: dict[str, list[Any]] = {"items": ["first", ts, "last"]}
+        encoded = serializer.serialize(data)
+        decoded = await serializer.deserialize(encoded)
+        assert decoded["items"][0] == "first"
+        assert decoded["items"][1] == ts
+        assert decoded["items"][2] == "last"
+
+    @pytest.mark.asyncio
+    async def test_list_with_multiple_items_changed(self, serializer: MsgspecSerializer) -> None:
+        """Test list processing when multiple items need encoding."""
+        ts1 = datetime(2025, 1, 1, 12, 0, 0)
+        ts2 = datetime(2025, 6, 15, 18, 30, 0)
+        data: dict[str, list[Any]] = {"items": [ts1, "middle", ts2]}
+        encoded = serializer.serialize(data)
+        decoded = await serializer.deserialize(encoded)
+        assert decoded["items"][0] == ts1
+        assert decoded["items"][1] == "middle"
+        assert decoded["items"][2] == ts2
+
+    @pytest.mark.asyncio
+    async def test_list_unchanged_returns_original(self, serializer: MsgspecSerializer) -> None:
+        """Test list returns original when no items need encoding."""
+        data: dict[str, list[Any]] = {"items": ["a", "b", "c", 1, 2, 3]}
+        encoded = serializer.serialize(data)
+        decoded = await serializer.deserialize(encoded)
+        assert decoded["items"] == ["a", "b", "c", 1, 2, 3]
+
+
+class TestMsgspecAsyncTypeDetection:
+    """Test async type detection paths."""
+
+    @pytest.fixture
+    def serializer(self) -> MsgspecSerializer:
+        return MsgspecSerializer()
+
+    def test_needs_async_with_nested_dict_in_list(self, serializer: MsgspecSerializer) -> None:
+        """Test async detection with dict inside list."""
+        from asynctasq.serializers.hooks import AsyncTypeHook
+
+        class DummyAsyncHook(AsyncTypeHook[str]):
+            type_key = "__async_test__"
+            priority = 10
+
+            def can_encode(self, obj: Any) -> bool:
+                return False
+
+            def encode(self, obj: str) -> dict[str, Any]:
+                return {self.type_key: obj}
+
+            async def decode_async(self, data: dict[str, Any]) -> str:
+                return data[self.type_key]
+
+        serializer.register_hook(DummyAsyncHook())
+
+        # Dict with async marker inside list
+        data = [{"__async_test__": "value"}]
+        assert serializer._needs_async_processing(data)
+
+    def test_needs_async_with_nested_list_in_list(self, serializer: MsgspecSerializer) -> None:
+        """Test async detection with nested list containing dict."""
+        from asynctasq.serializers.hooks import AsyncTypeHook
+
+        class DummyAsyncHook(AsyncTypeHook[str]):
+            type_key = "__async_nested__"
+            priority = 10
+
+            def can_encode(self, obj: Any) -> bool:
+                return False
+
+            def encode(self, obj: str) -> dict[str, Any]:
+                return {self.type_key: obj}
+
+            async def decode_async(self, data: dict[str, Any]) -> str:
+                return data[self.type_key]
+
+        serializer.register_hook(DummyAsyncHook())
+
+        # Nested list with async marker
+        data = [[{"__async_nested__": "value"}]]
+        assert serializer._needs_async_processing(data)
+
+    def test_needs_async_with_nested_tuple_in_dict_values(
+        self, serializer: MsgspecSerializer
+    ) -> None:
+        """Test async detection with tuple in dict values."""
+        from asynctasq.serializers.hooks import AsyncTypeHook
+
+        class DummyAsyncHook(AsyncTypeHook[str]):
+            type_key = "__async_tuple__"
+            priority = 10
+
+            def can_encode(self, obj: Any) -> bool:
+                return False
+
+            def encode(self, obj: str) -> dict[str, Any]:
+                return {self.type_key: obj}
+
+            async def decode_async(self, data: dict[str, Any]) -> str:
+                return data[self.type_key]
+
+        serializer.register_hook(DummyAsyncHook())
+
+        # Tuple with async marker inside dict
+        data = {"outer": ({"__async_tuple__": "value"},)}
+        assert serializer._needs_async_processing(data)
+
+    def test_needs_async_empty_markers_fast_path(self, serializer: MsgspecSerializer) -> None:
+        """Test _needs_async_processing returns False when no async markers."""
+        # Default serializer has ORM hooks registered
+        # Create new one without async hooks
+        from asynctasq.serializers.hooks import HookRegistry
+
+        empty_registry = HookRegistry()
+        new_serializer = MsgspecSerializer(empty_registry)
+
+        data = {"key": {"nested": "value"}}
+        assert new_serializer._needs_async_processing(data) is False
+
+
+class TestMsgspecDecodeAsyncPaths:
+    """Test async decode implementation paths."""
+
+    @pytest.fixture
+    def serializer(self) -> MsgspecSerializer:
+        return MsgspecSerializer()
+
+    @pytest.mark.asyncio
+    async def test_decode_async_with_single_task(self, serializer: MsgspecSerializer) -> None:
+        """Test decode_async with exactly one async task (avoids gather overhead)."""
+        from asynctasq.serializers.hooks import AsyncTypeHook
+
+        class SingleAsyncHook(AsyncTypeHook[str]):
+            type_key = "__single_async__"
+            priority = 100
+
+            def can_encode(self, obj: Any) -> bool:
+                return False
+
+            def encode(self, obj: str) -> dict[str, Any]:
+                return {self.type_key: obj}
+
+            async def decode_async(self, data: dict[str, Any]) -> str:
+                return f"decoded: {data[self.type_key]}"
+
+        serializer.register_hook(SingleAsyncHook())
+
+        # Must use 'params' key - deserialize only does async processing on params
+        data: dict[str, Any] = {"params": {"item": {"__single_async__": "value"}}}
+        encoded = serializer.serialize(data)
+        decoded = await serializer.deserialize(encoded)
+
+        assert decoded["params"]["item"] == "decoded: value"
+
+    @pytest.mark.asyncio
+    async def test_decode_async_with_multiple_tasks(self, serializer: MsgspecSerializer) -> None:
+        """Test decode_async with multiple async tasks (uses gather)."""
+        from asynctasq.serializers.hooks import AsyncTypeHook
+
+        class MultiAsyncHook(AsyncTypeHook[str]):
+            type_key = "__multi_async__"
+            priority = 100
+
+            def can_encode(self, obj: Any) -> bool:
+                return False
+
+            def encode(self, obj: str) -> dict[str, Any]:
+                return {self.type_key: obj}
+
+            async def decode_async(self, data: dict[str, Any]) -> str:
+                return f"decoded: {data[self.type_key]}"
+
+        serializer.register_hook(MultiAsyncHook())
+
+        # Must use 'params' key - deserialize only does async processing on params
+        data: dict[str, Any] = {
+            "params": {
+                "item1": {"__multi_async__": "first"},
+                "item2": {"__multi_async__": "second"},
+                "item3": {"__multi_async__": "third"},
+            }
+        }
+        encoded = serializer.serialize(data)
+        decoded = await serializer.deserialize(encoded)
+
+        assert decoded["params"]["item1"] == "decoded: first"
+        assert decoded["params"]["item2"] == "decoded: second"
+        assert decoded["params"]["item3"] == "decoded: third"
+
+    @pytest.mark.asyncio
+    async def test_decode_async_tuple_handling(self, serializer: MsgspecSerializer) -> None:
+        """Test decode_async handles tuples properly."""
+        from asynctasq.serializers.hooks import AsyncTypeHook
+
+        class TupleAsyncHook(AsyncTypeHook[str]):
+            type_key = "__tuple_async__"
+            priority = 100
+
+            def can_encode(self, obj: Any) -> bool:
+                return False
+
+            def encode(self, obj: str) -> dict[str, Any]:
+                return {self.type_key: obj}
+
+            async def decode_async(self, data: dict[str, Any]) -> str:
+                return f"decoded: {data[self.type_key]}"
+
+        serializer.register_hook(TupleAsyncHook())
+
+        # Must use 'params' key - deserialize only does async processing on params
+        # Use list (tuples get converted to lists in msgpack)
+        data: dict[str, Any] = {"params": {"items": [{"__tuple_async__": "value"}, "plain"]}}
+        encoded = serializer.serialize(data)
+        decoded = await serializer.deserialize(encoded)
+
+        assert decoded["params"]["items"][0] == "decoded: value"
+        assert decoded["params"]["items"][1] == "plain"
+
+
+class TestMsgspecDecodeSyncTypesPaths:
+    """Test _decode_sync_types edge cases."""
+
+    @pytest.fixture
+    def serializer(self) -> MsgspecSerializer:
+        return MsgspecSerializer()
+
+    @pytest.mark.asyncio
+    async def test_decode_sync_types_tuple_handling(self, serializer: MsgspecSerializer) -> None:
+        """Test _decode_sync_types handles tuples."""
+        # Note: tuples become lists in msgpack, so we test tuple-like structures
+        ts = datetime.now(UTC)
+        data: dict[str, list[Any]] = {"items": [ts, "label"]}
+        encoded = serializer.serialize(data)
+        decoded = await serializer.deserialize(encoded)
+        assert decoded["items"][0] == ts
+        assert decoded["items"][1] == "label"
+
+    @pytest.mark.asyncio
+    async def test_decode_sync_types_dict_first_key_change(
+        self, serializer: MsgspecSerializer
+    ) -> None:
+        """Test dict processing where first key value changes."""
+        ts = datetime.now(UTC)
+        data: dict[str, Any] = {"first": ts, "second": "unchanged", "third": 123}
+        encoded = serializer.serialize(data)
+        decoded = await serializer.deserialize(encoded)
+        assert decoded["first"] == ts
+        assert decoded["second"] == "unchanged"
+        assert decoded["third"] == 123
+
+    @pytest.mark.asyncio
+    async def test_decode_sync_types_dict_middle_key_change(
+        self, serializer: MsgspecSerializer
+    ) -> None:
+        """Test dict processing where middle key value changes."""
+        ts = datetime.now(UTC)
+        data: dict[str, Any] = {"first": "unchanged", "second": ts, "third": 123}
+        encoded = serializer.serialize(data)
+        decoded = await serializer.deserialize(encoded)
+        assert decoded["first"] == "unchanged"
+        assert decoded["second"] == ts
+        assert decoded["third"] == 123

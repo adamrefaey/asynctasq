@@ -609,3 +609,318 @@ class TestHookRegistryEdgeCases:
         registry.clear()
 
         assert len(registry._hooks) == 0
+
+
+@mark.unit
+class TestSerializationPipelineAdvanced:
+    """Advanced tests for SerializationPipeline to cover missing lines."""
+
+    def test_encode_tuple_structures(self) -> None:
+        """Test encode handles tuple structures correctly."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        data = {"coords": (datetime(2025, 1, 1), Decimal("1.5"), "label")}
+        result = pipeline.encode(data)
+
+        # Tuples are converted to tuples during encode
+        assert isinstance(result["coords"], tuple)
+        assert result["coords"][0] == {"__datetime__": "2025-01-01T00:00:00"}
+        assert result["coords"][1] == {"__decimal__": "1.5"}
+        assert result["coords"][2] == "label"
+
+    def test_decode_tuple_in_list(self) -> None:
+        """Test decode handles tuples inside lists."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        data = {
+            "items": [
+                ("point", {"__datetime__": "2025-01-01T00:00:00"}),
+                {"nested": {"__decimal__": "9.99"}},
+            ]
+        }
+        result = pipeline.decode(data)
+
+        assert isinstance(result["items"][0], tuple)
+        assert result["items"][0][1] == datetime(2025, 1, 1)
+        assert result["items"][1]["nested"] == Decimal("9.99")
+
+    def test_decode_async_hook_passthrough_in_sync_decode(self) -> None:
+        """Test that async hooks pass through during sync decode."""
+        registry = HookRegistry()
+        registry.register(AsyncCustomHook())
+        pipeline = SerializationPipeline(registry)
+
+        data = {"item": {"__async_custom__": {"id": 42}}}
+        result = pipeline.decode(data)
+
+        # Async hook data should pass through unchanged
+        assert result == data
+
+    @mark.asyncio
+    async def test_decode_async_fast_path_when_no_async_needed(self) -> None:
+        """Test decode_async uses fast path when no async processing needed."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        data = {
+            "timestamp": {"__datetime__": "2025-01-01T12:00:00"},
+            "amount": {"__decimal__": "123.45"},
+        }
+        # Should use fast sync path since no async hooks
+        result = await pipeline.decode_async(data)
+        assert result["timestamp"] == datetime(2025, 1, 1, 12, 0, 0)
+        assert result["amount"] == Decimal("123.45")
+
+    @mark.asyncio
+    async def test_decode_async_with_deeply_nested_async_hooks(self) -> None:
+        """Test decode_async handles deeply nested async hooks."""
+        registry = HookRegistry()
+        registry.register(AsyncCustomHook())
+        registry.register(DatetimeHook())
+        pipeline = SerializationPipeline(registry)
+
+        data = {
+            "level1": {
+                "level2": {
+                    "level3": [
+                        {"__async_custom__": {"id": 1}},
+                        {"__async_custom__": {"id": 2}},
+                    ]
+                }
+            }
+        }
+        result = await pipeline.decode_async(data)
+        assert isinstance(result["level1"]["level2"]["level3"][0], AsyncCustomType)
+        assert result["level1"]["level2"]["level3"][0].id == 1
+        assert result["level1"]["level2"]["level3"][1].id == 2
+
+    @mark.asyncio
+    async def test_decode_async_impl_with_tuple_containing_async(self) -> None:
+        """Test _decode_async_impl handles tuples containing async hooks."""
+        registry = HookRegistry()
+        registry.register(AsyncCustomHook())
+        pipeline = SerializationPipeline(registry)
+
+        data = {"pair": ({"__async_custom__": {"id": 1}}, {"__async_custom__": {"id": 2}})}
+        result = await pipeline.decode_async(data)
+        assert isinstance(result["pair"], tuple)
+        assert isinstance(result["pair"][0], AsyncCustomType)
+        assert isinstance(result["pair"][1], AsyncCustomType)
+
+    def test_needs_async_processing_with_empty_dict(self) -> None:
+        """Test _needs_async_processing returns False for empty dict."""
+        registry = HookRegistry()
+        registry.register(AsyncCustomHook())
+        pipeline = SerializationPipeline(registry)
+
+        assert pipeline._needs_async_processing({}) is False
+
+    def test_needs_async_processing_with_nested_list_in_dict(self) -> None:
+        """Test _needs_async_processing checks nested lists in dicts."""
+        registry = HookRegistry()
+        registry.register(AsyncCustomHook())
+        pipeline = SerializationPipeline(registry)
+
+        data = {"items": [{"__async_custom__": {"id": 1}}]}
+        assert pipeline._needs_async_processing(data) is True
+
+    def test_needs_async_processing_with_nested_tuple_in_list(self) -> None:
+        """Test _needs_async_processing checks tuples inside lists."""
+        registry = HookRegistry()
+        registry.register(AsyncCustomHook())
+        pipeline = SerializationPipeline(registry)
+
+        data = [([{"__async_custom__": {"id": 1}}],)]
+        assert pipeline._needs_async_processing(data) is True
+
+    def test_needs_async_processing_with_primitive_values(self) -> None:
+        """Test _needs_async_processing returns False for primitives only."""
+        registry = HookRegistry()
+        registry.register(AsyncCustomHook())
+        pipeline = SerializationPipeline(registry)
+
+        assert pipeline._needs_async_processing({"a": 1, "b": "test"}) is False
+        assert pipeline._needs_async_processing([1, 2, 3]) is False
+        assert pipeline._needs_async_processing("string") is False
+        assert pipeline._needs_async_processing(None) is False
+
+    def test_decode_sync_fast_with_none(self) -> None:
+        """Test _decode_sync_fast handles None values."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        result = pipeline._decode_sync_fast(None)
+        assert result is None
+
+    def test_decode_sync_fast_with_primitives(self) -> None:
+        """Test _decode_sync_fast handles primitive types."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        # All primitives should pass through unchanged
+        assert pipeline._decode_sync_fast(True) is True
+        assert pipeline._decode_sync_fast(False) is False
+        assert pipeline._decode_sync_fast(42) == 42
+        assert pipeline._decode_sync_fast(3.14) == 3.14
+        assert pipeline._decode_sync_fast("test") == "test"
+        assert pipeline._decode_sync_fast(b"bytes") == b"bytes"
+
+    def test_decode_sync_fast_dict_no_changes(self) -> None:
+        """Test _decode_sync_fast returns same dict when no changes needed."""
+        registry = HookRegistry()  # Empty registry
+        pipeline = SerializationPipeline(registry)
+
+        data = {"a": 1, "b": 2}
+        result = pipeline._decode_sync_fast(data)
+        assert result is data  # Same object reference
+
+    def test_decode_sync_fast_dict_with_changes(self) -> None:
+        """Test _decode_sync_fast creates new dict when changes needed."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        data = {"a": 1, "ts": {"__datetime__": "2025-01-01T00:00:00"}}
+        result = pipeline._decode_sync_fast(data)
+        assert result is not data  # New object
+        assert result["ts"] == datetime(2025, 1, 1)
+        assert result["a"] == 1
+
+    def test_decode_sync_fast_list_no_changes(self) -> None:
+        """Test _decode_sync_fast returns same list when no changes needed."""
+        registry = HookRegistry()  # Empty registry
+        pipeline = SerializationPipeline(registry)
+
+        data = [1, 2, 3]
+        result = pipeline._decode_sync_fast(data)
+        assert result is data  # Same object reference
+
+    def test_decode_sync_fast_list_with_changes(self) -> None:
+        """Test _decode_sync_fast creates new list when changes needed."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        data = [1, {"__datetime__": "2025-01-01T00:00:00"}, 3]
+        result = pipeline._decode_sync_fast(data)
+        assert result is not data  # New object
+        assert result[1] == datetime(2025, 1, 1)
+
+    def test_decode_sync_fast_tuple_handling(self) -> None:
+        """Test _decode_sync_fast converts tuples with processed items."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        data = ({"__datetime__": "2025-01-01T00:00:00"}, "label")
+        result = pipeline._decode_sync_fast(data)
+        assert isinstance(result, tuple)
+        assert result[0] == datetime(2025, 1, 1)
+        assert result[1] == "label"
+
+    def test_decode_sync_fast_unknown_type(self) -> None:
+        """Test _decode_sync_fast returns unknown types unchanged."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        class CustomClass:
+            pass
+
+        obj = CustomClass()
+        result = pipeline._decode_sync_fast(obj)
+        assert result is obj
+
+    @mark.asyncio
+    async def test_decode_async_impl_dict_with_sync_hook(self) -> None:
+        """Test _decode_async_impl uses sync hook when available."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        data = {"ts": {"__datetime__": "2025-01-01T00:00:00"}}
+        result = await pipeline._decode_async_impl(data)
+        assert result["ts"] == datetime(2025, 1, 1)
+
+    @mark.asyncio
+    async def test_decode_async_impl_list_with_mixed_items(self) -> None:
+        """Test _decode_async_impl handles lists with mixed item types."""
+        registry = create_default_registry()
+        registry.register(AsyncCustomHook())
+        pipeline = SerializationPipeline(registry)
+
+        data = [
+            {"__datetime__": "2025-01-01T00:00:00"},
+            {"__async_custom__": {"id": 1}},
+            "plain_string",
+        ]
+        result = await pipeline._decode_async_impl(data)
+        assert result[0] == datetime(2025, 1, 1)
+        assert isinstance(result[1], AsyncCustomType)
+        assert result[2] == "plain_string"
+
+    @mark.asyncio
+    async def test_decode_async_impl_tuple_handling(self) -> None:
+        """Test _decode_async_impl handles tuple conversion."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        data = ({"__datetime__": "2025-01-01T00:00:00"}, "label")
+        result = await pipeline._decode_async_impl(data)
+        assert isinstance(result, tuple)
+        assert result[0] == datetime(2025, 1, 1)
+
+    @mark.asyncio
+    async def test_decode_async_impl_returns_primitive(self) -> None:
+        """Test _decode_async_impl returns primitives unchanged."""
+        registry = create_default_registry()
+        pipeline = SerializationPipeline(registry)
+
+        assert await pipeline._decode_async_impl(42) == 42
+        assert await pipeline._decode_async_impl("test") == "test"
+        assert await pipeline._decode_async_impl(None) is None
+
+
+@mark.unit
+class TestHookRegistryUnregister:
+    """Tests for HookRegistry unregister functionality."""
+
+    def test_unregister_async_hook(self) -> None:
+        """Test unregistering an async hook."""
+        registry = HookRegistry()
+        hook = AsyncCustomHook()
+        registry.register(hook)
+
+        # Verify registered
+        assert len(registry._async_hooks) == 1
+
+        # Unregister
+        removed = registry.unregister("__async_custom__")
+        assert removed is hook
+        assert len(registry._async_hooks) == 0
+
+    def test_unregister_nonexistent_hook_returns_none(self) -> None:
+        """Test unregistering non-existent hook returns None."""
+        registry = HookRegistry()
+        result = registry.unregister("__nonexistent__")
+        assert result is None
+
+
+@mark.unit
+class TestPipelineWithCustomRegistry:
+    """Test SerializationPipeline with custom registries."""
+
+    def test_pipeline_with_none_registry_uses_default(self) -> None:
+        """Test pipeline uses default registry when None passed."""
+        pipeline = SerializationPipeline(None)
+        # Should have default hooks
+        assert pipeline.registry.find_encoder(datetime.now()) is not None
+
+    def test_pipeline_with_empty_registry(self) -> None:
+        """Test pipeline with empty registry works for primitives."""
+        registry = HookRegistry()
+        pipeline = SerializationPipeline(registry)
+
+        data = {"name": "test", "count": 42}
+        result = pipeline.encode(data)
+        assert result == data
+
+        decoded = pipeline.decode(result)
+        assert decoded == data

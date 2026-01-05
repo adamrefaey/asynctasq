@@ -413,6 +413,23 @@ class TestTaskSerializerMainModule:
         # since SimpleAsyncTask is from the test module
         assert original_module.encode() in serialized
 
+    @mark.asyncio
+    async def test_serialize_task_from_asynctasq_main_module(self) -> None:
+        """Test that __asynctasq_main_ prefix is normalized to __main__."""
+        from unittest.mock import patch
+
+        serializer = TaskSerializer(MsgspecSerializer())
+        task = SimpleAsyncTask("asynctasq-main-test")
+        task._task_id = "asynctasq-main-task"
+
+        # Patch the module name to simulate __asynctasq_main_ module
+        with patch.object(task.__class__, "__module__", "__asynctasq_main_12345__"):
+            serialized = serializer.serialize(task)
+
+        # Assert - module name should be normalized to __main__
+        assert b"__main__.SimpleAsyncTask" in serialized
+        assert b"__asynctasq_main_" not in serialized
+
 
 if __name__ == "__main__":
     main([__file__, "-s", "-m", "unit"])
