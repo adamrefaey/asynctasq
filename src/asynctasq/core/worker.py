@@ -16,6 +16,7 @@ from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.drivers.retry_utils import calculate_retry_delay
 from asynctasq.monitoring import EventRegistry, EventType, TaskEvent, WorkerEvent
 from asynctasq.serializers import BaseSerializer
+from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
 from asynctasq.tasks import BaseTask
 from asynctasq.tasks.services.executor import TaskExecutor
 from asynctasq.tasks.services.serializer import TaskSerializer
@@ -60,7 +61,7 @@ class Worker:
         self.concurrency = concurrency
         self.max_tasks = max_tasks  # None = continuous operation, N = stop after N tasks
         # Use serializer from config if not provided
-        self.serializer = serializer or self._create_default_serializer()
+        self.serializer = serializer or MsgspecSerializer()
         # Worker uses global event emitters via EventRegistry.emit()
         self.event_emitter = None
         self.worker_id = worker_id or f"worker-{uuid.uuid4().hex[:8]}"
@@ -76,15 +77,6 @@ class Worker:
         self._heartbeat_task: asyncio.Task[None] | None = None
         self._task_serializer = TaskSerializer(self.serializer)
         self._task_executor = TaskExecutor()
-
-    def _create_default_serializer(self) -> BaseSerializer:
-        """Create the default serializer based on config.
-
-        Returns:
-            Serializer instance based on config.serializer setting
-        """
-        config = Config.get()
-        return config.create_serializer()
 
     def _display_startup_banner(self) -> None:
         """Display a beautiful startup banner with worker configuration."""

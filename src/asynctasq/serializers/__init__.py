@@ -8,7 +8,7 @@ Hook System:
     See :mod:`asynctasq.serializers.hooks` for details.
 
 Example:
-    >>> from asynctasq.serializers import MsgpackSerializer
+    >>> from asynctasq.serializers import MsgspecSerializer
     >>> from asynctasq.serializers.hooks import TypeHook
     >>>
     >>> class MyTypeHook(TypeHook[MyType]):
@@ -17,7 +17,7 @@ Example:
     ...     def encode(self, obj): return {self.type_key: obj.to_dict()}
     ...     def decode(self, data): return MyType.from_dict(data[self.type_key])
     >>>
-    >>> serializer = MsgpackSerializer()
+    >>> serializer = MsgspecSerializer()
     >>> serializer.register_hook(MyTypeHook())
 """
 
@@ -39,13 +39,11 @@ from .hooks import (
     create_worker_session_factory,
     register_orm_hooks,
 )
-from .msgpack_serializer import MsgpackSerializer
 from .msgspec_serializer import MsgspecSerializer
 
 __all__ = [
     # Core
     "BaseSerializer",
-    "MsgpackSerializer",
     "MsgspecSerializer",
     # Hook System
     "TypeHook",

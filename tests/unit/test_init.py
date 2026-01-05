@@ -312,10 +312,10 @@ class TestExports:
 
     def test_serializers_exported(self):
         """Test serializer classes are exported."""
-        from asynctasq import BaseSerializer, MsgpackSerializer, TypeHook
+        from asynctasq import BaseSerializer, MsgspecSerializer, TypeHook
 
         assert BaseSerializer is not None
-        assert MsgpackSerializer is not None
+        assert MsgspecSerializer is not None
         assert TypeHook is not None
 
     def test_utils_exported(self):

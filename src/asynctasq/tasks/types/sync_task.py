@@ -95,7 +95,7 @@ class SyncTask[T](BaseTask[T]):
         Notes
         -----
         - This method runs in a thread pool worker, not the main event loop
-        - The return value must be msgpack-serializable
+        - The return value must be serializable
         - Avoid CPU-intensive operations; use SyncProcessTask for those
         - Thread-safe operations only (or use proper locking)
         - Exceptions raised here will trigger retry logic based on task configuration

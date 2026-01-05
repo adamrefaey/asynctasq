@@ -654,14 +654,14 @@ async def test_task_with_tortoise_model(db):
 
 ## Custom Type Support
 
-In addition to ORM models, msgpack serializer handles these Python types automatically:
+In addition to ORM models, the serializer handles these Python types automatically:
 
 - `datetime` → ISO format string
 - `date` → ISO format string
 - `Decimal` → String representation
 - `UUID` → String representation
 - `set` → List (converted back to set on deserialization)
-- `bytes` → Binary msgpack encoding (efficient)
+- `bytes` → Binary encoding (efficient)
 
 **Example:**
 

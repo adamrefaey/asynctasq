@@ -5,7 +5,7 @@ from dataclasses import asdict
 import logging
 from typing import TYPE_CHECKING
 
-import msgpack
+from msgspec import msgpack
 from rich.console import Console
 
 from asynctasq.config import Config
@@ -181,7 +181,7 @@ class LoggingEventEmitter(EventEmitter):
 class RedisEventEmitter(EventEmitter):
     """Publishes events to Redis Pub/Sub for monitor consumption.
 
-    Uses msgpack for efficient serialization (matches existing serializers).
+    Uses msgspec for efficient serialization (matches existing serializers).
     Lazy initialization prevents import-time side effects.
 
     Configuration:
@@ -228,7 +228,7 @@ class RedisEventEmitter(EventEmitter):
             self._client = Redis.from_url(self.redis_url, decode_responses=False)
 
     def _serialize_event(self, event: TaskEvent | WorkerEvent) -> bytes:
-        """Serialize an event to msgpack bytes.
+        """Serialize an event to msgpack bytes using msgspec.
 
         Converts the frozen dataclass to a dict with JSON-serializable values:
         - EventType enum → string value
@@ -243,10 +243,7 @@ class RedisEventEmitter(EventEmitter):
         if "queues" in event_dict and isinstance(event_dict["queues"], tuple):
             event_dict["queues"] = list(event_dict["queues"])
 
-        result = msgpack.packb(event_dict, use_bin_type=True)
-        if result is None:
-            raise ValueError("msgpack.packb returned None")
-        return result
+        return msgpack.encode(event_dict)
 
     async def emit(self, event: TaskEvent | WorkerEvent) -> None:
         """Publish an event to Redis Pub/Sub."""

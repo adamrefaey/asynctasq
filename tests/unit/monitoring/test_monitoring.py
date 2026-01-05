@@ -17,7 +17,7 @@ from asynctasq.core.models import QueueStats, TaskInfo, WorkerInfo
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.monitoring import MonitoringService
 from asynctasq.serializers.base_serializer import BaseSerializer
-from asynctasq.serializers.msgpack_serializer import MsgpackSerializer
+from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
 
 
 @mark.unit
@@ -319,7 +319,7 @@ class TestMonitoringServiceTaskDelegation:
     async def test_get_running_task_infos_returns_task_info_models(self) -> None:
         # Arrange
         mock_driver = MagicMock(spec=BaseDriver)
-        serializer = MsgpackSerializer()
+        serializer = MsgspecSerializer()
 
         # Create a properly serialized task
         task_data = {
@@ -377,7 +377,7 @@ class TestMonitoringServiceTaskDelegation:
     async def test_get_task_info_by_id_returns_task_info(self) -> None:
         # Arrange
         mock_driver = MagicMock(spec=BaseDriver)
-        serializer = MsgpackSerializer()
+        serializer = MsgspecSerializer()
 
         # Create a properly serialized task
         task_data = {

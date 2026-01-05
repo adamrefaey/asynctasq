@@ -68,7 +68,7 @@ class AsyncProcessTask[T](BaseTask[T]):
 
     Notes
     -----
-    - All task parameters and return values must be msgpack-serializable
+    - All task parameters and return values must be serializable
     - Process pool is shared across tasks for efficiency
     - Warm event loops reduce overhead compared to creating new loops per task
     """
@@ -149,7 +149,7 @@ class AsyncProcessTask[T](BaseTask[T]):
         Notes
         -----
         - This method runs in a subprocess, not the main process
-        - All arguments and return values must be msgpack-serializable
+        - All arguments and return values must be serializable
         - Use async/await for any I/O operations within the CPU-bound work
         - The subprocess has its own event loop for async operations
         - Exceptions raised here will trigger retry logic based on task configuration

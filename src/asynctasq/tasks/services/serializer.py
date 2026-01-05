@@ -6,8 +6,8 @@ from datetime import datetime
 import inspect
 from typing import TYPE_CHECKING
 
-from asynctasq.config import Config
 from asynctasq.serializers.base_serializer import BaseSerializer
+from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
 from asynctasq.tasks.core.task_config import TaskConfig
 from asynctasq.tasks.services.function_resolver import FunctionResolver
 from asynctasq.tasks.services.task_info_converter import TaskInfoConverter
@@ -25,8 +25,8 @@ class TaskSerializer:
     """
 
     def __init__(self, serializer: BaseSerializer | None = None) -> None:
-        """Initialize with optional custom serializer (defaults to config-based serializer)."""
-        self.serializer = serializer or Config.get().create_serializer()
+        """Initialize with optional custom serializer (defaults to MsgspecSerializer)."""
+        self.serializer = serializer or MsgspecSerializer()
         self._task_info_converter = TaskInfoConverter(self.serializer)
         self._function_resolver = FunctionResolver()
 

@@ -147,44 +147,6 @@ class TestConfigSingleton:
         assert config.redis.url == "redis://test:6379"
 
 
-class TestSerializerConfig:
-    """Test serializer configuration and factory method."""
-
-    def test_default_serializer_is_msgspec(self):
-        """Test that default serializer is msgspec."""
-        Config._instance = None
-        config = Config()
-        assert config.serializer == "msgspec"
-
-    def test_create_serializer_msgspec(self):
-        """Test create_serializer returns MsgspecSerializer when configured."""
-        from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
-
-        config = Config(serializer="msgspec")
-        serializer = config.create_serializer()
-        assert isinstance(serializer, MsgspecSerializer)
-
-    def test_create_serializer_msgpack(self):
-        """Test create_serializer returns MsgpackSerializer when configured."""
-        from asynctasq.serializers.msgpack_serializer import MsgpackSerializer
-
-        config = Config(serializer="msgpack")
-        serializer = config.create_serializer()
-        assert isinstance(serializer, MsgpackSerializer)
-
-    def test_invalid_serializer_raises_error(self):
-        """Test that invalid serializer value raises validation error."""
-        with pytest.raises((ValueError, ValidationError)):
-            Config(serializer="invalid")  # type: ignore[arg-type]
-
-    def test_serializer_config_via_set(self):
-        """Test setting serializer via Config.set()."""
-        Config._instance = None
-        Config.set(serializer="msgpack")
-        config = Config.get()
-        assert config.serializer == "msgpack"
-
-
 class TestConfigGroupDefaults:
     """Test that config groups are initialized with defaults."""
 

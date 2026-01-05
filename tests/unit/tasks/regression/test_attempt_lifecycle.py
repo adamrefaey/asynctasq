@@ -15,7 +15,7 @@ from pytest import main, mark
 
 from asynctasq.core.worker import Worker
 from asynctasq.drivers.base_driver import BaseDriver
-from asynctasq.serializers import MsgpackSerializer
+from asynctasq.serializers import MsgspecSerializer
 from asynctasq.tasks.core.base_task import BaseTask
 from asynctasq.tasks.services.executor import TaskExecutor
 from asynctasq.tasks.services.serializer import TaskSerializer
@@ -136,7 +136,7 @@ async def test_attempt_lifecycle_reenqueue_and_final_failure(
     """
     # Arrange
     driver = DummyDriver()
-    serializer = MsgpackSerializer()
+    serializer = MsgspecSerializer()
     worker = Worker(queue_driver=driver, queues=["default"], concurrency=1, serializer=serializer)
     task_serializer = TaskSerializer(serializer)
 

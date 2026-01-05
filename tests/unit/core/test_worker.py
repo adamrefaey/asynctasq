@@ -78,7 +78,7 @@ class TestWorkerInitialization:
         assert worker.queues == ["default"]
         assert worker.concurrency == 10
         assert worker.max_tasks is None
-        # MsgspecSerializer is the default since it's 2-5x faster than MsgpackSerializer
+        # MsgspecSerializer is the default serializer
         from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
 
         assert isinstance(worker.serializer, MsgspecSerializer)
@@ -111,7 +111,7 @@ class TestWorkerInitialization:
         worker = Worker(queue_driver=mock_driver, serializer=None)
 
         # Assert
-        # MsgspecSerializer is the default since it's 2-5x faster than MsgpackSerializer
+        # MsgspecSerializer is the default serializer
         from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
 
         assert isinstance(worker.serializer, MsgspecSerializer)

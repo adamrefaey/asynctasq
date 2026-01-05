@@ -53,7 +53,6 @@ from asynctasq.serializers import (
     DecimalHook,
     DjangoOrmHook,
     HookRegistry,
-    MsgpackSerializer,
     MsgspecSerializer,
     SerializationPipeline,
     SetHook,
@@ -330,7 +329,6 @@ __all__ = [
     "MonitoringService",
     # Serialization
     "BaseSerializer",
-    "MsgpackSerializer",
     "MsgspecSerializer",
     "TypeHook",
     "AsyncTypeHook",

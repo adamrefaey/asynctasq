@@ -107,7 +107,7 @@ if __name__ == "__main__":
 | `queues`                           | `list[str]`      | `["default"]`       | Queue names to process (priority order)           |
 | `concurrency`                      | `int`            | `10`                | Maximum concurrent tasks                          |
 | `max_tasks`                        | `int \| None`    | `None`              | Process N tasks then exit (None = run forever)    |
-| `serializer`                       | `BaseSerializer` | `MsgpackSerializer` | Custom serializer                                 |
+| `serializer`                       | `BaseSerializer` | `MsgspecSerializer` | Custom serializer                                 |
 | `worker_id`                        | `str \| None`    | auto                | Custom worker identifier (auto-generated if None) |
 | `heartbeat_interval`               | `float`          | `60.0`              | Seconds between heartbeat events                  |
 | `process_pool_size`                | `int \| None`    | `None`              | Process pool size for CPU-bound tasks             |

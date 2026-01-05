@@ -573,14 +573,14 @@ class TestRedisDriverWithRealRedis:
         for Redis driver because they require deserialization to find task IDs.
         These operations should be done through TaskService instead.
         """
-        import msgpack
+        from msgspec import msgpack
 
         # Arrange - create pending and processing items with msgpack-serialized data
         id36 = "i" * 36
         task_pending = {"task_id": id36, "task_name": "pending_task"}
         task_processing = {"task_id": id36, "task_name": "processing_task"}
-        raw_pending: bytes = msgpack.packb(task_pending)  # type: ignore[assignment]
-        raw_processing: bytes = msgpack.packb(task_processing)  # type: ignore[assignment]
+        raw_pending: bytes = msgpack.encode(task_pending)
+        raw_processing: bytes = msgpack.encode(task_processing)
         await maybe_await(redis_client.lpush("queue:q", raw_pending))
         await maybe_await(redis_client.lpush("queue:q:processing", raw_processing))
 

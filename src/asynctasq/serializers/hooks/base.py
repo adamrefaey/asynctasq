@@ -362,7 +362,7 @@ class SerializationPipeline:
         if isinstance(obj, dict):
             return {key: self.encode(value) for key, value in obj.items()}
 
-        # Return primitives as-is (will be handled by msgpack)
+        # Return primitives as-is (will be handled by the serializer)
         return obj
 
     def decode(self, obj: Any) -> Any:

@@ -49,7 +49,7 @@ class BaseDriver(ABC):
 
         Args:
             queue_name: Name of the queue
-            task_data: Serialized task data (msgpack bytes)
+            task_data: Serialized task data (bytes)
             delay_seconds: Optional delay before task becomes visible (default: 0)
             current_attempt: Current attempt number for the task (default: 0)
             visibility_timeout: Crash recovery timeout in seconds (default: 3600)
@@ -261,7 +261,7 @@ class BaseDriver(ABC):
             Tuple of (list of (raw_bytes, queue_name, status), total_count)
 
         Note:
-            The raw bytes are msgpack-serialized task dicts. Consumers
+            The raw bytes are serialized task dicts. Consumers
             should use a serializer to deserialize them.
         """
         pass
@@ -275,7 +275,7 @@ class BaseDriver(ABC):
             task_id: Task UUID
 
         Returns:
-            Raw msgpack bytes or None if not found
+            Raw serialized bytes or None if not found
 
         Implementation Notes:
             - Use primary key lookup (fast)

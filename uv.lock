@@ -312,7 +312,6 @@ name = "asynctasq"
 version = "1.4.1"
 source = { editable = "." }
 dependencies = [
-    { name = "msgpack" },
     { name = "msgspec" },
     { name = "pydantic-settings" },
     { name = "rich" },
@@ -402,7 +401,6 @@ requires-dist = [
     { name = "django", marker = "extra == 'django'", specifier = ">=5.0" },
     { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.109.0" },
     { name = "greenlet", marker = "extra == 'sqlalchemy'", specifier = ">=3.0.0" },
-    { name = "msgpack", specifier = ">=1.0.7" },
     { name = "msgspec", specifier = ">=0.18.0" },
     { name = "psycopg2-binary", marker = "extra == 'django'", specifier = ">=2.9.9" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },

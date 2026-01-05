@@ -326,7 +326,7 @@ def process_large_dataset(data: list[float]):
 
 ✅ CPU utilization > 80% (verified with profiling)
 ✅ Task duration > 100ms (amortizes process overhead)
-✅ All arguments and return values are serializable (msgpack-compatible)
+✅ All arguments and return values are serializable
 ✅ Heavy computation: NumPy, Pandas, ML inference, video encoding, encryption
 
 ❌ Don't use for I/O-bound tasks (use default `process=False`)
@@ -509,7 +509,7 @@ async def process_video_async(video_path: str) -> dict:
 - Async I/O support within subprocess
 - Best for ML inference with async preprocessing
 
-**Important:** All arguments and return values must be serializable (msgpack-compatible).
+**Important:** All arguments and return values must be serializable.
 
 ### Mode 4: SyncProcessTask (Sync + `process=True`)
 

@@ -9,6 +9,7 @@ from asynctasq.drivers import DriverType
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.monitoring import EventRegistry, EventType, TaskEvent
 from asynctasq.serializers import BaseSerializer
+from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
 from asynctasq.tasks.services.serializer import TaskSerializer
 
 from .driver_factory import DriverFactory
@@ -38,7 +39,7 @@ class Dispatcher:
         event_emitter: None = None,
     ) -> None:
         self.driver = driver
-        self.serializer = serializer or Config.get().create_serializer()
+        self.serializer = serializer or MsgspecSerializer()
         # Dispatcher no longer stores an emitter instance; global emitters are used
         self.event_emitter = None
         self._driver_cache: dict[str, BaseDriver] = {}  # Cache for driver overrides

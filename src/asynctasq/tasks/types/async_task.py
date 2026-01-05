@@ -94,7 +94,7 @@ class AsyncTask[T](BaseTask[T]):
         Notes
         -----
         - Use async/await for all I/O operations to avoid blocking the event loop
-        - The return value must be msgpack-serializable
+        - The return value must be serializable
         - Exceptions raised here will trigger retry logic based on task configuration
         - This method is automatically wrapped with timeout enforcement if configured
         """

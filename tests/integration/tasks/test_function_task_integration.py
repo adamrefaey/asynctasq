@@ -9,7 +9,7 @@ import pytest_asyncio
 
 from asynctasq.core.dispatcher import Dispatcher
 from asynctasq.drivers.redis_driver import RedisDriver
-from asynctasq.serializers.msgpack_serializer import MsgpackSerializer
+from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
 from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManager
 from asynctasq.tasks.types.function_task import FunctionTask, task
 
@@ -125,7 +125,7 @@ async def redis_driver(manager):
 @pytest_asyncio.fixture
 async def dispatcher(redis_driver):
     """Create dispatcher with Redis driver."""
-    serializer = MsgpackSerializer()
+    serializer = MsgspecSerializer()
     return Dispatcher(driver=redis_driver, serializer=serializer)
 
 

@@ -54,12 +54,12 @@ def _sync_process_task_worker(serialized_task: bytes) -> Any:
     """Worker function for executing SyncProcessTask in subprocess.
 
     This function is defined at module level so it can be pickled by multiprocessing.
-    It deserializes the task using msgpack and executes it in the subprocess.
+    It deserializes the task and executes it in the subprocess.
 
     Parameters
     ----------
     serialized_task : bytes
-        The msgpack-serialized task data
+        The serialized task data
 
     Returns
     -------
@@ -90,7 +90,7 @@ async def execute_in_process_sync[T](sync_callable: Callable[[], T]) -> T:
     ----------
     sync_callable : Callable[[], T]
         A zero-argument synchronous function to execute in a subprocess.
-        Must be picklable and its return value must be msgpack-serializable.
+        Must be picklable and its return value must be serializable.
 
     Returns
     -------

@@ -71,7 +71,7 @@ class SyncProcessTask[T](BaseTask[T]):
 
     Notes
     -----
-    - All task parameters and return values must be msgpack-serializable
+    - All task parameters and return values must be serializable
     - The execute() method runs in a subprocess, not the main process
     - Shared state (globals, files) must be handled carefully with multiprocessing
     """
@@ -94,7 +94,7 @@ class SyncProcessTask[T](BaseTask[T]):
         from asynctasq.tasks.services.serializer import TaskSerializer
         from asynctasq.tasks.utils.execution_helpers import _sync_process_task_worker
 
-        # Serialize this task instance using msgpack
+        # Serialize this task instance
         serializer = TaskSerializer()
         serialized_task = serializer.serialize(self)
 
@@ -121,7 +121,7 @@ class SyncProcessTask[T](BaseTask[T]):
         Notes
         -----
         - This method runs in a subprocess, not the main process or thread pool
-        - All arguments and return values must be msgpack-serializable
+        - All arguments and return values must be serializable
         - Use this for pure CPU-bound synchronous code
         - The subprocess runs independently and cannot access main process state
         - Exceptions raised here will trigger retry logic based on task configuration

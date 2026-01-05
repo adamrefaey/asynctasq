@@ -1,7 +1,7 @@
 """Built-in type hooks for common Python types.
 
 This module provides hooks for serializing/deserializing common Python types
-that msgpack doesn't handle natively: datetime, date, Decimal, UUID, and set.
+that need special handling: datetime, date, Decimal, UUID, and set.
 """
 
 from datetime import date, datetime

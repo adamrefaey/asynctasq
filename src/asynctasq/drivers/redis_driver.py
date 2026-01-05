@@ -442,7 +442,7 @@ class RedisDriver(BaseDriver):
     ) -> tuple[list[tuple[bytes, str, str]], int]:
         """Return raw serialized task bytes with queue and status metadata.
 
-        Returns raw msgpack bytes as stored in Redis, allowing the caller
+        Returns raw serialized bytes as stored in Redis, allowing the caller
         to deserialize using the appropriate serializer.
         """
         if self.client is None:
