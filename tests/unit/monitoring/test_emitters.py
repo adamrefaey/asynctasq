@@ -706,7 +706,7 @@ class TestRedisEventEmitterSerialization:
     """Test Redis event emitter serialization edge cases."""
 
     def test_serialize_event_msgpack_none_handling(self) -> None:
-        """Test _serialize_event when msgpack.packb returns None."""
+        """Test _serialize_event when msgpack.encode returns None."""
         from unittest.mock import patch
 
         emitter = RedisEventEmitter()
@@ -720,7 +720,7 @@ class TestRedisEventEmitterSerialization:
             attempt=1,
         )
 
-        with patch("msgpack.packb", return_value=None):
+        with patch("asynctasq.monitoring.emitters.msgpack.encode", return_value=None):
             with raises(ValueError, match="msgpack.packb returned None"):
                 emitter._serialize_event(event)
 

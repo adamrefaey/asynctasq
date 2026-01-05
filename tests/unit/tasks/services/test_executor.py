@@ -164,6 +164,33 @@ class TestTaskExecutor:
         assert task.config.get("timeout") == 10
 
     @mark.asyncio
+    async def test_execute_with_timeout_zero_uses_no_timeout(self) -> None:
+        """Verify timeout=0 (falsy but explicitly passed) doesn't use config timeout."""
+        # Arrange
+        executor = TaskExecutor()
+
+        class TaskWithConfigTimeout(AsyncTask[str]):
+            config: TaskConfig = {"timeout": 0.001}  # Very short config timeout
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.executed = False
+
+            async def execute(self) -> str:
+                # This would timeout if config timeout was used
+                await asyncio.sleep(0.01)
+                self.executed = True
+                return "done"
+
+        task = TaskWithConfigTimeout()
+
+        # Act - timeout=0 means "no timeout", should NOT fallback to config
+        await executor.execute(task, timeout=0)
+
+        # Assert - task completed because timeout=0 meant no timeout
+        assert task.executed is True
+
+    @mark.asyncio
     async def test_execute_raises_timeout_error(self) -> None:
         # Arrange
         executor = TaskExecutor()
@@ -250,7 +277,7 @@ class TestTaskExecutor:
     @mark.asyncio
     async def test_handle_failed_calls_task_failed_hook(self) -> None:
         # Arrange
-        await reset_failed_hook_error_count()  # Reset counter
+        reset_failed_hook_error_count()  # Reset counter
         executor = TaskExecutor()
 
         class FailedHookTask(AsyncTask[str]):
@@ -279,7 +306,7 @@ class TestTaskExecutor:
     @mark.asyncio
     async def test_handle_failed_logs_hook_errors(self) -> None:
         # Arrange
-        await reset_failed_hook_error_count()
+        reset_failed_hook_error_count()
         executor = TaskExecutor()
 
         class BrokenFailedHookTask(AsyncTask[str]):
@@ -296,7 +323,7 @@ class TestTaskExecutor:
         await executor.handle_failed(task, exception)
 
         # Assert
-        count = await get_failed_hook_error_count()
+        count = get_failed_hook_error_count()
         assert count == 1  # Error was counted
 
     @mark.asyncio
@@ -401,7 +428,7 @@ class TestTaskExecutor:
     @mark.asyncio
     async def test_get_and_reset_failed_hook_error_count(self) -> None:
         # Arrange
-        await reset_failed_hook_error_count()
+        reset_failed_hook_error_count()
         executor = TaskExecutor()
 
         class BrokenHookTask(AsyncTask[str]):
@@ -414,9 +441,9 @@ class TestTaskExecutor:
         # Act
         await executor.handle_failed(BrokenHookTask(), RuntimeError("err1"))
         await executor.handle_failed(BrokenHookTask(), RuntimeError("err2"))
-        count_before = await get_failed_hook_error_count()
-        await reset_failed_hook_error_count()
-        count_after = await get_failed_hook_error_count()
+        count_before = get_failed_hook_error_count()
+        reset_failed_hook_error_count()
+        count_after = get_failed_hook_error_count()
 
         # Assert
         assert count_before == 2

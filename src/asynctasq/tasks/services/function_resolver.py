@@ -1,26 +1,45 @@
-"""Function reference resolution for FunctionTask deserialization."""
+"""Function reference resolution for FunctionTask deserialization.
+
+Performance-optimized for high-throughput task execution.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Callable
-import hashlib
 import importlib.util
 import logging
 from pathlib import Path
 import sys
-from typing import Any
+from typing import Any, Final
 
 logger = logging.getLogger(__name__)
+
+# Pre-compute constant for fast module name generation
+_MODULE_PREFIX: Final[str] = "__asynctasq_main_"
+_MODULE_SUFFIX: Final[str] = "__"
+
+# Fast counter for unique module names (no hashing needed)
+_module_counter: int = 0
 
 
 class FunctionResolver:
     """Resolves function references from module paths for FunctionTask deserialization.
 
     Caches loaded modules to avoid re-executing module-level code on repeated imports.
+
+    Performance optimizations:
+    - Fast counter-based module naming instead of SHA256 hashing
+    - Cache key normalization done once per lookup
+    - Minimized Path operations
+    - Reduced logging overhead
     """
 
-    # Cache for loaded __main__ modules: {file_path: module}
+    __slots__ = ()
+
+    # Cache for loaded modules: {absolute_file_path: module}
     _module_cache: dict[str, Any] = {}
+    # Reverse cache: {absolute_file_path: internal_module_name} for sys.modules lookup
+    _name_cache: dict[str, str] = {}
 
     @classmethod
     def get_module(cls, module_name: str, module_file: str | None = None) -> Any:
@@ -37,179 +56,161 @@ class FunctionResolver:
             ImportError: If module cannot be loaded
             FileNotFoundError: If __main__ file doesn't exist
         """
-        if module_name == "__main__":
-            if not module_file:
-                raise ImportError("Cannot import from __main__ (missing module_file)")
+        # Fast path: non-__main__ modules (most common case)
+        if module_name != "__main__":
+            return cls._get_regular_module(module_name, module_file)
 
-            main_file = Path(module_file)
-            if not main_file.exists():
-                raise FileNotFoundError(f"Cannot import from __main__ ({main_file} does not exist)")
+        # __main__ module handling
+        if not module_file:
+            raise ImportError("Cannot import from __main__ (missing module_file)")
 
-            # Use absolute path as cache key for consistency
-            cache_key = str(main_file.resolve())
+        # Normalize path once and use as cache key
+        cache_key = str(Path(module_file).resolve())
 
-            # Check cache first to avoid re-executing module
-            if cache_key in cls._module_cache:
-                return cls._module_cache[cache_key]
+        # Fast cache check
+        cached = cls._module_cache.get(cache_key)
+        if cached is not None:
+            return cached
 
-            # Generate stable, unique module name using file path hash
-            # This prevents if __name__ == "__main__" blocks from executing
-            path_hash = hashlib.sha256(cache_key.encode()).hexdigest()[:16]
-            internal_module_name = f"__asynctasq_main_{path_hash}__"
+        # Check if we already have a module name for this file
+        internal_module_name = cls._name_cache.get(cache_key)
+        if internal_module_name is not None:
+            # Check sys.modules (handles edge case of external loading)
+            existing = sys.modules.get(internal_module_name)
+            if existing is not None:
+                cls._module_cache[cache_key] = existing
+                return existing
 
-            # Check if module was already loaded in a previous run (edge case)
-            if internal_module_name in sys.modules:
-                func_module = sys.modules[internal_module_name]
-                cls._module_cache[cache_key] = func_module
-                logger.debug(f"Found existing module {internal_module_name} in sys.modules")
-                return func_module
+        # Generate new unique module name using fast counter
+        global _module_counter
+        _module_counter += 1
+        internal_module_name = f"{_MODULE_PREFIX}{_module_counter}{_MODULE_SUFFIX}"
+        cls._name_cache[cache_key] = internal_module_name
 
-            spec = importlib.util.spec_from_file_location(internal_module_name, main_file)
-            if spec is None or spec.loader is None:
-                raise ImportError(f"Failed to load spec for {main_file}")
+        # Load module from file
+        main_file = Path(module_file)
+        if not main_file.exists():
+            raise FileNotFoundError(f"Cannot import from __main__ ({main_file} does not exist)")
 
-            func_module = importlib.util.module_from_spec(spec)
+        return cls._load_module_from_file(main_file, internal_module_name, cache_key, is_main=True)
 
-            # Add to sys.modules before exec to support relative imports
-            sys.modules[internal_module_name] = func_module
+    @classmethod
+    def _get_regular_module(cls, module_name: str, module_file: str | None) -> Any:
+        """Get non-__main__ module (optimized hot path)."""
+        # Try standard import first (most common case)
+        try:
+            return __import__(module_name, fromlist=["__name__"])
+        except ModuleNotFoundError:
+            pass
 
-            # Temporarily patch Django settings to suppress "already configured" errors
-            # This allows user modules to load even if they call settings.configure()
-            # when settings are already configured
-            django_patched = False
-            original_configure = None
+        # Module not in path - try loading from file if available
+        if not module_file:
+            raise ModuleNotFoundError(f"No module named '{module_name}'")
 
-            try:
-                # Check if Django is imported and patch the LazySettings class directly
-                if "django" in sys.modules and "django.conf" in sys.modules:
-                    import django.conf
+        module_path = Path(module_file)
+        if not module_path.exists():
+            raise FileNotFoundError(
+                f"Cannot import module {module_name} ({module_path} does not exist)"
+            )
 
-                    # Get the LazySettings class (not an instance)
-                    LazySettings = type(django.conf.settings)
+        # Use absolute path as cache key
+        cache_key = str(module_path.resolve())
 
-                    # Save original configure method
-                    original_configure = LazySettings.configure
+        # Fast cache check
+        cached = cls._module_cache.get(cache_key)
+        if cached is not None:
+            return cached
 
-                    def patched_configure(self: Any, *args: Any, **kwargs: Any) -> None:
-                        """Patched configure that silently ignores 'already configured' errors."""
-                        try:
-                            original_configure(self, *args, **kwargs)
-                        except RuntimeError as e:
-                            if "Settings already configured" in str(e):
-                                # Silently ignore - settings are already configured
-                                logger.debug(
-                                    f"Suppressed 'Settings already configured' error while loading {main_file}"
-                                )
-                                return
-                            else:
-                                raise
+        # Check sys.modules
+        existing = sys.modules.get(module_name)
+        if existing is not None:
+            cls._module_cache[cache_key] = existing
+            return existing
 
-                    # Patch the class method, not the instance method
-                    LazySettings.configure = patched_configure  # type: ignore[method-assign]
-                    django_patched = True
-                    logger.debug(f"Patched Django LazySettings.configure for loading {main_file}")
-            except (ImportError, AttributeError) as e:
-                # Django not available or couldn't patch - continue without patching
-                logger.debug(f"Could not patch Django settings: {e}")
-                pass
+        return cls._load_module_from_file(module_path, module_name, cache_key, is_main=False)
 
-            try:
-                spec.loader.exec_module(func_module)
-                # Cache successfully loaded module
-                cls._module_cache[cache_key] = func_module
-                logger.debug(f"Loaded and cached module {internal_module_name} from {main_file}")
-                return func_module
-            except RuntimeError as e:
-                error_msg = str(e)
+    @classmethod
+    def _load_module_from_file(
+        cls,
+        file_path: Path,
+        module_name: str,
+        cache_key: str,
+        *,
+        is_main: bool,
+    ) -> Any:
+        """Load module from file path (shared logic for main and regular modules)."""
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Failed to load spec for {file_path}")
 
-                # Handle asyncio.run() at module level - this is fatal
-                if "cannot be called from a running event loop" in error_msg:
-                    sys.modules.pop(internal_module_name, None)
-                    logger.error(
-                        f"Module {main_file} contains asyncio.run() at module level. "
-                        f"This conflicts with the worker's event loop. "
-                        f"Ensure asyncio.run() is inside 'if __name__ == \"__main__\":' block."
-                    )
-                    raise
+        func_module = importlib.util.module_from_spec(spec)
 
-                # Unknown RuntimeError - clean up and re-raise
-                sys.modules.pop(internal_module_name, None)
-                raise
-            except Exception as e:
-                # Clean up on failure
-                sys.modules.pop(internal_module_name, None)
-                logger.exception(f"Failed to execute module {main_file}: {e}")
-                raise
-            finally:
-                # Restore original Django settings.configure if it was patched
-                if django_patched and original_configure is not None:
-                    try:
-                        import django.conf
+        # Add to sys.modules before exec to support relative imports
+        sys.modules[module_name] = func_module
 
-                        LazySettings = type(django.conf.settings)
-                        LazySettings.configure = original_configure  # type: ignore[method-assign]
-                        logger.debug(
-                            f"Restored original Django LazySettings.configure after loading {main_file}"
-                        )
-                    except (ImportError, AttributeError) as e:
-                        logger.debug(f"Could not restore Django settings: {e}")
-                        pass
-        else:
-            # For non-__main__ modules, first try standard import
-            # If that fails and we have a module_file, load from file
-            try:
-                return __import__(module_name, fromlist=["__name__"])
-            except ModuleNotFoundError:
-                if module_file:
-                    # Module not in path, but we have a file - load it directly
-                    logger.debug(
-                        f"Module {module_name} not in Python path, loading from {module_file}"
-                    )
-                    module_path = Path(module_file)
-                    if not module_path.exists():
-                        raise FileNotFoundError(
-                            f"Cannot import module {module_name} ({module_path} does not exist)"
-                        ) from None
+        # Django patching for __main__ modules only
+        django_state = None
+        if is_main:
+            django_state = cls._patch_django_if_needed(file_path)
 
-                    # Use absolute path as cache key
-                    cache_key = str(module_path.resolve())
-                    if cache_key in cls._module_cache:
-                        return cls._module_cache[cache_key]
+        try:
+            spec.loader.exec_module(func_module)
+            cls._module_cache[cache_key] = func_module
+            return func_module
+        except RuntimeError as e:
+            sys.modules.pop(module_name, None)
+            error_msg = str(e)
+            if "cannot be called from a running event loop" in error_msg:
+                logger.error(
+                    f"Module {file_path} contains asyncio.run() at module level. "
+                    f"Ensure asyncio.run() is inside 'if __name__ == \"__main__\":' block."
+                )
+            raise
+        except ModuleNotFoundError as e:
+            sys.modules.pop(module_name, None)
+            raise ImportError(
+                f"Module {module_name} loaded from {file_path} has missing "
+                f"dependencies: {e.name}. Ensure all required packages are installed."
+            ) from e
+        except Exception:
+            sys.modules.pop(module_name, None)
+            raise
+        finally:
+            if django_state is not None:
+                cls._restore_django(django_state)
 
-                    # Load module from file with its original module name
-                    # Check if already loaded
-                    if module_name in sys.modules:
-                        loaded_module = sys.modules[module_name]
-                        cls._module_cache[cache_key] = loaded_module
-                        return loaded_module
+    @classmethod
+    def _patch_django_if_needed(cls, file_path: Path) -> tuple[Any, Any] | None:
+        """Patch Django settings.configure if Django is loaded."""
+        if "django.conf" not in sys.modules:
+            return None
 
-                    spec = importlib.util.spec_from_file_location(module_name, module_path)
-                    if spec is None or spec.loader is None:
-                        raise ImportError(f"Failed to load spec for {module_path}") from None
+        try:
+            import django.conf
 
-                    loaded_module = importlib.util.module_from_spec(spec)
-                    sys.modules[module_name] = loaded_module
+            LazySettings = type(django.conf.settings)
+            original_configure = LazySettings.configure
 
-                    try:
-                        spec.loader.exec_module(loaded_module)
-                        cls._module_cache[cache_key] = loaded_module
-                        logger.debug(f"Loaded module {module_name} from {module_path}")
-                        return loaded_module
-                    except ModuleNotFoundError as e:
-                        # Module file exists but has missing dependencies
-                        sys.modules.pop(module_name, None)
-                        raise ImportError(
-                            f"Module {module_name} loaded from {module_path} has missing "
-                            f"dependencies: {e.name}. Ensure all required packages are installed "
-                            f"in the worker environment."
-                        ) from e
-                    except Exception as e:
-                        sys.modules.pop(module_name, None)
-                        logger.exception(f"Failed to execute module {module_path}: {e}")
+            def patched_configure(self: Any, *args: Any, **kwargs: Any) -> None:
+                try:
+                    original_configure(self, *args, **kwargs)
+                except RuntimeError as e:
+                    if "Settings already configured" not in str(e):
                         raise
-                else:
-                    # No file path provided, re-raise the original error
-                    raise
+
+            LazySettings.configure = patched_configure  # type: ignore[method-assign]
+            return (LazySettings, original_configure)
+        except (ImportError, AttributeError):
+            return None
+
+    @classmethod
+    def _restore_django(cls, state: tuple[Any, Any]) -> None:
+        """Restore original Django settings.configure."""
+        try:
+            LazySettings, original_configure = state
+            LazySettings.configure = original_configure  # type: ignore[method-assign]
+        except (ImportError, AttributeError):
+            pass
 
     @classmethod
     def get_function_reference(
@@ -232,19 +233,12 @@ class FunctionResolver:
         func_module = cls.get_module(func_module_name, func_file)
         func_attr = getattr(func_module, func_name)
 
-        # If it's a TaskFunctionWrapper, unwrap it to get the actual function
-        # This happens when deserializing a @task decorated function
-        if hasattr(func_attr, "__wrapped__"):
-            return func_attr.__wrapped__
-
-        return func_attr
+        # Unwrap TaskFunctionWrapper if present (faster than hasattr + getattr)
+        wrapped = getattr(func_attr, "__wrapped__", None)
+        return wrapped if wrapped is not None else func_attr
 
     @classmethod
     def clear_cache(cls) -> None:
-        """Clear the module cache.
-
-        Useful for testing or when module files have been modified.
-        Note: This only clears the internal cache, not sys.modules.
-        """
+        """Clear the module cache."""
         cls._module_cache.clear()
-        logger.debug("Cleared function resolver module cache")
+        cls._name_cache.clear()

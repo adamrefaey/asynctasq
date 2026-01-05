@@ -1333,8 +1333,8 @@ class TestWorkerDeserializeTask:
         mock_serializer.deserialize.return_value = task_data
 
         # Act & Assert
-        # rsplit(".", 1) will return ["InvalidClassFormat", ""] which will cause issues
-        with raises((ValueError, AttributeError)):
+        # Class path without dot separator should raise ValueError with descriptive message
+        with raises(ValueError, match="Invalid class path format"):
             await worker._deserialize_task(b"serialized_data")
 
     @mark.asyncio

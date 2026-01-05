@@ -227,33 +227,24 @@ class TestFunctionResolver:
             Path(temp_file).unlink()
 
     def test_get_module_main_existing_in_sys_modules(self):
-        """Test get_module when module already exists in sys.modules."""
+        """Test get_module caching behavior for __main__ modules."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("TEST_VAR = 'existing'\n")
             temp_file = f.name
 
-        internal_module_name = None
         try:
-            # Simulate module already in sys.modules
-            mock_module = MagicMock()
-            mock_module.TEST_VAR = "existing"
+            # First call loads the module
+            FunctionResolver.clear_cache()
+            module1 = FunctionResolver.get_module("__main__", temp_file)
+            assert module1.TEST_VAR == "existing"
 
-            # Generate the internal module name that would be used
-            cache_key = str(Path(temp_file).resolve())
-            path_hash = __import__("hashlib").sha256(cache_key.encode()).hexdigest()[:16]
-            internal_module_name = f"__asynctasq_main_{path_hash}__"
-
-            sys.modules[internal_module_name] = mock_module
-
-            module = FunctionResolver.get_module("__main__", temp_file)
-
-            assert module is mock_module
+            # Second call returns cached module (same identity)
+            module2 = FunctionResolver.get_module("__main__", temp_file)
+            assert module2 is module1
 
         finally:
             Path(temp_file).unlink()
-            # Clean up sys.modules
-            if internal_module_name:
-                sys.modules.pop(internal_module_name, None)
+            FunctionResolver.clear_cache()
 
     def test_get_function_reference_regular_module(self):
         """Test get_function_reference with regular module."""

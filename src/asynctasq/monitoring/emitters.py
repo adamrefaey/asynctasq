@@ -243,7 +243,10 @@ class RedisEventEmitter(EventEmitter):
         if "queues" in event_dict and isinstance(event_dict["queues"], tuple):
             event_dict["queues"] = list(event_dict["queues"])
 
-        return msgpack.encode(event_dict)
+        result = msgpack.encode(event_dict)
+        if result is None:
+            raise ValueError("msgpack.packb returned None")
+        return result
 
     async def emit(self, event: TaskEvent | WorkerEvent) -> None:
         """Publish an event to Redis Pub/Sub."""

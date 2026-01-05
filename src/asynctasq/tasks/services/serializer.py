@@ -1,14 +1,16 @@
-"""Task serialization and deserialization (bytes ↔ BaseTask)."""
+"""Task serialization and deserialization (bytes ↔ BaseTask).
+
+Performance-optimized for high-throughput task processing.
+"""
 
 from __future__ import annotations
 
 from datetime import datetime
 import inspect
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from asynctasq.serializers.base_serializer import BaseSerializer
 from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
-from asynctasq.tasks.core.task_config import TaskConfig
 from asynctasq.tasks.services.function_resolver import FunctionResolver
 from asynctasq.tasks.services.task_info_converter import TaskInfoConverter
 from asynctasq.tasks.utils.type_guards import is_function_task_class, is_function_task_instance
@@ -21,7 +23,14 @@ if TYPE_CHECKING:
 class TaskSerializer:
     """Task serializer (BaseTask ↔ bytes).
 
-    Delegates TaskInfo conversion to TaskInfoConverter and function resolution to FunctionResolver.
+    Performance optimizations:
+    - Uses centralized type guards from type_guards module
+    - Minimized dict operations
+    - Reduced attribute access overhead
+    - Optimized deserialization path
+
+    Note: Does not use __slots__ to allow instance attribute patching in tests.
+    Memory overhead is negligible as TaskSerializer is typically instantiated once per worker.
     """
 
     def __init__(self, serializer: BaseSerializer | None = None) -> None:
@@ -36,107 +45,90 @@ class TaskSerializer:
         Returns:
             Serialized task data
         """
-        # Filter out private/internal attributes (those starting with _)
-        # Also filter callables and config since they're handled separately
-        params = {
-            key: value
-            for key, value in task.__dict__.items()
-            if not key.startswith("_") and not callable(value) and key != "config"
-        }
+        task_dict = task.__dict__
+        config = task.config
 
-        # For FunctionTask, store func reference in params for now
-        # They'll be moved to metadata below
-        func_module = None
-        func_name = None
-        func_file = None
-        if is_function_task_instance(task):
+        # Build params dict - filter private attributes and non-serializable items
+        params: dict[str, Any] = {}
+        for key, value in task_dict.items():
+            if key[0] != "_" and not callable(value) and key != "config":
+                params[key] = value
+
+        # FunctionTask-specific handling
+        func_module: str | None = None
+        func_name: str | None = None
+        func_file: str | None = None
+        is_function_task = is_function_task_instance(task)
+
+        if is_function_task:
             func = task.func  # type: ignore[attr-defined]
             func_module = func.__module__
             func_name = func.__name__
-            # Always store func_file to support modules not in Python path
-            # This allows workers to load the module from file if import fails
-            try:
-                func_file = func.__code__.co_filename
-            except AttributeError:
-                # Built-in or C extension functions don't have __code__
-                pass
 
-            # IMPORTANT: For FunctionTask, individual kwargs are stored as instance attributes
-            # (e.g., self.user = user_value) but they're also in self.kwargs.
-            # We only want them serialized ONCE in kwargs, not duplicated as top-level params.
-            # Remove individual kwargs from params to avoid duplication during deserialization.
+            # Get func_file if available
+            code = getattr(func, "__code__", None)
+            if code is not None:
+                func_file = code.co_filename
+
+            # Remove duplicated kwargs from params
             task_kwargs = task.kwargs  # type: ignore[attr-defined]
-            for kwarg_key in task_kwargs.keys():
+            for kwarg_key in task_kwargs:
                 params.pop(kwarg_key, None)
 
-            # Now add args and kwargs explicitly
+            # Add args/kwargs, remove non-serializable items
             params["args"] = task.args  # type: ignore[attr-defined]
             params["kwargs"] = task_kwargs
-
-            # Remove func and use_process from params since we can't/don't need to serialize them
             params.pop("func", None)
             params.pop("_use_process", None)
 
-        # Build metadata
-        metadata = {
+        # Build metadata dict
+        dispatched_at = task._dispatched_at
+        metadata: dict[str, Any] = {
             "task_id": task._task_id,
             "current_attempt": task._current_attempt,
-            "dispatched_at": task._dispatched_at.isoformat() if task._dispatched_at else None,
-            "queue": task.config.get("queue"),
-            "max_attempts": task.config.get("max_attempts"),
-            "retry_delay": task.config.get("retry_delay"),
-            "timeout": task.config.get("timeout"),
-            "visibility_timeout": task.config.get("visibility_timeout"),
+            "dispatched_at": dispatched_at.isoformat() if dispatched_at else None,
+            "queue": config.get("queue"),
+            "max_attempts": config.get("max_attempts"),
+            "retry_delay": config.get("retry_delay"),
+            "timeout": config.get("timeout"),
+            "visibility_timeout": config.get("visibility_timeout"),
         }
 
-        # Add FunctionTask-specific metadata
-        if is_function_task_instance(task):
+        # Add FunctionTask metadata
+        if is_function_task:
             metadata["func_module"] = func_module
             metadata["func_name"] = func_name
             if func_file:
                 metadata["func_file"] = func_file
 
-        # Determine class path for serialization
-        # For __main__ modules (including dynamically loaded ones), normalize to __main__
+        # Normalize module name for __main__ modules
         module_name = task.__class__.__module__
         if module_name.startswith("__asynctasq_main_"):
-            # This was loaded from a __main__ file, use __main__ for serialization
             module_name = "__main__"
 
-        # Build serialization dict
-        task_dict = {
+        # Build final task dict
+        task_data: dict[str, Any] = {
             "class": f"{module_name}.{task.__class__.__name__}",
             "params": params,
             "metadata": metadata,
         }
 
-        # Store the class file path for reliable deserialization
-        # This helps when modules aren't in the worker's Python path
-        # First try to use the stored original class file (for re-serialization)
+        # Add class file for reliable deserialization
         original_file = getattr(task, "_original_class_file", None)
         if original_file:
-            task_dict["class_file"] = original_file
+            task_data["class_file"] = original_file
         else:
-            # Otherwise try to get it from inspect
             try:
                 class_file = inspect.getfile(task.__class__)
-                # Only store if it's a real file (not built-in or C extension)
-                if class_file and not class_file.startswith("<"):
-                    task_dict["class_file"] = class_file
+                if class_file and class_file[0] != "<":
+                    task_data["class_file"] = class_file
             except (TypeError, OSError):
-                # If we can't get the file, that's okay for standard library/installed packages
                 pass
 
-        # Serialize to bytes
-        return self.serializer.serialize(task_dict)
+        return self.serializer.serialize(task_data)
 
     async def deserialize(self, task_data: bytes) -> BaseTask:
         """Deserialize bytes to task instance.
-
-        NOTE: This method is async because it calls self.serializer.deserialize() which
-        handles async operations (e.g., ORM model fetching via async hooks). While the
-        task reconstruction itself is synchronous (class import, instantiation, metadata
-        restoration), the underlying serializer may perform async I/O operations.
 
         Returns:
             Task ready for execution
@@ -148,62 +140,70 @@ class TaskSerializer:
         # Deserialize bytes to dict
         task_dict = await self.serializer.deserialize(task_data)
 
-        # Extract components
-        class_path = task_dict["class"]
-        params = task_dict["params"]
-        metadata = task_dict["metadata"]
-        class_file = task_dict.get("class_file")
+        # Extract components (single dict access)
+        class_path: str = task_dict["class"]
+        params: dict[str, Any] = task_dict["params"]
+        metadata: dict[str, Any] = task_dict["metadata"]
+        class_file: str | None = task_dict.get("class_file")
 
-        # Import and instantiate task class
-        module_name, class_name = class_path.rsplit(".", 1)
+        # Parse class path - validate format first
+        last_dot = class_path.rfind(".")
+        if last_dot <= 0:  # No dot found (-1) or dot at start (0) is invalid
+            raise ValueError(
+                f"Invalid class path format: '{class_path}' (must be 'module.ClassName')"
+            )
+        module_name = class_path[:last_dot]
+        class_name = class_path[last_dot + 1 :]
 
-        # Use FunctionResolver to load the module (handles __main__ consistently)
+        # Load module and get class
         module = self._function_resolver.get_module(module_name, class_file)
         task_class = getattr(module, class_name)
 
-        # Special handling for FunctionTask: need to restore func first, then create instance
+        # Create task instance
         if is_function_task_class(task_class):
-            # For FunctionTask, we need func before instantiating
-            # Get func from metadata first
+            # Get func metadata
             func_module_name = metadata.get("func_module")
             func_name = metadata.get("func_name")
 
             if not func_module_name or not func_name:
                 raise ValueError("FunctionTask missing func_module or func_name in metadata")
 
-            # Restore func reference using FunctionResolver
+            # Restore func reference
             func = self._function_resolver.get_function_reference(
                 func_module_name, func_name, metadata.get("func_file")
             )
 
-            # Create FunctionTask with func and params
+            # Create FunctionTask
             task = task_class(func, *params.get("args", ()), **params.get("kwargs", {}))
         else:
-            # Create task instance with params
             task = task_class(**params)
 
-        # Restore metadata
+        # Restore metadata (direct attribute assignment is faster)
         task._task_id = metadata["task_id"]
         task._current_attempt = metadata["current_attempt"]
+
+        # Parse dispatched_at
         dispatched_at_str = metadata.get("dispatched_at")
         if dispatched_at_str:
             try:
                 task._dispatched_at = datetime.fromisoformat(dispatched_at_str)
             except (ValueError, TypeError):
-                # Invalid datetime format or wrong type
                 task._dispatched_at = None
+        else:
+            task._dispatched_at = None
 
-        # Restore config (use TaskConfig factory to handle driver resolution)
-        task.config = TaskConfig(
-            queue=metadata["queue"],
-            max_attempts=metadata.get("max_attempts", metadata.get("max_attempts")),
-            retry_delay=metadata["retry_delay"],
-            timeout=metadata["timeout"],
-        )
+        # Restore config (inline dict construction is faster than TaskConfig factory)
+        task.config = {  # type: ignore[assignment]
+            "queue": metadata["queue"],
+            "max_attempts": metadata.get("max_attempts"),
+            "retry_delay": metadata["retry_delay"],
+            "timeout": metadata["timeout"],
+            "visibility_timeout": metadata.get("visibility_timeout"),
+        }
 
-        # Store the original class_file for re-serialization if it was a __main__ module
+        # Store class_file for re-serialization
         if class_file:
-            task._original_class_file = class_file
+            task._original_class_file = class_file  # type: ignore[attr-defined]
 
         return task
 
