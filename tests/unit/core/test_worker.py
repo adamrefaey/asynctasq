@@ -20,7 +20,7 @@ from pytest import main, mark, raises
 from asynctasq.core.worker import Worker
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.monitoring import EventRegistry, EventType
-from asynctasq.serializers import BaseSerializer, MsgpackSerializer
+from asynctasq.serializers import BaseSerializer
 from asynctasq.tasks import AsyncTask, BaseTask, FunctionTask
 from asynctasq.utils.loop import run
 
@@ -78,7 +78,10 @@ class TestWorkerInitialization:
         assert worker.queues == ["default"]
         assert worker.concurrency == 10
         assert worker.max_tasks is None
-        assert isinstance(worker.serializer, MsgpackSerializer)
+        # MsgspecSerializer is the default since it's 2-5x faster than MsgpackSerializer
+        from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
+
+        assert isinstance(worker.serializer, MsgspecSerializer)
 
     def test_init_with_none_queues(self) -> None:
         # Arrange
@@ -108,7 +111,10 @@ class TestWorkerInitialization:
         worker = Worker(queue_driver=mock_driver, serializer=None)
 
         # Assert
-        assert isinstance(worker.serializer, MsgpackSerializer)
+        # MsgspecSerializer is the default since it's 2-5x faster than MsgpackSerializer
+        from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
+
+        assert isinstance(worker.serializer, MsgspecSerializer)
 
     def test_init_with_custom_serializer(self) -> None:
         # Arrange

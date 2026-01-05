@@ -117,7 +117,8 @@ class TestAsyncTasQIntegration:
 
             async with integration.lifespan(mock_fastapi_app):
                 assert integration._initialized
-                mock_get_config.assert_called_once()
+                # Config.get() may be called multiple times (lifespan + serializer creation)
+                assert mock_get_config.call_count >= 1
                 mock_factory.assert_called_once_with("redis", config)
 
     @mark.asyncio

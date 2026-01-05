@@ -19,7 +19,7 @@ from pytest import main, mark, raises
 from asynctasq.config import Config
 from asynctasq.core.dispatcher import Dispatcher, cleanup, get_dispatcher
 from asynctasq.drivers.base_driver import BaseDriver
-from asynctasq.serializers import BaseSerializer, MsgpackSerializer
+from asynctasq.serializers import BaseSerializer
 from asynctasq.tasks import AsyncTask, FunctionTask
 
 
@@ -62,7 +62,8 @@ class TestDispatcherInitialization:
 
         # Assert
         assert dispatcher.driver == mock_driver
-        assert isinstance(dispatcher.serializer, MsgpackSerializer)
+        # Default serializer is now config-based (msgspec by default)
+        assert isinstance(dispatcher.serializer, BaseSerializer)
         assert dispatcher._driver_cache == {}
 
     def test_init_initializes_driver_cache(self) -> None:
