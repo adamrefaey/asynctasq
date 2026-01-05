@@ -8,7 +8,7 @@ from asynctasq.config import Config
 from asynctasq.drivers import DriverType
 from asynctasq.drivers.base_driver import BaseDriver
 from asynctasq.monitoring import EventRegistry, EventType, TaskEvent
-from asynctasq.serializers import BaseSerializer, MsgpackSerializer
+from asynctasq.serializers import BaseSerializer
 from asynctasq.tasks.services.serializer import TaskSerializer
 
 from .driver_factory import DriverFactory
@@ -27,7 +27,7 @@ class Dispatcher:
 
     Attributes:
         driver: Default queue driver for tasks without driver override
-        serializer: Task serializer (default: MsgpackSerializer)
+        serializer: Task serializer (default: config-based, msgspec by default)
         event_emitter: Optional event emitter for monitoring integration
     """
 
@@ -38,7 +38,7 @@ class Dispatcher:
         event_emitter: None = None,
     ) -> None:
         self.driver = driver
-        self.serializer = serializer or MsgpackSerializer()
+        self.serializer = serializer or Config.get().create_serializer()
         # Dispatcher no longer stores an emitter instance; global emitters are used
         self.event_emitter = None
         self._driver_cache: dict[str, BaseDriver] = {}  # Cache for driver overrides

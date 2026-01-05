@@ -54,6 +54,7 @@ from asynctasq.serializers import (
     DjangoOrmHook,
     HookRegistry,
     MsgpackSerializer,
+    MsgspecSerializer,
     SerializationPipeline,
     SetHook,
     SqlalchemyOrmHook,
@@ -330,6 +331,7 @@ __all__ = [
     # Serialization
     "BaseSerializer",
     "MsgpackSerializer",
+    "MsgspecSerializer",
     "TypeHook",
     "AsyncTypeHook",
     "HookRegistry",

@@ -35,6 +35,10 @@ class DjangoOrmHook(BaseOrmHook):
     orm_name = "django"
     priority = 100
 
+    # Django requires run_in_executor for imports due to SynchronousOnlyOperation
+    # when user modules have sync database operations at module level
+    _requires_executor_for_import = True
+
     def can_encode(self, obj: Any) -> bool:
         """Check if object is a Django model."""
         if not DJANGO_AVAILABLE or django is None:

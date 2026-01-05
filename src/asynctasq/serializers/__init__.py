@@ -40,11 +40,13 @@ from .hooks import (
     register_orm_hooks,
 )
 from .msgpack_serializer import MsgpackSerializer
+from .msgspec_serializer import MsgspecSerializer
 
 __all__ = [
     # Core
     "BaseSerializer",
     "MsgpackSerializer",
+    "MsgspecSerializer",
     # Hook System
     "TypeHook",
     "AsyncTypeHook",

@@ -27,12 +27,16 @@ Example:
 
 from abc import ABC, abstractmethod
 import asyncio
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Final, TypeVar
 
 if TYPE_CHECKING:
     pass
 
 T = TypeVar("T")
+
+# Type tuples for fast isinstance checks (single C-level check vs multiple)
+_PRIMITIVES: Final[tuple[type, ...]] = (bool, int, float, str, bytes)
+_CONTAINERS: Final[tuple[type, ...]] = (list, tuple)
 
 
 class TypeHook[T](ABC):
@@ -398,6 +402,134 @@ class SerializationPipeline:
         This is the main deserialization entry point that handles
         both sync and async hooks, including ORM model fetching.
 
+        OPTIMIZATION: Uses a two-phase approach:
+        1. First scan to detect if any async processing is needed
+        2. If no async needed, use fast sync path
+        3. If async needed, use gather for parallelism
+
+        Args:
+            obj: Object to decode
+
+        Returns:
+            Fully decoded object with all types restored
+        """
+        # Fast path: check if async processing is needed
+        needs_async = self._needs_async_processing(obj)
+        if not needs_async:
+            return self._decode_sync_fast(obj)
+
+        # Slow path: async processing needed
+        return await self._decode_async_impl(obj)
+
+    def _needs_async_processing(self, obj: Any) -> bool:
+        """Check if object contains types requiring async processing.
+
+        Performs a quick scan to detect async type markers without
+        doing full recursive processing. Optimized with type checks.
+
+        Args:
+            obj: Object to check
+
+        Returns:
+            True if async processing is needed
+        """
+        if isinstance(obj, dict):
+            # Check for async hook markers (ORM types)
+            decoder_cache = self.registry._decoder_cache
+            for key in obj:
+                hook = decoder_cache.get(key)
+                if hook is not None and isinstance(hook, AsyncTypeHook):
+                    return True
+            # Recursively check values - only containers can have ORM refs
+            for value in obj.values():
+                if isinstance(value, dict):
+                    if self._needs_async_processing(value):
+                        return True
+                elif isinstance(value, _CONTAINERS):
+                    if self._needs_async_processing(value):
+                        return True
+            return False
+
+        if isinstance(obj, _CONTAINERS):
+            for item in obj:
+                if isinstance(item, dict):
+                    if self._needs_async_processing(item):
+                        return True
+                elif isinstance(item, _CONTAINERS):
+                    if self._needs_async_processing(item):
+                        return True
+            return False
+
+        return False
+
+    def _decode_sync_fast(self, obj: Any) -> Any:
+        """Fast synchronous decode when no async processing is needed.
+
+        Avoids asyncio overhead entirely for the common case.
+        Only creates new containers when values change.
+
+        Args:
+            obj: Object to decode
+
+        Returns:
+            Decoded object with sync types restored
+        """
+        # Fast path for None
+        if obj is None:
+            return obj
+
+        # Fast path for primitives
+        if isinstance(obj, _PRIMITIVES):
+            return obj
+
+        if isinstance(obj, dict):
+            # Try to find a decoder hook
+            hook = self.registry.find_decoder(obj)
+            if hook is not None:
+                # We already know no async hooks, so safe to call sync decode
+                return hook.decode(obj)
+
+            # Recursively process dict values, only create new if changes
+            new_dict: dict[Any, Any] | None = None
+            for key, value in obj.items():
+                new_value = self._decode_sync_fast(value)
+                if new_value is not value:
+                    if new_dict is None:
+                        new_dict = {}
+                        for k, v in obj.items():
+                            if k == key:
+                                break
+                            new_dict[k] = v
+                    new_dict[key] = new_value
+                elif new_dict is not None:
+                    new_dict[key] = new_value
+            return new_dict if new_dict is not None else obj
+
+        # Handle lists - only create new if changes
+        if isinstance(obj, list):
+            new_list: list[Any] | None = None
+            for i, item in enumerate(obj):
+                new_item = self._decode_sync_fast(item)
+                if new_item is not item:
+                    if new_list is None:
+                        new_list = obj[:i]
+                    new_list.append(new_item)
+                elif new_list is not None:
+                    new_list.append(new_item)
+            return new_list if new_list is not None else obj
+
+        # Handle tuples
+        if isinstance(obj, tuple):
+            processed = [self._decode_sync_fast(item) for item in obj]
+            return tuple(processed)
+
+        return obj
+
+    async def _decode_async_impl(self, obj: Any) -> Any:
+        """Internal async decode implementation using gather for parallelism.
+
+        Collects all async tasks first, then executes in parallel.
+
         Args:
             obj: Object to decode
 
@@ -415,12 +547,12 @@ class SerializationPipeline:
             # Recursively process dict values in parallel
             items = list(obj.items())
             keys = [key for key, _ in items]
-            values = await asyncio.gather(*[self.decode_async(value) for _, value in items])
+            values = await asyncio.gather(*[self._decode_async_impl(value) for _, value in items])
             return dict(zip(keys, values, strict=False))
 
         # Handle lists and tuples in parallel
-        if isinstance(obj, (list, tuple)):
-            processed = await asyncio.gather(*[self.decode_async(item) for item in obj])
+        if isinstance(obj, _CONTAINERS):
+            processed = await asyncio.gather(*[self._decode_async_impl(item) for item in obj])
             return list(processed) if isinstance(obj, list) else tuple(processed)
 
         return obj

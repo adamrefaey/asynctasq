@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .base import BaseOrmHook
+from .base import BaseOrmHook, _cached_import_model_class, clear_resolver_cache
 from .django import DJANGO_AVAILABLE, DjangoOrmHook
 from .sqlalchemy import (
     SQLALCHEMY_AVAILABLE,
@@ -30,6 +30,8 @@ __all__ = [
     "DjangoOrmHook",
     "TortoiseOrmHook",
     "register_orm_hooks",
+    "clear_model_class_cache",
+    "clear_resolver_cache",
     "SQLALCHEMY_AVAILABLE",
     "DJANGO_AVAILABLE",
     "TORTOISE_AVAILABLE",
@@ -40,6 +42,19 @@ __all__ = [
     "check_pool_health",
     "emit_fork_safety_warning",
 ]
+
+
+# =============================================================================
+# Cache Management
+# =============================================================================
+
+
+def clear_model_class_cache() -> None:
+    """Clear the LRU cache for model class imports.
+
+    Useful for testing or when model classes may have been reloaded.
+    """
+    _cached_import_model_class.cache_clear()
 
 
 # =============================================================================

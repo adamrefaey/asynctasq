@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from asynctasq.drivers import DriverType
+
+# Type alias for serializer selection
+type SerializerType = Literal["msgspec", "msgpack"]
 
 
 class RedisConfig(BaseSettings):
@@ -329,6 +332,7 @@ class Config(BaseSettings):
 
     Environment variables:
         ASYNCTASQ_DRIVER: Driver type [redis, sqs, postgres, mysql, rabbitmq] (default: redis)
+        ASYNCTASQ_SERIALIZER: Serializer type [msgspec, msgpack] (default: msgspec)
 
     Nested configurations use their own prefixes:
     - ASYNCTASQ_REDIS_*: RedisConfig settings
@@ -356,6 +360,9 @@ class Config(BaseSettings):
     # Driver selection
     driver: DriverType = "redis"
 
+    # Serializer selection (msgspec is default for better performance)
+    serializer: SerializerType = "msgspec"
+
     # Driver-specific configurations
     redis: RedisConfig = Field(default_factory=RedisConfig)
     sqs: SQSConfig = Field(default_factory=SQSConfig)
@@ -374,6 +381,29 @@ class Config(BaseSettings):
 
     # Tortoise ORM configuration for automatic initialization
     tortoise_orm: dict[str, Any] | None = None
+
+    @field_validator("serializer")
+    @classmethod
+    def validate_serializer(cls, v: str) -> str:
+        """Validate serializer type and check availability."""
+        if v not in ("msgspec", "msgpack"):
+            raise ValueError("serializer must be 'msgspec' or 'msgpack'")
+        return v
+
+    def create_serializer(self) -> Any:
+        """Create serializer instance based on configuration.
+
+        Returns:
+            Configured serializer instance (MsgspecSerializer or MsgpackSerializer)
+        """
+        if self.serializer == "msgspec":
+            from asynctasq.serializers.msgspec_serializer import MsgspecSerializer
+
+            return MsgspecSerializer()
+        else:
+            from asynctasq.serializers.msgpack_serializer import MsgpackSerializer
+
+            return MsgpackSerializer()
 
     @classmethod
     def set(cls, **overrides: Any) -> None:
