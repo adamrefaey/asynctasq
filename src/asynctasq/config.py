@@ -19,6 +19,8 @@ class RedisConfig(BaseSettings):
         ASYNCTASQ_REDIS_PASSWORD: Redis password (default: None)
         ASYNCTASQ_REDIS_DB: Redis database number (default: 0)
         ASYNCTASQ_REDIS_MAX_CONNECTIONS: Maximum connections in pool (default: 100)
+        ASYNCTASQ_REDIS_WARMUP_CONNECTIONS: Pre-establish N connections on startup (default: 0)
+        ASYNCTASQ_REDIS_DELAYED_TASK_INTERVAL: Interval for background delayed task processing (default: 1.0)
     """
 
     model_config = SettingsConfigDict(
@@ -32,6 +34,8 @@ class RedisConfig(BaseSettings):
     password: str | None = None
     db: int = 0
     max_connections: int = 100
+    warmup_connections: int = 0  # Pre-establish connections to avoid cold-start latency
+    delayed_task_interval: float = 1.0  # Interval in seconds for background delayed task processing
 
     @field_validator("db")
     @classmethod
@@ -47,6 +51,22 @@ class RedisConfig(BaseSettings):
         """Validate max connections."""
         if v < 1:
             raise ValueError("max_connections must be positive")
+        return v
+
+    @field_validator("warmup_connections")
+    @classmethod
+    def validate_warmup_connections(cls, v: int) -> int:
+        """Validate warmup connections."""
+        if v < 0:
+            raise ValueError("warmup_connections cannot be negative")
+        return v
+
+    @field_validator("delayed_task_interval")
+    @classmethod
+    def validate_delayed_task_interval(cls, v: float) -> float:
+        """Validate delayed task interval."""
+        if v <= 0:
+            raise ValueError("delayed_task_interval must be positive")
         return v
 
 
@@ -210,6 +230,7 @@ class EventsConfig(BaseSettings):
         ASYNCTASQ_EVENTS_REDIS_URL: Redis URL for event emitter (default: None)
         ASYNCTASQ_EVENTS_CHANNEL: Event channel name (default: asynctasq:events)
         ASYNCTASQ_EVENTS_ENABLE_EVENT_EMITTER_REDIS: Enable Redis event emitter (default: False)
+        ASYNCTASQ_EVENTS_DISABLE_ALL: Disable ALL event emitters for max performance (default: False)
     """
 
     model_config = SettingsConfigDict(
@@ -222,6 +243,7 @@ class EventsConfig(BaseSettings):
     redis_url: str | None = None
     channel: str = "asynctasq:events"
     enable_event_emitter_redis: bool = False
+    disable_all: bool = False  # Set to True to disable ALL event emitters for benchmarks
 
 
 class TaskDefaultsConfig(BaseSettings):
