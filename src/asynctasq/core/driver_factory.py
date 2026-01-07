@@ -76,6 +76,8 @@ class DriverFactory:
                     db=config.redis.db,
                     max_connections=config.redis.max_connections,
                     keep_completed_tasks=config.repository.keep_completed_tasks,
+                    warmup_connections=config.redis.warmup_connections,
+                    delayed_task_interval=config.redis.delayed_task_interval,
                 )
             case "sqs":
                 try:

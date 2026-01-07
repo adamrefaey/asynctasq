@@ -61,6 +61,8 @@ class TestDriverFactoryCreate:
             db=5,
             max_connections=20,
             keep_completed_tasks=False,
+            warmup_connections=0,
+            delayed_task_interval=1.0,
         )
         assert result == mock_instance
 
@@ -475,6 +477,8 @@ class TestDriverFactoryParameterPassing:
             db=7,
             max_connections=100,  # Default
             keep_completed_tasks=False,
+            warmup_connections=0,
+            delayed_task_interval=1.0,
         )
         assert result == mock_instance
 
@@ -694,6 +698,8 @@ class TestDriverFactoryConfigIntegration:
             db=15,
             max_connections=100,
             keep_completed_tasks=False,
+            warmup_connections=0,
+            delayed_task_interval=1.0,
         )
         assert result == mock_instance
 
@@ -762,6 +768,8 @@ class TestDriverFactoryEdgeCases:
             db=0,
             max_connections=100,
             keep_completed_tasks=False,
+            warmup_connections=0,
+            delayed_task_interval=1.0,
         )
         assert result == mock_instance
 
@@ -855,6 +863,8 @@ class TestDriverFactoryParameterized:
                     "db": 0,
                     "max_connections": 1,
                     "keep_completed_tasks": False,
+                    "warmup_connections": 0,
+                    "delayed_task_interval": 1.0,
                 },
             ),
             (
@@ -867,6 +877,8 @@ class TestDriverFactoryParameterized:
                     "db": 15,
                     "max_connections": 1000,
                     "keep_completed_tasks": False,
+                    "warmup_connections": 0,
+                    "delayed_task_interval": 1.0,
                 },
             ),
             # SQS with minimal config
