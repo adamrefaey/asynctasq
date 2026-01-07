@@ -61,11 +61,11 @@ services:
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test:
-        ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "test", "-ptest"]
+        ["CMD", "mysql", "-h", "localhost", "-u", "test", "-ptest", "-e", "SELECT 1"]
       interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   rabbitmq:
     image: rabbitmq:3.12-management-alpine
