@@ -250,6 +250,115 @@ class TestEventRegistryEdgeCases:
         # Original should still have the initial emitters
         assert len(EventRegistry.get_all()) == initial_count
 
+    @mark.asyncio
+    async def test_emit_nowait_fires_background_task(self) -> None:
+        """Test that emit_nowait schedules emission as background task."""
+        import asyncio
+
+        EventRegistry.init()
+
+        emitter = LoggingEventEmitter()
+        emitter.emit = AsyncMock()
+        EventRegistry.add(emitter)
+
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test-123",
+            task_name="test_task",
+            queue="default",
+            worker_id="worker-123",
+            timestamp=datetime.now(UTC),
+        )
+
+        # Fire-and-forget emit
+        EventRegistry.emit_nowait(event)
+
+        # Give the background task a chance to run
+        await asyncio.sleep(0.01)
+
+        # Emitter should have been called
+        emitter.emit.assert_called_once_with(event)
+
+    @mark.asyncio
+    async def test_emit_nowait_handles_exceptions(self, caplog) -> None:
+        """Test that emit_nowait handles exceptions from emitters gracefully."""
+        import asyncio
+        import logging
+
+        EventRegistry.init()
+
+        emitter = LoggingEventEmitter()
+        emitter.emit = AsyncMock(side_effect=Exception("Test error"))
+        EventRegistry.add(emitter)
+
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test-123",
+            task_name="test_task",
+            queue="default",
+            worker_id="worker-123",
+            timestamp=datetime.now(UTC),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            # Fire-and-forget emit
+            EventRegistry.emit_nowait(event)
+
+            # Give the background task a chance to run
+            await asyncio.sleep(0.01)
+
+        # Warning should be logged for the failed emitter
+        assert "Global emit failed" in caplog.text
+
+    @mark.asyncio
+    async def test_emit_nowait_skips_when_disabled(self) -> None:
+        """Test that emit_nowait does nothing when disabled."""
+        import asyncio
+
+        EventRegistry.init()
+
+        emitter = LoggingEventEmitter()
+        emitter.emit = AsyncMock()
+        EventRegistry.add(emitter)
+
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test-123",
+            task_name="test_task",
+            queue="default",
+            worker_id="worker-123",
+        )
+
+        EventRegistry.emit_nowait(event)
+
+        # Give time for any potential background task
+        await asyncio.sleep(0.01)
+
+        # Emitter should NOT have been called
+        emitter.emit.assert_not_called()
+
+    @mark.asyncio
+    async def test_emit_nowait_skips_when_no_emitters(self) -> None:
+        """Test that emit_nowait returns early when no emitters registered."""
+        import asyncio
+
+        EventRegistry.init()
+        EventRegistry._emitters.clear()  # Remove all emitters
+
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test-123",
+            task_name="test_task",
+            queue="default",
+            worker_id="worker-123",
+        )
+
+        # Should not raise any errors
+        EventRegistry.emit_nowait(event)
+
+        # Give time for any potential background task
+        await asyncio.sleep(0.01)
+
 
 if __name__ == "__main__":
     main([__file__, "-s", "-m", "unit"])

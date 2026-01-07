@@ -1,5 +1,6 @@
 """Event emitter registry for managing multiple event emitters."""
 
+import asyncio
 import logging
 
 from asynctasq.config import Config
@@ -37,6 +38,32 @@ class EventRegistry:
                 await emitter.emit(event)
             except Exception as e:
                 logger.warning("Global emit failed for %s: %s", type(emitter).__name__, e)
+
+    @staticmethod
+    def emit_nowait(event: TaskEvent | WorkerEvent) -> None:
+        """Fire-and-forget event emission.
+
+        Schedules event emission as a background task without blocking.
+        Use this in hot paths where event emission latency matters.
+        Exceptions are logged and do not propagate.
+        """
+        # Skip if no emitters registered
+        if not EventRegistry._emitters:
+            return
+
+        async def _emit_impl() -> None:
+            for emitter in EventRegistry.get_all():
+                try:
+                    await emitter.emit(event)
+                except Exception as e:
+                    logger.warning("Global emit failed for %s: %s", type(emitter).__name__, e)
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_emit_impl())
+        except RuntimeError:
+            # No running loop - fall back to sync logging only
+            logger.debug("No event loop for emit_nowait, event dropped: %s", event)
 
     @staticmethod
     async def close_all() -> None:
