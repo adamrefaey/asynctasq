@@ -357,10 +357,10 @@ class TestRedisDriverDequeue:
     @patch("asynctasq.drivers.redis_driver.Redis")
     @patch("asynctasq.drivers.redis_driver.time")
     @mark.asyncio
-    async def test_dequeue_processes_delayed_tasks(
+    async def test_process_delayed_tasks_moves_ready_tasks(
         self, mock_time: MagicMock, mock_redis_class: MagicMock
     ) -> None:
-        """Test dequeue processes ready delayed tasks."""
+        """Test _process_delayed_tasks moves ready tasks to main queue."""
         # Arrange
         mock_time.return_value = 1000.0
         mock_client = AsyncMock()
@@ -387,8 +387,8 @@ class TestRedisDriverDequeue:
         driver = RedisDriver()
         await driver.connect()
 
-        # Act
-        await driver.dequeue("default", poll_seconds=0)
+        # Act - directly call _process_delayed_tasks (now a background operation)
+        await driver._process_delayed_tasks("default")
 
         # Assert
         mock_client.zrangebyscore.assert_called_once_with(
@@ -400,12 +400,58 @@ class TestRedisDriverDequeue:
         mock_pipe.execute.assert_called_once()
 
     @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_dequeue_processes_delayed_tasks_inline_when_not_registered(
+        self, mock_redis_class: MagicMock
+    ) -> None:
+        """Test dequeue processes delayed tasks inline when background processor not active."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.zrangebyscore = AsyncMock(return_value=[])  # No ready tasks
+        mock_client.lmove = AsyncMock(return_value=None)
+
+        driver = RedisDriver()
+        await driver.connect()
+        # Note: NOT calling start_delayed_processor()
+
+        # Act
+        await driver.dequeue("default", poll_seconds=0)
+
+        # Assert - zrangebyscore should be called (inline processing fallback)
+        mock_client.zrangebyscore.assert_called_once()
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_dequeue_skips_inline_processing_when_background_active(
+        self, mock_redis_class: MagicMock
+    ) -> None:
+        """Test dequeue skips inline delayed task processing when background processor is active."""
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+        mock_client.lmove = AsyncMock(return_value=None)
+
+        driver = RedisDriver()
+        await driver.connect()
+        driver.start_delayed_processor("default")  # Activate background processor
+
+        # Act
+        await driver.dequeue("default", poll_seconds=0)
+
+        # Assert - zrangebyscore should NOT be called (background handles it)
+        mock_client.zrangebyscore.assert_not_called()
+
+        # Cleanup
+        await driver.disconnect()
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
     @patch("asynctasq.drivers.redis_driver.time")
     @mark.asyncio
-    async def test_dequeue_skips_not_ready_delayed_tasks(
+    async def test_process_delayed_tasks_skips_not_ready(
         self, mock_time: MagicMock, mock_redis_class: MagicMock
     ) -> None:
-        """Test dequeue skips delayed tasks that aren't ready."""
+        """Test _process_delayed_tasks skips when no tasks are ready."""
         # Arrange
         mock_time.return_value = 1000.0
         mock_client = AsyncMock()
@@ -416,7 +462,7 @@ class TestRedisDriverDequeue:
         await driver.connect()
 
         # Act
-        await driver.dequeue("default", poll_seconds=0)
+        await driver._process_delayed_tasks("default")
 
         # Assert
         mock_client.zrangebyscore.assert_called_once()
@@ -431,12 +477,20 @@ class TestRedisDriverAck:
     @patch("asynctasq.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_ack_removes_from_processing(self, mock_redis_class: MagicMock) -> None:
-        """Test ack removes task from processing list and increments completed counter."""
+        """Test ack removes task from processing list and increments completed counter using pipeline."""
         # Arrange
         mock_client = AsyncMock()
         mock_redis_class.from_url.return_value = mock_client
-        mock_client.lrem = AsyncMock(return_value=1)  # Task was found and removed
-        mock_client.incr = AsyncMock(return_value=1)
+
+        # Mock pipeline as async context manager
+        mock_pipe = MagicMock()
+        mock_pipe.lrem = MagicMock(return_value=mock_pipe)
+        mock_pipe.incr = MagicMock(return_value=mock_pipe)
+        mock_pipe.execute = AsyncMock(return_value=[1, 1])  # [lrem_count=1, incr_result=1]
+        mock_client.pipeline = MagicMock(return_value=mock_pipe)
+        mock_pipe.__aenter__ = AsyncMock(return_value=mock_pipe)
+        mock_pipe.__aexit__ = AsyncMock(return_value=None)
+
         driver = RedisDriver()
         await driver.connect()
 
@@ -444,8 +498,10 @@ class TestRedisDriverAck:
         await driver.ack("default", b"task_data")
 
         # Assert
-        mock_client.lrem.assert_called_once_with("queue:default:processing", 1, b"task_data")
-        mock_client.incr.assert_called_once_with("queue:default:stats:completed")
+        mock_client.pipeline.assert_called_once_with(transaction=False)
+        mock_pipe.lrem.assert_called_once_with("queue:default:processing", 1, b"task_data")
+        mock_pipe.incr.assert_called_once_with("queue:default:stats:completed")
+        mock_pipe.execute.assert_called_once()
 
     @patch("asynctasq.drivers.redis_driver.Redis")
     @mark.asyncio
@@ -454,7 +510,16 @@ class TestRedisDriverAck:
         # Arrange
         mock_client = AsyncMock()
         mock_redis_class.from_url.return_value = mock_client
-        mock_client.lrem = AsyncMock(return_value=1)
+
+        # Mock pipeline
+        mock_pipe = MagicMock()
+        mock_pipe.lrem = MagicMock(return_value=mock_pipe)
+        mock_pipe.incr = MagicMock(return_value=mock_pipe)
+        mock_pipe.execute = AsyncMock(return_value=[1, 1])
+        mock_client.pipeline = MagicMock(return_value=mock_pipe)
+        mock_pipe.__aenter__ = AsyncMock(return_value=mock_pipe)
+        mock_pipe.__aexit__ = AsyncMock(return_value=None)
+
         driver = RedisDriver()
 
         # Act
@@ -462,37 +527,55 @@ class TestRedisDriverAck:
 
         # Assert
         mock_redis_class.from_url.assert_called_once()
-        mock_client.lrem.assert_called_once()
+        mock_pipe.lrem.assert_called_once()
 
     @patch("asynctasq.drivers.redis_driver.Redis")
     @mark.asyncio
-    async def test_ack_handles_awaitable_result(self, mock_redis_class: MagicMock) -> None:
-        """Test ack handles awaitable Redis results."""
+    async def test_ack_idempotent_decrements_on_double_ack(
+        self, mock_redis_class: MagicMock
+    ) -> None:
+        """Test ack is idempotent - decrements counter if task wasn't in processing."""
         # Arrange
         mock_client = AsyncMock()
         mock_redis_class.from_url.return_value = mock_client
 
-        # Make lrem return a coroutine
-        async def lrem_coro(*args: object, **kwargs: object) -> int:
-            return 1
+        # Mock pipeline - lrem returns 0 (task not found)
+        mock_pipe = MagicMock()
+        mock_pipe.lrem = MagicMock(return_value=mock_pipe)
+        mock_pipe.incr = MagicMock(return_value=mock_pipe)
+        mock_pipe.execute = AsyncMock(return_value=[0, 1])  # lrem_count=0
+        mock_client.pipeline = MagicMock(return_value=mock_pipe)
+        mock_pipe.__aenter__ = AsyncMock(return_value=mock_pipe)
+        mock_pipe.__aexit__ = AsyncMock(return_value=None)
+        mock_client.decr = AsyncMock(return_value=0)
 
-        mock_client.lrem = lrem_coro
         driver = RedisDriver()
         await driver.connect()
 
-        # Act & Assert - should not raise
+        # Act
         await driver.ack("default", b"task_data")
+
+        # Assert - should decrement to undo the incr
+        mock_client.decr.assert_called_once_with("queue:default:stats:completed")
 
     @patch("asynctasq.drivers.redis_driver.Redis")
     @mark.asyncio
     async def test_ack_with_keep_completed_tasks(self, mock_redis_class: MagicMock) -> None:
-        """Test ack with keep_completed_tasks=True adds to completed list."""
+        """Test ack with keep_completed_tasks=True adds to completed list in pipeline."""
         # Arrange
         mock_client = AsyncMock()
         mock_redis_class.from_url.return_value = mock_client
-        mock_client.lrem = AsyncMock(return_value=1)
-        mock_client.incr = AsyncMock(return_value=1)
-        mock_client.lpush = AsyncMock(return_value=1)
+
+        # Mock pipeline
+        mock_pipe = MagicMock()
+        mock_pipe.lrem = MagicMock(return_value=mock_pipe)
+        mock_pipe.incr = MagicMock(return_value=mock_pipe)
+        mock_pipe.lpush = MagicMock(return_value=mock_pipe)
+        mock_pipe.execute = AsyncMock(return_value=[1, 1, 1])  # [lrem, incr, lpush]
+        mock_client.pipeline = MagicMock(return_value=mock_pipe)
+        mock_pipe.__aenter__ = AsyncMock(return_value=mock_pipe)
+        mock_pipe.__aexit__ = AsyncMock(return_value=None)
+
         driver = RedisDriver(keep_completed_tasks=True)
         await driver.connect()
 
@@ -500,9 +583,94 @@ class TestRedisDriverAck:
         await driver.ack("default", b"task_data")
 
         # Assert
-        mock_client.lrem.assert_called_once_with("queue:default:processing", 1, b"task_data")
-        mock_client.incr.assert_called_once_with("queue:default:stats:completed")
-        mock_client.lpush.assert_called_once_with("queue:default:completed", b"task_data")
+        mock_pipe.lrem.assert_called_once_with("queue:default:processing", 1, b"task_data")
+        mock_pipe.incr.assert_called_once_with("queue:default:stats:completed")
+        mock_pipe.lpush.assert_called_once_with("queue:default:completed", b"task_data")
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_ack_nowait_is_fire_and_forget(self, mock_redis_class: MagicMock) -> None:
+        """Test ack_nowait creates a background task without waiting."""
+        import asyncio
+
+        # Arrange
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+
+        # Mock pipeline
+        mock_pipe = MagicMock()
+        mock_pipe.lrem = MagicMock(return_value=mock_pipe)
+        mock_pipe.incr = MagicMock(return_value=mock_pipe)
+        mock_pipe.execute = AsyncMock(return_value=[1, 1])
+        mock_client.pipeline = MagicMock(return_value=mock_pipe)
+        mock_pipe.__aenter__ = AsyncMock(return_value=mock_pipe)
+        mock_pipe.__aexit__ = AsyncMock(return_value=None)
+
+        driver = RedisDriver()
+        await driver.connect()
+
+        # Act - ack_nowait should return immediately
+        driver.ack_nowait("default", b"task_data")
+
+        # Give the background task time to run
+        await asyncio.sleep(0.01)
+
+        # Assert
+        mock_pipe.lrem.assert_called_once_with("queue:default:processing", 1, b"task_data")
+        mock_pipe.execute.assert_called_once()
+
+        # Cleanup
+        await driver.disconnect()
+
+
+@mark.unit
+class TestRedisDriverDelayedProcessor:
+    """Test background delayed task processing functionality."""
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_start_delayed_processor_registers_queue(
+        self, mock_redis_class: MagicMock
+    ) -> None:
+        """Test start_delayed_processor registers queue for background processing."""
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+
+        driver = RedisDriver()
+        await driver.connect()
+
+        # Act
+        driver.start_delayed_processor("default")
+        driver.start_delayed_processor("high")
+
+        # Assert
+        assert "default" in driver._delayed_queues
+        assert "high" in driver._delayed_queues
+        assert driver._delayed_task_bg is not None
+
+        # Cleanup
+        await driver.disconnect()
+
+    @patch("asynctasq.drivers.redis_driver.Redis")
+    @mark.asyncio
+    async def test_disconnect_cancels_delayed_processor(self, mock_redis_class: MagicMock) -> None:
+        """Test disconnect cancels the background delayed task processor."""
+        mock_client = AsyncMock()
+        mock_redis_class.from_url.return_value = mock_client
+
+        driver = RedisDriver()
+        await driver.connect()
+        driver.start_delayed_processor("default")
+
+        # Verify background task is running
+        assert driver._delayed_task_bg is not None
+        assert not driver._delayed_task_bg.done()
+
+        # Act
+        await driver.disconnect()
+
+        # Assert - background task should be cancelled
+        assert driver._delayed_task_bg is None or driver._delayed_task_bg.done()
 
 
 @mark.unit
@@ -1208,8 +1376,16 @@ class TestRedisDriverInspectionAndManagement:
         # Arrange
         mock_client = AsyncMock()
         mock_redis_class.from_url.return_value = mock_client
-        mock_client.lrem = AsyncMock(return_value=1)
-        mock_client.incr = AsyncMock(return_value=5)
+
+        # Mock pipeline
+        mock_pipe = MagicMock()
+        mock_pipe.lrem = MagicMock(return_value=mock_pipe)
+        mock_pipe.incr = MagicMock(return_value=mock_pipe)
+        mock_pipe.execute = AsyncMock(return_value=[1, 1])  # [lrem_count=1, incr_result=1]
+        mock_client.pipeline = MagicMock(return_value=mock_pipe)
+        mock_pipe.__aenter__ = AsyncMock(return_value=mock_pipe)
+        mock_pipe.__aexit__ = AsyncMock(return_value=None)
+
         driver = RedisDriver()
 
         # Act
@@ -1217,7 +1393,7 @@ class TestRedisDriverInspectionAndManagement:
 
         # Assert
         mock_redis_class.from_url.assert_called_once()
-        mock_client.lrem.assert_called_once()
+        mock_pipe.lrem.assert_called_once()
 
     @patch("asynctasq.drivers.redis_driver.Redis")
     @mark.asyncio
