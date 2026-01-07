@@ -105,6 +105,40 @@ class BaseDriver(ABC):
         """
         ...
 
+    def ack_nowait(self, queue_name: str, receipt_handle: bytes) -> None:
+        """Fire-and-forget acknowledgment (non-blocking).
+
+        Optional optimization for drivers that support it. Falls back to
+        creating a task that awaits ack() if not overridden.
+
+        Args:
+            queue_name: Name of the queue
+            receipt_handle: Task data from dequeue
+
+        Note:
+            Subclasses can override for more efficient implementations.
+            Default creates an asyncio task that awaits ack().
+        """
+        import asyncio
+
+        asyncio.create_task(self.ack(queue_name, receipt_handle))
+
+    def start_delayed_processor(self, queue_name: str) -> None:  # noqa: B027
+        """Register a queue for background delayed task processing.
+
+        Optional optimization for drivers that support delayed tasks.
+        When implemented, moves ready delayed tasks to the main queue
+        periodically in the background instead of on every dequeue.
+
+        Args:
+            queue_name: Name of the queue to monitor for delayed tasks
+
+        Note:
+            No-op by default. Subclasses can override for drivers with
+            delayed task support (e.g., Redis sorted sets).
+        """
+        pass  # No-op by default
+
     @abstractmethod
     async def nack(self, queue_name: str, receipt_handle: bytes) -> None:
         """Reject a task, making it available for reprocessing.

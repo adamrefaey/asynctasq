@@ -1,12 +1,16 @@
+import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from inspect import isawaitable
+import logging
 from time import time
 from typing import Any
 
 from redis.asyncio import Redis
 
 from .base_driver import BaseDriver
+
+logger = logging.getLogger(__name__)
 
 
 async def maybe_await(result: Any) -> Any:
@@ -60,7 +64,12 @@ class RedisDriver(BaseDriver):
     db: int = 0
     max_connections: int = 100
     keep_completed_tasks: bool = False
+    warmup_connections: int = 0  # Number of connections to pre-establish (0 = disabled)
+    delayed_task_interval: float = 1.0  # Interval in seconds for background delayed task processing
     client: Redis | None = field(default=None, init=False, repr=False)
+    _delayed_task_bg: asyncio.Task[None] | None = field(default=None, init=False, repr=False)
+    _delayed_queues: set[str] = field(default_factory=set, init=False, repr=False)
+    _ack_tasks: set[asyncio.Task[None]] = field(default_factory=set, init=False, repr=False)
 
     async def connect(self) -> None:
         """Initialize Redis connection with pooling (connection is lazy)."""
@@ -76,8 +85,84 @@ class RedisDriver(BaseDriver):
             protocol=3,  # Use RESP3 protocol for better performance
         )
 
+        # Warm up connection pool if configured
+        # This pre-establishes connections to avoid cold-start latency
+        # See: https://github.com/redis/redis-py/issues/3412
+        if self.warmup_connections > 0:
+            await self._warmup_connection_pool(self.warmup_connections)
+
+    def start_delayed_processor(self, queue_name: str) -> None:
+        """Register a queue for background delayed task processing.
+
+        Call this when a worker starts processing a queue. The background task
+        will periodically move ready delayed tasks to the main queue.
+
+        Args:
+            queue_name: Name of the queue to monitor for delayed tasks
+        """
+        self._delayed_queues.add(queue_name)
+
+        # Start background task if not already running
+        if self._delayed_task_bg is None or self._delayed_task_bg.done():
+            self._delayed_task_bg = asyncio.create_task(
+                self._delayed_task_loop(), name="delayed-task-processor"
+            )
+
+    async def _delayed_task_loop(self) -> None:
+        """Background loop that periodically processes delayed tasks for all registered queues."""
+        while True:
+            try:
+                await asyncio.sleep(self.delayed_task_interval)
+
+                # Process all registered queues
+                for queue_name in list(self._delayed_queues):
+                    try:
+                        await self._process_delayed_tasks(queue_name)
+                    except Exception as e:
+                        logger.warning(f"Error processing delayed tasks for {queue_name}: {e}")
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Delayed task loop error: {e}")
+
+    async def _warmup_connection_pool(self, n: int) -> None:
+        """Pre-establish N connections in the pool to avoid cold-start latency.
+
+        The async redis-py client creates connections on-demand, which adds
+        ~4-5ms latency on first use. This method forces the pool to create
+        connections upfront for faster subsequent operations.
+
+        Args:
+            n: Number of connections to pre-establish
+        """
+        assert self.client is not None
+
+        # Simple PING commands establish connections
+        async def ping() -> bool:
+            assert self.client is not None
+            return await maybe_await(self.client.ping())
+
+        await asyncio.gather(*[ping() for _ in range(n)])
+
     async def disconnect(self) -> None:
         """Close all connections and cleanup resources."""
+        # Cancel delayed task background processor
+        if self._delayed_task_bg is not None:
+            self._delayed_task_bg.cancel()
+            try:
+                await self._delayed_task_bg
+            except asyncio.CancelledError:
+                pass
+            self._delayed_task_bg = None
+
+        # Wait for pending fire-and-forget ack tasks (with timeout)
+        if self._ack_tasks:
+            done, pending = await asyncio.wait(self._ack_tasks, timeout=5.0)
+            for task in pending:
+                task.cancel()
+            self._ack_tasks.clear()
+
         if self.client is not None:
             await self.client.aclose()
             self.client = None
@@ -143,8 +228,11 @@ class RedisDriver(BaseDriver):
             await self.connect()
             assert self.client is not None
 
-        # Move any ready delayed tasks to main queue
-        await self._process_delayed_tasks(queue_name)
+        # Process delayed tasks: use background task if running, else inline fallback
+        # This ensures delayed tasks work even if start_delayed_processor() wasn't called
+        if queue_name not in self._delayed_queues:
+            # Background processor not active for this queue - process inline
+            await self._process_delayed_tasks(queue_name)
 
         main_key = f"queue:{queue_name}"
         processing_key = f"queue:{queue_name}:processing"
@@ -168,10 +256,39 @@ class RedisDriver(BaseDriver):
             receipt_handle: Task data from dequeue
 
         Implementation:
-            Uses LREM to remove task from processing list and increments completed counter.
-            If keep_completed_tasks is True, stores task in completed list for history.
+            Uses Redis pipeline to batch LREM + INCR (+ optional LPUSH) into a single
+            network round-trip for optimal performance. Pipeline uses transaction=False
+            to avoid MULTI/EXEC overhead (5-15% faster per AWS benchmarks).
             Idempotent operation.
         """
+        await self._ack_impl(queue_name, receipt_handle)
+
+    def ack_nowait(self, queue_name: str, receipt_handle: bytes) -> None:
+        """Fire-and-forget acknowledgment (non-blocking).
+
+        Use this for maximum throughput when you don't need to wait for ack completion.
+        Errors are logged but don't propagate. Pending acks are awaited on disconnect().
+
+        Args:
+            queue_name: Name of the queue
+            receipt_handle: Task data from dequeue
+        """
+        task = asyncio.create_task(
+            self._ack_with_error_handling(queue_name, receipt_handle),
+            name=f"ack-{queue_name}",
+        )
+        self._ack_tasks.add(task)
+        task.add_done_callback(self._ack_tasks.discard)
+
+    async def _ack_with_error_handling(self, queue_name: str, receipt_handle: bytes) -> None:
+        """Wrapper for fire-and-forget ack that logs errors."""
+        try:
+            await self._ack_impl(queue_name, receipt_handle)
+        except Exception as e:
+            logger.warning(f"Fire-and-forget ack failed for queue {queue_name}: {e}")
+
+    async def _ack_impl(self, queue_name: str, receipt_handle: bytes) -> None:
+        """Internal ack implementation."""
         if self.client is None:
             await self.connect()
             assert self.client is not None
@@ -179,21 +296,29 @@ class RedisDriver(BaseDriver):
         processing_key = f"queue:{queue_name}:processing"
         completed_key = f"queue:{queue_name}:stats:completed"
 
-        # Remove task from processing list (count=1 removes first occurrence)
-        # redis-py's lrem type stub expects str, but runtime accepts bytes (see maybe_await docs)
-        removed_count: int = await maybe_await(
-            self.client.lrem(processing_key, 1, receipt_handle)  # type: ignore[arg-type]
-        )
-
-        # Only increment completed counter if task was actually removed
-        # This prevents double-counting if ack is called multiple times
-        if removed_count > 0:
-            await maybe_await(self.client.incr(completed_key))
-
-            # Optionally keep completed tasks for history
+        # Use pipeline to batch all operations in a single round-trip
+        # transaction=False disables MULTI/EXEC wrapping for better performance
+        # See: https://aws.amazon.com/blogs/database/optimize-redis-client-performance-for-amazon-elasticache/
+        async with self.client.pipeline(transaction=False) as pipe:
+            # LREM: Remove task from processing list (count=1 removes first occurrence)
+            # redis-py's lrem type stub expects str, but runtime accepts bytes
+            pipe.lrem(processing_key, 1, receipt_handle)  # type: ignore[arg-type]
+            # INCR: Increment completed counter
+            pipe.incr(completed_key)
+            # Optional LPUSH: Keep completed tasks for history
             if self.keep_completed_tasks:
                 completed_list_key = f"queue:{queue_name}:completed"
-                await maybe_await(self.client.lpush(completed_list_key, receipt_handle))
+                pipe.lpush(completed_list_key, receipt_handle)
+
+            results = await pipe.execute()
+
+        # Results: [lrem_count, incr_result, (optional lpush_result)]
+        removed_count = results[0]
+
+        # If task wasn't in processing list (already acked), decrement counter to undo
+        # This maintains correct counting for idempotent ack calls
+        if removed_count == 0:
+            await maybe_await(self.client.decr(completed_key))
 
     async def nack(self, queue_name: str, receipt_handle: bytes) -> None:
         """Reject task and re-queue for immediate retry.
@@ -234,7 +359,8 @@ class RedisDriver(BaseDriver):
             receipt_handle: Task data from dequeue
 
         Implementation:
-            Removes task from processing list and increments failed counter.
+            Uses Redis pipeline to batch LREM + INCR into a single network round-trip.
+            Pipeline uses transaction=False to avoid MULTI/EXEC overhead.
             Should be called when a task fails permanently (no more retries).
         """
         if self.client is None:
@@ -244,15 +370,18 @@ class RedisDriver(BaseDriver):
         processing_key = f"queue:{queue_name}:processing"
         failed_key = f"queue:{queue_name}:stats:failed"
 
-        # Remove task from processing list
-        # redis-py's lrem type stub expects str, but runtime accepts bytes (see maybe_await docs)
-        removed_count: int = await maybe_await(
-            self.client.lrem(processing_key, 1, receipt_handle)  # type: ignore[arg-type]
-        )
+        # Use pipeline to batch LREM + INCR in a single round-trip
+        async with self.client.pipeline(transaction=False) as pipe:
+            # LREM: Remove task from processing list
+            pipe.lrem(processing_key, 1, receipt_handle)  # type: ignore[arg-type]
+            # INCR: Increment failed counter
+            pipe.incr(failed_key)
+            results = await pipe.execute()
 
-        # Only increment failed counter if task was actually removed
-        if removed_count > 0:
-            await maybe_await(self.client.incr(failed_key))
+        # If task wasn't in processing list, decrement counter to undo
+        removed_count = results[0]
+        if removed_count == 0:
+            await maybe_await(self.client.decr(failed_key))
 
     async def get_queue_size(
         self,
