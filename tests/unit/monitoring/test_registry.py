@@ -44,6 +44,9 @@ class TestEventRegistry:
     @mark.asyncio
     async def test_emit_calls_all_emitters(self) -> None:
         """Test that emit calls all registered emitters."""
+        from asynctasq.config import Config
+
+        Config.set(events={"enable_all": True})
         EventRegistry.init()
 
         emitter1 = LoggingEventEmitter()
@@ -72,11 +75,17 @@ class TestEventRegistry:
         emitter1.emit.assert_called_once_with(event)
         emitter2.emit.assert_called_once_with(event)
 
+        # Reset config
+        Config.set()
+
     @mark.asyncio
     async def test_emit_handles_emitter_exceptions(self, caplog) -> None:
         """Test that emit handles exceptions from individual emitters gracefully."""
         import logging
 
+        from asynctasq.config import Config
+
+        Config.set(events={"enable_all": True})
         EventRegistry.init()
 
         emitter1 = LoggingEventEmitter()
@@ -109,6 +118,9 @@ class TestEventRegistry:
         # Warning should be logged for the failed emitter
         assert "Global emit failed" in caplog.text
         assert "Test error" in caplog.text
+
+        # Reset config
+        Config.set()
 
     @mark.asyncio
     async def test_close_all_emitters(self) -> None:
@@ -160,9 +172,14 @@ class TestEventRegistry:
 
     def test_init_clears_and_reinitializes(self) -> None:
         """Test that init clears existing emitters and reinitializes."""
+        from asynctasq.config import Config
+
         # Add some emitters
         emitter = LoggingEventEmitter()
         EventRegistry.add(emitter)
+
+        # Enable events so init creates default emitters
+        Config.set(events={"enable_all": True})
 
         # Init should clear and reinitialize
         EventRegistry.init()
@@ -172,6 +189,9 @@ class TestEventRegistry:
         assert len(emitters) >= 1
         # The manually added emitter should be gone
         assert emitter not in emitters
+
+        # Reset config
+        Config.set()
 
     def test_init_with_disable_all_creates_no_emitters(self) -> None:
         """Test that init with disable_all=True does not register any emitters."""
@@ -264,6 +284,9 @@ class TestEventRegistryEdgeCases:
     @mark.asyncio
     async def test_emit_with_mixed_sync_async_emitters(self) -> None:
         """Test emit with both sync and async emitters."""
+        from asynctasq.config import Config
+
+        Config.set(events={"enable_all": True})
         EventRegistry.init()
 
         sync_emitter = LoggingEventEmitter()
@@ -287,6 +310,9 @@ class TestEventRegistryEdgeCases:
         # Both should be called
         async_emitter.emit.assert_called_once()
 
+        # Reset config
+        Config.set()
+
     def test_get_all_returns_copy_not_reference(self) -> None:
         """Test that get_all returns a copy, not the internal list."""
         EventRegistry.init()
@@ -303,6 +329,9 @@ class TestEventRegistryEdgeCases:
         """Test that emit_nowait schedules emission as background task."""
         import asyncio
 
+        from asynctasq.config import Config
+
+        Config.set(events={"enable_all": True})
         EventRegistry.init()
 
         emitter = LoggingEventEmitter()
@@ -327,12 +356,18 @@ class TestEventRegistryEdgeCases:
         # Emitter should have been called
         emitter.emit.assert_called_once_with(event)
 
+        # Reset config
+        Config.set()
+
     @mark.asyncio
     async def test_emit_nowait_handles_exceptions(self, caplog) -> None:
         """Test that emit_nowait handles exceptions from emitters gracefully."""
         import asyncio
         import logging
 
+        from asynctasq.config import Config
+
+        Config.set(events={"enable_all": True})
         EventRegistry.init()
 
         emitter = LoggingEventEmitter()
@@ -357,6 +392,9 @@ class TestEventRegistryEdgeCases:
 
         # Warning should be logged for the failed emitter
         assert "Global emit failed" in caplog.text
+
+        # Reset config
+        Config.set()
 
     @mark.asyncio
     async def test_emit_nowait_skips_when_disabled(self) -> None:
