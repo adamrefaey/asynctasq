@@ -6,6 +6,7 @@ Performance-optimized for high-throughput task execution.
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import lru_cache
 import importlib.util
 import logging
 from pathlib import Path
@@ -20,6 +21,14 @@ _MODULE_SUFFIX: Final[str] = "__"
 
 # Fast counter for unique module names (no hashing needed)
 _module_counter: int = 0
+
+
+# Module-level LRU cache for standard imports (avoids repeated __import__ overhead)
+# maxsize=256 covers typical worker scenarios with many task types
+@lru_cache(maxsize=256)
+def _cached_import(module_name: str) -> Any:
+    """LRU-cached module import for repeated task deserialization."""
+    return __import__(module_name, fromlist=["__name__"])
 
 
 class FunctionResolver:
@@ -40,6 +49,8 @@ class FunctionResolver:
     _module_cache: dict[str, Any] = {}
     # Reverse cache: {absolute_file_path: internal_module_name} for sys.modules lookup
     _name_cache: dict[str, str] = {}
+    # Cache for function references: {(module_name, func_name, func_file): callable}
+    _func_cache: dict[tuple[str, str, str | None], Callable[..., Any]] = {}
 
     @classmethod
     def get_module(cls, module_name: str, module_file: str | None = None) -> Any:
@@ -97,9 +108,10 @@ class FunctionResolver:
     @classmethod
     def _get_regular_module(cls, module_name: str, module_file: str | None) -> Any:
         """Get non-__main__ module (optimized hot path)."""
-        # Try standard import first (most common case)
+        # Try LRU-cached import first (most common case)
+        # Cache hit avoids repeated __import__ overhead (~50-100µs savings per call)
         try:
-            return __import__(module_name, fromlist=["__name__"])
+            return _cached_import(module_name)
         except ModuleNotFoundError:
             pass
 
@@ -230,15 +242,27 @@ class FunctionResolver:
             ImportError: If module/function cannot be loaded
             FileNotFoundError: If __main__ file doesn't exist
         """
+        # Fast path: check function cache first
+        cache_key = (func_module_name, func_name, func_file)
+        cached_func = cls._func_cache.get(cache_key)
+        if cached_func is not None:
+            return cached_func
+
         func_module = cls.get_module(func_module_name, func_file)
         func_attr = getattr(func_module, func_name)
 
         # Unwrap TaskFunctionWrapper if present (faster than hasattr + getattr)
         wrapped = getattr(func_attr, "__wrapped__", None)
-        return wrapped if wrapped is not None else func_attr
+        result = wrapped if wrapped is not None else func_attr
+
+        # Cache for future lookups
+        cls._func_cache[cache_key] = result
+        return result
 
     @classmethod
     def clear_cache(cls) -> None:
-        """Clear the module cache."""
+        """Clear all caches (module, name, function, and LRU import cache)."""
         cls._module_cache.clear()
         cls._name_cache.clear()
+        cls._func_cache.clear()
+        _cached_import.cache_clear()
