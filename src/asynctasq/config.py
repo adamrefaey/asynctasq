@@ -230,7 +230,7 @@ class EventsConfig(BaseSettings):
         ASYNCTASQ_EVENTS_REDIS_URL: Redis URL for event emitter (default: None)
         ASYNCTASQ_EVENTS_CHANNEL: Event channel name (default: asynctasq:events)
         ASYNCTASQ_EVENTS_ENABLE_EVENT_EMITTER_REDIS: Enable Redis event emitter (default: False)
-        ASYNCTASQ_EVENTS_DISABLE_ALL: Disable ALL event emitters for max performance (default: False)
+        ASYNCTASQ_EVENTS_ENABLE_ALL: Enable ALL event emitters (default: False - events disabled by default)
     """
 
     model_config = SettingsConfigDict(
@@ -243,7 +243,7 @@ class EventsConfig(BaseSettings):
     redis_url: str | None = None
     channel: str = "asynctasq:events"
     enable_event_emitter_redis: bool = False
-    disable_all: bool = False  # Set to True to disable ALL event emitters for benchmarks
+    enable_all: bool = False  # Events are disabled by default for performance
 
 
 class TaskDefaultsConfig(BaseSettings):

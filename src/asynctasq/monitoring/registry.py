@@ -15,6 +15,7 @@ class EventRegistry:
     """Static registry for `EventEmitter` instances."""
 
     _emitters: set[EventEmitter] = set()
+    _disabled: bool = False
 
     @staticmethod
     def add(emitter: EventEmitter) -> None:
@@ -33,6 +34,9 @@ class EventRegistry:
         Exceptions from individual emitters are logged and do not prevent
         other emitters from receiving the event.
         """
+        if EventRegistry._disabled:
+            return
+
         for emitter in EventRegistry.get_all():
             try:
                 await emitter.emit(event)
@@ -47,8 +51,8 @@ class EventRegistry:
         Use this in hot paths where event emission latency matters.
         Exceptions are logged and do not propagate.
         """
-        # Skip if no emitters registered
-        if not EventRegistry._emitters:
+        # Skip if disabled or no emitters registered
+        if EventRegistry._disabled or not EventRegistry._emitters:
             return
 
         async def _emit_impl() -> None:
@@ -79,6 +83,11 @@ class EventRegistry:
         """Initialize the registry with emitters using config only."""
         EventRegistry._emitters.clear()
         config = Config.get()
+
+        # Check if events are enabled (disabled by default for performance)
+        EventRegistry._disabled = not config.events.enable_all
+        if EventRegistry._disabled:
+            return
 
         # Always include logging emitter as first emitter
         EventRegistry._emitters.add(LoggingEventEmitter())

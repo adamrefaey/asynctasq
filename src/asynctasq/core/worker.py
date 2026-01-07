@@ -313,7 +313,8 @@ class Worker:
             assert task is not None
             assert task._task_id is not None  # Task ID is set during deserialization
 
-            logger.info(f"Processing task {task._task_id}: {task.__class__.__name__}")
+            if not EventRegistry._disabled:
+                logger.info(f"Processing task {task._task_id}: {task.__class__.__name__}")
 
             # Driver already incremented current_attempt in dequeue()
             # Sync the task object with the driver's state
@@ -348,7 +349,8 @@ class Worker:
             )
 
             # Task succeeded - acknowledge and remove from queue
-            logger.info(f"Task {task._task_id} completed successfully")
+            if not EventRegistry._disabled:
+                logger.info(f"Task {task._task_id} completed successfully")
             try:
                 # Use fire-and-forget ack for better throughput if available
                 if hasattr(self.queue_driver, "ack_nowait"):

@@ -173,6 +173,54 @@ class TestEventRegistry:
         # The manually added emitter should be gone
         assert emitter not in emitters
 
+    def test_init_with_disable_all_creates_no_emitters(self) -> None:
+        """Test that init with disable_all=True does not register any emitters."""
+        from asynctasq.config import Config
+
+        # Set disable_all to True
+        Config.set(events={"disable_all": True})
+        EventRegistry.init()
+
+        emitters = EventRegistry.get_all()
+        assert len(emitters) == 0
+        assert EventRegistry._disabled is True
+
+        # Reset config
+        Config.set()
+        EventRegistry.init()
+
+    @mark.asyncio
+    async def test_emit_skips_when_disabled(self) -> None:
+        """Test that emit does nothing when disable_all is True."""
+        from asynctasq.config import Config
+
+        # Set disable_all to True
+        Config.set(events={"disable_all": True})
+        EventRegistry.init()
+
+        # Manually add an emitter to verify it's not called
+        emitter = LoggingEventEmitter()
+        emitter.emit = AsyncMock()
+        EventRegistry.add(emitter)
+
+        event = TaskEvent(
+            event_type=EventType.TASK_STARTED,
+            task_id="test-123",
+            task_name="test_task",
+            queue="default",
+            worker_id="worker-123",
+            timestamp=datetime.now(UTC),
+        )
+
+        await EventRegistry.emit(event)
+
+        # Emitter should NOT have been called because events are disabled
+        emitter.emit.assert_not_called()
+
+        # Reset config
+        Config.set()
+        EventRegistry.init()
+
 
 @mark.unit
 class TestEventRegistryEdgeCases:
@@ -312,9 +360,13 @@ class TestEventRegistryEdgeCases:
 
     @mark.asyncio
     async def test_emit_nowait_skips_when_disabled(self) -> None:
-        """Test that emit_nowait does nothing when disabled."""
+        """Test that emit_nowait does nothing when disable_all is True."""
         import asyncio
 
+        from asynctasq.config import Config
+
+        # Set disable_all to True
+        Config.set(events={"disable_all": True})
         EventRegistry.init()
 
         emitter = LoggingEventEmitter()
@@ -334,8 +386,11 @@ class TestEventRegistryEdgeCases:
         # Give time for any potential background task
         await asyncio.sleep(0.01)
 
-        # Emitter should NOT have been called
+        # Emitter should NOT have been called because events are disabled
         emitter.emit.assert_not_called()
+
+        # Reset config
+        Config.set()
 
     @mark.asyncio
     async def test_emit_nowait_skips_when_no_emitters(self) -> None:
