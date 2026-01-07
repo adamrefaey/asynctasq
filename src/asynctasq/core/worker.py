@@ -144,6 +144,12 @@ class Worker:
         # Ensure driver is connected
         await self.queue_driver.connect()
 
+        # Start background delayed task processor for RedisDriver
+        # This moves ready delayed tasks to main queue periodically instead of on every dequeue
+        if hasattr(self.queue_driver, "start_delayed_processor"):
+            for queue in self.queues:
+                self.queue_driver.start_delayed_processor(queue)
+
         # Initialize ProcessPoolManager if configured
         if self.process_pool_size is not None or self.process_pool_max_tasks_per_child is not None:
             from asynctasq.tasks.infrastructure.process_pool_manager import (
@@ -313,8 +319,7 @@ class Worker:
             # Sync the task object with the driver's state
             task._current_attempt += 1
 
-            # Emit task_started event
-            await EventRegistry.emit(
+            EventRegistry.emit_nowait(
                 TaskEvent(
                     event_type=EventType.TASK_STARTED,
                     task_id=task._task_id,
@@ -325,14 +330,13 @@ class Worker:
                 )
             )
 
-            # Execute task with timeout (delegated to TaskService)
             await self._task_executor.execute(task)
 
             # Calculate duration
             duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
 
-            # Emit task_completed event
-            await EventRegistry.emit(
+            # Emit task_completed event (fire-and-forget)
+            EventRegistry.emit_nowait(
                 TaskEvent(
                     event_type=EventType.TASK_COMPLETED,
                     task_id=task._task_id,
@@ -346,8 +350,14 @@ class Worker:
             # Task succeeded - acknowledge and remove from queue
             logger.info(f"Task {task._task_id} completed successfully")
             try:
-                # Add timeout to ack to prevent hanging
-                await asyncio.wait_for(self.queue_driver.ack(queue_name, task_data), timeout=5.0)
+                # Use fire-and-forget ack for better throughput if available
+                if hasattr(self.queue_driver, "ack_nowait"):
+                    self.queue_driver.ack_nowait(queue_name, task_data)
+                else:
+                    # Fallback to awaited ack with timeout
+                    await asyncio.wait_for(
+                        self.queue_driver.ack(queue_name, task_data), timeout=5.0
+                    )
             except TimeoutError:
                 logger.error(
                     f"Ack timeout for task {task._task_id} from queue '{queue_name}'. "
@@ -360,6 +370,7 @@ class Worker:
                     f"{ack_error}"
                 )
                 logger.exception(ack_error)
+
             self._tasks_processed += 1
 
         except (ImportError, AttributeError, ValueError, TypeError) as e:
@@ -451,8 +462,8 @@ class Worker:
             serialized_task = self._task_serializer.serialize(task)
             logger.info(f"Re-enqueuing task {task_id}")
 
-            # Emit task_reenqueued event
-            await EventRegistry.emit(
+            # Emit task_reenqueued event (fire-and-forget)
+            EventRegistry.emit_nowait(
                 TaskEvent(
                     event_type=EventType.TASK_REENQUEUED,
                     task_id=task_id,
@@ -503,8 +514,8 @@ class Worker:
                 f"Task {task_id} failed permanently after {task._current_attempt} attempts"
             )
 
-            # Emit task_failed event
-            await EventRegistry.emit(
+            # Emit task_failed event (fire-and-forget)
+            EventRegistry.emit_nowait(
                 TaskEvent(
                     event_type=EventType.TASK_FAILED,
                     task_id=task_id,

@@ -715,6 +715,59 @@ class TestWorkerProcessTask:
         assert worker._tasks_processed == initial_count + 1
 
     @mark.asyncio
+    async def test_process_task_uses_ack_nowait_when_available(self) -> None:
+        """Test that worker uses ack_nowait when available on driver."""
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
+
+        task = ConcreteTask(public_param="test")
+        task._task_id = "test-id"
+        task_data = b"serialized_task"
+
+        # Add ack_nowait to the mock
+        mock_driver.ack_nowait = MagicMock()
+
+        with patch.object(worker, "_deserialize_task", return_value=task):
+            # Act
+            await worker._process_task(task_data, "test_queue")
+
+        # Assert
+        # ack_nowait should be called (fire-and-forget)
+        mock_driver.ack_nowait.assert_called_once_with("test_queue", task_data)
+        # Regular ack should not be called
+        mock_driver.ack.assert_not_called()
+        # Task should be processed
+        assert worker._tasks_processed == 1
+
+    @mark.asyncio
+    async def test_process_task_fallback_to_ack_with_timeout(self) -> None:
+        """Test that worker falls back to awaited ack when ack_nowait is not available."""
+        # Arrange
+        mock_driver = AsyncMock(spec=BaseDriver)
+        mock_serializer = MagicMock(spec=BaseSerializer)
+        worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
+
+        task = ConcreteTask(public_param="test")
+        task._task_id = "test-id"
+        task_data = b"serialized_task"
+
+        # Ensure ack_nowait is not available (remove from mock)
+        if hasattr(mock_driver, "ack_nowait"):
+            delattr(mock_driver, "ack_nowait")
+
+        with patch.object(worker, "_deserialize_task", return_value=task):
+            # Act
+            await worker._process_task(task_data, "test_queue")
+
+        # Assert
+        # Regular ack should be called as fallback
+        mock_driver.ack.assert_called_once_with("test_queue", task_data)
+        # Task should be processed
+        assert worker._tasks_processed == 1
+
+    @mark.asyncio
     async def test_process_task_handles_ack_timeout(self) -> None:
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
@@ -724,6 +777,10 @@ class TestWorkerProcessTask:
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
         task_data = b"serialized_task"
+
+        # Remove ack_nowait to test the fallback path with timeout
+        if hasattr(mock_driver, "ack_nowait"):
+            delattr(mock_driver, "ack_nowait")
 
         # Mock ack to timeout
         async def slow_ack(*args, **kwargs):
@@ -755,6 +812,10 @@ class TestWorkerProcessTask:
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
         task_data = b"serialized_task"
+
+        # Remove ack_nowait to test the fallback path with exception
+        if hasattr(mock_driver, "ack_nowait"):
+            delattr(mock_driver, "ack_nowait")
 
         # Mock ack to raise exception
         ack_error = RuntimeError("Connection lost")
@@ -2100,7 +2161,7 @@ class TestWorkerEventEmission:
 
         with patch.object(worker, "_deserialize_task", return_value=task):
             with patch.object(worker._task_executor, "execute", new_callable=AsyncMock):
-                with patch.object(EventRegistry, "emit", new_callable=AsyncMock) as mock_emit:
+                with patch.object(EventRegistry, "emit_nowait") as mock_emit:
                     # Act
                     await worker._process_task(b"task_data", "test_queue")
 
@@ -2126,7 +2187,7 @@ class TestWorkerEventEmission:
 
         with patch.object(worker, "_deserialize_task", return_value=task):
             with patch.object(worker._task_executor, "execute", new_callable=AsyncMock):
-                with patch.object(EventRegistry, "emit", new_callable=AsyncMock) as mock_emit:
+                with patch.object(EventRegistry, "emit_nowait") as mock_emit:
                     # Act
                     await worker._process_task(b"task_data", "test_queue")
 
@@ -2153,7 +2214,7 @@ class TestWorkerEventEmission:
         start_time = datetime.now(UTC)
 
         with patch.object(worker._task_serializer, "serialize", return_value=b"serialized"):
-            with patch.object(EventRegistry, "emit", new_callable=AsyncMock) as mock_emit:
+            with patch.object(EventRegistry, "emit_nowait") as mock_emit:
                 # Act
                 await worker._handle_task_failure(
                     task, exception, "test_queue", start_time, b"task_data"
@@ -2180,7 +2241,7 @@ class TestWorkerEventEmission:
         task.failed = AsyncMock()  # type: ignore[assignment]
 
         # Act
-        with patch.object(EventRegistry, "emit", new_callable=AsyncMock) as mock_emit:
+        with patch.object(EventRegistry, "emit_nowait") as mock_emit:
             await worker._handle_task_failure(
                 task, exception, "test_queue", start_time, b"task_data"
             )
@@ -2209,7 +2270,7 @@ class TestWorkerEventEmission:
 
 @mark.unit
 class TestWorkerAckTimeout:
-    """Test Worker ack timeout handling."""
+    """Test Worker ack timeout handling (fallback path when ack_nowait not available)."""
 
     @mark.asyncio
     async def test_process_task_handles_ack_timeout(self) -> None:
@@ -2220,6 +2281,10 @@ class TestWorkerAckTimeout:
 
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
+
+        # Remove ack_nowait to test the fallback path
+        if hasattr(mock_driver, "ack_nowait"):
+            delattr(mock_driver, "ack_nowait")
 
         async def ack_timeout(*args, **kwargs):
             raise TimeoutError()
@@ -2248,6 +2313,10 @@ class TestWorkerAckTimeout:
 
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
+
+        # Remove ack_nowait to test the fallback path
+        if hasattr(mock_driver, "ack_nowait"):
+            delattr(mock_driver, "ack_nowait")
 
         mock_driver.ack.side_effect = RuntimeError("ACK failed")
 
