@@ -43,9 +43,11 @@ pre-commit-update:
 docker-up:
 	docker-compose -f tests/infrastructure/docker-compose.yml up -d
 	@echo "⏳ Waiting for services to be healthy..."
-	@sleep 8
+	@sleep 5
 	@echo "🚀 Running database migrations..."
 	-uv run python -m asynctasq migrate --driver postgres
+	@echo "⏳ Waiting for MySQL to fully initialize..."
+	@sleep 10
 	-uv run python -m asynctasq migrate --driver mysql
 	@echo "✅ Docker services started and migrated"
 
