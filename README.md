@@ -35,7 +35,7 @@ cp .env.example .env  # Edit with your settings
 **Define and dispatch tasks:**
 
 ```python
-from asynctasq import init, task
+from asynctasq import init, run, task
 
 init()  # Loads from .env
 
@@ -48,6 +48,9 @@ async def send_email(to: str, subject: str):
 async def main():
     task_id = await send_email(to="user@example.com", subject="Welcome!").dispatch()
     print(f"Task dispatched: {task_id}")
+
+if __name__ == "__main__":
+    run(main())
 ```
 
 **Run workers:**
