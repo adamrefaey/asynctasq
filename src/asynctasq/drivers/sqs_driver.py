@@ -1,3 +1,4 @@
+import asyncio
 from base64 import b64decode, b64encode
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
@@ -53,6 +54,7 @@ class SQSDriver(BaseDriver):
     _exit_stack: AsyncExitStack | None = field(default=None, init=False, repr=False)
     _queue_urls: dict[str, str] = field(default_factory=dict, init=False, repr=False)
     _receipt_handles: dict[bytes, str] = field(default_factory=dict, init=False, repr=False)
+    _ack_tasks: set[asyncio.Task[None]] = field(default_factory=set, init=False, repr=False)
 
     async def connect(self) -> None:
         """Establish connection to AWS SQS.
@@ -96,6 +98,12 @@ class SQSDriver(BaseDriver):
         Clears queue URL cache and receipt handle cache.
         Idempotent - safe to call multiple times.
         """
+        # Wait for pending fire-and-forget acks (with 5s timeout)
+        if self._ack_tasks:
+            done, pending = await asyncio.wait(self._ack_tasks, timeout=5.0)
+            for task in pending:
+                task.cancel()
+            self._ack_tasks.clear()
 
         if self._exit_stack is not None:
             await self._exit_stack.aclose()
@@ -260,6 +268,29 @@ class SQSDriver(BaseDriver):
 
         # Clean up receipt handle from cache
         self._receipt_handles.pop(receipt_handle, None)
+
+    def ack_nowait(self, queue_name: str, receipt_handle: bytes) -> None:
+        """Fire-and-forget acknowledgment (non-blocking).
+
+        Use this for maximum throughput when you don't need to wait for ack completion.
+        The ack is tracked and will be awaited during disconnect() for graceful shutdown.
+        """
+        task = asyncio.create_task(
+            self._ack_with_error_handling(queue_name, receipt_handle),
+            name=f"ack-{queue_name}",
+        )
+        self._ack_tasks.add(task)
+        task.add_done_callback(self._ack_tasks.discard)
+
+    async def _ack_with_error_handling(self, queue_name: str, receipt_handle: bytes) -> None:
+        """Ack with error logging (for fire-and-forget pattern)."""
+        import logging
+
+        try:
+            await self.ack(queue_name, receipt_handle)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Fire-and-forget ack failed for {queue_name}: {e}")
 
     async def nack(self, queue_name: str, receipt_handle: bytes) -> None:
         """Reject task and make immediately available for reprocessing.
