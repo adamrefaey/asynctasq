@@ -42,8 +42,10 @@ class MySQLDriver(BaseDriver):
     min_pool_size: int = 10
     max_pool_size: int = 10
     keep_completed_tasks: bool = False
+    warmup_connections: int = 0
     pool: Pool | None = field(default=None, init=False, repr=False)
     _receipt_handles: dict[bytes, int] = field(default_factory=dict, init=False, repr=False)
+    _ack_tasks: set[asyncio.Task[None]] = field(default_factory=set, init=False, repr=False)
 
     async def connect(self) -> None:
         """Initialize asyncmy connection pool with configurable size."""
@@ -58,8 +60,36 @@ class MySQLDriver(BaseDriver):
                 maxsize=self.max_pool_size,
             )
 
+            # Pre-establish connections to avoid cold-start latency
+            if self.warmup_connections > 0:
+                await self._warmup_connection_pool(self.warmup_connections)
+
+    async def _warmup_connection_pool(self, n: int) -> None:
+        """Pre-establish N connections to avoid cold-start latency (~4-5ms per connection).
+
+        The asyncmy client creates connections on-demand, which adds latency on first use.
+        This method forces the pool to create connections upfront for faster subsequent operations.
+        """
+        assert self.pool is not None
+
+        async def ping() -> bool:
+            assert self.pool is not None
+            async with self.pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("SELECT 1")
+            return True
+
+        await asyncio.gather(*[ping() for _ in range(n)])
+
     async def disconnect(self) -> None:
         """Close connection pool and cleanup."""
+        # Wait for pending fire-and-forget acks (with 5s timeout)
+        if self._ack_tasks:
+            done, pending = await asyncio.wait(self._ack_tasks, timeout=5.0)
+            for task in pending:
+                task.cancel()
+            self._ack_tasks.clear()
+
         if self.pool:
             self.pool.close()
             await self.pool.wait_closed()
@@ -359,6 +389,29 @@ class MySQLDriver(BaseDriver):
                     await conn.rollback()
                     raise
             self._receipt_handles.pop(receipt_handle, None)
+
+    def ack_nowait(self, queue_name: str, receipt_handle: bytes) -> None:
+        """Fire-and-forget acknowledgment (non-blocking).
+
+        Use this for maximum throughput when you don't need to wait for ack completion.
+        The ack is tracked and will be awaited during disconnect() for graceful shutdown.
+        """
+        task = asyncio.create_task(
+            self._ack_with_error_handling(queue_name, receipt_handle),
+            name=f"ack-{queue_name}",
+        )
+        self._ack_tasks.add(task)
+        task.add_done_callback(self._ack_tasks.discard)
+
+    async def _ack_with_error_handling(self, queue_name: str, receipt_handle: bytes) -> None:
+        """Ack with error logging (for fire-and-forget pattern)."""
+        import logging
+
+        try:
+            await self.ack(queue_name, receipt_handle)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Fire-and-forget ack failed for {queue_name}: {e}")
 
     async def nack(self, queue_name: str, receipt_handle: bytes) -> None:
         """Reject task for retry or move to dead letter queue.
