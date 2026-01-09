@@ -69,7 +69,6 @@ class RedisDriver(BaseDriver):
     client: Redis | None = field(default=None, init=False, repr=False)
     _delayed_task_bg: asyncio.Task[None] | None = field(default=None, init=False, repr=False)
     _delayed_queues: set[str] = field(default_factory=set, init=False, repr=False)
-    _ack_tasks: set[asyncio.Task[None]] = field(default_factory=set, init=False, repr=False)
 
     async def connect(self) -> None:
         """Initialize Redis connection with pooling (connection is lazy)."""
@@ -155,13 +154,6 @@ class RedisDriver(BaseDriver):
             except asyncio.CancelledError:
                 pass
             self._delayed_task_bg = None
-
-        # Wait for pending fire-and-forget ack tasks (with timeout)
-        if self._ack_tasks:
-            done, pending = await asyncio.wait(self._ack_tasks, timeout=5.0)
-            for task in pending:
-                task.cancel()
-            self._ack_tasks.clear()
 
         if self.client is not None:
             await self.client.aclose()
@@ -262,30 +254,6 @@ class RedisDriver(BaseDriver):
             Idempotent operation.
         """
         await self._ack_impl(queue_name, receipt_handle)
-
-    def ack_nowait(self, queue_name: str, receipt_handle: bytes) -> None:
-        """Fire-and-forget acknowledgment (non-blocking).
-
-        Use this for maximum throughput when you don't need to wait for ack completion.
-        Errors are logged but don't propagate. Pending acks are awaited on disconnect().
-
-        Args:
-            queue_name: Name of the queue
-            receipt_handle: Task data from dequeue
-        """
-        task = asyncio.create_task(
-            self._ack_with_error_handling(queue_name, receipt_handle),
-            name=f"ack-{queue_name}",
-        )
-        self._ack_tasks.add(task)
-        task.add_done_callback(self._ack_tasks.discard)
-
-    async def _ack_with_error_handling(self, queue_name: str, receipt_handle: bytes) -> None:
-        """Wrapper for fire-and-forget ack that logs errors."""
-        try:
-            await self._ack_impl(queue_name, receipt_handle)
-        except Exception as e:
-            logger.warning(f"Fire-and-forget ack failed for queue {queue_name}: {e}")
 
     async def _ack_impl(self, queue_name: str, receipt_handle: bytes) -> None:
         """Internal ack implementation."""

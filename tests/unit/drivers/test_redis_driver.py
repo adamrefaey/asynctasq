@@ -587,41 +587,6 @@ class TestRedisDriverAck:
         mock_pipe.incr.assert_called_once_with("queue:default:stats:completed")
         mock_pipe.lpush.assert_called_once_with("queue:default:completed", b"task_data")
 
-    @patch("asynctasq.drivers.redis_driver.Redis")
-    @mark.asyncio
-    async def test_ack_nowait_is_fire_and_forget(self, mock_redis_class: MagicMock) -> None:
-        """Test ack_nowait creates a background task without waiting."""
-        import asyncio
-
-        # Arrange
-        mock_client = AsyncMock()
-        mock_redis_class.from_url.return_value = mock_client
-
-        # Mock pipeline
-        mock_pipe = MagicMock()
-        mock_pipe.lrem = MagicMock(return_value=mock_pipe)
-        mock_pipe.incr = MagicMock(return_value=mock_pipe)
-        mock_pipe.execute = AsyncMock(return_value=[1, 1])
-        mock_client.pipeline = MagicMock(return_value=mock_pipe)
-        mock_pipe.__aenter__ = AsyncMock(return_value=mock_pipe)
-        mock_pipe.__aexit__ = AsyncMock(return_value=None)
-
-        driver = RedisDriver()
-        await driver.connect()
-
-        # Act - ack_nowait should return immediately
-        driver.ack_nowait("default", b"task_data")
-
-        # Give the background task time to run
-        await asyncio.sleep(0.01)
-
-        # Assert
-        mock_pipe.lrem.assert_called_once_with("queue:default:processing", 1, b"task_data")
-        mock_pipe.execute.assert_called_once()
-
-        # Cleanup
-        await driver.disconnect()
-
 
 @mark.unit
 class TestRedisDriverDelayedProcessor:

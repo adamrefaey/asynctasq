@@ -95,7 +95,6 @@ class RabbitMQDriver(BaseDriver):
     )
     _delayed_queues_to_process: set[str] = field(default_factory=set, init=False, repr=False)
     _delayed_task_bg: asyncio.Task[None] | None = field(default=None, init=False, repr=False)
-    _ack_tasks: set[asyncio.Task[None]] = field(default_factory=set, init=False, repr=False)
 
     async def connect(self) -> None:
         """Initialize RabbitMQ connection with auto-reconnection.
@@ -145,13 +144,6 @@ class RabbitMQDriver(BaseDriver):
             except asyncio.CancelledError:
                 pass
             self._delayed_task_bg = None
-
-        # Wait for pending fire-and-forget acks (with 5s timeout)
-        if self._ack_tasks:
-            done, pending = await asyncio.wait(self._ack_tasks, timeout=5.0)
-            for task in pending:
-                task.cancel()
-            self._ack_tasks.clear()
 
         # Clear caches first to prevent stale references
         self._queues.clear()
@@ -517,29 +509,6 @@ class RabbitMQDriver(BaseDriver):
                 self._in_flight_per_queue[queue_name] = max(
                     0, self._in_flight_per_queue[queue_name] - 1
                 )
-
-    def ack_nowait(self, queue_name: str, receipt_handle: bytes) -> None:
-        """Fire-and-forget acknowledgment (non-blocking).
-
-        Use this for maximum throughput when you don't need to wait for ack completion.
-        The ack is tracked and will be awaited during disconnect() for graceful shutdown.
-        """
-        task = asyncio.create_task(
-            self._ack_with_error_handling(queue_name, receipt_handle),
-            name=f"ack-{queue_name}",
-        )
-        self._ack_tasks.add(task)
-        task.add_done_callback(self._ack_tasks.discard)
-
-    async def _ack_with_error_handling(self, queue_name: str, receipt_handle: bytes) -> None:
-        """Ack with error logging (for fire-and-forget pattern)."""
-        import logging
-
-        try:
-            await self.ack(queue_name, receipt_handle)
-        except Exception as e:
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Fire-and-forget ack failed for {queue_name}: {e}")
 
     def start_delayed_processor(self, queue_name: str) -> None:
         """Start background processor for delayed tasks (called by Worker on startup).

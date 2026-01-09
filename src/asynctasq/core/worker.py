@@ -352,14 +352,8 @@ class Worker:
             if not EventRegistry._disabled:
                 logger.info(f"Task {task._task_id} completed successfully")
             try:
-                # Use fire-and-forget ack for better throughput if available
-                if hasattr(self.queue_driver, "ack_nowait"):
-                    self.queue_driver.ack_nowait(queue_name, task_data)
-                else:
-                    # Fallback to awaited ack with timeout
-                    await asyncio.wait_for(
-                        self.queue_driver.ack(queue_name, task_data), timeout=5.0
-                    )
+                # Acknowledge task completion
+                await asyncio.wait_for(self.queue_driver.ack(queue_name, task_data), timeout=5.0)
             except TimeoutError:
                 logger.error(
                     f"Ack timeout for task {task._task_id} from queue '{queue_name}'. "

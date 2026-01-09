@@ -715,8 +715,8 @@ class TestWorkerProcessTask:
         assert worker._tasks_processed == initial_count + 1
 
     @mark.asyncio
-    async def test_process_task_uses_ack_nowait_when_available(self) -> None:
-        """Test that worker uses ack_nowait when available on driver."""
+    async def test_process_task_uses_ack_with_timeout(self) -> None:
+        """Test that worker uses awaited ack with timeout."""
         # Arrange
         mock_driver = AsyncMock(spec=BaseDriver)
         mock_serializer = MagicMock(spec=BaseSerializer)
@@ -726,43 +726,12 @@ class TestWorkerProcessTask:
         task._task_id = "test-id"
         task_data = b"serialized_task"
 
-        # Add ack_nowait to the mock
-        mock_driver.ack_nowait = MagicMock()
-
         with patch.object(worker, "_deserialize_task", return_value=task):
             # Act
             await worker._process_task(task_data, "test_queue")
 
         # Assert
-        # ack_nowait should be called (fire-and-forget)
-        mock_driver.ack_nowait.assert_called_once_with("test_queue", task_data)
-        # Regular ack should not be called
-        mock_driver.ack.assert_not_called()
-        # Task should be processed
-        assert worker._tasks_processed == 1
-
-    @mark.asyncio
-    async def test_process_task_fallback_to_ack_with_timeout(self) -> None:
-        """Test that worker falls back to awaited ack when ack_nowait is not available."""
-        # Arrange
-        mock_driver = AsyncMock(spec=BaseDriver)
-        mock_serializer = MagicMock(spec=BaseSerializer)
-        worker = Worker(queue_driver=mock_driver, serializer=mock_serializer)
-
-        task = ConcreteTask(public_param="test")
-        task._task_id = "test-id"
-        task_data = b"serialized_task"
-
-        # Ensure ack_nowait is not available (remove from mock)
-        if hasattr(mock_driver, "ack_nowait"):
-            delattr(mock_driver, "ack_nowait")
-
-        with patch.object(worker, "_deserialize_task", return_value=task):
-            # Act
-            await worker._process_task(task_data, "test_queue")
-
-        # Assert
-        # Regular ack should be called as fallback
+        # Regular ack should be called
         mock_driver.ack.assert_called_once_with("test_queue", task_data)
         # Task should be processed
         assert worker._tasks_processed == 1
@@ -777,10 +746,6 @@ class TestWorkerProcessTask:
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
         task_data = b"serialized_task"
-
-        # Remove ack_nowait to test the fallback path with timeout
-        if hasattr(mock_driver, "ack_nowait"):
-            delattr(mock_driver, "ack_nowait")
 
         # Mock ack to timeout
         async def slow_ack(*args, **kwargs):
@@ -812,10 +777,6 @@ class TestWorkerProcessTask:
         task = ConcreteTask(public_param="test")
         task._task_id = "test-id"
         task_data = b"serialized_task"
-
-        # Remove ack_nowait to test the fallback path with exception
-        if hasattr(mock_driver, "ack_nowait"):
-            delattr(mock_driver, "ack_nowait")
 
         # Mock ack to raise exception
         ack_error = RuntimeError("Connection lost")
