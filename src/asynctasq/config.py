@@ -110,6 +110,7 @@ class PostgresConfig(BaseSettings):
         ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE: Dead letter table name (default: dead_letter_queue)
         ASYNCTASQ_POSTGRES_MIN_POOL_SIZE: Minimum pool size (default: 10)
         ASYNCTASQ_POSTGRES_MAX_POOL_SIZE: Maximum pool size (default: 10)
+        ASYNCTASQ_POSTGRES_WARMUP_CONNECTIONS: Pre-establish N connections on startup (default: 0)
     """
 
     model_config = SettingsConfigDict(
@@ -124,6 +125,7 @@ class PostgresConfig(BaseSettings):
     dead_letter_table: str = "dead_letter_queue"
     min_pool_size: int = 10
     max_pool_size: int = 10
+    warmup_connections: int = 0  # Pre-establish connections to avoid cold-start latency
 
     @field_validator("min_pool_size")
     @classmethod
@@ -139,6 +141,14 @@ class PostgresConfig(BaseSettings):
         """Validate max pool size."""
         if v < 1:
             raise ValueError("max_pool_size must be positive")
+        return v
+
+    @field_validator("warmup_connections")
+    @classmethod
+    def validate_warmup_connections(cls, v: int) -> int:
+        """Validate warmup connections."""
+        if v < 0:
+            raise ValueError("warmup_connections cannot be negative")
         return v
 
     def model_post_init(self, __context: Any) -> None:
@@ -159,6 +169,7 @@ class MySQLConfig(BaseSettings):
         ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE: Dead letter table name (default: dead_letter_queue)
         ASYNCTASQ_MYSQL_MIN_POOL_SIZE: Minimum pool size (default: 10)
         ASYNCTASQ_MYSQL_MAX_POOL_SIZE: Maximum pool size (default: 10)
+        ASYNCTASQ_MYSQL_WARMUP_CONNECTIONS: Pre-establish N connections on startup (default: 0)
     """
 
     model_config = SettingsConfigDict(
@@ -173,6 +184,7 @@ class MySQLConfig(BaseSettings):
     dead_letter_table: str = "dead_letter_queue"
     min_pool_size: int = 10
     max_pool_size: int = 10
+    warmup_connections: int = 0  # Pre-establish connections to avoid cold-start latency
 
     @field_validator("min_pool_size")
     @classmethod
@@ -188,6 +200,14 @@ class MySQLConfig(BaseSettings):
         """Validate max pool size."""
         if v < 1:
             raise ValueError("max_pool_size must be positive")
+        return v
+
+    @field_validator("warmup_connections")
+    @classmethod
+    def validate_warmup_connections(cls, v: int) -> int:
+        """Validate warmup connections."""
+        if v < 0:
+            raise ValueError("warmup_connections cannot be negative")
         return v
 
     def model_post_init(self, __context: Any) -> None:
@@ -206,6 +226,7 @@ class RabbitMQConfig(BaseSettings):
         ASYNCTASQ_RABBITMQ_URL: RabbitMQ connection URL (default: amqp://guest:guest@localhost:5672/)
         ASYNCTASQ_RABBITMQ_EXCHANGE_NAME: Exchange name (default: asynctasq)
         ASYNCTASQ_RABBITMQ_PREFETCH_COUNT: Prefetch count (default: 1)
+        ASYNCTASQ_RABBITMQ_DELAYED_TASK_INTERVAL: Interval for background delayed task processing (default: 1.0)
     """
 
     model_config = SettingsConfigDict(
@@ -218,6 +239,15 @@ class RabbitMQConfig(BaseSettings):
     url: str = "amqp://guest:guest@localhost:5672/"
     exchange_name: str = "asynctasq"
     prefetch_count: int = 1
+    delayed_task_interval: float = 1.0  # Interval for background delayed task processing
+
+    @field_validator("delayed_task_interval")
+    @classmethod
+    def validate_delayed_task_interval(cls, v: float) -> float:
+        """Validate delayed task interval."""
+        if v <= 0:
+            raise ValueError("delayed_task_interval must be positive")
+        return v
 
 
 class EventsConfig(BaseSettings):
