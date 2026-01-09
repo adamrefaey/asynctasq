@@ -424,14 +424,18 @@ class RabbitMQDriver(BaseDriver):
               for subsequent ack/nack operations
             - Returns task_data bytes (not the message object)
             - Delayed tasks appear when background processor moves them from delayed queue
-              (call start_delayed_processor() to enable background processing)
+              (call start_delayed_processor() to enable background processing, or they will
+              be processed inline as a fallback)
         """
         if self.channel is None:
             await self.connect()
             assert self.channel is not None
 
-        # Note: Delayed task processing is now handled by background loop
-        # Call start_delayed_processor() to enable it (Worker does this automatically)
+        # Process delayed tasks: use background task if running, else inline fallback
+        # This ensures delayed tasks work even if start_delayed_processor() wasn't called
+        if queue_name not in self._delayed_queues_to_process:
+            # Background processor not active for this queue - process inline
+            await self._process_delayed_tasks(queue_name)
 
         # Ensure queue exists and is bound
         queue = await self._ensure_queue(queue_name)
