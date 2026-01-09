@@ -11,6 +11,7 @@
     - [Overriding Environment Variables](#overriding-environment-variables)
   - [Available Environment Variables](#available-environment-variables)
     - [Core Configuration](#core-configuration)
+      - [Driver Selection](#driver-selection)
     - [Redis Driver](#redis-driver)
     - [AWS SQS Driver](#aws-sqs-driver)
     - [PostgreSQL Driver](#postgresql-driver)
@@ -139,6 +140,12 @@ ASYNCTASQ_REDIS_DB=0
 
 # Maximum connections in pool
 ASYNCTASQ_REDIS_MAX_CONNECTIONS=100
+
+# Pre-establish N connections on startup
+ASYNCTASQ_REDIS_WARMUP_CONNECTIONS=0
+
+# Interval for background delayed task processing
+ASYNCTASQ_REDIS_DELAYED_TASK_INTERVAL=1.0
 ```
 
 ### AWS SQS Driver
@@ -175,6 +182,9 @@ ASYNCTASQ_POSTGRES_DEAD_LETTER_TABLE=dead_letter_queue
 # Connection pool settings
 ASYNCTASQ_POSTGRES_MIN_POOL_SIZE=10
 ASYNCTASQ_POSTGRES_MAX_POOL_SIZE=10
+
+# Pre-establish N connections on startup
+ASYNCTASQ_POSTGRES_WARMUP_CONNECTIONS=0
 ```
 
 ### MySQL Driver
@@ -192,6 +202,9 @@ ASYNCTASQ_MYSQL_DEAD_LETTER_TABLE=dead_letter_queue
 # Connection pool settings
 ASYNCTASQ_MYSQL_MIN_POOL_SIZE=10
 ASYNCTASQ_MYSQL_MAX_POOL_SIZE=10
+
+# Pre-establish N connections on startup
+ASYNCTASQ_MYSQL_WARMUP_CONNECTIONS=0
 ```
 
 ### RabbitMQ Driver
@@ -207,6 +220,9 @@ ASYNCTASQ_RABBITMQ_EXCHANGE_NAME=asynctasq
 
 # Prefetch count (number of messages to prefetch)
 ASYNCTASQ_RABBITMQ_PREFETCH_COUNT=1
+
+# Interval for background delayed task processing
+ASYNCTASQ_RABBITMQ_DELAYED_TASK_INTERVAL=1.0
 ```
 
 ### Events and Monitoring
@@ -220,6 +236,9 @@ ASYNCTASQ_EVENTS_CHANNEL=asynctasq:events
 
 # Enable Redis event emitter
 ASYNCTASQ_EVENTS_ENABLE_EVENT_EMITTER_REDIS=true
+
+# Enable ALL event emitters
+ASYNCTASQ_EVENTS_ENABLE_ALL=false
 ```
 
 ### Task Defaults

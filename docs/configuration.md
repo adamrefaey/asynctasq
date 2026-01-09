@@ -224,6 +224,8 @@ Configuration group: `redis` (type: `RedisConfig`)
 | `password`        | str \| None | Redis password                    | `None`                   |
 | `db`              |         int | Redis database number (0-15)      | `0`                      |
 | `max_connections` |         int | Maximum connections in pool       | `100`                    |
+| `warmup_connections` | int | Pre-establish N connections on startup | `0` |
+| `delayed_task_interval` | float | Interval for background delayed task processing | `1.0` |
 
 **Example:**
 ```python
@@ -304,6 +306,7 @@ Configuration group: `postgres` (type: `PostgresConfig`)
 | `dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`   |
 | `min_pool_size`     |  int | Minimum connection pool size           | `10`                  |
 | `max_pool_size`     |  int | Maximum connection pool size           | `10`                  |
+| `warmup_connections` | int | Pre-establish N connections on startup | `0` |
 
 **Example:**
 ```python
@@ -350,6 +353,7 @@ This creates the `task_queue` and `dead_letter_queue` tables with the necessary 
 | `dead_letter_table` |  str | Dead letter queue table name           | `dead_letter_queue`                        |
 | `min_pool_size`     |  int | Minimum connection pool size           | `10`                                       |
 | `max_pool_size`     |  int | Maximum connection pool size           | `10`                                       |
+| `warmup_connections` | int | Pre-establish N connections on startup | `0` |
 
 ```python
 from asynctasq import init, MySQLConfig
@@ -379,6 +383,7 @@ Configuration group: `rabbitmq` (type: `RabbitMQConfig`)
 | `url`            |  str | RabbitMQ connection URL | `amqp://guest:guest@localhost:5672/` |
 | `exchange_name`  |  str | RabbitMQ exchange name  | `asynctasq`                          |
 | `prefetch_count` |  int | Consumer prefetch count | `1`                                  |
+| `delayed_task_interval` | float | Interval for background delayed task processing | `1.0` |
 
 **Example:**
 ```python
@@ -412,6 +417,7 @@ Controls monitoring and event emission for task lifecycle events.
 | `redis_url`                  | str \| None | Redis URL for event pub/sub (None uses main redis.url)                  | `None`             |
 | `channel`                    |         str | Redis Pub/Sub channel name for events                                   | `asynctasq:events` |
 | `enable_event_emitter_redis` |        bool | Enable Redis Pub/Sub event emitter for monitoring (task_enqueued, etc.) | `False`            |
+| `enable_all`                 |        bool | Enable ALL event emitters (events disabled by default for performance) | `False`            |
 
 ```python
 from asynctasq import init, EventsConfig, RedisConfig
