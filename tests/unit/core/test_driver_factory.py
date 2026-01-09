@@ -126,6 +126,7 @@ class TestDriverFactoryCreate:
             min_pool_size=5,
             max_pool_size=20,
             keep_completed_tasks=False,
+            warmup_connections=0,
         )
         assert result == mock_instance
 
@@ -161,6 +162,7 @@ class TestDriverFactoryCreate:
             min_pool_size=5,
             max_pool_size=20,
             keep_completed_tasks=False,
+            warmup_connections=0,
         )
         assert result == mock_instance
 
@@ -284,6 +286,7 @@ class TestDriverFactoryCreate:
             exchange_name="test_exchange",
             prefetch_count=10,
             keep_completed_tasks=False,
+            delayed_task_interval=1.0,
         )
         assert result == mock_instance
 
@@ -308,6 +311,7 @@ class TestDriverFactoryCreateRabbitMQ:
             exchange_name="asynctasq",
             prefetch_count=1,
             keep_completed_tasks=False,
+            delayed_task_interval=1.0,
         )
         assert result == mock_instance
 
@@ -334,6 +338,7 @@ class TestDriverFactoryCreateRabbitMQ:
             exchange_name="my_exchange",
             prefetch_count=5,
             keep_completed_tasks=False,
+            delayed_task_interval=1.0,
         )
         assert result == mock_instance
 
@@ -532,6 +537,7 @@ class TestDriverFactoryParameterPassing:
             min_pool_size=10,  # Default
             max_pool_size=10,  # Default
             keep_completed_tasks=False,
+            warmup_connections=0,
         )
         assert result == mock_instance
 
@@ -559,6 +565,7 @@ class TestDriverFactoryParameterPassing:
             min_pool_size=10,  # Default
             max_pool_size=10,  # Default
             keep_completed_tasks=False,
+            warmup_connections=0,
         )
         assert result == mock_instance
 
@@ -583,6 +590,7 @@ class TestDriverFactoryParameterPassing:
             exchange_name="asynctasq",  # Default
             prefetch_count=1,  # Default
             keep_completed_tasks=False,
+            delayed_task_interval=1.0,
         )
         assert result == mock_instance
 
@@ -642,6 +650,7 @@ class TestDriverFactoryConfigIntegration:
             min_pool_size=15,
             max_pool_size=50,
             keep_completed_tasks=False,
+            warmup_connections=0,
         )
         assert result == mock_instance
 
@@ -738,6 +747,7 @@ class TestDriverFactoryConfigIntegration:
             min_pool_size=15,
             max_pool_size=50,
             keep_completed_tasks=False,
+            warmup_connections=0,
         )
         assert result == mock_instance
 
@@ -907,6 +917,7 @@ class TestDriverFactoryParameterized:
                     "min_pool_size": 1,
                     "max_pool_size": 1,
                     "keep_completed_tasks": False,
+                    "warmup_connections": 0,
                 },
             ),
             # MySQL with pool size boundaries
@@ -922,6 +933,7 @@ class TestDriverFactoryParameterized:
                     "min_pool_size": 1,
                     "max_pool_size": 1,
                     "keep_completed_tasks": False,
+                    "warmup_connections": 0,
                 },
             ),
             # RabbitMQ with prefetch boundaries
@@ -934,6 +946,7 @@ class TestDriverFactoryParameterized:
                     "exchange_name": "asynctasq",
                     "prefetch_count": 1,
                     "keep_completed_tasks": False,
+                    "delayed_task_interval": 1.0,
                 },
             ),
         ],

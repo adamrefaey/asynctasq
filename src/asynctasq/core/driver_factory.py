@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Literal, get_args, overload
 
 from asynctasq.config import (
@@ -24,23 +26,23 @@ class DriverFactory:
 
     @overload
     @staticmethod
-    def create(driver_type: Literal["redis"], config: Config) -> "RedisDriver": ...
+    def create(driver_type: Literal["redis"], config: Config) -> RedisDriver: ...
 
     @overload
     @staticmethod
-    def create(driver_type: Literal["sqs"], config: Config) -> "SQSDriver": ...
+    def create(driver_type: Literal["sqs"], config: Config) -> SQSDriver: ...
 
     @overload
     @staticmethod
-    def create(driver_type: Literal["postgres"], config: Config) -> "PostgresDriver": ...
+    def create(driver_type: Literal["postgres"], config: Config) -> PostgresDriver: ...
 
     @overload
     @staticmethod
-    def create(driver_type: Literal["mysql"], config: Config) -> "MySQLDriver": ...
+    def create(driver_type: Literal["mysql"], config: Config) -> MySQLDriver: ...
 
     @overload
     @staticmethod
-    def create(driver_type: Literal["rabbitmq"], config: Config) -> "RabbitMQDriver": ...
+    def create(driver_type: Literal["rabbitmq"], config: Config) -> RabbitMQDriver: ...
 
     @overload
     @staticmethod
@@ -112,6 +114,7 @@ class DriverFactory:
                     min_pool_size=config.postgres.min_pool_size,
                     max_pool_size=config.postgres.max_pool_size,
                     keep_completed_tasks=config.repository.keep_completed_tasks,
+                    warmup_connections=config.postgres.warmup_connections,
                 )
             case "mysql":
                 try:
@@ -130,6 +133,7 @@ class DriverFactory:
                     min_pool_size=config.mysql.min_pool_size,
                     max_pool_size=config.mysql.max_pool_size,
                     keep_completed_tasks=config.repository.keep_completed_tasks,
+                    warmup_connections=config.mysql.warmup_connections,
                 )
             case "rabbitmq":
                 try:
@@ -145,6 +149,7 @@ class DriverFactory:
                     exchange_name=config.rabbitmq.exchange_name,
                     prefetch_count=config.rabbitmq.prefetch_count,
                     keep_completed_tasks=config.repository.keep_completed_tasks,
+                    delayed_task_interval=config.rabbitmq.delayed_task_interval,
                 )
             case _:
                 raise ValueError(
