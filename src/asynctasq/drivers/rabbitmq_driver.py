@@ -77,6 +77,7 @@ class RabbitMQDriver(BaseDriver):
     prefetch_count: int = 1
     management_url: str | None = None  # Optional: http://guest:guest@localhost:15672
     keep_completed_tasks: bool = False
+    delayed_task_interval: float = 1.0  # Interval for background delayed task processing
     connection: AbstractRobustConnection | None = field(default=None, init=False, repr=False)
     channel: AbstractChannel | None = field(default=None, init=False, repr=False)
     _queues: dict[str, AbstractQueue] = field(default_factory=dict, init=False, repr=False)
@@ -92,6 +93,9 @@ class RabbitMQDriver(BaseDriver):
     _delayed_task_locks: dict[str, asyncio.Lock] = field(
         default_factory=dict, init=False, repr=False
     )
+    _delayed_queues_to_process: set[str] = field(default_factory=set, init=False, repr=False)
+    _delayed_task_bg: asyncio.Task[None] | None = field(default=None, init=False, repr=False)
+    _ack_tasks: set[asyncio.Task[None]] = field(default_factory=set, init=False, repr=False)
 
     async def connect(self) -> None:
         """Initialize RabbitMQ connection with auto-reconnection.
@@ -127,10 +131,28 @@ class RabbitMQDriver(BaseDriver):
         """Close connection and cleanup resources.
 
         Implementation:
+            - Cancels background delayed task processor
+            - Waits for pending fire-and-forget acks
             - Closes channel and connection gracefully
             - Clears all cached queues and receipt handles
             - Idempotent: safe to call multiple times
         """
+        # Cancel background delayed task processor
+        if self._delayed_task_bg is not None and not self._delayed_task_bg.done():
+            self._delayed_task_bg.cancel()
+            try:
+                await self._delayed_task_bg
+            except asyncio.CancelledError:
+                pass
+            self._delayed_task_bg = None
+
+        # Wait for pending fire-and-forget acks (with 5s timeout)
+        if self._ack_tasks:
+            done, pending = await asyncio.wait(self._ack_tasks, timeout=5.0)
+            for task in pending:
+                task.cancel()
+            self._ack_tasks.clear()
+
         # Clear caches first to prevent stale references
         self._queues.clear()
         self._delayed_queues.clear()
@@ -139,6 +161,7 @@ class RabbitMQDriver(BaseDriver):
         self._receipt_handles.clear()
         self._in_flight_per_queue.clear()
         self._delayed_task_locks.clear()
+        self._delayed_queues_to_process.clear()
 
         if self.channel is not None:
             await self.channel.close()
@@ -389,7 +412,6 @@ class RabbitMQDriver(BaseDriver):
             Serialized task data (bytes) or None if queue empty
 
         Implementation:
-            - Triggers delayed task processing via _process_delayed_tasks()
             - Ensures queue exists and is properly bound to exchange
             - Non-blocking (poll_seconds=0):
               - Uses queue.get(fail=False) for immediate retrieval
@@ -401,14 +423,15 @@ class RabbitMQDriver(BaseDriver):
             - Stores message in _receipt_handles dict (key=task_data, value=message)
               for subsequent ack/nack operations
             - Returns task_data bytes (not the message object)
-            - Delayed tasks appear when _process_delayed_tasks moves them from delayed queue
+            - Delayed tasks appear when background processor moves them from delayed queue
+              (call start_delayed_processor() to enable background processing)
         """
         if self.channel is None:
             await self.connect()
             assert self.channel is not None
 
-        # Trigger delayed task processing to check for expired messages
-        await self._process_delayed_tasks(queue_name)
+        # Note: Delayed task processing is now handled by background loop
+        # Call start_delayed_processor() to enable it (Worker does this automatically)
 
         # Ensure queue exists and is bound
         queue = await self._ensure_queue(queue_name)
@@ -490,6 +513,58 @@ class RabbitMQDriver(BaseDriver):
                 self._in_flight_per_queue[queue_name] = max(
                     0, self._in_flight_per_queue[queue_name] - 1
                 )
+
+    def ack_nowait(self, queue_name: str, receipt_handle: bytes) -> None:
+        """Fire-and-forget acknowledgment (non-blocking).
+
+        Use this for maximum throughput when you don't need to wait for ack completion.
+        The ack is tracked and will be awaited during disconnect() for graceful shutdown.
+        """
+        task = asyncio.create_task(
+            self._ack_with_error_handling(queue_name, receipt_handle),
+            name=f"ack-{queue_name}",
+        )
+        self._ack_tasks.add(task)
+        task.add_done_callback(self._ack_tasks.discard)
+
+    async def _ack_with_error_handling(self, queue_name: str, receipt_handle: bytes) -> None:
+        """Ack with error logging (for fire-and-forget pattern)."""
+        import logging
+
+        try:
+            await self.ack(queue_name, receipt_handle)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Fire-and-forget ack failed for {queue_name}: {e}")
+
+    def start_delayed_processor(self, queue_name: str) -> None:
+        """Start background processor for delayed tasks (called by Worker on startup).
+
+        This method registers a queue for delayed task processing and starts a background
+        loop that periodically checks for ready delayed tasks. This moves the delayed task
+        processing overhead out of the dequeue() call path, improving latency.
+        """
+        self._delayed_queues_to_process.add(queue_name)
+        if self._delayed_task_bg is None or self._delayed_task_bg.done():
+            self._delayed_task_bg = asyncio.create_task(
+                self._delayed_task_loop(), name="delayed-task-processor"
+            )
+
+    async def _delayed_task_loop(self) -> None:
+        """Background loop that periodically processes delayed tasks for all registered queues."""
+        import logging
+
+        logger = logging.getLogger(__name__)
+        while True:
+            try:
+                await asyncio.sleep(self.delayed_task_interval)
+                for queue_name in list(self._delayed_queues_to_process):
+                    try:
+                        await self._process_delayed_tasks(queue_name)
+                    except Exception as e:
+                        logger.warning(f"Error processing delayed tasks for {queue_name}: {e}")
+            except asyncio.CancelledError:
+                break
 
     async def nack(self, queue_name: str, receipt_handle: bytes) -> None:
         """Reject task and re-queue for immediate retry.
