@@ -24,7 +24,7 @@ from asynctasq.utils.loop import run
 logger = logging.getLogger(__name__)
 
 
-class AsyncProcessTask[T](BaseTask[T]):
+class AsyncProcessTask(BaseTask):
     """Asynchronous CPU-bound task executed in a separate process.
 
     Use AsyncProcessTask for CPU-intensive async operations that bypass the GIL:
@@ -38,11 +38,6 @@ class AsyncProcessTask[T](BaseTask[T]):
     For I/O-bound async work, use AsyncTask instead (runs in main event loop).
     For synchronous CPU work, use SyncProcessTask.
 
-    Type Parameters
-    ---------------
-    T : type
-        Return type of the task's execute() method
-
     Examples
     --------
     CPU-intensive data processing with async operations:
@@ -50,14 +45,14 @@ class AsyncProcessTask[T](BaseTask[T]):
     >>> from asynctasq.tasks import AsyncProcessTask
     >>> import numpy as np
     >>>
-    >>> class ProcessLargeDataset(AsyncProcessTask[dict]):
+    >>> class ProcessLargeDataset(AsyncProcessTask):
     ...     data_url: str
     ...     config: TaskConfig = {
     ...         "queue": "cpu_intensive",
     ...         "timeout": 300,
     ...     }
     ...
-    ...     async def execute(self) -> dict:
+    ...     async def execute(self):
     ...         # Async I/O to fetch data
     ...         async with httpx.AsyncClient() as client:
     ...             data = await client.get(self.data_url)
@@ -74,7 +69,7 @@ class AsyncProcessTask[T](BaseTask[T]):
     """
 
     @override
-    async def run(self) -> T:
+    async def run(self) -> Any:
         """Execute task in ProcessPoolExecutor with warm event loop.
 
         This method is called by the task execution framework and should not
@@ -82,7 +77,7 @@ class AsyncProcessTask[T](BaseTask[T]):
 
         Returns
         -------
-        T
+        Any
             Result from the execute() method executed in a subprocess
         """
         # Get process pool (auto-initializes if needed)
@@ -94,7 +89,7 @@ class AsyncProcessTask[T](BaseTask[T]):
         # Run execute() in process pool with warm event loop or fallback runner
         return await loop.run_in_executor(pool, self._run_async_in_process)
 
-    def _run_async_in_process(self) -> T:
+    def _run_async_in_process(self) -> Any:
         """Run async execute() using warm event loop with fallback.
 
         Attempts to use a pre-initialized warm event loop for performance.
@@ -134,7 +129,7 @@ class AsyncProcessTask[T](BaseTask[T]):
         return run(self.execute())
 
     @abstractmethod
-    async def execute(self) -> T:
+    async def execute(self) -> Any:
         """Execute async CPU-bound logic (user implementation required).
 
         Implement this method with your task's CPU-intensive business logic.
@@ -143,7 +138,7 @@ class AsyncProcessTask[T](BaseTask[T]):
 
         Returns
         -------
-        T
+        Any
             Result of the async CPU-bound operation
 
         Notes

@@ -37,7 +37,7 @@ def _run_async_in_subprocess(
 
 
 @final
-class FunctionTask[T](BaseTask[T]):
+class FunctionTask(BaseTask):
     """Internal wrapper for @task decorated functions.
 
     Routes execution based on function type and process flag (async/sync × I/O-bound/CPU-bound).
@@ -51,7 +51,7 @@ class FunctionTask[T](BaseTask[T]):
 
     def __init__(
         self,
-        func: Callable[..., T],
+        func: Callable[..., Any],
         *args: Any,
         use_process: bool = False,
         **kwargs: Any,
@@ -93,7 +93,7 @@ class FunctionTask[T](BaseTask[T]):
             "correlation_id": self.config.get("correlation_id"),
         }
 
-    async def run(self) -> T:
+    async def run(self) -> Any:
         """Execute via appropriate executor (async/sync × thread/process)."""
         # Resolve any LazyOrmProxy parameters before executing the task
         await self._resolve_lazy_proxies()
@@ -114,13 +114,13 @@ class FunctionTask[T](BaseTask[T]):
         if self.kwargs:
             self.kwargs = await resolve_lazy_proxies(self.kwargs)
 
-    async def _execute_async(self) -> T:
+    async def _execute_async(self) -> Any:
         """Execute async function (direct await or via process pool)."""
         if self._use_process:
             return await self._execute_async_process()
         return await self._execute_async_direct()
 
-    async def _execute_async_direct(self) -> T:
+    async def _execute_async_direct(self) -> Any:
         """Execute async function via direct await (I/O-bound path)."""
         if not _is_async_callable(self.func):
             raise TypeError(f"Expected async function, got {type(self.func).__name__}")
@@ -128,7 +128,7 @@ class FunctionTask[T](BaseTask[T]):
         # Type checker now knows self.func is Callable[..., Awaitable[Any]]
         return await self.func(*self.args, **self.kwargs)
 
-    async def _execute_async_process(self) -> T:
+    async def _execute_async_process(self) -> Any:
         """Execute async function via subprocess with asyncio.run() (CPU-bound path)."""
         if not _is_async_callable(self.func):
             raise TypeError(f"Expected async function, got {type(self.func).__name__}")
@@ -143,7 +143,7 @@ class FunctionTask[T](BaseTask[T]):
             pool, _run_async_in_subprocess, self.func, self.args, self.kwargs
         )
 
-    async def _execute_sync(self) -> T:
+    async def _execute_sync(self) -> Any:
         """Execute sync function via thread pool or process pool."""
         loop = asyncio.get_running_loop()
         partial_func = functools.partial(self.func, *self.args, **self.kwargs)
@@ -153,14 +153,14 @@ class FunctionTask[T](BaseTask[T]):
         return await self._execute_sync_thread(partial_func, loop)
 
     async def _execute_sync_thread(
-        self, func: Callable[[], T], loop: asyncio.AbstractEventLoop
-    ) -> T:
+        self, func: Callable[[], Any], loop: asyncio.AbstractEventLoop
+    ) -> Any:
         """Execute sync function via ThreadPoolExecutor (I/O-bound path)."""
         return await loop.run_in_executor(None, func)
 
     async def _execute_sync_process(
-        self, func: Callable[[], T], loop: asyncio.AbstractEventLoop
-    ) -> T:
+        self, func: Callable[[], Any], loop: asyncio.AbstractEventLoop
+    ) -> Any:
         """Execute sync function via ProcessPoolExecutor (CPU-bound path)."""
         from asynctasq.tasks.infrastructure.process_pool_manager import get_default_manager
 
@@ -168,7 +168,7 @@ class FunctionTask[T](BaseTask[T]):
         return await loop.run_in_executor(pool, func)
 
 
-class TaskFunctionWrapper[T]:
+class TaskFunctionWrapper:
     """Wrapper that makes function-based tasks behave like class-based tasks.
 
     When called, creates a FunctionTask instance that can be configured via
@@ -181,7 +181,7 @@ class TaskFunctionWrapper[T]:
     - Call .dispatch() with NO arguments to queue the task
     """
 
-    def __init__(self, func: Callable[..., T]) -> None:
+    def __init__(self, func: Callable[..., Any]) -> None:
         """Initialize wrapper with function and its task configuration.
 
         Args:
@@ -206,7 +206,7 @@ class TaskFunctionWrapper[T]:
         # Keep reference to original for debugging
         self.__wrapped__ = func
 
-    def _create_task_instance(self, *args: Any, **kwargs: Any) -> FunctionTask[T]:
+    def _create_task_instance(self, *args: Any, **kwargs: Any) -> FunctionTask:
         """Create FunctionTask instance with cached configuration.
 
         Args:
@@ -223,7 +223,7 @@ class TaskFunctionWrapper[T]:
             **kwargs,
         )
 
-    def __call__(self, *args: Any, **kwargs: Any) -> FunctionTask[T]:
+    def __call__(self, *args: Any, **kwargs: Any) -> FunctionTask:
         """Create task instance for configuration chaining (like class-based tasks).
 
         This enables the pattern: task(args).on_queue("name").dispatch()
@@ -256,7 +256,7 @@ class TaskFunctionWrapper[T]:
         return f"TaskFunction({self._func.__name__})"
 
 
-class TaskFunction[T](Protocol):
+class TaskFunction(Protocol):
     """Protocol for @task decorated function.
 
     Function-based tasks are called to create task instances, which are then
@@ -270,7 +270,7 @@ class TaskFunction[T](Protocol):
     __qualname__: str
     __annotations__: dict[str, Any]
 
-    def __call__(self, *args: Any, **kwargs: Any) -> FunctionTask[T]:
+    def __call__(self, *args: Any, **kwargs: Any) -> FunctionTask:
         """Create task instance for configuration chaining.
 
         Returns:
@@ -280,13 +280,13 @@ class TaskFunction[T](Protocol):
 
 
 @overload
-def task[T](_func: Callable[..., T], /) -> TaskFunction[T]:
+def task(_func: Callable[..., Any], /) -> TaskFunction:
     """@task without arguments."""
     ...
 
 
 @overload
-def task[T](
+def task(
     _func: None = None,
     /,
     *,
@@ -297,13 +297,13 @@ def task[T](
     visibility_timeout: int = 3600,
     driver: str | BaseDriver | None = None,
     process: bool = False,
-) -> Callable[[Callable[..., T]], TaskFunction[T]]:
+) -> Callable[[Callable[..., Any]], TaskFunction]:
     """@task with keyword arguments."""
     ...
 
 
-def task[T](
-    _func: Callable[..., T] | None = None,
+def task(
+    _func: Callable[..., Any] | None = None,
     /,
     *,
     queue: str = "default",
@@ -313,7 +313,7 @@ def task[T](
     visibility_timeout: int = 3600,
     driver: str | BaseDriver | None = None,
     process: bool = False,
-) -> TaskFunction[T] | Callable[[Callable[..., T]], TaskFunction[T]]:
+) -> TaskFunction | Callable[[Callable[..., Any]], TaskFunction]:
     """Decorator to mark function as task.
 
     The decorated function becomes callable and returns a FunctionTask instance
@@ -353,7 +353,7 @@ def task[T](
         ```
     """
 
-    def decorator(func: Callable[..., T]) -> TaskFunction[T]:
+    def decorator(func: Callable[..., Any]) -> TaskFunction:
         """Apply task configuration to function and wrap it."""
         # Store task configuration on function as attributes
         # This allows FunctionTask to read config during __init__

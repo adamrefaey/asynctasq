@@ -17,7 +17,7 @@ from asynctasq.tasks.infrastructure.process_pool_manager import ProcessPoolManag
 REDIS_URL = os.getenv("ASYNCTASQ_REDIS_URL", "redis://localhost:6379")
 
 
-class FactorialTask(SyncProcessTask[int]):
+class FactorialTask(SyncProcessTask):
     """Compute factorial in separate process."""
 
     from asynctasq.tasks.core.task_config import TaskConfig
@@ -38,7 +38,7 @@ class FactorialTask(SyncProcessTask[int]):
         return result
 
 
-class CPUIntensiveTask(SyncProcessTask[dict]):
+class CPUIntensiveTask(SyncProcessTask):
     """Simulate CPU-intensive work."""
 
     from asynctasq.tasks.core.task_config import TaskConfig
@@ -58,7 +58,7 @@ class CPUIntensiveTask(SyncProcessTask[dict]):
         return {"hash": result, "iterations": self.iterations}
 
 
-class AttributeSerializationTask(SyncProcessTask[dict]):
+class AttributeSerializationTask(SyncProcessTask):
     """Test attribute serialization to subprocess."""
 
     from asynctasq.tasks.core.task_config import TaskConfig
@@ -80,7 +80,7 @@ class AttributeSerializationTask(SyncProcessTask[dict]):
         }
 
 
-class FailingTask(SyncProcessTask[None]):
+class FailingTask(SyncProcessTask):
     """Task that always fails for retry testing."""
 
     queue = "test-process"
@@ -418,7 +418,7 @@ async def test_process_pool_lifecycle_with_worker(redis_driver, manager):
 async def test_process_task_isolation(dispatcher, worker):
     """Verify SyncProcessTask runs in separate process (not main process)."""
 
-    class GetPIDTask(SyncProcessTask[int]):
+    class GetPIDTask(SyncProcessTask):
         queue = "test-process"
 
         def execute(self) -> int:
@@ -456,7 +456,7 @@ async def test_process_task_isolation(dispatcher, worker):
 async def test_process_task_with_timeout(dispatcher, worker):
     """Test SyncProcessTask timeout handling."""
 
-    class SlowTask(SyncProcessTask[str]):
+    class SlowTask(SyncProcessTask):
         queue = "test-process"
         timeout = 1  # 1 second timeout
 

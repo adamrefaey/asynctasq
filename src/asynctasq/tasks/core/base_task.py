@@ -26,22 +26,18 @@ RESERVED_NAMES = frozenset(
 )
 
 
-class BaseTask[T](ABC):
+class BaseTask(ABC):
     """Abstract base class for all asynchronous task types.
 
     Provides foundation for creating background tasks that can be dispatched to a queue,
     executed by workers, and automatically retried on failure.
-
-    Type Parameter
-    --------------
-    T : Return type of the task's execute() method
 
     Example
     -------
     ```python
     from asynctasq.tasks import AsyncTask, TaskConfig
 
-    class SendEmail(AsyncTask[str]):
+    class SendEmail(AsyncTask):
         # Optional: set defaults via config dict (type-safe)
         config: TaskConfig = {
             "queue": "emails",
@@ -53,7 +49,7 @@ class BaseTask[T](ABC):
         to: str
         subject: str
 
-        async def execute(self) -> str:
+        async def execute(self):
             # Send email logic
             return f"Sent to {self.to}"
 
@@ -216,7 +212,7 @@ class BaseTask[T](ABC):
         return True
 
     @abstractmethod
-    async def run(self) -> T:
+    async def run(self) -> Any:
         """Execute task using the subclass-defined execution strategy.
 
         Framework calls this from TaskExecutor with timeout wrapper.
@@ -224,7 +220,7 @@ class BaseTask[T](ABC):
 
         Returns
         -------
-        T
+        Any
             Result of task execution
         """
         ...

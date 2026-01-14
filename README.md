@@ -89,13 +89,13 @@ See the [full Quick Start guide](docs/examples/function-based-tasks.md) for comp
 
 **Zero vendor lock-in** – 5 production backends (Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS) with identical API. Switch drivers with one config line.
 
-**Developer experience** – Type-safe with Generic[T], elegant Laravel-inspired API, method chaining, beautiful Rich-formatted output, and first-class FastAPI integration.
+**Developer experience** – Type-safe and IDE support, elegant Laravel-inspired API, method chaining, beautiful Rich-formatted output, and first-class FastAPI integration.
 
 ## Key Features
 
 - ✅ **Async-first** with native asyncio throughout
 - ✅ **5 queue backends**: Redis, PostgreSQL, MySQL, RabbitMQ, AWS SQS
-- ✅ **Type-safe** with full Generic[T] support
+- ✅ **Type-safe** with full type hints and IDE support
 - ✅ **4 execution modes**: async I/O, sync I/O (threads), CPU-bound (processes)
 - ✅ **ORM integration**: Auto-serialization for SQLAlchemy, Django, Tortoise
 - ✅ **msgpack serialization**: 2-3x faster than JSON
@@ -112,15 +112,15 @@ See the [full Quick Start guide](docs/examples/function-based-tasks.md) for comp
 
 AsyncTasQ differentiates itself with **true async-first architecture**, **ORM auto-serialization**, **5 production backends** (Redis, PostgreSQL, MySQL, RabbitMQ, SQS), **ACID guarantees**, and **dead-letter queues**.
 
-| Feature                    | AsyncTasQ    | Celery     | ARQ      | Dramatiq  | RQ       | Huey      |
-| -------------------------- | ------------ | ---------- | -------- | --------- | -------- | --------- |
-| **Async**                  | ✅ Native     | ❌ No       | ✅ Yes    | ⚠️ Limited | ❌ No     | ⚠️ Limited |
-| **Type Safety**            | ✅ Generic[T] | ⚠️ External | ✅ Yes    | ✅ Yes     | ✅ Yes    | ⚠️ Limited |
-| **Backends**               | 5            | 3          | 1        | 2         | 1        | 4         |
-| **ORM Auto-serialization** | ✅ Yes        | ❌ No       | ❌ No     | ❌ No      | ❌ No     | ❌ No      |
-| **ACID**                   | ✅ Yes        | ❌ No       | ❌ No     | ❌ No      | ❌ No     | ❌ No      |
-| **DLQ**                    | ✅ Built-in   | ⚠️ Manual   | ❌ No     | ✅ Yes     | ❌ No     | ❌ No      |
-| **FastAPI**                | ✅ Native     | ⚠️ Manual   | ⚠️ Manual | ⚠️ Manual  | ⚠️ Manual | ⚠️ Manual  |
+| Feature                    | AsyncTasQ                         | Celery     | ARQ      | Dramatiq  | RQ       | Huey      |
+| -------------------------- | --------------------------------- | ---------- | -------- | --------- | -------- | --------- |
+| **Async**                  | ✅ Native                          | ❌ No       | ✅ Yes    | ⚠️ Limited | ❌ No     | ⚠️ Limited |
+| **Type Safety**            | ✅ Full type hints and IDE support | ⚠️ External | ✅ Yes    | ✅ Yes     | ✅ Yes    | ⚠️ Limited |
+| **Backends**               | 5                                 | 3          | 1        | 2         | 1        | 4         |
+| **ORM Auto-serialization** | ✅ Yes                             | ❌ No       | ❌ No     | ❌ No      | ❌ No     | ❌ No      |
+| **ACID**                   | ✅ Yes                             | ❌ No       | ❌ No     | ❌ No      | ❌ No     | ❌ No      |
+| **DLQ**                    | ✅ Built-in                        | ⚠️ Manual   | ❌ No     | ✅ Yes     | ❌ No     | ❌ No      |
+| **FastAPI**                | ✅ Native                          | ⚠️ Manual   | ⚠️ Manual | ⚠️ Manual  | ⚠️ Manual | ⚠️ Manual  |
 
 **Choose AsyncTasQ for:** Modern async apps (FastAPI, aiohttp), type-safe codebases, automatic ORM handling, enterprise ACID requirements, multi-backend flexibility.
 

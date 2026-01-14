@@ -33,7 +33,7 @@ class TestIsFunctionTaskInstance:
 
     def test_returns_false_for_base_task_instance(self) -> None:
         # Arrange
-        class CustomTask(BaseTask[int]):
+        class CustomTask(BaseTask):
             async def run(self) -> int:
                 return 42
 
@@ -76,7 +76,7 @@ class TestIsFunctionTaskClass:
 
     def test_returns_false_for_other_task_subclass(self) -> None:
         # Arrange
-        class CustomTask(BaseTask[int]):
+        class CustomTask(BaseTask):
             async def run(self) -> int:
                 return 42
 

@@ -32,7 +32,7 @@ def factorial(n: int) -> int:
 
 
 # Module-level task classes (needed for pickling in process pool)
-class SharedSyncFactorialTask(SyncProcessTask[int]):
+class SharedSyncFactorialTask(SyncProcessTask):
     """Shared test task that computes factorial in separate process."""
 
     n: int
@@ -42,7 +42,7 @@ class SharedSyncFactorialTask(SyncProcessTask[int]):
         return factorial(self.n)
 
 
-class SharedAsyncFactorialTask(AsyncProcessTask[int]):
+class SharedAsyncFactorialTask(AsyncProcessTask):
     """Shared test task that computes factorial asynchronously in separate process."""
 
     n: int

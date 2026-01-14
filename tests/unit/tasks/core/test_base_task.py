@@ -19,7 +19,7 @@ from asynctasq.tasks import AsyncTask
 
 
 # Test implementations for abstract AsyncTask
-class ConcreteTask(AsyncTask[str]):
+class ConcreteTask(AsyncTask):
     """Concrete implementation of AsyncTask for testing."""
 
     async def execute(self) -> str:
@@ -81,7 +81,7 @@ class TestTaskInitialization:
 
     def test_init_uses_config_dict(self) -> None:
         # Arrange
-        class CustomTask(AsyncTask[str]):
+        class CustomTask(AsyncTask):
             config = {
                 "queue": "custom_queue",
                 "max_attempts": 5,
@@ -146,7 +146,7 @@ class TestTaskConfiguration:
 
     def test_custom_configuration(self) -> None:
         # Arrange
-        class CustomTask(AsyncTask[str]):
+        class CustomTask(AsyncTask):
             config = {
                 "queue": "high_priority",
                 "max_attempts": 10,
@@ -201,7 +201,7 @@ class TestTaskFailed:
         # Arrange
         failed_called = False
 
-        class CustomFailedTask(AsyncTask[str]):
+        class CustomFailedTask(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 
@@ -237,7 +237,7 @@ class TestTaskShouldRetry:
 
     def test_should_retry_custom_implementation(self) -> None:
         # Arrange
-        class CustomRetryTask(AsyncTask[str]):
+        class CustomRetryTask(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 

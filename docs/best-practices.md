@@ -76,7 +76,7 @@ For complete worker deployment patterns, CLI options, and production deployment 
 - Add context to exception messages
 
 ```python
-class ProcessPayment(AsyncTask[bool]):
+class ProcessPayment(AsyncTask):
     async def failed(self, exception: Exception) -> None:
         # Log with context (ensure `logger` is defined/imported in your module)
         logger.error(

@@ -86,7 +86,7 @@ AsyncTasQ provides **4 base classes** for different execution patterns:
 ```python
 from asynctasq import AsyncTask, TaskConfig
 
-class ProcessPayment(AsyncTask[bool]):
+class ProcessPayment(AsyncTask):
     # Configuration via config dict
     config: TaskConfig = {
         "queue": "payments",
@@ -191,7 +191,7 @@ All tasks support the following configuration options:
 ```python
 from asynctasq import AsyncTask, TaskConfig
 
-class SendEmail(AsyncTask[str]):
+class SendEmail(AsyncTask):
     config: TaskConfig = {
         "queue": "emails",
         "max_attempts": 5,

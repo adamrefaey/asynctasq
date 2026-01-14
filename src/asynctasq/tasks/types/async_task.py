@@ -7,12 +7,12 @@ background tasks that run in the event loop without blocking.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import override
+from typing import Any, override
 
 from asynctasq.tasks.core.base_task import BaseTask
 
 
-class AsyncTask[T](BaseTask[T]):
+class AsyncTask(BaseTask):
     """Async I/O-bound task executed in the event loop.
 
     Use AsyncTask for I/O-bound operations that benefit from async/await:
@@ -25,11 +25,6 @@ class AsyncTask[T](BaseTask[T]):
     For CPU-intensive computations, use AsyncProcessTask or SyncProcessTask instead
     to avoid blocking the event loop.
 
-    Type Parameters
-    ---------------
-    T : type
-        Return type of the task's execute() method
-
     Examples
     --------
     Fetch data from an API:
@@ -37,10 +32,10 @@ class AsyncTask[T](BaseTask[T]):
     >>> from asynctasq.tasks import AsyncTask
     >>> import httpx
     >>>
-    >>> class FetchUserData(AsyncTask[dict]):
+    >>> class FetchUserData(AsyncTask):
     ...     user_id: int
     ...
-    ...     async def execute(self) -> dict:
+    ...     async def execute(self):
     ...         async with httpx.AsyncClient() as client:
     ...             response = await client.get(f"https://api.example.com/users/{self.user_id}")
     ...             return response.json()
@@ -50,7 +45,7 @@ class AsyncTask[T](BaseTask[T]):
 
     With configuration:
 
-    >>> class SendEmail(AsyncTask[str]):
+    >>> class SendEmail(AsyncTask):
     ...     config: TaskConfig = {
     ...         "queue": "emails",
     ...         "max_attempts": 5,
@@ -60,13 +55,13 @@ class AsyncTask[T](BaseTask[T]):
     ...     subject: str
     ...     body: str
     ...
-    ...     async def execute(self) -> str:
+    ...     async def execute(self):
     ...         # Send email via async SMTP
     ...         return f"Email sent to {self.to}"
     """
 
     @override
-    async def run(self) -> T:
+    async def run(self) -> Any:
         """Execute task by delegating to the user-defined execute() method.
 
         This method is called by the task execution framework and should not
@@ -74,13 +69,13 @@ class AsyncTask[T](BaseTask[T]):
 
         Returns
         -------
-        T
+        Any
             Result from the execute() method
         """
         return await self.execute()
 
     @abstractmethod
-    async def execute(self) -> T:
+    async def execute(self) -> Any:
         """Execute async I/O-bound logic (user implementation required).
 
         Implement this method with your task's business logic. This method
@@ -88,7 +83,7 @@ class AsyncTask[T](BaseTask[T]):
 
         Returns
         -------
-        T
+        Any
             Result of the async operation
 
         Notes

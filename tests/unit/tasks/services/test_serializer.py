@@ -21,7 +21,7 @@ from asynctasq.tasks.services.serializer import TaskSerializer
 from asynctasq.tasks.types.function_task import FunctionTask
 
 
-class SimpleAsyncTask(AsyncTask[str]):
+class SimpleAsyncTask(AsyncTask):
     """Simple async task for testing serialization."""
 
     config: TaskConfig = {"queue": "test-queue", "max_attempts": 5, "timeout": 60}
@@ -35,7 +35,7 @@ class SimpleAsyncTask(AsyncTask[str]):
         return f"{self.value}_{self.count}"
 
 
-class SimpleSyncTask(SyncTask[int]):
+class SimpleSyncTask(SyncTask):
     """Simple sync task for testing serialization."""
 
     def __init__(self, x: int, y: int) -> None:

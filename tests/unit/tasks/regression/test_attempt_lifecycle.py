@@ -21,7 +21,7 @@ from asynctasq.tasks.services.executor import TaskExecutor
 from asynctasq.tasks.services.serializer import TaskSerializer
 
 
-class FailingTask(BaseTask[None]):
+class FailingTask(BaseTask):
     """Test task that always fails with RuntimeError."""
 
     async def run(self) -> None:

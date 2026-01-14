@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from concurrent.futures import Executor
 
 
-async def execute_in_thread[T](sync_callable: Callable[[], T]) -> T:
+async def execute_in_thread(sync_callable: Callable[[], Any]) -> Any:
     """Execute synchronous callable in the default ThreadPoolExecutor.
 
     Runs the provided synchronous function in a thread pool to avoid blocking
@@ -79,7 +79,7 @@ def _sync_process_task_worker(serialized_task: bytes) -> Any:
     return task.execute()  # type: ignore[attr-defined]
 
 
-async def execute_in_process_sync[T](sync_callable: Callable[[], T]) -> T:
+async def execute_in_process_sync(sync_callable: Callable[[], Any]) -> Any:
     """Execute synchronous callable in ProcessPoolExecutor for CPU-bound work.
 
     Runs the provided synchronous function in a process pool to bypass Python's

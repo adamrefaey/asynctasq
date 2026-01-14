@@ -25,7 +25,7 @@ def manager(reset_default_manager) -> ProcessPoolManager:
     return reset_default_manager
 
 
-class GetPIDTask(SyncProcessTask[int]):
+class GetPIDTask(SyncProcessTask):
     """Test task that returns the process ID."""
 
     def execute(self) -> int:
@@ -33,7 +33,7 @@ class GetPIDTask(SyncProcessTask[int]):
         return os.getpid()
 
 
-class RaiseExceptionTask(SyncProcessTask[None]):
+class RaiseExceptionTask(SyncProcessTask):
     """Test task that raises an exception."""
 
     def execute(self) -> None:
@@ -41,7 +41,7 @@ class RaiseExceptionTask(SyncProcessTask[None]):
         raise ValueError("Test exception from subprocess")
 
 
-class AttributeTask(SyncProcessTask[dict]):
+class AttributeTask(SyncProcessTask):
     """Test task that verifies attribute passing to subprocess."""
 
     a: int
@@ -53,7 +53,7 @@ class AttributeTask(SyncProcessTask[dict]):
         return {"a": self.a, "b": self.b, "c": self.c}
 
 
-class NotImplementedTask(SyncProcessTask[int]):
+class NotImplementedTask(SyncProcessTask):
     """Test task that doesn't implement handle()."""
 
     pass  # Intentionally not implementing handle()

@@ -59,7 +59,7 @@ class TestTaskConfigEdgeCases:
     def test_conflicting_driver_at_multiple_levels(self) -> None:
         """Test behavior when driver conflicts at class and instance level."""
 
-        class TaskWithClassDriver(AsyncTask[str]):
+        class TaskWithClassDriver(AsyncTask):
             config: TaskConfig = {"driver": "redis"}
 
             async def execute(self) -> str:
@@ -100,7 +100,7 @@ class TestParameterValidation:
     def test_reserved_parameter_names_raise_error(self) -> None:
         """Test that reserved parameter names raise ValueError."""
 
-        class TestTask(AsyncTask[str]):
+        class TestTask(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 
@@ -113,7 +113,7 @@ class TestParameterValidation:
     def test_underscore_prefix_parameter_raises_error(self) -> None:
         """Test that parameters starting with underscore raise ValueError."""
 
-        class TestTask(AsyncTask[str]):
+        class TestTask(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 
@@ -125,7 +125,7 @@ class TestParameterValidation:
     def test_double_underscore_parameter_raises_error(self) -> None:
         """Test that parameters with double underscore raise ValueError."""
 
-        class TestTask(AsyncTask[str]):
+        class TestTask(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 
@@ -137,7 +137,7 @@ class TestParameterValidation:
     def test_unicode_parameter_names_accepted(self) -> None:
         """Test that unicode parameter names are accepted."""
 
-        class UnicodeTask(AsyncTask[str]):
+        class UnicodeTask(AsyncTask):
             async def execute(self) -> str:
                 return getattr(self, "用户", "default")
 
@@ -150,7 +150,7 @@ class TestParameterValidation:
         """Test that very long parameter names (>255 chars) are accepted."""
         long_name = "a" * 300
 
-        class LongNameTask(AsyncTask[str]):
+        class LongNameTask(AsyncTask):
             async def execute(self) -> str:
                 return getattr(self, long_name, "default")
 
@@ -161,7 +161,7 @@ class TestParameterValidation:
         """Test that non-identifier names like 'my-param' work via setattr."""
 
         # Python allows non-identifier attribute names via setattr/getattr
-        class HyphenTask(AsyncTask[str]):
+        class HyphenTask(AsyncTask):
             async def execute(self) -> str:
                 return getattr(self, "my-param", "default")
 
@@ -186,7 +186,7 @@ class TestParameterValidation:
         """
         from asynctasq.tasks.types.function_task import FunctionTask
 
-        class TestTask(AsyncTask[str]):
+        class TestTask(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 
@@ -343,7 +343,7 @@ class TestSerializationEdgeCases:
         This test documents that task creation succeeds with circular refs.
         """
 
-        class CircularTask(AsyncTask[str]):
+        class CircularTask(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 
@@ -366,7 +366,7 @@ class TestSerializationEdgeCases:
         defined at module level and msgpack serializes them correctly.
         """
 
-        class LargeTask(AsyncTask[str]):
+        class LargeTask(AsyncTask):
             async def execute(self) -> str:
                 data = getattr(self, "large_data", "")
                 return f"Processed {len(data)} bytes"
@@ -386,7 +386,7 @@ class TestSerializationEdgeCases:
         Task creation succeeds but serialization would fail at dispatch time.
         """
 
-        class UnserializableTask(SyncProcessTask[str]):
+        class UnserializableTask(SyncProcessTask):
             def execute(self) -> str:
                 return "test"
 
@@ -418,7 +418,7 @@ class TestSerializationEdgeCases:
     def test_task_with_nested_complex_objects(self) -> None:
         """Test task with deeply nested complex objects."""
 
-        class NestedTask(AsyncTask[str]):
+        class NestedTask(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 
@@ -451,7 +451,7 @@ class TestRetryLogicEdgeCases:
     async def test_enqueue_failure_during_retry(self) -> None:
         """Test handling when enqueue fails during retry."""
 
-        class RetryTask(AsyncTask[str]):
+        class RetryTask(AsyncTask):
             async def execute(self) -> str:
                 raise ValueError("Task failed")
 
@@ -473,7 +473,7 @@ class TestRetryLogicEdgeCases:
     async def test_serialization_failure_during_retry(self) -> None:
         """Test handling when serialization fails during retry."""
 
-        class UnserializableTask(AsyncTask[str]):
+        class UnserializableTask(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 
@@ -493,7 +493,7 @@ class TestRetryLogicEdgeCases:
     def test_should_retry_raising_exceptions(self) -> None:
         """Test behavior when should_retry() itself raises an exception."""
 
-        class BrokenRetryTask(AsyncTask[str]):
+        class BrokenRetryTask(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 
@@ -510,7 +510,7 @@ class TestRetryLogicEdgeCases:
     async def test_retry_with_driver_disconnection(self) -> None:
         """Test retry behavior when driver disconnects."""
 
-        class RetryableTask(AsyncTask[str]):
+        class RetryableTask(AsyncTask):
             async def execute(self) -> str:
                 raise ValueError("Transient error")
 
@@ -538,7 +538,7 @@ class TestRetryLogicEdgeCases:
     def test_should_retry_with_max_attempts_zero(self) -> None:
         """Test that should_retry is still called when max_attempts=0."""
 
-        class NoRetryTask(AsyncTask[str]):
+        class NoRetryTask(AsyncTask):
             async def execute(self) -> str:
                 raise ValueError("Error")
 
@@ -556,7 +556,7 @@ class TestRetryLogicEdgeCases:
     def test_retry_with_custom_retry_logic_based_on_current_attempt(self) -> None:
         """Test should_retry can use _current_attempt for custom logic."""
 
-        class AttemptBasedRetry(AsyncTask[str]):
+        class AttemptBasedRetry(AsyncTask):
             async def execute(self) -> str:
                 return "test"
 

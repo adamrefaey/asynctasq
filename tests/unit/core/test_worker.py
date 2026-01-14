@@ -26,7 +26,7 @@ from asynctasq.utils.loop import run
 
 
 # Test implementations for abstract Task
-class ConcreteTask(AsyncTask[str]):
+class ConcreteTask(AsyncTask):
     """Concrete implementation of Task for testing."""
 
     def __init__(self, **kwargs: Any) -> None:

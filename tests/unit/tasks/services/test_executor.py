@@ -24,7 +24,7 @@ from asynctasq.tasks.services.executor import (
 )
 
 
-class HookedAsyncTask(AsyncTask[str]):
+class HookedAsyncTask(AsyncTask):
     """Task with lifecycle hooks for testing."""
 
     def __init__(self, value: str, should_fail: bool = False) -> None:
@@ -54,7 +54,7 @@ class HookedAsyncTask(AsyncTask[str]):
         self.end_time = time.time()
 
 
-class HookedSyncTask(SyncTask[int]):
+class HookedSyncTask(SyncTask):
     """Sync task with lifecycle hooks for testing."""
 
     def __init__(self, value: int) -> None:
@@ -76,7 +76,7 @@ class HookedSyncTask(SyncTask[int]):
         self.after_called = True
 
 
-class BeforeExecuteFailureTask(AsyncTask[str]):
+class BeforeExecuteFailureTask(AsyncTask):
     """Task where before_execute raises exception."""
 
     async def execute(self) -> str:
@@ -86,7 +86,7 @@ class BeforeExecuteFailureTask(AsyncTask[str]):
         raise RuntimeError("before_execute failed")
 
 
-class AfterExecuteFailureTask(AsyncTask[str]):
+class AfterExecuteFailureTask(AsyncTask):
     """Task where after_execute raises exception."""
 
     async def execute(self) -> str:
@@ -105,7 +105,7 @@ class TestTaskExecutor:
         # Arrange
         executor = TaskExecutor()
 
-        class SimpleTask(AsyncTask[str]):
+        class SimpleTask(AsyncTask):
             def __init__(self) -> None:
                 super().__init__()
                 self.executed = False
@@ -127,7 +127,7 @@ class TestTaskExecutor:
         # Arrange
         executor = TaskExecutor()
 
-        class TimedTask(AsyncTask[str]):
+        class TimedTask(AsyncTask):
             def __init__(self) -> None:
                 super().__init__()
                 self.executed = False
@@ -149,7 +149,7 @@ class TestTaskExecutor:
         # Arrange
         executor = TaskExecutor()
 
-        class TimeoutTask(AsyncTask[str]):
+        class TimeoutTask(AsyncTask):
             config: TaskConfig = {"timeout": 10}
 
             async def execute(self) -> str:
@@ -169,7 +169,7 @@ class TestTaskExecutor:
         # Arrange
         executor = TaskExecutor()
 
-        class TaskWithConfigTimeout(AsyncTask[str]):
+        class TaskWithConfigTimeout(AsyncTask):
             config: TaskConfig = {"timeout": 0.001}  # Very short config timeout
 
             def __init__(self) -> None:
@@ -195,7 +195,7 @@ class TestTaskExecutor:
         # Arrange
         executor = TaskExecutor()
 
-        class SlowTask(AsyncTask[str]):
+        class SlowTask(AsyncTask):
             async def execute(self) -> str:
                 await asyncio.sleep(10)  # Very slow
                 return "done"
@@ -211,7 +211,7 @@ class TestTaskExecutor:
         # Arrange
         executor = TaskExecutor()
 
-        class RetryableTask(AsyncTask[str]):
+        class RetryableTask(AsyncTask):
             config: TaskConfig = {"max_attempts": 3}
 
             async def execute(self) -> str:
@@ -232,7 +232,7 @@ class TestTaskExecutor:
         # Arrange
         executor = TaskExecutor()
 
-        class FailedTask(AsyncTask[str]):
+        class FailedTask(AsyncTask):
             config: TaskConfig = {"max_attempts": 3}
 
             async def execute(self) -> str:
@@ -253,7 +253,7 @@ class TestTaskExecutor:
         # Arrange
         executor = TaskExecutor()
 
-        class CustomRetryTask(AsyncTask[str]):
+        class CustomRetryTask(AsyncTask):
             config: TaskConfig = {"max_attempts": 3}
 
             async def execute(self) -> str:
@@ -280,7 +280,7 @@ class TestTaskExecutor:
         reset_failed_hook_error_count()  # Reset counter
         executor = TaskExecutor()
 
-        class FailedHookTask(AsyncTask[str]):
+        class FailedHookTask(AsyncTask):
             def __init__(self) -> None:
                 super().__init__()
                 self.failed_called = False
@@ -309,7 +309,7 @@ class TestTaskExecutor:
         reset_failed_hook_error_count()
         executor = TaskExecutor()
 
-        class BrokenFailedHookTask(AsyncTask[str]):
+        class BrokenFailedHookTask(AsyncTask):
             async def execute(self) -> str:
                 return "done"
 
@@ -431,7 +431,7 @@ class TestTaskExecutor:
         reset_failed_hook_error_count()
         executor = TaskExecutor()
 
-        class BrokenHookTask(AsyncTask[str]):
+        class BrokenHookTask(AsyncTask):
             async def execute(self) -> str:
                 return "done"
 

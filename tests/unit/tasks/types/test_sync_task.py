@@ -18,7 +18,7 @@ from asynctasq.tasks import SyncTask
 from asynctasq.tasks.core.task_config import TaskConfig
 
 
-class SimpleSyncTask(SyncTask[str]):
+class SimpleSyncTask(SyncTask):
     """Concrete SyncTask for testing."""
 
     def execute(self) -> str:
@@ -26,7 +26,7 @@ class SimpleSyncTask(SyncTask[str]):
         return "sync_result"
 
 
-class SyncTaskWithParams(SyncTask[dict]):
+class SyncTaskWithParams(SyncTask):
     """SyncTask that uses parameters."""
 
     user_id: int
@@ -37,7 +37,7 @@ class SyncTaskWithParams(SyncTask[dict]):
         return {"user_id": self.user_id, "filename": self.filename}
 
 
-class SyncTaskWithIO(SyncTask[str]):
+class SyncTaskWithIO(SyncTask):
     """SyncTask that simulates blocking I/O."""
 
     path: str
@@ -51,7 +51,7 @@ class SyncTaskWithIO(SyncTask[str]):
         return f"read:{self.path}"
 
 
-class FailingSyncTask(SyncTask[None]):
+class FailingSyncTask(SyncTask):
     """SyncTask that always fails."""
 
     def execute(self) -> None:
@@ -59,7 +59,7 @@ class FailingSyncTask(SyncTask[None]):
         raise OSError("File not found")
 
 
-class SyncTaskWithFailedHook(SyncTask[None]):
+class SyncTaskWithFailedHook(SyncTask):
     """SyncTask with custom failed() hook."""
 
     failure_count: int = 0
@@ -73,7 +73,7 @@ class SyncTaskWithFailedHook(SyncTask[None]):
         self.failure_count += 1
 
 
-class SyncTaskWithRetryLogic(SyncTask[str]):
+class SyncTaskWithRetryLogic(SyncTask):
     """SyncTask with custom retry logic."""
 
     attempt_number: int = 0
@@ -143,7 +143,7 @@ class TestSyncTaskBasics:
 
         main_thread_id = threading.get_ident()
 
-        class ThreadCheckTask(SyncTask[tuple[int, bool]]):
+        class ThreadCheckTask(SyncTask):
             def execute(self) -> tuple[int, bool]:
                 task_thread_id = threading.get_ident()
                 return (task_thread_id, task_thread_id != main_thread_id)
@@ -174,7 +174,7 @@ class TestSyncTaskConfiguration:
 
     def test_sync_task_custom_configuration(self) -> None:
         # Arrange
-        class CustomSyncTask(SyncTask[str]):
+        class CustomSyncTask(SyncTask):
             config: TaskConfig = {
                 "queue": "background",
                 "max_attempts": 10,

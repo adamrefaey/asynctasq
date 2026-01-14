@@ -8,7 +8,7 @@ import pytest
 from asynctasq.tasks import AsyncProcessTask, SyncProcessTask
 
 
-class PrintSyncTask(SyncProcessTask[str]):
+class PrintSyncTask(SyncProcessTask):
     """Test task that prints to stdout."""
 
     message: str
@@ -18,7 +18,7 @@ class PrintSyncTask(SyncProcessTask[str]):
         return "done"
 
 
-class PrintAsyncTask(AsyncProcessTask[str]):
+class PrintAsyncTask(AsyncProcessTask):
     """Test task that prints to stdout from async context."""
 
     message: str
@@ -29,7 +29,7 @@ class PrintAsyncTask(AsyncProcessTask[str]):
         return "done"
 
 
-class MultiPrintTask(SyncProcessTask[int]):
+class MultiPrintTask(SyncProcessTask):
     """Test task that prints multiple lines."""
 
     def execute(self) -> int:
@@ -39,7 +39,7 @@ class MultiPrintTask(SyncProcessTask[int]):
         return 123
 
 
-class StderrTask(SyncProcessTask[str]):
+class StderrTask(SyncProcessTask):
     """Test task that prints to stderr."""
 
     def execute(self) -> str:

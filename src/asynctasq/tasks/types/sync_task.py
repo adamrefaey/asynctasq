@@ -7,13 +7,13 @@ that need to run in a thread pool to avoid blocking the async event loop.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import override
+from typing import Any, override
 
 from asynctasq.tasks.core.base_task import BaseTask
 from asynctasq.tasks.utils.execution_helpers import execute_in_thread
 
 
-class SyncTask[T](BaseTask[T]):
+class SyncTask(BaseTask):
     """Synchronous I/O-bound task executed in a thread pool.
 
     Use SyncTask for synchronous I/O-bound operations that would block the event loop:
@@ -26,11 +26,6 @@ class SyncTask[T](BaseTask[T]):
     The execute() method runs in a ThreadPoolExecutor, preventing event loop blocking.
     For CPU-intensive work, use SyncProcessTask to bypass the GIL.
 
-    Type Parameters
-    ---------------
-    T : type
-        Return type of the task's execute() method
-
     Examples
     --------
     HTTP request with synchronous library:
@@ -38,10 +33,10 @@ class SyncTask[T](BaseTask[T]):
     >>> from asynctasq.tasks import SyncTask
     >>> import requests
     >>>
-    >>> class FetchWebpage(SyncTask[str]):
+    >>> class FetchWebpage(SyncTask):
     ...     url: str
     ...
-    ...     def execute(self) -> str:
+    ...     def execute(self):
     ...         response = requests.get(self.url)
     ...         return response.text
     >>>
@@ -50,14 +45,14 @@ class SyncTask[T](BaseTask[T]):
 
     Database operation with synchronous driver:
 
-    >>> class QueryDatabase(SyncTask[list[dict]]):
+    >>> class QueryDatabase(SyncTask):
     ...     config: TaskConfig = {
     ...         "queue": "database",
     ...         "timeout": 60,
     ...     }
     ...     query: str
     ...
-    ...     def execute(self) -> list[dict]:
+    ...     def execute(self):
     ...         import psycopg2
     ...         conn = psycopg2.connect("dbname=mydb")
     ...         cursor = conn.cursor()
@@ -66,7 +61,7 @@ class SyncTask[T](BaseTask[T]):
     """
 
     @override
-    async def run(self) -> T:
+    async def run(self) -> Any:
         """Execute synchronous task in ThreadPoolExecutor.
 
         This method is called by the task execution framework and should not
@@ -74,13 +69,13 @@ class SyncTask[T](BaseTask[T]):
 
         Returns
         -------
-        T
+        Any
             Result from the execute() method
         """
         return await execute_in_thread(self.execute)
 
     @abstractmethod
-    def execute(self) -> T:
+    def execute(self) -> Any:
         """Execute sync I/O-bound logic (user implementation required).
 
         Implement this method with your task's business logic. This method
@@ -89,7 +84,7 @@ class SyncTask[T](BaseTask[T]):
 
         Returns
         -------
-        T
+        Any
             Result of the synchronous operation
 
         Notes

@@ -17,7 +17,7 @@ from pytest import main
 from asynctasq.tasks import AsyncTask
 
 
-class SimpleAsyncTask(AsyncTask[str]):
+class SimpleAsyncTask(AsyncTask):
     """Concrete AsyncTask for testing."""
 
     async def execute(self) -> str:
@@ -25,7 +25,7 @@ class SimpleAsyncTask(AsyncTask[str]):
         return "async_result"
 
 
-class AsyncTaskWithParams(AsyncTask[dict]):
+class AsyncTaskWithParams(AsyncTask):
     """AsyncTask that uses parameters."""
 
     user_id: int
@@ -36,7 +36,7 @@ class AsyncTaskWithParams(AsyncTask[dict]):
         return {"user_id": self.user_id, "action": self.action}
 
 
-class AsyncTaskWithIO(AsyncTask[str]):
+class AsyncTaskWithIO(AsyncTask):
     """AsyncTask that simulates I/O operations."""
 
     url: str
@@ -50,7 +50,7 @@ class AsyncTaskWithIO(AsyncTask[str]):
         return f"fetched:{self.url}"
 
 
-class FailingAsyncTask(AsyncTask[None]):
+class FailingAsyncTask(AsyncTask):
     """AsyncTask that always fails."""
 
     async def execute(self) -> None:
@@ -58,7 +58,7 @@ class FailingAsyncTask(AsyncTask[None]):
         raise ValueError("Task failed intentionally")
 
 
-class AsyncTaskWithFailedHook(AsyncTask[None]):
+class AsyncTaskWithFailedHook(AsyncTask):
     """AsyncTask with custom failed() hook."""
 
     failure_count: int = 0
@@ -72,7 +72,7 @@ class AsyncTaskWithFailedHook(AsyncTask[None]):
         self.failure_count += 1
 
 
-class AsyncTaskWithRetryLogic(AsyncTask[str]):
+class AsyncTaskWithRetryLogic(AsyncTask):
     """AsyncTask with custom retry logic."""
 
     attempt_number: int = 0
@@ -152,7 +152,7 @@ class TestAsyncTaskConfiguration:
 
     def test_async_task_custom_configuration(self) -> None:
         # Arrange
-        class CustomAsyncTask(AsyncTask[str]):
+        class CustomAsyncTask(AsyncTask):
             config = {
                 "queue": "high-priority",
                 "max_attempts": 5,

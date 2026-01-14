@@ -24,7 +24,7 @@ def manager(reset_default_manager) -> ProcessPoolManager:
     return reset_default_manager
 
 
-class AsyncGetPIDTask(AsyncProcessTask[int]):
+class AsyncGetPIDTask(AsyncProcessTask):
     """Test task that returns the process ID asynchronously."""
 
     async def execute(self) -> int:
@@ -33,7 +33,7 @@ class AsyncGetPIDTask(AsyncProcessTask[int]):
         return os.getpid()
 
 
-class AsyncZeroTask(AsyncProcessTask[int]):
+class AsyncZeroTask(AsyncProcessTask):
     """Test task that returns 0 (falsy value)."""
 
     async def execute(self) -> int:
@@ -42,7 +42,7 @@ class AsyncZeroTask(AsyncProcessTask[int]):
         return 0
 
 
-class AsyncNoneTask(AsyncProcessTask[None]):
+class AsyncNoneTask(AsyncProcessTask):
     """Test task that returns None."""
 
     async def execute(self) -> None:
@@ -51,7 +51,7 @@ class AsyncNoneTask(AsyncProcessTask[None]):
         return None
 
 
-class AsyncRaiseExceptionTask(AsyncProcessTask[None]):
+class AsyncRaiseExceptionTask(AsyncProcessTask):
     """Test task that raises an exception asynchronously."""
 
     async def execute(self) -> None:
@@ -60,7 +60,7 @@ class AsyncRaiseExceptionTask(AsyncProcessTask[None]):
         raise ValueError("Async test exception from subprocess")
 
 
-class AsyncAttributeTask(AsyncProcessTask[dict]):
+class AsyncAttributeTask(AsyncProcessTask):
     """Test task that verifies attribute passing to subprocess."""
 
     a: int
@@ -73,7 +73,7 @@ class AsyncAttributeTask(AsyncProcessTask[dict]):
         return {"a": self.a, "b": self.b, "c": self.c}
 
 
-class AsyncIOTask(AsyncProcessTask[str]):
+class AsyncIOTask(AsyncProcessTask):
     """Test task that performs async I/O operations."""
 
     message: str
@@ -284,7 +284,7 @@ async def test_async_process_task_custom_configuration():
     """Test AsyncProcessTask respects custom configuration."""
 
     # Arrange
-    class CustomAsyncTask(AsyncProcessTask[int]):
+    class CustomAsyncTask(AsyncProcessTask):
         config = {
             "queue": "custom-queue",
             "max_attempts": 5,
@@ -597,7 +597,7 @@ async def test_async_process_task_execute_is_abstract():
 async def test_async_process_task_with_complex_attributes():
     """Test task with complex nested attributes."""
 
-    class ComplexAsyncTask(AsyncProcessTask[dict]):
+    class ComplexAsyncTask(AsyncProcessTask):
         data: dict
 
         async def execute(self) -> dict:

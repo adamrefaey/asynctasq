@@ -202,7 +202,7 @@ Worker → TaskExecutor.execute()
 ### Example 4: Custom Retry Logic (Fail Fast)
 
 ```python
-class ValidateDataTask(AsyncTask[None]):
+class ValidateDataTask(AsyncTask):
     async def execute(self) -> None:
         if not self.data:
             raise ValueError("Invalid data")
@@ -229,7 +229,7 @@ Worker → TaskExecutor.execute()
 ### Example 5: Custom Failure Handling
 
 ```python
-class SendEmailTask(AsyncTask[None]):
+class SendEmailTask(AsyncTask):
     email: str
 
     async def execute(self) -> None:
@@ -261,7 +261,7 @@ Worker → TaskExecutor.execute()
 ### Pattern 1: Retry Only on Specific Errors
 
 ```python
-class ResilientTask(AsyncTask[int]):
+class ResilientTask(AsyncTask):
     def should_retry(self, exception: Exception) -> bool:
         # Retry only on transient network/timeout errors
         return isinstance(exception, (ConnectionError, TimeoutError))
@@ -285,7 +285,7 @@ init(task_defaults=TaskDefaultsConfig(retry_strategy='fixed', retry_delay=60))
 ### Pattern 3: Compensation Logic on Failure
 
 ```python
-class TransactionTask(AsyncTask[None]):
+class TransactionTask(AsyncTask):
     transaction_id: str
 
     async def failed(self, exception: Exception) -> None:
@@ -297,7 +297,7 @@ class TransactionTask(AsyncTask[None]):
 ### Pattern 4: No Retry for Business Logic Errors
 
 ```python
-class ProcessOrderTask(AsyncTask[None]):
+class ProcessOrderTask(AsyncTask):
     def should_retry(self, exception: Exception) -> bool:
         # Don't retry business logic errors
         if isinstance(exception, (ValueError, ValidationError)):
@@ -352,7 +352,7 @@ When tasks permanently fail (retries exhausted), behavior depends on driver:
 ```python
 from asynctasq import AsyncTask, TaskConfig
 
-class MyTask(AsyncTask[None]):
+class MyTask(AsyncTask):
     config: TaskConfig = {
         "queue": "high-priority",
         "max_attempts": 5,          # Retry up to 5 times
@@ -401,7 +401,7 @@ logger.error(
 import pytest
 from asynctasq import AsyncTask
 
-class FailingTask(AsyncTask[None]):
+class FailingTask(AsyncTask):
     fail_count: int = 0
 
     async def execute(self) -> None:
@@ -450,7 +450,7 @@ This section covers real-world error scenarios and recommended handling patterns
 from asynctasq import AsyncTask
 import httpx
 
-class FetchUserDataTask(AsyncTask[None]):
+class FetchUserDataTask(AsyncTask):
     config = {
         "queue": "api_calls",
         "max_attempts": 5,
@@ -515,7 +515,7 @@ from sqlalchemy.exc import (
 )
 import asyncio
 
-class UpdateUserTask(AsyncTask[None]):
+class UpdateUserTask(AsyncTask):
     config = {
         "queue": "database",
         "max_attempts": 5,
@@ -578,7 +578,7 @@ from asynctasq import AsyncTask
 from pathlib import Path
 import aiofiles
 
-class ProcessImageTask(AsyncTask[None]):
+class ProcessImageTask(AsyncTask):
     config = {
         "queue": "images",
         "max_attempts": 3,
@@ -644,7 +644,7 @@ from asynctasq import AsyncTask
 import httpx
 import asyncio
 
-class SendEmailTask(AsyncTask[None]):
+class SendEmailTask(AsyncTask):
     config = {
         "queue": "emails",
         "max_attempts": 10,  # More attempts for rate-limited services
@@ -707,7 +707,7 @@ class SendEmailTask(AsyncTask[None]):
 ```python
 from asynctasq import AsyncTask
 
-class ChargeCustomerTask(AsyncTask[None]):
+class ChargeCustomerTask(AsyncTask):
     config = {
         "queue": "payments",
         "max_attempts": 3,
@@ -763,7 +763,7 @@ class ChargeCustomerTask(AsyncTask[None]):
 from asynctasq import AsyncTask
 import asyncio
 
-class ProcessBatchTask(AsyncTask[None]):
+class ProcessBatchTask(AsyncTask):
     config = {
         "queue": "batch",
         "max_attempts": 3,
@@ -812,7 +812,7 @@ class ProcessBatchTask(AsyncTask[None]):
 ```python
 from asynctasq import AsyncTask
 
-class CreateUserAccountTask(AsyncTask[None]):
+class CreateUserAccountTask(AsyncTask):
     config = {
         "queue": "accounts",
         "max_attempts": 3,

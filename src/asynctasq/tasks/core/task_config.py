@@ -23,7 +23,7 @@ class TaskConfig(TypedDict, total=False):
     --------
     Define task defaults using class-level configuration:
 
-    >>> class SendEmailTask(AsyncTask[str]):
+    >>> class SendEmailTask(AsyncTask):
     ...     config: TaskConfig = {
     ...         "queue": "emails",
     ...         "max_attempts": 5,
@@ -32,7 +32,7 @@ class TaskConfig(TypedDict, total=False):
 
     Override specific settings:
 
-    >>> class ProcessData(AsyncProcessTask[dict]):
+    >>> class ProcessData(AsyncProcessTask):
     ...     config: TaskConfig = {
     ...         "queue": "cpu_intensive",
     ...         "max_attempts": 3,

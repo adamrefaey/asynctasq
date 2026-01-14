@@ -72,7 +72,7 @@ def heavy_computation(data: list[float]):
 - **Flexible configuration** - Queue, retries, timeout, driver, process via decorator or method chaining
 - **Method chaining** - Override configuration at dispatch time with fluent API
 - **ORM model serialization** - Automatic lightweight references for SQLAlchemy, Django, Tortoise
-- **Type-safe** - Full type hints and Generic support
+- **Type-safe** - Full type hints and IDE support
 - **Multiple dispatch methods** - Direct dispatch, delayed execution, or method chaining
 
 ---
@@ -1605,7 +1605,7 @@ Function-based tasks provide the simplest way to create background tasks in Asyn
 ✅ **Driver overrides** - Per-task driver selection (string or instance)
 ✅ **Beautiful console output** - Rich-enhanced print() with colors, tables, and formatting
 ✅ **Error handling** - Automatic retries with configurable attempts and delays
-✅ **Type safety** - Full type hints and Generic support
+✅ **Type safety** - Full type hints and IDE support
 ✅ **Production-ready** - Multiple queue drivers, monitoring, graceful shutdown
 
 ### Complete Checklist

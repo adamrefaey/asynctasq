@@ -7,7 +7,7 @@ operations that need to run in separate processes to bypass Python's GIL.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, Any, override
 
 from asynctasq.tasks.core.base_task import BaseTask
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     pass
 
 
-class SyncProcessTask[T](BaseTask[T]):
+class SyncProcessTask(BaseTask):
     """Synchronous CPU-bound task executed in a separate process.
 
     Use SyncProcessTask for CPU-intensive synchronous operations that bypass the GIL:
@@ -32,11 +32,6 @@ class SyncProcessTask[T](BaseTask[T]):
     For I/O-bound work, use AsyncTask or SyncTask instead.
     For async CPU work, use AsyncProcessTask.
 
-    Type Parameters
-    ---------------
-    T : type
-        Return type of the task's execute() method
-
     Examples
     --------
     CPU-intensive numerical computation:
@@ -44,14 +39,14 @@ class SyncProcessTask[T](BaseTask[T]):
     >>> from asynctasq.tasks import SyncProcessTask
     >>> import numpy as np
     >>>
-    >>> class ComputeMatrix(SyncProcessTask[np.ndarray]):
+    >>> class ComputeMatrix(SyncProcessTask):
     ...     size: int
     ...     config: TaskConfig = {
     ...         "queue": "cpu_intensive",
     ...         "timeout": 600,
     ...     }
     ...
-    ...     def execute(self) -> np.ndarray:
+    ...     def execute(self):
     ...         # CPU-intensive matrix operations
     ...         matrix = np.random.rand(self.size, self.size)
     ...         result = np.linalg.inv(matrix @ matrix.T)
@@ -59,10 +54,10 @@ class SyncProcessTask[T](BaseTask[T]):
 
     Image processing:
 
-    >>> class ProcessImage(SyncProcessTask[bytes]):
+    >>> class ProcessImage(SyncProcessTask):
     ...     image_path: str
     ...
-    ...     def execute(self) -> bytes:
+    ...     def execute(self):
     ...         from PIL import Image
     ...         img = Image.open(self.image_path)
     ...         # CPU-intensive image transformations
@@ -77,7 +72,7 @@ class SyncProcessTask[T](BaseTask[T]):
     """
 
     @override
-    async def run(self) -> T:
+    async def run(self) -> Any:
         """Execute synchronous task in ProcessPoolExecutor.
 
         This method is called by the task execution framework and should not
@@ -85,7 +80,7 @@ class SyncProcessTask[T](BaseTask[T]):
 
         Returns
         -------
-        T
+        Any
             Result from the execute() method executed in a subprocess
         """
         import asyncio
@@ -106,7 +101,7 @@ class SyncProcessTask[T](BaseTask[T]):
         return await loop.run_in_executor(pool, _sync_process_task_worker, serialized_task)
 
     @abstractmethod
-    def execute(self) -> T:
+    def execute(self) -> Any:
         """Execute sync CPU-bound logic (user implementation required).
 
         Implement this method with your task's CPU-intensive business logic.
@@ -115,7 +110,7 @@ class SyncProcessTask[T](BaseTask[T]):
 
         Returns
         -------
-        T
+        Any
             Result of the synchronous CPU-bound operation
 
         Notes

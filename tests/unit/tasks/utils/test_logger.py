@@ -22,7 +22,7 @@ from asynctasq.tasks.utils.logger import (
 )
 
 
-class SampleTask(BaseTask[int]):
+class SampleTask(BaseTask):
     """Sample task for testing."""
 
     async def run(self) -> int:
@@ -35,7 +35,7 @@ class TestGetTaskContext:
 
     def test_extracts_basic_task_context(self) -> None:
         # Arrange
-        class ConfiguredTask(BaseTask[int]):
+        class ConfiguredTask(BaseTask):
             config = {
                 "queue": "test-queue",
                 "max_attempts": 5,
@@ -180,7 +180,7 @@ class TestLogTaskWarning:
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
 
-        class WarnTask(BaseTask[int]):
+        class WarnTask(BaseTask):
             max_attempts = 3
 
             async def run(self) -> int:
@@ -228,7 +228,7 @@ class TestLogTaskError:
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
 
-        class ErrorTask(BaseTask[int]):
+        class ErrorTask(BaseTask):
             max_attempts = 3
 
             async def run(self) -> int:
