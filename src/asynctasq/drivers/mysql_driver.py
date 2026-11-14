@@ -176,12 +176,15 @@ class MySQLDriver(BaseDriver):
                 """)
 
                 # Add visibility_timeout_seconds column if it doesn't exist (migration)
-                await cursor.execute(f"""
+                await cursor.execute(
+                    """
                     SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
                     WHERE TABLE_SCHEMA = DATABASE()
-                    AND TABLE_NAME = '{self.queue_table}'
+                    AND TABLE_NAME = %s
                     AND COLUMN_NAME = 'visibility_timeout_seconds'
-                """)
+                    """,
+                    (self.queue_table,),
+                )
                 row = await cursor.fetchone()
                 if row and row[0] == 0:
                     await cursor.execute(f"""
