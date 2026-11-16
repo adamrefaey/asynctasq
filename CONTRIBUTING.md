@@ -4,6 +4,10 @@ Thank you for your interest in contributing to AsyncTasQ! We welcome contributio
 
 ## Getting Started
 
+> [!NOTE]
+>
+> If you're on Windows, you should set up your environment under WSL. Running tests requires the `uvloop` dependency which is not supported on Windows.
+
 1. **Fork the repository** on GitHub
 2. **Clone your fork:**
    ```bash

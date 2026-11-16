@@ -35,7 +35,7 @@ dependencies = [
     "msgspec>=0.18.0",
     "pydantic-settings>=2.0.0",
     "rich>=13.6.0",
-    "uvloop>=0.19.0",
+    "uvloop>=0.19.0 ; sys_platform != 'cli' and sys_platform != 'cygwin' and sys_platform != 'win32'",
 ]
 
 [project.optional-dependencies]
