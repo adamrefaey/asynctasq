@@ -315,7 +315,7 @@ dependencies = [
     { name = "msgspec" },
     { name = "pydantic-settings" },
     { name = "rich" },
-    { name = "uvloop", marker = "sys_platform != 'win32'" },
+    { name = "uvloop", marker = "sys_platform != 'cli' and sys_platform != 'cygwin' and sys_platform != 'win32'" },
 ]
 
 [package.optional-dependencies]
@@ -410,7 +410,7 @@ requires-dist = [
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=2.0.22" },
     { name = "tortoise-orm", marker = "extra == 'tortoise'", specifier = ">=0.21.0" },
     { name = "types-aioboto3", extras = ["sqs"], marker = "extra == 'sqs'", specifier = ">=12.0.0" },
-    { name = "uvloop", marker = "sys_platform != 'win32'", specifier = ">=0.19.0" },
+    { name = "uvloop", marker = "sys_platform != 'cli' and sys_platform != 'cygwin' and sys_platform != 'win32'", specifier = ">=0.19.0" },
 ]
 provides-extras = ["redis", "sqs", "postgres", "mysql", "rabbitmq", "sqlalchemy", "django", "tortoise", "fastapi", "monitor", "all"]
 
